@@ -1,0 +1,19 @@
+:host {
+  display: block;
+  min-height: 100dvh;
+  --primary: var(--booking-primary);
+  --business-primary: var(--booking-primary);
+  --mat-sys-primary: var(--booking-primary);
+  background: var(--page-canvas, color-mix(in srgb, var(--booking-primary) 10%, #fff));
+}
+
+.brand-fill {
+  background: var(--booking-primary);
+  color: #fff;
+}
+
+.choice-selected {
+  border-color: var(--booking-primary);
+  box-shadow: inset 0 0 0 2px var(--booking-primary);
+  background: color-mix(in srgb, var(--booking-primary) 8%, white);
+}

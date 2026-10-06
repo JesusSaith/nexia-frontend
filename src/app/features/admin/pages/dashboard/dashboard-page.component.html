@@ -1,0 +1,83 @@
+<section>
+  <header class="mb-6">
+    <h1>Dashboard</h1>
+    <p class="mt-1 text-sm text-slate-500">Así va el negocio hoy y este mes.</p>
+  </header>
+
+  @if (loadError(); as message) {
+    <p role="alert" class="text-sm text-red-700">{{ message }}</p>
+  } @else if (isLoading()) {
+    <div class="flex justify-center py-16">
+      <mat-spinner diameter="36" />
+    </div>
+  } @else if (stats(); as stats) {
+    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <article class="rounded border p-5">
+        <span class="brand-soft inline-flex h-10 w-10 items-center justify-center rounded-2xl"><mat-icon>today</mat-icon></span>
+        <p class="mt-4 text-3xl font-semibold tracking-tight">{{ stats.total_today }}</p>
+        <p class="mt-1 text-sm text-slate-500">Citas de hoy</p>
+      </article>
+      <article class="rounded border p-5">
+        <span class="brand-soft inline-flex h-10 w-10 items-center justify-center rounded-2xl"><mat-icon>payments</mat-icon></span>
+        <p class="mt-4 text-3xl font-semibold tracking-tight">{{ formatMoney(stats.revenue_today) }}</p>
+        <p class="mt-1 text-sm text-slate-500">Ingresos de hoy</p>
+      </article>
+      <article class="rounded border p-5">
+        <span class="brand-soft inline-flex h-10 w-10 items-center justify-center rounded-2xl"><mat-icon>calendar_month</mat-icon></span>
+        <p class="mt-4 text-3xl font-semibold tracking-tight">{{ stats.total_month }}</p>
+        <p class="mt-1 text-sm text-slate-500">Citas del mes</p>
+      </article>
+      <article class="rounded border p-5">
+        <span class="brand-soft inline-flex h-10 w-10 items-center justify-center rounded-2xl"><mat-icon>trending_up</mat-icon></span>
+        <p class="mt-4 text-3xl font-semibold tracking-tight">{{ formatMoney(stats.revenue_month) }}</p>
+        <p class="mt-1 text-sm text-slate-500">Proyección del mes</p>
+      </article>
+    </div>
+
+    <div class="mt-4 grid gap-4 lg:grid-cols-2">
+      <section class="rounded border p-5">
+        <h2 class="text-base font-medium">Servicios Más Solicitados</h2>
+        @if (stats.top_services.length === 0) {
+          <p class="py-8 text-sm text-slate-600">Todavía no hay servicios con citas este mes.</p>
+        } @else {
+          <ul class="mt-4 flex flex-col gap-4">
+            @for (service of stats.top_services; track service.service_name) {
+              <li>
+                <div class="mb-1 flex items-baseline justify-between gap-3 text-sm">
+                  <span class="font-medium">{{ service.service_name }}</span>
+                  <span class="text-slate-600">{{ formatMoney(service.total_revenue) }}</span>
+                </div>
+                <div class="h-2 overflow-hidden rounded bg-slate-100">
+                  <div class="brand-solid h-full rounded" [style.width.%]="barWidth(service.total_appointments)"></div>
+                </div>
+                <p class="mt-1 text-xs text-slate-500">
+                  {{ service.total_appointments }}
+                  {{ service.total_appointments === 1 ? 'cita' : 'citas' }}
+                </p>
+              </li>
+            }
+          </ul>
+        }
+      </section>
+
+      <section class="rounded border p-5">
+        <h2 class="text-base font-medium">Ocupación por Colaborador</h2>
+        @if (stats.staff_occupancy.length === 0) {
+          <p class="py-8 text-sm text-slate-600">Nadie tiene citas asignadas este mes.</p>
+        } @else {
+          <ul class="mt-4 divide-y divide-slate-100">
+            @for (member of stats.staff_occupancy; track member.staff_name) {
+              <li class="flex items-center justify-between gap-3 py-3 text-sm">
+                <span class="font-medium">{{ member.staff_name }}</span>
+                <span class="text-slate-600">
+                  {{ member.total_appointments }}
+                  {{ member.total_appointments === 1 ? 'cita' : 'citas' }}
+                </span>
+              </li>
+            }
+          </ul>
+        }
+      </section>
+    </div>
+  }
+</section>

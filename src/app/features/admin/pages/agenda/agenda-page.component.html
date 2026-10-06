@@ -1,0 +1,330 @@
+<section>
+  <header class="mb-6 flex flex-col gap-4">
+    <div class="flex flex-wrap items-center gap-2">
+      <mat-icon>calendar_month</mat-icon>
+      <div>
+        <h1 class="text-xl font-semibold">{{ isStaff() ? 'Mi Agenda' : 'Agenda' }}</h1>
+        <p class="text-sm text-slate-500">Toca un horario libre para crear una cita.</p>
+      </div>
+      <span class="flex-1"></span>
+      <button mat-flat-button color="primary" type="button" (click)="openCreate()">
+        <mat-icon>add</mat-icon>
+        Nueva Cita
+      </button>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2">
+      <button mat-icon-button type="button" aria-label="Anterior" (click)="shift(-1)">
+        <mat-icon>chevron_left</mat-icon>
+      </button>
+      <button mat-stroked-button type="button" (click)="goToday()">Hoy</button>
+      <button mat-icon-button type="button" aria-label="Siguiente" (click)="shift(1)">
+        <mat-icon>chevron_right</mat-icon>
+      </button>
+      <p class="min-w-48 text-sm font-medium">{{ periodLabel() }}</p>
+      @if (isLoading()) {
+        <mat-spinner diameter="18" />
+      }
+
+      <div class="inline-flex gap-1 rounded-2xl bg-white p-1 shadow-[0_4px_20px_-4px_rgba(225,29,72,0.06)]">
+        @for (view of views; track view.id) {
+          <button
+            type="button"
+            class="rounded-xl px-3 py-1.5 text-sm transition active:scale-[0.98]"
+            [class.brand-solid]="currentView() === view.id"
+            (click)="setView(view.id)"
+          >
+            {{ view.label }}
+          </button>
+        }
+      </div>
+
+      <mat-form-field appearance="outline" class="w-full sm:w-52" subscriptSizing="dynamic">
+        <mat-label>Servicio</mat-label>
+        <mat-select [value]="serviceId() ?? ''" (selectionChange)="onService($event.value)">
+          <mat-option value="">Todos</mat-option>
+          @for (service of activeServices(); track service.id) {
+            <mat-option [value]="service.id">{{ service.name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      @if (!isStaff()) {
+        <mat-form-field appearance="outline" class="w-full sm:w-52" subscriptSizing="dynamic">
+          <mat-label>Colaborador</mat-label>
+          <mat-select [value]="staffId() ?? ''" (selectionChange)="onStaff($event.value)">
+            <mat-option value="">Todos</mat-option>
+            @for (member of staff(); track member.id) {
+              <mat-option [value]="member.id">
+                {{ member.full_name }}
+                @if (serviceId() !== null && isAvailable(member.id)) {
+                  <span class="text-emerald-700"> · disponible</span>
+                }
+              </mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      }
+    </div>
+  </header>
+
+  @if (loadError(); as message) {
+    <p role="alert" class="mb-3 text-sm text-red-700">{{ message }}</p>
+  }
+
+  @switch (currentView()) {
+    @case ('month') {
+      <div class="overflow-x-auto">
+        <div class="grid min-w-[720px] grid-cols-7 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          @for (label of weekdayLabels; track label) {
+            <div class="border-b border-r border-slate-200 px-2 py-1 text-xs text-slate-500">{{ label }}</div>
+          }
+          @for (week of monthWeeks(); track dayKey(week[0])) {
+            @for (day of week; track dayKey(day)) {
+              <div class="relative min-h-28 border-b border-r border-slate-200">
+                <button
+                  type="button"
+                  class="absolute inset-0"
+                  [attr.aria-label]="'Ver ' + dayKey(day)"
+                  (click)="openDay(day)"
+                ></button>
+                <div class="pointer-events-none relative p-1">
+                  <span
+                    class="inline-flex h-6 w-6 items-center justify-center rounded-full text-sm"
+                    [class.text-slate-400]="!inCurrentMonth(day)"
+                    [class.brand-solid]="isToday(day)"
+                    [class.text-white]="isToday(day)"
+                  >
+                    {{ day.getDate() }}
+                  </span>
+                </div>
+                <div class="relative z-10 flex flex-col gap-1 px-1 pb-1">
+                  @for (item of preview(day); track item.id) {
+                    <button
+                      type="button"
+                      class="truncate rounded px-1 py-0.5 text-left text-xs"
+                      [class]="statusClass(item.status)"
+                      (click)="openAppointment(item, $event)"
+                    >
+                      {{ formatTime(item.starts_at) }} {{ item.client_name }}
+                    </button>
+                  }
+                  @if (hiddenCount(day) > 0) {
+                    <span class="px-1 text-xs text-slate-500">+{{ hiddenCount(day) }} más</span>
+                  }
+                </div>
+              </div>
+            }
+          }
+        </div>
+      </div>
+    }
+    @case ('week') {
+      <div class="overflow-auto rounded border border-slate-200 bg-white">
+        <div class="grid min-w-[840px]" style="grid-template-columns: 3.5rem repeat(7, minmax(0, 1fr))">
+          <div class="border-b border-slate-200"></div>
+          @for (day of weekDays(); track dayKey(day)) {
+            <div class="border-b border-l border-slate-200 px-2 py-2 text-center">
+              <div class="text-xs text-slate-500">{{ weekdayName(day) }}</div>
+              <div
+                class="mx-auto mt-1 flex h-8 w-8 items-center justify-center rounded-full text-sm"
+                [class.brand-solid]="isToday(day)"
+                [class.text-white]="isToday(day)"
+              >
+                {{ day.getDate() }}
+              </div>
+            </div>
+          }
+          <div class="relative" [style.height.px]="gridHeight">
+            @for (slot of slots; track slot) {
+              @if (slot % 60 === 0) {
+                <span class="absolute right-1 -translate-y-1/2 text-[11px] text-slate-400" [style.top.px]="((slot - slots[0]) / 30) * 28">
+                  {{ slotLabel(slot) }}
+                </span>
+              }
+            }
+          </div>
+          @for (day of weekDays(); track dayKey(day)) {
+            <div class="relative border-l border-slate-200" [style.height.px]="gridHeight">
+              @for (slot of slots; track slot) {
+                <button
+                  type="button"
+                  class="block h-7 w-full border-t border-slate-100"
+                  [class.border-slate-200]="slot % 60 === 0"
+                  [attr.aria-label]="'Agendar ' + dayKey(day) + ' ' + slotLabel(slot)"
+                  (click)="openCreateAt(day, slot)"
+                ></button>
+              }
+              @for (item of appointmentsOn(day); track item.id) {
+                <button
+                  type="button"
+                  class="absolute inset-x-1 z-10 overflow-hidden rounded px-1 text-left text-xs"
+                  [class]="statusClass(item.status)"
+                  [style.top]="blockStyle(item).top"
+                  [style.height]="blockStyle(item).height"
+                  (click)="openAppointment(item, $event)"
+                >
+                  <span class="block font-medium">{{ formatTime(item.starts_at) }}</span>
+                  <span class="block truncate">{{ item.client_name }}</span>
+                </button>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    }
+    @case ('day') {
+      @if (visibleStaff().length === 0) {
+        <p class="py-10 text-center text-sm text-slate-600">No hay colaboradores activos para este día.</p>
+      } @else {
+        <div class="overflow-auto rounded border border-slate-200 bg-white">
+          <div
+            class="grid min-w-[640px]"
+            [style.grid-template-columns]="'3.5rem repeat(' + visibleStaff().length + ', minmax(160px, 1fr))'"
+          >
+            <div class="border-b border-slate-200"></div>
+            @for (member of visibleStaff(); track member.id) {
+              <div
+                class="border-b border-l border-slate-200 px-2 py-3 text-sm font-medium"
+                [class.bg-emerald-50]="serviceId() !== null && isAvailable(member.id)"
+              >
+                {{ member.full_name }}
+                @if (serviceId() !== null && isAvailable(member.id)) {
+                  <span class="mt-1 block text-xs font-normal text-emerald-700">Disponible</span>
+                }
+              </div>
+            }
+            <div class="relative" [style.height.px]="gridHeight">
+              @for (slot of slots; track slot) {
+                @if (slot % 60 === 0) {
+                  <span class="absolute right-1 -translate-y-1/2 text-[11px] text-slate-400" [style.top.px]="((slot - slots[0]) / 30) * 28">
+                    {{ slotLabel(slot) }}
+                  </span>
+                }
+              }
+            </div>
+            @for (member of visibleStaff(); track member.id) {
+              <div class="relative border-l border-slate-200" [style.height.px]="gridHeight">
+                @if (availabilityStyle(member.id, cursor()); as band) {
+                  <div class="absolute inset-x-0 bg-emerald-50" [style.top]="band.top" [style.height]="band.height"></div>
+                }
+                @for (slot of slots; track slot) {
+                  <button
+                    type="button"
+                    class="relative block h-7 w-full border-t border-slate-100"
+                    [class.border-slate-200]="slot % 60 === 0"
+                    [attr.aria-label]="'Agendar con ' + member.full_name + ' a las ' + slotLabel(slot)"
+                    (click)="openCreateAt(cursor(), slot, member.id)"
+                  ></button>
+                }
+                @for (item of appointmentsOn(cursor(), member.id); track item.id) {
+                  <button
+                    type="button"
+                    class="absolute inset-x-1 z-10 overflow-hidden rounded px-1 text-left text-xs"
+                    [class]="statusClass(item.status)"
+                    [style.top]="blockStyle(item).top"
+                    [style.height]="blockStyle(item).height"
+                    (click)="openAppointment(item, $event)"
+                  >
+                    <span class="block font-medium">{{ formatTime(item.starts_at) }} {{ item.service_name }}</span>
+                    <span class="block truncate">{{ item.client_name }}</span>
+                  </button>
+                }
+              </div>
+            }
+          </div>
+        </div>
+      }
+    }
+  }
+</section>
+
+@if (selected(); as pop) {
+  <button type="button" class="fixed inset-0 z-30 cursor-default" aria-label="Cerrar detalle" (click)="closeAppointment()"></button>
+  <article class="fixed z-40 w-72 rounded border border-slate-200 bg-white p-3 shadow" [style.left.px]="pop.x" [style.top.px]="pop.y">
+    <div class="flex items-start justify-between gap-2">
+      <h2 class="text-sm font-medium">{{ pop.appointment.client_name }}</h2>
+      <button mat-icon-button type="button" aria-label="Cerrar" (click)="closeAppointment()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+    <p class="text-sm text-slate-600">{{ formatTime(pop.appointment.starts_at) }} · {{ pop.appointment.service_name }}</p>
+    <p class="text-sm text-slate-600">{{ pop.appointment.staff_name }}</p>
+    <p class="mt-2 text-sm">{{ pop.appointment.client_phone || 'Sin teléfono' }}</p>
+    <p class="text-sm">{{ pop.appointment.client_email || 'Sin correo' }}</p>
+    @if (pop.appointment.notes) {
+      <p class="mt-2 text-sm text-slate-600">{{ pop.appointment.notes }}</p>
+    }
+    <p class="mt-2 text-xs text-slate-500">{{ statusLabel(pop.appointment.status) }}</p>
+    @if (pop.appointment.status === 'scheduled') {
+      <div class="mt-3 flex gap-2">
+        @if (pendingId() === pop.appointment.id) {
+          <mat-spinner diameter="20" />
+        } @else {
+          <button mat-stroked-button type="button" (click)="setStatus(pop.appointment, 'completed')">Completar</button>
+          <button mat-stroked-button type="button" (click)="setStatus(pop.appointment, 'cancelled')">Cancelar</button>
+        }
+      </div>
+    }
+  </article>
+}
+
+<ng-template #editor>
+  <h2 mat-dialog-title>Nueva cita</h2>
+  <mat-dialog-content>
+    <form id="appointment-form" class="flex flex-col gap-1 pt-2" [formGroup]="form" (ngSubmit)="save()">
+      <mat-form-field appearance="outline">
+        <mat-label>Servicio</mat-label>
+        <mat-select formControlName="service_id">
+          @for (service of activeServices(); track service.id) {
+            <mat-option [value]="service.id">{{ service.name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Colaborador</mat-label>
+        <mat-select formControlName="staff_id">
+          @for (member of staff(); track member.id) {
+            @if (member.is_active) {
+              <mat-option [value]="member.id">{{ member.full_name }}</mat-option>
+            }
+          }
+        </mat-select>
+      </mat-form-field>
+      <div class="grid gap-3 sm:grid-cols-2">
+        <mat-form-field appearance="outline">
+          <mat-label>Fecha</mat-label>
+          <input matInput type="date" formControlName="date" />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Hora de inicio</mat-label>
+          <input matInput type="time" formControlName="time" />
+        </mat-form-field>
+      </div>
+      <mat-form-field appearance="outline">
+        <mat-label>Nombre del cliente</mat-label>
+        <input matInput formControlName="client_name" />
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Teléfono</mat-label>
+        <input matInput type="tel" formControlName="client_phone" />
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Correo</mat-label>
+        <input matInput type="email" formControlName="client_email" />
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Notas</mat-label>
+        <textarea matInput rows="3" formControlName="notes"></textarea>
+      </mat-form-field>
+      @if (formError(); as message) {
+        <p role="alert" class="text-sm text-red-700">{{ message }}</p>
+      }
+    </form>
+  </mat-dialog-content>
+  <mat-dialog-actions align="end">
+    <button mat-button type="button" (click)="closeEditor()" [disabled]="isSaving()">Cerrar</button>
+    <button mat-flat-button color="primary" type="submit" form="appointment-form" [disabled]="isSaving()">
+      {{ isSaving() ? 'Guardando…' : 'Guardar' }}
+    </button>
+  </mat-dialog-actions>
+</ng-template>

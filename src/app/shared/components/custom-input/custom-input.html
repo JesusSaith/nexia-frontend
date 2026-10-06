@@ -2,19 +2,37 @@
   <label class="mb-1.5 block text-sm font-medium text-slate-700" [attr.for]="inputId">
     {{ label() }}
   </label>
-  <input
-    [id]="inputId"
-    [type]="type()"
-    [placeholder]="placeholder()"
-    [value]="value()"
-    [disabled]="disabled()"
-    [attr.autocomplete]="autocomplete() || null"
-    [attr.aria-invalid]="error() ? true : null"
-    [attr.aria-describedby]="error() ? errorId : null"
-    (input)="onInput($event)"
-    (blur)="markTouched()"
-    [class]="inputClasses()"
-  />
+  @if (multiline()) {
+    <textarea
+      [id]="inputId"
+      [rows]="rows()"
+      [placeholder]="placeholder()"
+      [value]="value()"
+      [disabled]="disabled()"
+      [attr.aria-invalid]="error() ? true : null"
+      [attr.aria-describedby]="error() ? errorId : null"
+      (input)="onInput($event)"
+      (blur)="markTouched()"
+      [class]="inputClasses() + ' resize-y'"
+    ></textarea>
+  } @else {
+    <input
+      [id]="inputId"
+      [type]="type()"
+      [placeholder]="placeholder()"
+      [value]="value()"
+      [disabled]="disabled()"
+      [attr.autocomplete]="autocomplete() || null"
+      [attr.min]="min()"
+      [attr.step]="step()"
+      [attr.inputmode]="inputMode() || null"
+      [attr.aria-invalid]="error() ? true : null"
+      [attr.aria-describedby]="error() ? errorId : null"
+      (input)="onInput($event)"
+      (blur)="markTouched()"
+      [class]="inputClasses()"
+    />
+  }
   @if (error()) {
     <p [id]="errorId" class="mt-1.5 text-sm text-rose-600">{{ error() }}</p>
   }

@@ -2,15 +2,26 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
 import { Router, RouterLink } from '@angular/router';
 
 import { AuthService } from '@core/services/auth.service';
-import { CustomButtonComponent } from '@shared/components/custom-button/custom-button';
-import { CustomInputComponent } from '@shared/components/custom-input/custom-input';
 
 @Component({
   selector: 'app-login',
-  imports: [ReactiveFormsModule, RouterLink, CustomInputComponent, CustomButtonComponent],
+  imports: [
+    ReactiveFormsModule,
+    RouterLink,
+    MatButtonModule,
+    MatCardModule,
+    MatFormFieldModule,
+    MatIconModule,
+    MatInputModule,
+  ],
   templateUrl: './login.html',
 })
 export class Login {
@@ -19,6 +30,7 @@ export class Login {
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly submitting = signal(false);
+  protected readonly hidePassword = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
   private readonly validationTick = signal(0);
 
@@ -67,8 +79,9 @@ export class Login {
       .login(this.form.getRawValue())
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: () => {
-          void this.router.navigateByUrl('/admin');
+        next: (user) => {
+          const destination = user.role === 'super_admin' ? '/super-admin' : '/admin';
+          void this.router.navigateByUrl(destination);
         },
         error: (error: HttpErrorResponse) => {
           this.submitting.set(false);

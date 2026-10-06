@@ -1,3 +1,73 @@
-<main class="p-8">
-  <h1 class="text-2xl font-semibold text-slate-900">Crear cuenta</h1>
+<main class="flex min-h-dvh items-center justify-center p-4">
+  <mat-card class="w-full max-w-[420px]">
+    <mat-card-content>
+      <div class="mb-6 flex items-center gap-2">
+        <mat-icon>storefront</mat-icon>
+        <h1 class="text-xl font-medium">Crear cuenta</h1>
+      </div>
+
+      <form class="flex flex-col gap-3" [formGroup]="form" (ngSubmit)="submit()">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
+          <mat-label>Nombre</mat-label>
+          <mat-icon matPrefix>person</mat-icon>
+          <input matInput formControlName="fullName" autocomplete="name" />
+          @if (fullNameError()) {
+            <mat-error>{{ fullNameError() }}</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
+          <mat-label>Negocio</mat-label>
+          <mat-icon matPrefix>store</mat-icon>
+          <input matInput formControlName="businessName" autocomplete="organization" />
+          @if (businessNameError()) {
+            <mat-error>{{ businessNameError() }}</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
+          <mat-label>Correo</mat-label>
+          <mat-icon matPrefix>mail</mat-icon>
+          <input matInput type="email" formControlName="email" autocomplete="email" />
+          @if (emailError()) {
+            <mat-error>{{ emailError() }}</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
+          <mat-label>Contraseña</mat-label>
+          <mat-icon matPrefix>lock</mat-icon>
+          <input
+            matInput
+            [type]="hidePassword() ? 'password' : 'text'"
+            formControlName="password"
+            autocomplete="new-password"
+          />
+          <button
+            mat-icon-button
+            matSuffix
+            type="button"
+            (click)="hidePassword.set(!hidePassword())"
+            [attr.aria-label]="hidePassword() ? 'Mostrar contraseña' : 'Ocultar contraseña'"
+          >
+            <mat-icon>{{ hidePassword() ? 'visibility' : 'visibility_off' }}</mat-icon>
+          </button>
+          @if (passwordError()) {
+            <mat-error>{{ passwordError() }}</mat-error>
+          }
+        </mat-form-field>
+
+        @if (errorMessage(); as message) {
+          <p role="alert" class="text-sm text-red-700">{{ message }}</p>
+        }
+
+        <button mat-flat-button color="primary" type="submit" [disabled]="submitting()">
+          {{ submitting() ? 'Creando cuenta…' : 'Crear cuenta' }}
+        </button>
+      </form>
+    </mat-card-content>
+    <mat-card-actions align="end">
+      <a mat-button routerLink="/auth/login">Iniciar sesión</a>
+    </mat-card-actions>
+  </mat-card>
 </main>

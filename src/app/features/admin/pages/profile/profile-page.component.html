@@ -1,0 +1,48 @@
+<section class="mx-auto max-w-xl">
+  <header class="mb-4 flex items-center gap-2">
+    <mat-icon>account_circle</mat-icon>
+    <h1 class="text-xl font-medium">Mi perfil</h1>
+  </header>
+
+  @if (loadError(); as message) {
+    <p role="alert" class="text-sm text-red-700">{{ message }}</p>
+  } @else if (isLoading()) {
+    <div class="flex justify-center py-16">
+      <mat-spinner diameter="36" />
+    </div>
+  } @else {
+    <form class="flex flex-col gap-1" [formGroup]="form" (ngSubmit)="save()">
+      <p class="mb-2 text-sm text-slate-600">{{ profile()?.role_title }}</p>
+      <mat-form-field appearance="outline">
+        <mat-label>Nombre</mat-label>
+        <input matInput formControlName="full_name" />
+        @if (nameError()) {
+          <mat-error>{{ nameError() }}</mat-error>
+        }
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Teléfono</mat-label>
+        <input matInput type="tel" formControlName="phone" />
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Foto</mat-label>
+        <input matInput formControlName="avatar_url" placeholder="https://" />
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Biografía</mat-label>
+        <textarea matInput rows="4" formControlName="bio"></textarea>
+      </mat-form-field>
+      @if (formError(); as message) {
+        <p role="alert" class="text-sm text-red-700">{{ message }}</p>
+      }
+      @if (saved()) {
+        <p class="text-sm text-emerald-700">Perfil guardado.</p>
+      }
+      <div>
+        <button mat-flat-button color="primary" type="submit" [disabled]="isSaving()">
+          {{ isSaving() ? 'Guardando…' : 'Guardar' }}
+        </button>
+      </div>
+    </form>
+  }
+</section>

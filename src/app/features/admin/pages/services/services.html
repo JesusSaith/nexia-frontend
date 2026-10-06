@@ -1,6 +1,119 @@
 <section>
-  <h1 class="text-2xl font-semibold tracking-tight text-slate-950">Servicios</h1>
-  <p class="mt-2 max-w-xl text-sm text-slate-500">
-    Aquí vas a configurar lo que ofreces y cuánto dura.
-  </p>
+  <header class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <h1>Servicios</h1>
+      <p class="mt-1 text-sm text-slate-500">Precio, duración y lo que ofreces.</p>
+    </div>
+    <button mat-flat-button color="primary" type="button" (click)="openCreate()">
+      <mat-icon>add</mat-icon>
+      Nuevo servicio
+    </button>
+  </header>
+
+  @if (loadError(); as message) {
+    <p role="alert" class="mb-4 text-sm text-red-700">{{ message }}</p>
+  }
+
+  @if (isLoading()) {
+    <div class="flex justify-center py-16">
+      <mat-spinner diameter="36" />
+    </div>
+  } @else if (services().length === 0) {
+    <p class="py-10 text-center text-sm text-slate-600">No hay servicios en el catálogo.</p>
+  } @else {
+    <div class="overflow-x-auto bg-white">
+      <table mat-table [dataSource]="services()" class="w-full">
+        <ng-container matColumnDef="name">
+          <th mat-header-cell *matHeaderCellDef>Servicio</th>
+          <td mat-cell *matCellDef="let row">
+            <div class="font-medium">{{ row.name }}</div>
+            <div class="text-sm text-slate-500">{{ row.description || 'Sin descripción' }}</div>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="price">
+          <th mat-header-cell *matHeaderCellDef>Precio</th>
+          <td mat-cell *matCellDef="let row">{{ formatPrice(row.price) }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="duration">
+          <th mat-header-cell *matHeaderCellDef>Duración</th>
+          <td mat-cell *matCellDef="let row">{{ row.duration_minutes }} min</td>
+        </ng-container>
+
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef>Estado</th>
+          <td mat-cell *matCellDef="let row">{{ row.is_active ? 'Activo' : 'Inactivo' }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef></th>
+          <td mat-cell *matCellDef="let row">
+            <button mat-icon-button type="button" aria-label="Editar" (click)="openEdit(row)">
+              <mat-icon>edit</mat-icon>
+            </button>
+            @if (pendingId() === row.id) {
+              <mat-spinner diameter="20" />
+            } @else {
+              <button
+                mat-icon-button
+                type="button"
+                (click)="toggleActive(row)"
+                [attr.aria-label]="row.is_active ? 'Desactivar' : 'Activar'"
+              >
+                <mat-icon>{{ row.is_active ? 'toggle_on' : 'toggle_off' }}</mat-icon>
+              </button>
+            }
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="columns"></tr>
+        <tr mat-row *matRowDef="let row; columns: columns"></tr>
+      </table>
+    </div>
+  }
 </section>
+
+<ng-template #editor>
+  <h2 mat-dialog-title>{{ dialogTitle() }}</h2>
+  <mat-dialog-content>
+    <form id="service-form" class="flex flex-col gap-1 pt-2" [formGroup]="form" (ngSubmit)="save()">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
+        <mat-label>Nombre</mat-label>
+        <input matInput formControlName="name" />
+        @if (nameError()) {
+          <mat-error>{{ nameError() }}</mat-error>
+        }
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
+        <mat-label>Descripción</mat-label>
+        <textarea matInput rows="3" formControlName="description"></textarea>
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
+        <mat-label>Precio</mat-label>
+        <input matInput type="number" min="0" step="0.01" formControlName="price" />
+        <span matTextPrefix>$&nbsp;</span>
+        @if (priceError()) {
+          <mat-error>{{ priceError() }}</mat-error>
+        }
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
+        <mat-label>Duración</mat-label>
+        <input matInput type="number" min="1" step="1" formControlName="duration_minutes" />
+        <span matTextSuffix>min</span>
+        @if (durationError()) {
+          <mat-error>{{ durationError() }}</mat-error>
+        }
+      </mat-form-field>
+      @if (formError(); as message) {
+        <p role="alert" class="text-sm text-red-700">{{ message }}</p>
+      }
+    </form>
+  </mat-dialog-content>
+  <mat-dialog-actions align="end">
+    <button mat-button type="button" (click)="closeForm()">Cancelar</button>
+    <button mat-flat-button color="primary" type="submit" form="service-form" [disabled]="isSaving()">
+      {{ isSaving() ? 'Guardando…' : 'Guardar' }}
+    </button>
+  </mat-dialog-actions>
+</ng-template>

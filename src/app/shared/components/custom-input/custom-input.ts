@@ -16,10 +16,15 @@ let nextFieldId = 0;
 })
 export class CustomInputComponent implements ControlValueAccessor {
   readonly label = input.required<string>();
-  readonly type = input<'text' | 'email' | 'password' | 'tel'>('text');
+  readonly type = input<'text' | 'email' | 'password' | 'tel' | 'number'>('text');
   readonly placeholder = input('');
   readonly autocomplete = input('');
   readonly error = input('');
+  readonly multiline = input(false);
+  readonly rows = input(3);
+  readonly min = input<string | null>(null);
+  readonly step = input<string | null>(null);
+  readonly inputMode = input('');
 
   protected readonly inputId = `nx-field-${nextFieldId++}`;
   protected readonly errorId = `${this.inputId}-error`;

@@ -16,7 +16,15 @@ export class AuthService {
   /** Logged-in profile, kept only in memory. */
   readonly currentUser = this.currentUserState.asReadonly();
 
-  readonly role = computed(() => this.currentUserState()?.role ?? null);
+  readonly userRole = computed(() => this.currentUser()?.role ?? null);
+
+  readonly role = this.userRole;
+
+  readonly isOwner = computed(() => this.userRole() === 'owner');
+
+  readonly isStaff = computed(() => this.userRole() === 'staff');
+
+  readonly isSuperAdmin = computed(() => this.userRole() === 'super_admin');
 
   readonly isAuthenticated = computed(() => this.currentUserState() !== null);
 

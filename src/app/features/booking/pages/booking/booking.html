@@ -1,4 +1,224 @@
-<main class="p-8">
-  <h1 class="text-2xl font-semibold text-slate-900">Reservar cita</h1>
-  <p class="mt-2 text-slate-600">{{ businessSlug }}</p>
+<main class="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8">
+  <header class="flex items-center gap-3">
+    <span class="flex h-10 w-10 items-center justify-center rounded-full brand-fill">
+      <mat-icon>event_available</mat-icon>
+    </span>
+    <div>
+      <h1 class="text-xl font-medium">{{ brand()?.name || 'Reservar cita' }}</h1>
+      @if (brand()?.phone) {
+        <p class="text-sm text-slate-600">{{ brand()?.phone }}</p>
+      }
+    </div>
+  </header>
+
+  <ol class="flex flex-wrap gap-2">
+    @for (item of steps; track item.id) {
+      <li
+        class="rounded-full px-3 py-1 text-sm"
+        [class.brand-solid]="step() === item.id"
+        [class.brand-soft]="step() > item.id"
+        [class.bg-white]="step() < item.id"
+      >
+        {{ item.id }}. {{ item.label }}
+      </li>
+    }
+  </ol>
+
+  @if (loadError(); as message) {
+    <p role="alert" class="text-sm text-red-700">{{ message }}</p>
+  } @else if (isLoading()) {
+    <div class="flex justify-center py-16">
+      <mat-spinner diameter="36" />
+    </div>
+  } @else if (step() === 1) {
+    <section class="flex flex-col gap-6">
+      <div>
+        <h2 class="mb-3 text-base font-medium">Servicio</h2>
+        @if (services().length === 0) {
+          <p class="text-sm text-slate-600">Este negocio no tiene servicios disponibles.</p>
+        } @else {
+          <div class="grid gap-3 sm:grid-cols-2">
+            @for (service of services(); track service.id) {
+              <button
+                type="button"
+                class="choice-card p-4 text-left"
+                [class.choice-selected]="selectedService()?.id === service.id"
+                (click)="selectService(service)"
+              >
+                <span class="block font-medium">{{ service.name }}</span>
+                <span class="mt-1 block text-sm text-slate-600">
+                  {{ service.duration_minutes }} min · {{ formatPrice(service.price) }}
+                </span>
+                @if (service.description) {
+                  <span class="mt-1 block text-sm text-slate-500">{{ service.description }}</span>
+                }
+              </button>
+            }
+          </div>
+        }
+      </div>
+
+      <div>
+        <h2 class="mb-3 text-base font-medium">Colaborador</h2>
+        @if (!selectedService()) {
+          <p class="text-sm text-slate-600">Elige un servicio para ver quién lo realiza.</p>
+        } @else if (eligibleStaff().length === 0) {
+          <p class="text-sm text-slate-600">Nadie tiene asignado este servicio.</p>
+        } @else {
+          <div class="grid gap-3 sm:grid-cols-2">
+            @for (member of eligibleStaff(); track member.id) {
+              <button
+                type="button"
+                class="choice-card flex gap-3 p-4 text-left"
+                [class.choice-selected]="selectedStaff()?.id === member.id"
+                (click)="selectStaff(member)"
+              >
+                @if (member.avatar_url) {
+                  <img [src]="member.avatar_url" [alt]="member.full_name" class="h-12 w-12 rounded-full object-cover" />
+                } @else {
+                  <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-medium">
+                    {{ initials(member.full_name) }}
+                  </span>
+                }
+                <span>
+                  <span class="block font-medium">{{ member.full_name }}</span>
+                  <span class="mt-1 block text-sm text-slate-600">{{ member.role_title }}</span>
+                  @if (member.bio) {
+                    <span class="mt-1 line-clamp-2 block text-sm text-slate-500">{{ member.bio }}</span>
+                  }
+                </span>
+              </button>
+            }
+          </div>
+        }
+      </div>
+
+      <div class="flex justify-end">
+        <button
+          type="button"
+          class="brand-fill h-10 rounded px-4 text-sm disabled:opacity-50"
+          [disabled]="!canChooseSchedule()"
+          (click)="goToSchedule()"
+        >
+          Continuar
+        </button>
+      </div>
+    </section>
+  } @else if (step() === 2) {
+    <section class="flex flex-col gap-4">
+      <mat-form-field appearance="outline" class="w-full sm:max-w-xs">
+        <mat-label>Fecha</mat-label>
+        <input
+          matInput
+          type="date"
+          [min]="minDate"
+          [value]="date()"
+          (change)="onDate($any($event.target).value)"
+        />
+      </mat-form-field>
+
+      @if (slotsError(); as message) {
+        <p role="alert" class="text-sm text-red-700">{{ message }}</p>
+      } @else if (slotsLoading()) {
+        <div class="flex justify-center py-10">
+          <mat-spinner diameter="32" />
+        </div>
+      } @else if (slots().length === 0) {
+        <p class="text-sm text-slate-600">No hay horarios disponibles para esta fecha.</p>
+      } @else {
+        <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          @for (slot of slots(); track slot.starts_at) {
+            <button
+              type="button"
+              class="rounded border border-slate-200 bg-white px-3 py-2 text-sm"
+              [class.choice-selected]="selectedSlot() === slot.starts_at"
+              (click)="selectSlot(slot.starts_at)"
+            >
+              {{ formatTime(slot.starts_at) }}
+            </button>
+          }
+        </div>
+      }
+
+      <div class="flex justify-between">
+        <button mat-button type="button" (click)="back()">Atrás</button>
+        <button
+          type="button"
+          class="brand-fill h-10 rounded px-4 text-sm disabled:opacity-50"
+          [disabled]="!selectedSlot()"
+          (click)="goToDetails()"
+        >
+          Continuar
+        </button>
+      </div>
+    </section>
+  } @else if (step() === 3) {
+    <form class="flex flex-col gap-1" [formGroup]="clientForm" (ngSubmit)="confirm()">
+      <mat-form-field appearance="outline">
+        <mat-label>Nombre</mat-label>
+        <input matInput formControlName="client_name" autocomplete="name" />
+        @if (nameError(); as message) {
+          <mat-error>{{ message }}</mat-error>
+        }
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Teléfono</mat-label>
+        <input matInput type="tel" formControlName="client_phone" autocomplete="tel" />
+        @if (phoneError(); as message) {
+          <mat-error>{{ message }}</mat-error>
+        }
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Correo</mat-label>
+        <input matInput type="email" formControlName="client_email" autocomplete="email" />
+        @if (emailError(); as message) {
+          <mat-error>{{ message }}</mat-error>
+        }
+      </mat-form-field>
+
+      @if (formError(); as message) {
+        <p role="alert" class="mb-3 text-sm text-red-700">{{ message }}</p>
+      }
+
+      <div class="flex justify-between">
+        <button mat-button type="button" (click)="back()" [disabled]="isSaving()">Atrás</button>
+        <button type="submit" class="brand-fill h-10 rounded px-4 text-sm disabled:opacity-50" [disabled]="isSaving()">
+          {{ isSaving() ? 'Reservando…' : 'Confirmar cita' }}
+        </button>
+      </div>
+    </form>
+  } @else if (confirmation(); as appointment) {
+    <section class="rounded border border-slate-200 bg-white p-4">
+      <h2 class="text-base font-medium">Cita registrada</h2>
+      <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+        <div>
+          <dt class="text-slate-500">Servicio</dt>
+          <dd>{{ appointment.service_name || selectedService()?.name }}</dd>
+        </div>
+        <div>
+          <dt class="text-slate-500">Colaborador</dt>
+          <dd>{{ appointment.staff_name || selectedStaff()?.full_name }}</dd>
+        </div>
+        <div>
+          <dt class="text-slate-500">Fecha</dt>
+          <dd>{{ formatDate(appointment.starts_at) }}</dd>
+        </div>
+        <div>
+          <dt class="text-slate-500">Hora</dt>
+          <dd>{{ formatTime(appointment.starts_at) }}</dd>
+        </div>
+        <div>
+          <dt class="text-slate-500">Cliente</dt>
+          <dd>{{ appointment.client_name }}</dd>
+        </div>
+        <div>
+          <dt class="text-slate-500">Teléfono</dt>
+          <dd>{{ appointment.client_phone }}</dd>
+        </div>
+      </dl>
+      <button type="button" class="brand-fill mt-6 h-10 rounded px-4 text-sm" (click)="restart()">
+        Nueva reserva
+      </button>
+    </section>
+  }
 </main>

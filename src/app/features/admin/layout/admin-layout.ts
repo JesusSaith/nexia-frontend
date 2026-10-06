@@ -1,63 +1,120 @@
-import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { BreakpointObserver } from '@angular/cdk/layout';
+import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatListModule } from '@angular/material/list';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatSidenavModule } from '@angular/material/sidenav';
+import { MatToolbarModule } from '@angular/material/toolbar';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { map } from 'rxjs';
 
-import { AuthService } from '@core/services/auth.service';
 import { UserRole } from '@core/models/user.model';
-import { CustomButtonComponent } from '@shared/components/custom-button/custom-button';
+import { AuthService } from '@core/services/auth.service';
+import { BookingService } from '@core/services/booking.service';
 
 interface AdminNavLink {
   label: string;
   path: string;
   exact: boolean;
+  icon: string;
 }
 
 const ROLE_LABELS: Record<UserRole, string> = {
   owner: 'Propietario',
   admin: 'Administrador',
   staff: 'Equipo',
+  super_admin: 'Plataforma',
 };
+
+const MANAGER_LINKS: readonly AdminNavLink[] = [
+  { label: 'Negocio', path: '/admin/negocio', exact: true, icon: 'storefront' },
+  { label: 'Dashboard', path: '/admin/dashboard', exact: true, icon: 'space_dashboard' },
+  { label: 'Agenda', path: '/admin/agenda', exact: true, icon: 'calendar_month' },
+  { label: 'Servicios', path: '/admin/services', exact: false, icon: 'content_cut' },
+  { label: 'Equipo', path: '/admin/staff', exact: false, icon: 'groups' },
+  { label: 'Horarios', path: '/admin/schedules', exact: false, icon: 'schedule' },
+  { label: 'Clientes', path: '/admin/clientes', exact: false, icon: 'person' },
+];
+
+const STAFF_LINKS: readonly AdminNavLink[] = [
+  { label: 'Mi Agenda', path: '/admin/agenda', exact: true, icon: 'calendar_month' },
+  { label: 'Mi Perfil', path: '/admin/profile', exact: true, icon: 'account_circle' },
+];
+
+const PLATFORM_LINKS: readonly AdminNavLink[] = [
+  { label: 'Negocios / Plataforma', path: '/super-admin', exact: true, icon: 'apartment' },
+];
 
 @Component({
   selector: 'app-admin-layout',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, CustomButtonComponent],
+  imports: [
+    RouterOutlet,
+    RouterLink,
+    RouterLinkActive,
+    MatSidenavModule,
+    MatToolbarModule,
+    MatListModule,
+    MatIconModule,
+    MatButtonModule,
+    MatMenuModule,
+  ],
   templateUrl: './admin-layout.html',
 })
 export class AdminLayoutComponent {
   private readonly authService = inject(AuthService);
+  private readonly bookingApi = inject(BookingService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly handset = toSignal(
+    inject(BreakpointObserver)
+      .observe('(max-width: 767px)')
+      .pipe(map((state) => state.matches)),
+    { initialValue: false },
+  );
 
-  protected readonly links: readonly AdminNavLink[] = [
-    { label: 'Agenda', path: '/admin', exact: true },
-    { label: 'Servicios', path: '/admin/servicios', exact: false },
-    { label: 'Equipo', path: '/admin/equipo', exact: false },
-    { label: 'Clientes', path: '/admin/clientes', exact: false },
-  ];
+  protected readonly links = computed(() => {
+    if (this.authService.isSuperAdmin()) {
+      return PLATFORM_LINKS;
+    }
+    if (this.authService.isStaff()) {
+      return STAFF_LINKS;
+    }
+    return MANAGER_LINKS;
+  });
 
   protected readonly currentUser = this.authService.currentUser;
+  protected readonly brandColor = signal('#E11D48');
+  protected readonly canvasColor = signal<string | null>(null);
   protected readonly sidebarOpen = signal(false);
-  protected readonly menuOpen = signal(false);
   protected readonly loggingOut = signal(false);
   protected readonly logoutError = signal<string | null>(null);
+  protected readonly isHandset = this.handset;
+  protected readonly sidenavMode = computed(() => (this.handset() ? 'over' : 'side'));
+  protected readonly sidenavOpened = computed(() => (this.handset() ? this.sidebarOpen() : true));
 
   protected readonly businessName = computed(
     () => this.currentUser()?.businessName ?? 'Tu negocio',
   );
 
+  constructor() {
+    this.destroyRef.onDestroy(() => applyTheme('#E11D48', null));
+    effect(() => applyTheme(this.brandColor(), this.canvasColor()));
+    if (!this.authService.isSuperAdmin()) {
+      this.bookingApi
+        .getMyBrand()
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe((brand) => {
+          this.brandColor.set(safeHex(brand.primary_color));
+          this.canvasColor.set(safeHexOrNull(brand.canvas_color));
+        });
+    }
+  }
+
   protected readonly roleLabel = computed(() => {
     const role = this.authService.role();
     return role ? ROLE_LABELS[role] : 'Sin sesión';
-  });
-
-  protected readonly initials = computed(() => {
-    const name = this.currentUser()?.fullName ?? '';
-    const letters = name
-      .split(' ')
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0]?.toUpperCase() ?? '');
-    return letters.join('') || 'NX';
   });
 
   protected toggleSidebar(): void {
@@ -68,12 +125,10 @@ export class AdminLayoutComponent {
     this.sidebarOpen.set(false);
   }
 
-  protected toggleMenu(): void {
-    this.menuOpen.update((open) => !open);
-  }
-
-  protected closeMenu(): void {
-    this.menuOpen.set(false);
+  protected onNavigate(): void {
+    if (this.handset()) {
+      this.closeSidebar();
+    }
   }
 
   protected logout(): void {
@@ -96,5 +151,25 @@ export class AdminLayoutComponent {
           this.logoutError.set('No pudimos cerrar la sesión.');
         },
       });
+  }
+}
+
+function safeHex(value: string): string {
+  return /^#[0-9a-f]{6}$/i.test(value) ? value : '#E11D48';
+}
+
+function safeHexOrNull(value: string | null | undefined): string | null {
+  return value && /^#[0-9a-f]{6}$/i.test(value) ? value : null;
+}
+
+function applyTheme(primary: string, canvas: string | null): void {
+  const root = document.documentElement;
+  root.style.setProperty('--business-primary', primary);
+  root.style.setProperty('--primary', primary);
+  root.style.setProperty('--mat-sys-primary', primary);
+  if (canvas) {
+    root.style.setProperty('--bg-app', canvas);
+  } else {
+    root.style.removeProperty('--bg-app');
   }
 }
