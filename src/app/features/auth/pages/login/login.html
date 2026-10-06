@@ -1,0 +1,69 @@
+<div class="grid min-h-dvh bg-white md:grid-cols-2">
+  <section class="flex items-center justify-center px-6 py-12 sm:px-10">
+    <div class="w-full max-w-md">
+      <p class="text-sm font-semibold tracking-tight text-primary-700 md:hidden">Nexia</p>
+      <h1 class="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Iniciar sesión</h1>
+      <p class="mt-2 text-sm text-slate-500">Entra al panel de tu negocio.</p>
+
+      <form class="mt-8 space-y-5" [formGroup]="form" (ngSubmit)="submit()">
+        <app-custom-input
+          formControlName="email"
+          type="email"
+          label="Correo"
+          placeholder="ana@negocio.com"
+          autocomplete="email"
+          [error]="emailError()"
+        />
+        <app-custom-input
+          formControlName="password"
+          type="password"
+          label="Contraseña"
+          placeholder="Tu contraseña"
+          autocomplete="current-password"
+          [error]="passwordError()"
+        />
+
+        @if (errorMessage(); as message) {
+          <p role="alert" class="rounded-xl bg-rose-50 px-3.5 py-2.5 text-sm text-rose-700">
+            {{ message }}
+          </p>
+        }
+
+        <app-custom-button type="submit" [isLoading]="submitting()">Entrar</app-custom-button>
+      </form>
+
+      <p class="mt-6 text-sm text-slate-500">
+        ¿Aún no tienes cuenta?
+        <a routerLink="/auth/register" class="font-semibold text-primary-700 hover:text-primary-600">
+          Crear cuenta
+        </a>
+      </p>
+    </div>
+  </section>
+
+  <aside
+    class="relative hidden overflow-hidden bg-slate-950 text-white md:flex md:flex-col md:justify-between md:p-12"
+  >
+    <div
+      class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,oklch(0.55_0.16_264/0.55),transparent_42%),radial-gradient(circle_at_bottom_right,oklch(0.72_0.09_200/0.28),transparent_38%)]"
+    ></div>
+
+    <p class="relative text-lg font-semibold tracking-tight">Nexia</p>
+
+    <div class="relative max-w-lg">
+      <h2 class="text-4xl font-semibold leading-tight tracking-tight">
+        Tu agenda, sin huecos ni confusiones.
+      </h2>
+      <p class="mt-4 text-base text-slate-300">
+        Citas, servicios y equipo en un solo lugar para cada negocio.
+      </p>
+
+      <div class="mt-10 rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
+        <p class="text-xs font-medium tracking-[0.16em] text-slate-400 uppercase">Hoy</p>
+        <p class="mt-3 text-sm">09:30 · Corte y barba · Ana</p>
+        <p class="mt-2 text-sm text-slate-300">10:15 · Consulta · Luis</p>
+        <p class="mt-2 text-sm text-slate-400">11:00 · Disponible</p>
+      </div>
+    </div>
+  </aside>
+</div>
