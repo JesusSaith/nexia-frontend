@@ -1,4 +1,4 @@
-export const APPOINTMENT_STATUSES = ['scheduled', 'completed', 'cancelled'] as const;
+export const APPOINTMENT_STATUSES = ['scheduled', 'completed', 'cancelled', 'no_show', 'awaiting_deposit'] as const;
 
 export type AppointmentStatus = (typeof APPOINTMENT_STATUSES)[number];
 
@@ -12,7 +12,8 @@ export interface AppointmentCreate {
   starts_at: string;
   client_name: string;
   client_phone: string;
-  client_email: string;
+  client_email?: string | null;
+  notes?: string | null;
 }
 
 export interface Appointment {
@@ -27,6 +28,11 @@ export interface Appointment {
   starts_at: string;
   status: AppointmentStatus;
   notes?: string | null;
+  cancel_token?: string | null;
+  deposit_amount?: number | null;
+  payment_proof?: string | null;
+  quoted_price?: number | null;
+  client_confirmed?: boolean;
 }
 
 export interface AppointmentQuery {
@@ -44,6 +50,7 @@ export interface AdminAppointmentCreate {
   client_phone: string;
   client_email?: string | null;
   notes?: string | null;
+  quoted_price?: number | null;
 }
 
 export interface AppointmentStatusUpdate {

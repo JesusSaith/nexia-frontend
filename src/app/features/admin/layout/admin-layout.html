@@ -1,15 +1,8 @@
 <mat-sidenav-container class="h-dvh">
-  <mat-sidenav
-    [mode]="sidenavMode()"
-    [opened]="sidenavOpened()"
-    (closedStart)="closeSidebar()"
-    class="w-64 border-r bg-white"
-  >
-    <div class="flex h-16 items-center gap-3 px-5">
-      <span class="brand-soft flex h-9 w-9 items-center justify-center rounded-xl">
-        <mat-icon>event_available</mat-icon>
-      </span>
-      <span class="text-base font-semibold tracking-tight">Nexia</span>
+  <mat-sidenav mode="over" [opened]="sidebarOpen()" (closedStart)="closeSidebar()" class="w-64">
+    <div class="flex h-14 items-center gap-2 px-4">
+      <mat-icon>event_available</mat-icon>
+      <span class="font-semibold">Nexia</span>
     </div>
     <mat-nav-list>
       @for (link of links(); track link.path) {
@@ -17,8 +10,8 @@
           mat-list-item
           [routerLink]="link.path"
           routerLinkActive
-          #section="routerLinkActive"
-          [activated]="section.isActive"
+          #drawerSection="routerLinkActive"
+          [activated]="drawerSection.isActive"
           [routerLinkActiveOptions]="{ exact: link.exact }"
           (click)="onNavigate()"
         >
@@ -30,29 +23,49 @@
   </mat-sidenav>
 
   <mat-sidenav-content>
-    <mat-toolbar class="h-16 border-b bg-white px-4 md:px-8">
-      @if (isHandset()) {
-        <button mat-icon-button type="button" aria-label="Abrir menú" (click)="toggleSidebar()">
-          <mat-icon>menu</mat-icon>
+    <header class="border-b border-[var(--border-subtle)] bg-white">
+      <div class="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 md:px-8">
+        @if (isHandset()) {
+          <button mat-icon-button type="button" aria-label="Abrir menú" (click)="toggleSidebar()">
+            <mat-icon>menu</mat-icon>
+          </button>
+        }
+        <mat-icon>event_available</mat-icon>
+        <span class="font-semibold">Nexia</span>
+        <span class="text-sm text-[var(--text-muted)]">/</span>
+        <span class="truncate text-sm">{{ businessName() }}</span>
+        <span class="flex-1"></span>
+        <button mat-button type="button" [matMenuTriggerFor]="userMenu">
+          <mat-icon>account_circle</mat-icon>
+          <span class="ml-1 hidden sm:inline">{{ currentUser()?.fullName }}</span>
         </button>
+        <mat-menu #userMenu="matMenu">
+          <button mat-menu-item type="button" disabled>
+            <mat-icon>badge</mat-icon>
+            <span>{{ roleLabel() }}</span>
+          </button>
+          <button mat-menu-item type="button" (click)="logout()" [disabled]="loggingOut()">
+            <mat-icon>logout</mat-icon>
+            <span>{{ loggingOut() ? 'Cerrando…' : 'Cerrar sesión' }}</span>
+          </button>
+        </mat-menu>
+      </div>
+      @if (!isHandset()) {
+        <nav class="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-4 md:px-6" aria-label="Secciones">
+          @for (link of links(); track link.path) {
+            <a
+              class="nx-tab"
+              [routerLink]="link.path"
+              routerLinkActive="nx-tab-on"
+              [routerLinkActiveOptions]="{ exact: link.exact }"
+            >
+              <mat-icon>{{ link.icon }}</mat-icon>
+              {{ link.label }}
+            </a>
+          }
+        </nav>
       }
-      <span class="truncate">{{ businessName() }}</span>
-      <span class="flex-1"></span>
-      <button mat-button type="button" [matMenuTriggerFor]="userMenu">
-        <mat-icon>account_circle</mat-icon>
-        <span class="ml-1 hidden sm:inline">{{ currentUser()?.fullName }}</span>
-      </button>
-      <mat-menu #userMenu="matMenu">
-        <button mat-menu-item type="button" disabled>
-          <mat-icon>badge</mat-icon>
-          <span>{{ roleLabel() }}</span>
-        </button>
-        <button mat-menu-item type="button" (click)="logout()" [disabled]="loggingOut()">
-          <mat-icon>logout</mat-icon>
-          <span>{{ loggingOut() ? 'Cerrando…' : 'Cerrar sesión' }}</span>
-        </button>
-      </mat-menu>
-    </mat-toolbar>
+    </header>
 
     @if (logoutError(); as message) {
       <p role="alert" class="bg-red-50 px-4 py-2 text-sm text-red-700">{{ message }}</p>

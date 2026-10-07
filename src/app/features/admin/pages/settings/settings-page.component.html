@@ -1,0 +1,116 @@
+<section class="-mx-5 -my-7 min-h-full bg-[#FDF7F8] px-5 py-7 font-['Plus_Jakarta_Sans',sans-serif] text-[#1E1B1E] md:-mx-10 md:-my-9 md:px-10 md:py-9">
+  <h1 class="text-2xl font-semibold tracking-tight">Configuración del Negocio</h1>
+
+  @if (notice(); as message) {
+    <p class="mt-4 rounded-xl bg-white px-4 py-2 text-sm text-rose-700 shadow-sm" role="status">{{ message }}</p>
+  }
+  @if (errorMessage(); as message) {
+    <p class="mt-4 text-sm text-red-700" role="alert">{{ message }}</p>
+  }
+
+  @if (isLoading()) {
+    <div class="mt-6 h-64 animate-pulse rounded-2xl border border-rose-100 bg-white"></div>
+  } @else {
+    <form class="mt-6 rounded-2xl border border-rose-100 bg-white p-6 shadow-sm" [formGroup]="profileForm" (ngSubmit)="saveProfile()">
+      <h2 class="text-base font-semibold">Marca y contacto</h2>
+      <div class="mt-5 flex items-center gap-4">
+        <label class="relative cursor-pointer">
+          <input type="file" accept="image/png,image/jpeg,image/webp" class="sr-only" (change)="onLogo($event)" />
+          @if (logoSrc(); as src) {
+            <img [src]="src" alt="Logo" class="h-24 w-24 rounded-full object-cover" />
+          } @else {
+            <span class="flex h-24 w-24 items-center justify-center rounded-full bg-gray-100 text-gray-400">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-7 w-7" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 8h3l2-2h6l2 2h3v10H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+            </span>
+          }
+          <span class="sr-only">{{ uploading() ? 'Subiendo logo' : 'Cambiar logo' }}</span>
+        </label>
+        <p class="text-sm text-stone-500">{{ uploading() ? 'Subiendo…' : 'Haz clic en el logo para cambiarlo.' }}</p>
+      </div>
+
+      <div class="mt-6 grid gap-4 sm:grid-cols-2">
+        <label class="block text-sm">
+          Teléfono público
+          <input formControlName="phone" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" />
+        </label>
+        <label class="block text-sm">
+          Dirección
+          <input formControlName="address" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" />
+        </label>
+        <label class="block text-sm">
+          <span class="inline-flex items-center gap-1">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="4" width="16" height="16" rx="4"/><circle cx="12" cy="12" r="3.5"/><circle cx="17.5" cy="6.5" r="0.8" fill="currentColor"/></svg>
+            Enlace de Instagram
+          </span>
+          <input formControlName="instagram" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" />
+        </label>
+        <label class="block text-sm">
+          <span class="inline-flex items-center gap-1">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 8h2a4 4 0 0 1 0 8h-2M10 16H8a4 4 0 0 1 0-8h2M9 12h6"/></svg>
+            Enlace de Facebook
+          </span>
+          <input formControlName="facebook" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" />
+        </label>
+      </div>
+      <label class="mt-4 block max-w-xs text-sm">
+        Horas de anticipación para cancelar
+        <input formControlName="cancelHours" type="number" min="0" max="168" placeholder="Sin límite" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" />
+      </label>
+      <p class="mt-1 text-xs text-stone-500">Vacío: el cliente puede cambiar la cita hasta que empiece.</p>
+      <div class="mt-4 grid gap-4 sm:grid-cols-2">
+        <label class="block text-sm">
+          Anticipo
+          <input formControlName="depositAmount" type="number" min="0" placeholder="Sin anticipo" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" />
+        </label>
+        <label class="block text-sm">
+          Cuenta o clave
+          <input formControlName="depositAccount" placeholder="CLABE o referencia" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" />
+        </label>
+      </div>
+      <label class="mt-4 block max-w-xs text-sm">
+        Porcentaje del precio acordado
+        <input formControlName="depositPercent" type="number" min="1" max="100" placeholder="Ej. 50" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" />
+      </label>
+      <p class="mt-1 text-xs text-stone-500">En un servicio de precio variable, el anticipo es este porcentaje del precio acordado. El monto fijo de arriba sigue para los servicios con precio fijo.</p>
+      <label class="mt-4 block max-w-xs text-sm">
+        Horas para recibir el anticipo
+        <input formControlName="depositHoldHours" type="number" min="1" max="72" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" />
+      </label>
+      <p class="mt-1 text-xs text-stone-500">Si el depósito no llega en ese tiempo, el horario se libera solo. El anticipo de un servicio, si lo tiene, reemplaza este monto.</p>
+      <button type="submit" class="mt-6 h-10 rounded-xl bg-[#1E1B1E] px-4 text-sm text-white hover:bg-black disabled:opacity-50" [disabled]="savingProfile()">
+        {{ savingProfile() ? 'Guardando…' : 'Guardar Perfil' }}
+      </button>
+    </form>
+
+    <!-- El horario del equipo vive en /admin/schedules. Este formulario era la apertura general del local. -->
+    @if (false) {
+    <form class="mt-4 rounded-2xl border border-rose-100 bg-white p-6 shadow-sm" [formGroup]="hoursForm" (ngSubmit)="saveHours()">
+      <h2 class="inline-flex items-center gap-2 text-base font-semibold">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="8"/><path d="M12 8v5l3 2"/></svg>
+        Horario de apertura
+      </h2>
+      <div class="mt-4 flex flex-col gap-3" formArrayName="days">
+        @for (day of days; track day; let index = $index) {
+          <div class="grid items-center gap-3 rounded-xl px-2 py-2 sm:grid-cols-[8rem_auto_1fr]" [formGroupName]="index" [class.opacity-40]="!isOpen(index)">
+            <span class="text-sm font-medium">{{ day }}</span>
+            <label class="inline-flex items-center gap-2 text-sm">
+              <input type="checkbox" formControlName="is_open" class="peer sr-only" />
+              <span class="relative h-6 w-10 rounded-full bg-gray-200 transition-colors peer-checked:bg-rose-400 after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-transform peer-checked:after:translate-x-4"></span>
+              {{ isOpen(index) ? 'Abierto' : 'Cerrado' }}
+            </label>
+            @if (isOpen(index)) {
+              <span class="flex gap-2">
+                <input type="time" formControlName="open_time" class="rounded-xl border border-gray-200 px-2 py-1.5 text-sm outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" />
+                <input type="time" formControlName="close_time" class="rounded-xl border border-gray-200 px-2 py-1.5 text-sm outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" />
+              </span>
+            }
+          </div>
+        }
+      </div>
+      <button type="submit" class="mt-6 h-10 rounded-xl bg-[#1E1B1E] px-4 text-sm text-white hover:bg-black disabled:opacity-50" [disabled]="savingHours()">
+        {{ savingHours() ? 'Guardando…' : 'Guardar Horarios' }}
+      </button>
+    </form>
+    }
+  }
+</section>

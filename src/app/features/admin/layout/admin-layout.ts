@@ -26,16 +26,19 @@ const ROLE_LABELS: Record<UserRole, string> = {
   admin: 'Administrador',
   staff: 'Equipo',
   super_admin: 'Plataforma',
+  client: 'Cliente',
 };
 
 const MANAGER_LINKS: readonly AdminNavLink[] = [
-  { label: 'Negocio', path: '/admin/negocio', exact: true, icon: 'storefront' },
+  { label: 'Perfil', path: '/admin/negocio', exact: true, icon: 'storefront' },
+  { label: 'Home', path: '/admin/home', exact: true, icon: 'home' },
   { label: 'Dashboard', path: '/admin/dashboard', exact: true, icon: 'space_dashboard' },
   { label: 'Agenda', path: '/admin/agenda', exact: true, icon: 'calendar_month' },
   { label: 'Servicios', path: '/admin/services', exact: false, icon: 'content_cut' },
   { label: 'Equipo', path: '/admin/staff', exact: false, icon: 'groups' },
   { label: 'Horarios', path: '/admin/schedules', exact: false, icon: 'schedule' },
   { label: 'Clientes', path: '/admin/clientes', exact: false, icon: 'person' },
+  { label: 'Configuración', path: '/admin/settings', exact: true, icon: 'tune' },
 ];
 
 const STAFF_LINKS: readonly AdminNavLink[] = [
@@ -91,8 +94,6 @@ export class AdminLayoutComponent {
   protected readonly loggingOut = signal(false);
   protected readonly logoutError = signal<string | null>(null);
   protected readonly isHandset = this.handset;
-  protected readonly sidenavMode = computed(() => (this.handset() ? 'over' : 'side'));
-  protected readonly sidenavOpened = computed(() => (this.handset() ? this.sidebarOpen() : true));
 
   protected readonly businessName = computed(
     () => this.currentUser()?.businessName ?? 'Tu negocio',

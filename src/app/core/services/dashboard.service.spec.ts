@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 
 import { API_BASE_URL } from '../config/api-base-url';
-import { DashboardStats } from '../models/dashboard.model';
+import { DashboardStats, DashboardSummary } from '../models/dashboard.model';
 import { DashboardService } from './dashboard.service';
 
 const stats: DashboardStats = {
@@ -32,6 +32,18 @@ describe('DashboardService', () => {
   });
 
   afterEach(() => http.verify());
+
+  it('loads the daily summary', () => {
+    const summary: DashboardSummary = {
+      today_appointments_count: 1,
+      today_revenue: 280,
+      week_appointments_count: 4,
+      upcoming_today: [],
+      week_trend: [{ date: '2026-10-07', count: 1, revenue: 280 }],
+    };
+    service.getSummary().subscribe((item) => expect(item).toEqual(summary));
+    http.expectOne('http://api.test/api/dashboard/summary').flush(summary);
+  });
 
   it('loads stats for today and for a selected date', () => {
     service.getStats().subscribe((item) => expect(item).toEqual(stats));

@@ -1,16 +1,34 @@
 <main class="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8">
-  <header class="flex items-center gap-3">
-    <span class="flex h-10 w-10 items-center justify-center rounded-full brand-fill">
-      <mat-icon>event_available</mat-icon>
-    </span>
-    <div>
-      <h1 class="text-xl font-medium">{{ brand()?.name || 'Reservar cita' }}</h1>
+  <header class="flex flex-col gap-3">
+    <div class="flex items-center gap-3">
+      @if (brand()?.logo_url) {
+        <img [src]="brand()!.logo_url" alt="" class="h-14 w-14 rounded-full object-cover" />
+      } @else {
+        <span class="brand-fill flex h-14 w-14 items-center justify-center rounded-full text-lg font-semibold">
+          {{ (brand()?.name || 'N').charAt(0) }}
+        </span>
+      }
+      <div>
+        <h1 class="text-xl font-medium">{{ brand()?.name || 'Reservar cita' }}</h1>
+        @if (brand()?.address) {
+          <p class="text-sm text-slate-600">{{ brand()?.address }}</p>
+        }
+      </div>
+    </div>
+    <div class="flex flex-wrap gap-3 text-sm">
       @if (brand()?.phone) {
-        <p class="text-sm text-slate-600">{{ brand()?.phone }}</p>
+        <a class="underline" [href]="'tel:' + brand()!.phone">{{ brand()!.phone }}</a>
+      }
+      @if (brand()?.instagram) {
+        <a class="underline" [href]="externalHref(brand()!.instagram!, 'instagram.com')" target="_blank" rel="noopener">Instagram</a>
+      }
+      @if (brand()?.facebook) {
+        <a class="underline" [href]="externalHref(brand()!.facebook!, 'facebook.com')" target="_blank" rel="noopener">Facebook</a>
       }
     </div>
   </header>
 
+  @if (!confirmation()) {
   <ol class="flex flex-wrap gap-2">
     @for (item of steps; track item.id) {
       <li
@@ -23,6 +41,7 @@
       </li>
     }
   </ol>
+  }
 
   @if (loadError(); as message) {
     <p role="alert" class="text-sm text-red-700">{{ message }}</p>
@@ -47,7 +66,7 @@
               >
                 <span class="block font-medium">{{ service.name }}</span>
                 <span class="mt-1 block text-sm text-slate-600">
-                  {{ service.duration_minutes }} min · {{ formatPrice(service.price) }}
+                  {{ service.duration_minutes }} min · {{ service.variable_price ? 'Precio según lo que pidas' : formatPrice(service.price) }}
                 </span>
                 @if (service.description) {
                   <span class="mt-1 block text-sm text-slate-500">{{ service.description }}</span>
@@ -169,55 +188,86 @@
         }
       </mat-form-field>
       <mat-form-field appearance="outline">
-        <mat-label>Correo</mat-label>
+        <mat-label>Correo (opcional)</mat-label>
         <input matInput type="email" formControlName="client_email" autocomplete="email" />
         @if (emailError(); as message) {
           <mat-error>{{ message }}</mat-error>
         }
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>{{ selectedService()?.variable_price ? 'Diseño o detalle' : 'Notas' }}</mat-label>
+        <textarea matInput rows="2" formControlName="notes"></textarea>
       </mat-form-field>
 
       @if (formError(); as message) {
         <p role="alert" class="mb-3 text-sm text-red-700">{{ message }}</p>
       }
 
+      @if (selectedService()?.variable_price && brand()?.deposit_percent) {
+        <p class="mb-4 rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-sm">
+          El anticipo es el {{ brand()?.deposit_percent }}% del precio acordado. Te lo indicamos cuando el negocio lo defina.
+        </p>
+      } @else if (depositAmount(); as amount) {
+        <p class="mb-4 rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-sm">
+          Para apartar este horario transfiere ${{ amount }} a {{ brand()?.deposit_account }}. La cita se confirma cuando el negocio reciba el depósito.
+        </p>
+      }
       <div class="flex justify-between">
         <button mat-button type="button" (click)="back()" [disabled]="isSaving()">Atrás</button>
         <button type="submit" class="brand-fill h-10 rounded px-4 text-sm disabled:opacity-50" [disabled]="isSaving()">
-          {{ isSaving() ? 'Reservando…' : 'Confirmar cita' }}
+          {{ isSaving() ? 'Reservando…' : (holdsDeposit() ? 'Apartar horario' : 'Confirmar cita') }}
         </button>
       </div>
     </form>
   } @else if (confirmation(); as appointment) {
-    <section class="rounded border border-slate-200 bg-white p-4">
-      <h2 class="text-base font-medium">Cita registrada</h2>
-      <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+    <section class="nx-success mx-auto flex w-full max-w-md flex-col items-center rounded-3xl border border-rose-100 bg-white px-6 py-10 text-center shadow-sm">
+      <span class="flex h-16 w-16 items-center justify-center rounded-full bg-rose-50 text-rose-500">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-8 w-8" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M5 12.5l5 5L20 7"/></svg>
+      </span>
+      <h2 class="mt-5 text-2xl font-semibold text-[#1E1B1E]">{{ appointment.status === 'awaiting_deposit' ? 'Tu horario está apartado' : '¡Tu cita está reservada!' }}</h2>
+      <p class="mt-2 text-sm text-slate-500">
+        {{ appointment.status === 'awaiting_deposit' ? 'Transfiere el anticipo. La cita se confirma cuando llegue el depósito.' : 'Tu lugar está asegurado en nuestro sistema.' }}
+      </p>
+      @if (appointment.status === 'awaiting_deposit' && appointment.deposit_amount) {
+        <p class="mt-4 text-sm font-medium">{{ appointment.deposit_amount }} · {{ brand()?.deposit_account }}</p>
+        @if (proofSent()) {
+          <p class="mt-3 text-sm text-emerald-700">Comprobante enviado. El negocio lo ve en la agenda.</p>
+        } @else {
+          <label class="mt-4 block w-full text-left text-sm">
+            Captura del depósito
+            <input class="mt-1 block w-full text-sm" type="file" accept="image/png,image/jpeg,image/webp" (change)="onProof($event)" />
+          </label>
+          @if (formError(); as message) {
+            <p class="mt-2 text-sm text-red-700" role="alert">{{ message }}</p>
+          }
+        }
+      }
+      @if (appointment.status === 'awaiting_deposit' && !appointment.deposit_amount) {
+        <p class="mt-4 text-sm">El anticipo se calcula cuando quede el precio acordado.</p>
+      }
+      <dl class="mt-6 w-full space-y-2 text-sm">
         <div>
-          <dt class="text-slate-500">Servicio</dt>
-          <dd>{{ appointment.service_name || selectedService()?.name }}</dd>
+          <dt class="text-slate-400">Servicio</dt>
+          <dd class="font-medium">{{ appointment.service_name || selectedService()?.name }}</dd>
         </div>
         <div>
-          <dt class="text-slate-500">Colaborador</dt>
-          <dd>{{ appointment.staff_name || selectedStaff()?.full_name }}</dd>
+          <dt class="text-slate-400">Día y hora</dt>
+          <dd class="font-medium">{{ formatDate(appointment.starts_at) }} · {{ formatTime(appointment.starts_at) }}</dd>
         </div>
         <div>
-          <dt class="text-slate-500">Fecha</dt>
-          <dd>{{ formatDate(appointment.starts_at) }}</dd>
-        </div>
-        <div>
-          <dt class="text-slate-500">Hora</dt>
-          <dd>{{ formatTime(appointment.starts_at) }}</dd>
-        </div>
-        <div>
-          <dt class="text-slate-500">Cliente</dt>
-          <dd>{{ appointment.client_name }}</dd>
-        </div>
-        <div>
-          <dt class="text-slate-500">Teléfono</dt>
-          <dd>{{ appointment.client_phone }}</dd>
+          <dt class="text-slate-400">Con</dt>
+          <dd class="font-medium">{{ appointment.staff_name || selectedStaff()?.full_name }}</dd>
         </div>
       </dl>
-      <button type="button" class="brand-fill mt-6 h-10 rounded px-4 text-sm" (click)="restart()">
-        Nueva reserva
+      <!-- FUTURE_PHASE_2_UNIFIED_PLATFORM: reseñas y estrellas se omiten en la fase 1 para no mostrar un perfil vacío. -->
+      @if (whatsappHref(appointment); as href) {
+        <button type="button" class="mt-8 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#25D366] text-sm font-medium text-white" (click)="openWhatsapp(href)">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-5 w-5" fill="currentColor"><path d="M12 3a9 9 0 0 0-7.8 13.5L3 21l4.7-1.2A9 9 0 1 0 12 3zm4.8 12.6c-.2.6-1.2 1.1-1.7 1.1-.4 0-.9.2-3-.8-2.5-1.2-4.1-3.8-4.2-4-.1-.2-1-1.3-1-2.5s.6-1.8.9-2c.2-.2.5-.3.7-.3h.5c.2 0 .4 0 .6.5.2.6.8 2 .8 2.1.1.1 0 .3-.1.4l-.4.5c-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.4 2.4 1.5.3.1.5.1.6-.1l.5-.6c.1-.2.3-.2.5-.1.2.1 1.4.7 1.6.8.2.1.4.2.4.3.1.3 0 .9-.2 1.2z"/></svg>
+          Confirmar por WhatsApp
+        </button>
+      }
+      <button type="button" class="mt-3 h-10 text-sm text-slate-500 underline-offset-2 hover:underline" (click)="restart()">
+        Volver al inicio
       </button>
     </section>
   }

@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -8,37 +8,32 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { RouterLink } from '@angular/router';
-
 import { BusinessBrand } from '@core/models/business.model';
 import { AuthService } from '@core/services/auth.service';
 import { BookingService } from '@core/services/booking.service';
-
-const LINKS = [
-  { label: 'Agenda', path: '/admin/agenda', icon: 'calendar_month' },
-  { label: 'Servicios', path: '/admin/services', icon: 'content_cut' },
-  { label: 'Equipo', path: '/admin/staff', icon: 'groups' },
-  { label: 'Horarios', path: '/admin/schedules', icon: 'schedule' },
-  { label: 'Dashboard', path: '/admin/dashboard', icon: 'space_dashboard' },
-] as const;
+import { DashboardService } from '@core/services/dashboard.service';
+import { StaffService } from '@core/services/staff.service';
 
 @Component({
   selector: 'app-business-page',
   imports: [
     ReactiveFormsModule,
-    RouterLink,
     MatButtonModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
     MatProgressSpinnerModule,
+    RouterLink,
   ],
   templateUrl: './business-page.component.html',
 })
 export class BusinessPageComponent {
   private readonly bookingApi = inject(BookingService);
+  private readonly dashboardApi = inject(DashboardService);
+  private readonly staffApi = inject(StaffService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly timeFormat = new Intl.DateTimeFormat('es-MX', { hour: '2-digit', minute: '2-digit' });
 
-  protected readonly links = LINKS;
   protected readonly isOwner = inject(AuthService).isOwner;
   protected readonly brand = signal<BusinessBrand | null>(null);
   protected readonly configuring = signal(false);
@@ -49,6 +44,34 @@ export class BusinessPageComponent {
   protected readonly logoPreview = signal<string | null>(null);
   protected readonly palette = signal<string[]>([]);
   protected readonly dragging = signal(false);
+  protected readonly todayCount = signal<number | null>(null);
+  protected readonly nextLabel = signal('Sin pendientes');
+  protected readonly teamCount = signal<number | null>(null);
+  protected readonly copied = signal(false);
+  protected readonly toast = signal<string | null>(null);
+
+  protected readonly bookingUrl = computed(() => {
+    const slug = this.brand()?.slug;
+    return slug ? `${window.location.origin}/${slug}/book` : '';
+  });
+
+  protected readonly gaps = computed(() => {
+    const shop = this.brand();
+    const missing: string[] = [];
+    if (!shop?.logo_url) {
+      missing.push('Sube el logo de tu marca');
+    }
+    if (!shop?.address?.trim()) {
+      missing.push('Agrega la dirección del local');
+    }
+    if (!shop?.instagram?.trim()) {
+      missing.push('Agrega tu Instagram');
+    }
+    if (this.teamCount() === 0) {
+      missing.push('Agrega a alguien del equipo');
+    }
+    return missing;
+  });
 
   protected readonly form = new FormGroup({
     name: new FormControl('', { nonNullable: true }),
@@ -78,6 +101,35 @@ export class BusinessPageComponent {
           this.error.set('No pudimos cargar el negocio.');
         },
       });
+    this.dashboardApi
+      .getSummary()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((summary) => {
+        this.todayCount.set(summary.today_appointments_count);
+        const next = summary.upcoming_today[0];
+        this.nextLabel.set(next ? this.timeFormat.format(new Date(next.starts_at)) : 'Sin pendientes');
+      });
+    this.staffApi
+      .getStaff()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((members) => this.teamCount.set(members.filter((member) => member.is_active).length));
+  }
+
+  protected copyLink(): void {
+    const url = this.bookingUrl();
+    if (!url) {
+      return;
+    }
+    void navigator.clipboard.writeText(url).then(() => {
+      this.copied.set(true);
+      this.toast.set('Enlace copiado.');
+      setTimeout(() => this.copied.set(false), 2000);
+    });
+  }
+
+  protected whatsappHref(): string {
+    const text = `¡Hola! Reserva tu cita con nosotros en línea aquí: ${this.bookingUrl()}`;
+    return `https://wa.me/?text=${encodeURIComponent(text)}`;
   }
 
   protected link(value: string | null | undefined, kind: 'web' | 'instagram' | 'facebook'): string {

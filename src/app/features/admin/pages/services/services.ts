@@ -58,10 +58,12 @@ export class ServicesPageComponent {
       nonNullable: true,
       validators: [Validators.maxLength(2000)],
     }),
+    deposit_amount: new FormControl('', { nonNullable: true }),
     price: new FormControl('', {
       nonNullable: true,
       validators: [Validators.required, Validators.min(0)],
     }),
+    variable_price: new FormControl(false, { nonNullable: true }),
     duration_minutes: new FormControl('', {
       nonNullable: true,
       validators: [Validators.required, Validators.min(1), Validators.max(1440), Validators.pattern(/^\d+$/)],
@@ -111,7 +113,7 @@ export class ServicesPageComponent {
   protected openCreate(): void {
     this.editing.set(null);
     this.formError.set(null);
-    this.form.reset({ name: '', description: '', price: '', duration_minutes: '' });
+    this.form.reset({ name: '', description: '', price: '', deposit_amount: '', variable_price: false, duration_minutes: '' });
     this.openEditor();
   }
 
@@ -122,7 +124,9 @@ export class ServicesPageComponent {
       name: service.name,
       description: service.description ?? '',
       price: String(service.price),
+      deposit_amount: service.deposit_amount == null ? '' : String(service.deposit_amount),
       duration_minutes: String(service.duration_minutes),
+      variable_price: Boolean(service.variable_price),
     });
     this.openEditor();
   }
@@ -146,7 +150,9 @@ export class ServicesPageComponent {
       name: raw.name.trim(),
       description: raw.description.trim() || null,
       price: Number(raw.price),
+      deposit_amount: String(raw.deposit_amount ?? '').trim() ? Number(raw.deposit_amount) : null,
       duration_minutes: Number(raw.duration_minutes),
+      variable_price: raw.variable_price,
     };
     const current = this.editing();
     const request = current

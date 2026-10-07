@@ -3,7 +3,6 @@ import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -17,7 +16,6 @@ import { AuthService } from '@core/services/auth.service';
     ReactiveFormsModule,
     RouterLink,
     MatButtonModule,
-    MatCardModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
@@ -80,7 +78,15 @@ export class Login {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (user) => {
-          const destination = user.role === 'super_admin' ? '/super-admin' : '/admin';
+          // FUTURE_PHASE_2_UNIFIED_PLATFORM: el cliente no entra a /cliente. Reserva en el slug de su negocio.
+          const destination =
+            user.role === 'super_admin'
+              ? '/super-admin'
+              : user.role === 'client'
+                ? user.slug
+                  ? `/${user.slug}/book`
+                  : '/auth/login'
+                : '/admin';
           void this.router.navigateByUrl(destination);
         },
         error: (error: HttpErrorResponse) => {

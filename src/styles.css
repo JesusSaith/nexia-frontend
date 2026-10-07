@@ -10,12 +10,13 @@
 
 :root {
   --primary: var(--business-primary, #e11d48);
-  --bg-app: color-mix(in srgb, var(--primary) 10%, #fff);
+  --bg-app: #f3f1ee;
   --surface-card: #ffffff;
-  --border-subtle: color-mix(in srgb, var(--primary) 22%, #fff);
-  --text-main: #1e1b1e;
-  --text-muted: #716a73;
-  --nx-shadow: 0 8px 24px -10px color-mix(in srgb, var(--primary) 28%, transparent);
+  --border-subtle: #e6e2dc;
+  --ink: #161616;
+  --text-main: #1c1917;
+  --text-muted: #78716c;
+  --nx-shadow: none;
   --mat-sys-primary: var(--primary);
 }
 
@@ -23,18 +24,17 @@ body {
   margin: 0;
   background: var(--bg-app);
   color: var(--text-main);
-  font-family: 'Plus Jakarta Sans', Inter, ui-sans-serif, system-ui, sans-serif;
+  font-family: Inter, 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
 }
 
 .mat-drawer,
-.mat-sidenav,
 .mat-toolbar,
 .mat-sidenav-content {
-  background: var(--surface-card);
   color: var(--text-main);
 }
 
-.mat-sidenav-content {
+.mat-sidenav-content,
+.mat-toolbar {
   background: var(--bg-app);
 }
 
@@ -43,8 +43,39 @@ body {
   border-color: var(--border-subtle);
 }
 
-.mat-toolbar {
-  box-shadow: 0 10px 30px -24px color-mix(in srgb, var(--primary) 50%, transparent);
+.nx-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.7rem 0.75rem;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.nx-tab .mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+.nx-tab-on {
+  border-bottom-color: var(--primary);
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+button.nx-tab {
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.mat-sidenav {
+  background: #fff;
+  border-right: 1px solid var(--border-subtle);
 }
 
 .mat-mdc-nav-list {
@@ -58,15 +89,15 @@ body {
 }
 
 .mat-mdc-nav-list .mat-mdc-list-item:hover {
-  background: color-mix(in srgb, var(--primary) 8%, white);
-  transform: translateX(4px);
+  background: color-mix(in srgb, var(--primary) 6%, white);
 }
 
 .mat-mdc-list-item.mdc-list-item--activated {
-  background: color-mix(in srgb, var(--primary) 16%, white);
-  border-radius: 0.85rem;
-  box-shadow: inset 3px 0 0 var(--primary);
+  background: color-mix(in srgb, var(--primary) 8%, white);
+  color: var(--primary);
+  border-radius: 8px;
 }
+
 
 .brand-solid {
   background: var(--primary);
@@ -102,26 +133,28 @@ body {
   border-radius: 0.75rem;
 }
 
-.mat-mdc-dialog-surface {
-  border-radius: 1rem !important;
-  box-shadow: var(--nx-shadow);
+.mat-mdc-dialog-surface,
+mat-card {
+  border-radius: 12px !important;
+  box-shadow: none !important;
+  border: 1px solid var(--border-subtle);
 }
 
 main h1 {
-  font-size: 1.7rem;
-  font-weight: 650;
-  letter-spacing: -0.03em;
-  line-height: 1.15;
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
 main article,
 main .rounded.border,
 main .overflow-x-auto,
 main .overflow-auto {
-  border-radius: 1.15rem;
+  border-radius: 0.9rem;
   background: var(--surface-card);
-  border-color: var(--border-subtle);
-  box-shadow: var(--nx-shadow);
+  border: 1px solid var(--border-subtle);
+  box-shadow: none;
 }
 
 main .mat-mdc-row {
@@ -157,45 +190,26 @@ button[aria-label^='Agendar']:hover {
 @keyframes nx-rise {
   from {
     opacity: 0;
-    transform: translateY(12px);
   }
   to {
     opacity: 1;
-    transform: none;
-  }
-}
-
-@keyframes nx-float {
-  50% {
-    transform: translateY(10px);
   }
 }
 
 main > :not(router-outlet) {
-  animation: nx-rise 0.45s ease backwards;
+  animation: nx-rise 0.25s ease;
 }
 
 .choice-card {
-  border-radius: 1rem;
+  border-radius: 0.9rem;
   border: 1px solid var(--border-subtle);
   background: #fff;
-  box-shadow: var(--nx-shadow);
-  animation: nx-rise 0.5s ease backwards;
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  box-shadow: none;
+  transition: background 0.15s ease;
 }
-
-.choice-card:nth-child(2) { animation-delay: 0.06s; }
-.choice-card:nth-child(3) { animation-delay: 0.12s; }
-.choice-card:nth-child(4) { animation-delay: 0.18s; }
-.choice-card:nth-child(5) { animation-delay: 0.24s; }
 
 .choice-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 14px 28px -10px color-mix(in srgb, var(--primary) 40%, transparent);
-}
-
-.cover-blob {
-  animation: nx-float 7s ease-in-out infinite;
+  background: color-mix(in srgb, var(--primary) 5%, white);
 }
 
 button[aria-label^='Agendar'] {
@@ -207,15 +221,9 @@ button[aria-label^='Agendar']:active {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  main > :not(router-outlet),
-  .choice-card,
-  .cover-blob {
+  main > :not(router-outlet) {
     animation: none;
   }
-}
-
-.choice-card:active {
-  transform: scale(0.98);
 }
 
 mat-icon {

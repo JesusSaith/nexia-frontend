@@ -43,7 +43,7 @@ export class StaffPageComponent {
   protected readonly sections: { id: StaffSection; label: string }[] = [
     { id: 'info', label: 'Información' },
     { id: 'services', label: 'Servicios' },
-    { id: 'account', label: 'Cuenta de acceso' },
+    // FUTURE_PHASE_2_UNIFIED_PLATFORM: { id: 'account', label: 'Cuenta de acceso' },
   ];
   protected readonly staff = signal<Staff[]>([]);
   protected readonly services = signal<Service[]>([]);
@@ -71,7 +71,7 @@ export class StaffPageComponent {
       validators: [Validators.email, Validators.maxLength(255)],
     }),
     phone: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(32)] }),
-    avatar_url: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(2048)] }),
+    avatar_url: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(180000)] }),
     bio: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(2000)] }),
     account_email: new FormControl('', {
       nonNullable: true,
@@ -170,6 +170,40 @@ export class StaffPageComponent {
     this.openEditor();
   }
 
+  protected onPhoto(event: Event): void {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file) {
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const image = new Image();
+      image.onload = () => {
+        const size = 160;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const context = canvas.getContext('2d');
+        if (!context) {
+          return;
+        }
+        const scale = Math.max(size / image.width, size / image.height);
+        const width = image.width * scale;
+        const height = image.height * scale;
+        context.drawImage(image, (size - width) / 2, (size - height) / 2, width, height);
+        const url = canvas.toDataURL('image/jpeg', 0.72);
+        if (url.length > 180000) {
+          this.formError.set('Esa foto es demasiado pesada.');
+          return;
+        }
+        this.form.controls.avatar_url.setValue(url);
+        this.formError.set(null);
+      };
+      image.src = String(reader.result);
+    };
+    reader.readAsDataURL(file);
+  }
+
   protected closeForm(): void {
     if (this.isSaving()) {
       return;
@@ -187,7 +221,8 @@ export class StaffPageComponent {
     const raw = this.form.getRawValue();
     const accountEmail = raw.account_email.trim();
     const accountPassword = raw.account_password;
-    const needsAccount = Boolean(accountEmail || accountPassword) && this.editing()?.user_id == null;
+    // FUTURE_PHASE_2_UNIFIED_PLATFORM: la cuenta de acceso del colaborador queda apagada.
+    const needsAccount = false && Boolean(accountEmail || accountPassword) && this.editing()?.user_id == null;
     if (needsAccount && (!accountEmail || accountPassword.length < 8)) {
       this.section.set('account');
       this.formError.set('La cuenta necesita un correo y una contraseña de al menos 8 caracteres.');

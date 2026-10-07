@@ -1,12 +1,12 @@
 <section>
   <header class="mb-6 flex flex-col gap-4">
-    <div class="flex flex-wrap items-center gap-2">
-      <mat-icon>calendar_month</mat-icon>
+    <div class="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 class="text-xl font-semibold">{{ isStaff() ? 'Mi Agenda' : 'Agenda' }}</h1>
-        <p class="text-sm text-slate-500">Toca un horario libre para crear una cita.</p>
+        <h1>{{ isStaff() ? 'Mi Agenda' : 'Agenda' }}</h1>
+        <p class="mt-1 text-sm text-slate-500">Toca un horario libre para crear una cita.</p>
       </div>
-      <span class="flex-1"></span>
+      <button mat-stroked-button type="button" (click)="openBlock()">Bloquear horario</button>
+      <button mat-stroked-button type="button" (click)="dayOff()">Día libre</button>
       <button mat-flat-button color="primary" type="button" (click)="openCreate()">
         <mat-icon>add</mat-icon>
         Nueva Cita
@@ -26,12 +26,12 @@
         <mat-spinner diameter="18" />
       }
 
-      <div class="inline-flex gap-1 rounded-2xl bg-white p-1 shadow-[0_4px_20px_-4px_rgba(225,29,72,0.06)]">
+      <div class="inline-flex">
         @for (view of views; track view.id) {
           <button
             type="button"
-            class="rounded-xl px-3 py-1.5 text-sm transition active:scale-[0.98]"
-            [class.brand-solid]="currentView() === view.id"
+            class="nx-tab"
+            [class.nx-tab-on]="currentView() === view.id"
             (click)="setView(view.id)"
           >
             {{ view.label }}
@@ -66,6 +66,57 @@
       }
     </div>
   </header>
+
+  @if (blocking()) {
+    <form class="mb-4 grid gap-3 rounded-2xl border bg-white p-4 sm:grid-cols-5" [formGroup]="blockForm" (ngSubmit)="saveBlock()">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Colaborador</mat-label>
+        <mat-select formControlName="staff_id">
+          @for (member of staff(); track member.id) {
+            <mat-option [value]="member.id">{{ member.full_name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Día</mat-label>
+        <input matInput type="date" formControlName="date" />
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Desde</mat-label>
+        <input matInput type="time" formControlName="start" />
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Hasta</mat-label>
+        <input matInput type="time" formControlName="end" />
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Nota</mat-label>
+        <input matInput formControlName="note" />
+      </mat-form-field>
+      <mat-form-field class="sm:col-span-2" appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Repetir</mat-label>
+        <mat-select formControlName="repeat">
+          <mat-option value="day">Solo este día</mat-option>
+          <mat-option value="weekdays">Lun a vie de esta semana</mat-option>
+          <mat-option value="weeks">Lun a vie, 4 semanas</mat-option>
+          <mat-option value="always">Siempre, lun a vie</mat-option>
+        </mat-select>
+      </mat-form-field>
+      @if (blockError(); as message) {
+        <p class="sm:col-span-5 text-sm text-red-700" role="alert">{{ message }}</p>
+      }
+      <div class="sm:col-span-5 flex gap-2">
+        <button mat-flat-button color="primary" type="submit" [disabled]="blockSaving()">
+          {{ blockSaving() ? 'Guardando…' : 'Guardar bloqueo' }}
+        </button>
+        <button mat-button type="button" (click)="blocking.set(false)">Cancelar</button>
+      </div>
+    </form>
+  }
+
+  @if (blockNotice(); as message) {
+    <p class="mb-3 rounded-xl bg-white px-4 py-2 text-sm text-rose-700 shadow-sm" role="status">{{ message }}</p>
+  }
 
   @if (loadError(); as message) {
     <p role="alert" class="mb-3 text-sm text-red-700">{{ message }}</p>
@@ -106,6 +157,11 @@
                       (click)="openAppointment(item, $event)"
                     >
                       {{ formatTime(item.starts_at) }} {{ item.client_name }}
+                    </button>
+                  }
+                  @for (block of blocksOn(day); track block.starts_at + block.staff_id + block.id) {
+                    <button type="button" class="block w-full truncate rounded bg-slate-200 px-1 py-0.5 text-left text-xs text-slate-600" (click)="removeBlock(block, $event)">
+                      {{ formatTime(block.starts_at) }} {{ block.note || 'Bloqueado' }}
                     </button>
                   }
                   @if (hiddenCount(day) > 0) {
@@ -153,6 +209,17 @@
                   [attr.aria-label]="'Agendar ' + dayKey(day) + ' ' + slotLabel(slot)"
                   (click)="openCreateAt(day, slot)"
                 ></button>
+              }
+              @for (block of blocksOn(day); track block.starts_at + block.staff_id + block.id) {
+                <button
+                  type="button"
+                  class="absolute inset-x-1 z-10 overflow-hidden rounded bg-slate-300 px-1 text-left text-xs text-slate-700"
+                  [style.top]="spanStyle(block.starts_at, block.ends_at).top"
+                  [style.height]="spanStyle(block.starts_at, block.ends_at).height"
+                  (click)="removeBlock(block, $event)"
+                >
+                  {{ block.note || 'Bloqueado' }}
+                </button>
               }
               @for (item of appointmentsOn(day); track item.id) {
                 <button
@@ -216,6 +283,17 @@
                     (click)="openCreateAt(cursor(), slot, member.id)"
                   ></button>
                 }
+                @for (block of blocksOn(cursor(), member.id); track block.starts_at + block.staff_id + block.id) {
+                  <button
+                    type="button"
+                    class="absolute inset-x-1 z-10 overflow-hidden rounded bg-slate-300 px-1 text-left text-xs text-slate-700"
+                    [style.top]="spanStyle(block.starts_at, block.ends_at).top"
+                    [style.height]="spanStyle(block.starts_at, block.ends_at).height"
+                    (click)="removeBlock(block, $event)"
+                  >
+                    {{ block.note || 'Bloqueado' }}
+                  </button>
+                }
                 @for (item of appointmentsOn(cursor(), member.id); track item.id) {
                   <button
                     type="button"
@@ -240,7 +318,7 @@
 
 @if (selected(); as pop) {
   <button type="button" class="fixed inset-0 z-30 cursor-default" aria-label="Cerrar detalle" (click)="closeAppointment()"></button>
-  <article class="fixed z-40 w-72 rounded border border-slate-200 bg-white p-3 shadow" [style.left.px]="pop.x" [style.top.px]="pop.y">
+  <article class="fixed z-40 w-80 overflow-y-auto rounded border border-slate-200 bg-white p-3 shadow" [style.left.px]="pop.x" [style.top.px]="pop.y" [style.max-height.px]="pop.maxHeight">
     <div class="flex items-start justify-between gap-2">
       <h2 class="text-sm font-medium">{{ pop.appointment.client_name }}</h2>
       <button mat-icon-button type="button" aria-label="Cerrar" (click)="closeAppointment()">
@@ -254,13 +332,29 @@
     @if (pop.appointment.notes) {
       <p class="mt-2 text-sm text-slate-600">{{ pop.appointment.notes }}</p>
     }
-    <p class="mt-2 text-xs text-slate-500">{{ statusLabel(pop.appointment.status) }}</p>
+    <p class="mt-2 text-xs text-slate-500">{{ statusLabel(pop.appointment.status) }}{{ pop.appointment.status === 'scheduled' ? (pop.appointment.client_confirmed ? ' · Confirmó' : ' · Sin confirmar') : '' }}</p>
+    <label class="mt-2 block text-xs">
+      Precio acordado
+      <input class="mt-1 w-full rounded border px-2 py-1" type="number" min="0" [value]="pop.appointment.quoted_price ?? ''" (change)="saveQuote(pop.appointment, $any($event.target).value)" />
+    </label>
+    @if (pop.appointment.payment_proof) {
+      <img [src]="pop.appointment.payment_proof" alt="Comprobante" class="mt-2 max-h-40 w-full rounded object-cover" />
+    }
+    @if (pop.appointment.status === 'awaiting_deposit') {
+      <div class="mt-3 flex flex-wrap gap-2">
+        <button mat-flat-button color="primary" type="button" (click)="setStatus(pop.appointment, 'scheduled')">Depósito recibido</button>
+        <button mat-stroked-button type="button" (click)="setStatus(pop.appointment, 'cancelled')">Liberar horario</button>
+      </div>
+    }
     @if (pop.appointment.status === 'scheduled') {
-      <div class="mt-3 flex gap-2">
+      <div class="mt-3 flex flex-col gap-2">
         @if (pendingId() === pop.appointment.id) {
           <mat-spinner diameter="20" />
         } @else {
+          <button mat-stroked-button type="button" (click)="repeat(pop.appointment, 3)">Cada 3 semanas</button>
+          <button mat-stroked-button type="button" (click)="repeat(pop.appointment, 4)">Cada 4 semanas</button>
           <button mat-stroked-button type="button" (click)="setStatus(pop.appointment, 'completed')">Completar</button>
+          <button mat-stroked-button type="button" (click)="setStatus(pop.appointment, 'no_show')">No llegó</button>
           <button mat-stroked-button type="button" (click)="setStatus(pop.appointment, 'cancelled')">Cancelar</button>
         }
       </div>
@@ -313,8 +407,13 @@
         <input matInput type="email" formControlName="client_email" />
       </mat-form-field>
       <mat-form-field appearance="outline">
-        <mat-label>Notas</mat-label>
+        <mat-label>Notas o diseño</mat-label>
         <textarea matInput rows="3" formControlName="notes"></textarea>
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Precio acordado</mat-label>
+        <input matInput type="number" min="0" formControlName="quoted_price" />
+        <span matTextPrefix>$&nbsp;</span>
       </mat-form-field>
       @if (formError(); as message) {
         <p role="alert" class="text-sm text-red-700">{{ message }}</p>

@@ -38,12 +38,7 @@
                   <h2 class="font-medium">{{ member.full_name }}</h2>
                   <p class="text-sm text-slate-600">{{ member.role_title }}</p>
                 </div>
-                <span
-                  class="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium"
-                  [class]="member.user_id ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'"
-                >
-                  {{ member.user_id ? 'Acceso activo' : 'Sin cuenta' }}
-                </span>
+                <!-- FUTURE_PHASE_2_UNIFIED_PLATFORM: badge de cuenta de acceso -->
               </div>
               @if (member.bio) {
                 <p class="mt-2 line-clamp-2 text-sm text-slate-500">{{ member.bio }}</p>
@@ -132,10 +127,14 @@
           <mat-label>Teléfono</mat-label>
           <input matInput type="tel" formControlName="phone" />
         </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>Foto</mat-label>
-          <input matInput formControlName="avatar_url" placeholder="https://" />
-        </mat-form-field>
+        <label class="mb-4 flex items-center gap-3 text-sm">
+          @if (form.controls.avatar_url.value) {
+            <img [src]="form.controls.avatar_url.value" alt="" class="h-14 w-14 rounded-full object-cover" />
+          } @else {
+            <span class="flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-xs text-slate-500">Foto</span>
+          }
+          <input type="file" accept="image/png,image/jpeg,image/webp" (change)="onPhoto($event)" />
+        </label>
         <mat-form-field appearance="outline">
           <mat-label>Biografía</mat-label>
           <textarea matInput rows="3" formControlName="bio"></textarea>
@@ -155,6 +154,8 @@
             }
           </div>
         }
+      } @else if (false) {
+        <!-- FUTURE_PHASE_2_UNIFIED_PLATFORM: cuenta de acceso del colaborador -->
       } @else if (editing()?.user_id) {
         <p class="py-4 text-sm text-slate-600">Este colaborador ya tiene acceso activo.</p>
       } @else {

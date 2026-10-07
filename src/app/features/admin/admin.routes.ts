@@ -9,7 +9,13 @@ export const adminRoutes: Routes = [
     path: '',
     loadComponent: () => import('./layout/admin-layout').then((m) => m.AdminLayoutComponent),
     children: [
-      { path: '', pathMatch: 'full', redirectTo: 'agenda' },
+      { path: '', pathMatch: 'full', redirectTo: 'home' },
+      {
+        path: 'settings',
+        canActivate: [managers],
+        loadComponent: () =>
+          import('./pages/settings/settings-page.component').then((m) => m.SettingsPageComponent),
+      },
       {
         path: 'negocio',
         canActivate: [managers],
@@ -20,6 +26,12 @@ export const adminRoutes: Routes = [
         path: 'agenda',
         loadComponent: () =>
           import('./pages/agenda/agenda-page.component').then((m) => m.AgendaPageComponent),
+      },
+      {
+        path: 'home',
+        canActivate: [managers],
+        loadComponent: () =>
+          import('./pages/home/home-page.component').then((m) => m.HomePageComponent),
       },
       {
         path: 'dashboard',

@@ -1,4 +1,4 @@
-export const USER_ROLES = ['owner', 'admin', 'staff', 'super_admin'] as const;
+export const USER_ROLES = ['owner', 'admin', 'staff', 'client', 'super_admin'] as const;
 
 export type UserRole = (typeof USER_ROLES)[number];
 
@@ -10,6 +10,7 @@ export interface CurrentUser {
   role: UserRole;
   tenantId: string;
   businessName?: string;
+  slug?: string | null;
 }
 
 export interface LoginRequest {

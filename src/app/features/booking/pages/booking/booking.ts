@@ -13,6 +13,7 @@ import { forkJoin } from 'rxjs';
 import { Appointment } from '@core/models/appointment.model';
 import { BusinessBrand, PublicService, PublicStaff } from '@core/models/business.model';
 import { BookingService } from '@core/services/booking.service';
+import { ReviewsService } from '@core/services/reviews.service';
 
 const STEPS = [
   { id: 1, label: 'Servicio' },
@@ -42,6 +43,7 @@ const FALLBACK_COLOR = '#E11D48';
 })
 export class Booking {
   private readonly bookingApi = inject(BookingService);
+  private readonly reviewsApi = inject(ReviewsService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly route = inject(ActivatedRoute);
   private readonly currency = new Intl.NumberFormat('es-MX', {
@@ -76,6 +78,13 @@ export class Booking {
   protected readonly slots = signal<{ starts_at: string }[]>([]);
   protected readonly selectedSlot = signal<string | null>(null);
   protected readonly confirmation = signal<Appointment | null>(null);
+  protected readonly reviewRating = signal(5);
+  protected readonly reviewComment = signal('');
+  protected readonly reviewPhoto = signal<string | null>(null);
+  protected readonly reviewSaving = signal(false);
+  protected readonly reviewSent = signal(false);
+  protected readonly reviewError = signal<string | null>(null);
+  protected readonly reviewStars = [1, 2, 3, 4, 5];
 
   protected readonly isLoading = signal(true);
   protected readonly slotsLoading = signal(false);
@@ -96,8 +105,9 @@ export class Booking {
     }),
     client_email: new FormControl('', {
       nonNullable: true,
-      validators: [Validators.required, Validators.email, Validators.maxLength(255)],
+      validators: [Validators.email, Validators.maxLength(255)],
     }),
+    notes: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(2000)] }),
   });
 
   private readonly formEvents = toSignal(this.clientForm.events, { initialValue: undefined });
@@ -141,7 +151,6 @@ export class Booking {
     this.formEvents();
     this.validationTick();
     return this.fieldError('client_email', {
-      required: 'Ingresa tu correo.',
       email: 'Ingresa un correo válido.',
       maxlength: 'El correo es demasiado largo.',
     });
@@ -221,6 +230,23 @@ export class Booking {
     this.step.update((current) => Math.max(1, current - 1));
   }
 
+  protected depositAmount(): number | null {
+    const account = this.brand()?.deposit_account;
+    if (!account) {
+      return null;
+    }
+    if (this.selectedService()?.variable_price && this.brand()?.deposit_percent) {
+      return null;
+    }
+    const own = this.selectedService()?.deposit_amount;
+    const amount = own === undefined || own === null ? this.brand()?.deposit_amount : own;
+    return amount ? amount : null;
+  }
+
+  protected holdsDeposit(): boolean {
+    return this.depositAmount() != null || Boolean(this.selectedService()?.variable_price && this.brand()?.deposit_percent && this.brand()?.deposit_account);
+  }
+
   protected confirm(): void {
     const service = this.selectedService();
     const member = this.selectedStaff();
@@ -235,7 +261,11 @@ export class Booking {
       return;
     }
 
-    const { client_name, client_phone, client_email } = this.clientForm.getRawValue();
+    const { client_name, client_phone, client_email, notes } = this.clientForm.getRawValue();
+    if (service.variable_price && !notes.trim()) {
+      this.formError.set('Cuéntanos el diseño o el detalle para cotizar.');
+      return;
+    }
     this.isSaving.set(true);
     this.formError.set(null);
 
@@ -246,7 +276,8 @@ export class Booking {
         starts_at: startsAt,
         client_name,
         client_phone,
-        client_email,
+        client_email: client_email.trim() || null,
+        notes: notes.trim() || null,
       })
       .pipe(
         takeUntilDestroyed(this.destroyRef),
@@ -264,6 +295,67 @@ export class Booking {
       });
   }
 
+  protected setRating(value: number): void {
+    this.reviewRating.set(value);
+  }
+
+  protected onReviewComment(event: Event): void {
+    this.reviewComment.set((event.target as HTMLTextAreaElement).value);
+  }
+
+  protected onReviewPhoto(event: Event): void {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file) {
+      return;
+    }
+    const image = new Image();
+    const url = URL.createObjectURL(file);
+    image.onload = () => {
+      const size = 480;
+      const scale = Math.min(1, size / Math.max(image.width, image.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(image.width * scale));
+      canvas.height = Math.max(1, Math.round(image.height * scale));
+      canvas.getContext('2d')?.drawImage(image, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      const data = canvas.toDataURL('image/jpeg', 0.72);
+      this.reviewPhoto.set(data.length > 180000 ? null : data);
+      if (data.length > 180000) {
+        this.reviewError.set('La foto es demasiado pesada.');
+      }
+    };
+    image.src = url;
+  }
+
+  protected sendReview(): void {
+    const appointment = this.confirmation();
+    const comment = this.reviewComment().trim();
+    if (!appointment || !comment || this.reviewSaving()) {
+      this.reviewError.set(comment ? null : 'Escribe un comentario.');
+      return;
+    }
+    this.reviewSaving.set(true);
+    this.reviewError.set(null);
+    this.reviewsApi
+      .createPublicReview(this.slug, {
+        client_name: appointment.client_name,
+        rating: this.reviewRating(),
+        comment,
+        photo_url: this.reviewPhoto(),
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.reviewSaving.set(false);
+          this.reviewSent.set(true);
+        },
+        error: (error: unknown) => {
+          this.reviewSaving.set(false);
+          this.reviewError.set(readError(error, 'No pudimos publicar el comentario.'));
+        },
+      });
+  }
+
   protected restart(): void {
     this.step.set(1);
     this.selectedService.set(null);
@@ -271,6 +363,12 @@ export class Booking {
     this.selectedSlot.set(null);
     this.slots.set([]);
     this.confirmation.set(null);
+    this.proofSent.set(false);
+    this.reviewRating.set(5);
+    this.reviewComment.set('');
+    this.reviewPhoto.set(null);
+    this.reviewSent.set(false);
+    this.reviewError.set(null);
     this.formError.set(null);
     this.clientForm.reset();
     this.date.set(this.minDate);
@@ -335,6 +433,73 @@ export class Booking {
           this.slotsError.set(readError(error, 'No pudimos consultar los horarios.'));
         },
       });
+  }
+
+  protected readonly proofSent = signal(false);
+
+  protected onProof(event: Event): void {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    const appointment = this.confirmation();
+    if (!file || !appointment?.cancel_token) {
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const image = new Image();
+      image.onload = () => {
+        const size = 480;
+        const scale = Math.min(1, size / Math.max(image.width, image.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(image.width * scale));
+        canvas.height = Math.max(1, Math.round(image.height * scale));
+        canvas.getContext('2d')?.drawImage(image, 0, 0, canvas.width, canvas.height);
+        const data = canvas.toDataURL('image/jpeg', 0.72);
+        if (data.length > 180000) {
+          this.formError.set('Esa foto es demasiado pesada.');
+          return;
+        }
+        this.bookingApi
+          .uploadPaymentProof(appointment.cancel_token as string, data)
+          .pipe(takeUntilDestroyed(this.destroyRef))
+          .subscribe({
+            next: () => this.proofSent.set(true),
+            error: () => this.formError.set('No pudimos subir el comprobante.'),
+          });
+      };
+      image.src = String(reader.result);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  protected whatsappHref(appointment: Appointment): string | null {
+    const phone = (this.brand()?.phone ?? '').replace(/\D/g, '');
+    if (!phone) {
+      return null;
+    }
+    const manage =
+      appointment.cancel_token && this.slug
+        ? ` Puedes verla o cambiarla aquí: ${window.location.origin}/${this.slug}/manage/${appointment.cancel_token}`
+        : '';
+    const deposit =
+      appointment.status === 'awaiting_deposit' && this.brand()?.deposit_account
+        ? ` Enviaré el anticipo de ${appointment.deposit_amount} a ${this.brand()?.deposit_account}.`
+        : '';
+    const message = encodeURIComponent(
+      `¡Hola! Acabo de agendar una cita en ${this.brand()?.name ?? 'el negocio'}. Soy ${appointment.client_name}, para ${appointment.service_name || this.selectedService()?.name} el ${this.formatDate(appointment.starts_at)} a las ${this.formatTime(appointment.starts_at)}.${deposit}${manage}`,
+    );
+    return `https://wa.me/${phone}?text=${message}`;
+  }
+
+  protected openWhatsapp(href: string): void {
+    window.open(href, '_blank', 'noopener');
+  }
+
+  protected externalHref(value: string, host: string): string {
+    const trimmed = value.trim();
+    if (trimmed.startsWith('http')) {
+      return trimmed;
+    }
+    return `https://${host}/${trimmed.replace(/^@/, '')}`;
   }
 
   private fieldError(

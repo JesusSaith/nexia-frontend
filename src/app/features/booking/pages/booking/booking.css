@@ -4,12 +4,27 @@
   --primary: var(--booking-primary);
   --business-primary: var(--booking-primary);
   --mat-sys-primary: var(--booking-primary);
-  background: var(--page-canvas, color-mix(in srgb, var(--booking-primary) 10%, #fff));
+  background: var(--page-canvas, #f3f1ee);
 }
 
 .brand-fill {
   background: var(--booking-primary);
   color: #fff;
+}
+
+.nx-success {
+  animation: nx-success 0.35s ease;
+}
+
+@keyframes nx-success {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .choice-selected {

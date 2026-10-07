@@ -11,6 +11,9 @@ export interface BusinessBrand {
   instagram?: string | null;
   facebook?: string | null;
   website?: string | null;
+  deposit_amount?: number | null;
+  deposit_percent?: number | null;
+  deposit_account?: string | null;
 }
 
 export interface BusinessProfileUpdate {
@@ -31,7 +34,9 @@ export interface PublicService {
   name: string;
   description: string | null;
   price: number;
+  deposit_amount?: number | null;
   duration_minutes: number;
+  variable_price?: boolean;
 }
 
 export interface PublicStaff {

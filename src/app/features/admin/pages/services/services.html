@@ -98,6 +98,15 @@
         }
       </mat-form-field>
       <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
+        <mat-label>Anticipo</mat-label>
+        <input matInput type="number" min="0" step="0.01" formControlName="deposit_amount" placeholder="Usa el del negocio" />
+        <span matTextPrefix>$&nbsp;</span>
+      </mat-form-field>
+      <label class="mb-3 flex items-center gap-2 text-sm">
+        <input type="checkbox" formControlName="variable_price" />
+        El precio cambia según el diseño o el detalle
+      </label>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
         <mat-label>Duración</mat-label>
         <input matInput type="number" min="1" step="1" formControlName="duration_minutes" />
         <span matTextSuffix>min</span>

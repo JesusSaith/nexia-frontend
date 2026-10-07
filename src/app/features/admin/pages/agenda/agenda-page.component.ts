@@ -16,7 +16,8 @@ import { Appointment, AppointmentStatus } from '@core/models/appointment.model';
 import { ScheduleItem } from '@core/models/schedule.model';
 import { Service } from '@core/models/service.model';
 import { Staff } from '@core/models/staff.model';
-import { AppointmentsService } from '@core/services/appointments.service';
+import { AgendaService } from '@core/services/agenda.service';
+import { AppointmentsService, TimeBlock } from '@core/services/appointments.service';
 import { AuthService } from '@core/services/auth.service';
 import { SchedulesService } from '@core/services/schedules.service';
 import { ServicesService } from '@core/services/services.service';
@@ -33,6 +34,7 @@ interface SelectedAppointment {
   appointment: Appointment;
   x: number;
   y: number;
+  maxHeight: number;
 }
 
 const DAY_START_MINUTES = 8 * 60;
@@ -44,6 +46,8 @@ const STATUS_LABELS: Record<AppointmentStatus, string> = {
   scheduled: 'Programada',
   completed: 'Completada',
   cancelled: 'Cancelada',
+  no_show: 'No llegó',
+  awaiting_deposit: 'Falta el anticipo',
 };
 
 const SLOTS = Array.from(
@@ -100,6 +104,20 @@ export class AgendaPageComponent {
   protected readonly staff = signal<Staff[]>([]);
   protected readonly schedules = signal<ReadonlyMap<number, ScheduleItem[]>>(new Map());
   protected readonly appointments = signal<Appointment[]>([]);
+  protected readonly blocks = signal<TimeBlock[]>([]);
+  protected readonly blocking = signal(false);
+  protected readonly blockSaving = signal(false);
+  protected readonly blockError = signal<string | null>(null);
+  protected readonly blockNotice = signal<string | null>(null);
+  private readonly agendaApi = inject(AgendaService);
+  protected readonly blockForm = new FormGroup({
+    staff_id: new FormControl<number | null>(null, Validators.required),
+    date: new FormControl('', { nonNullable: true, validators: Validators.required }),
+    start: new FormControl('14:00', { nonNullable: true, validators: Validators.required }),
+    end: new FormControl('15:00', { nonNullable: true, validators: Validators.required }),
+    note: new FormControl('Hora de comida', { nonNullable: true }),
+    repeat: new FormControl<'day' | 'weekdays' | 'weeks' | 'always'>('day', { nonNullable: true }),
+  });
   protected readonly selected = signal<SelectedAppointment | null>(null);
   protected readonly isLoading = signal(true);
   protected readonly isSaving = signal(false);
@@ -125,6 +143,7 @@ export class AgendaPageComponent {
       validators: [Validators.email, Validators.maxLength(255)],
     }),
     notes: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(2000)] }),
+    quoted_price: new FormControl('', { nonNullable: true }),
   });
 
   protected readonly activeServices = computed(() => this.services().filter((item) => item.is_active));
@@ -259,10 +278,207 @@ export class AgendaPageComponent {
     if (status === 'completed') {
       return 'bg-emerald-100 text-emerald-900';
     }
-    if (status === 'cancelled') {
+    if (status === 'awaiting_deposit') {
+      return 'bg-amber-100 text-amber-950';
+    }
+    if (status === 'cancelled' || status === 'no_show') {
       return 'bg-slate-200 text-slate-500 line-through';
     }
     return 'bg-rose-100 text-rose-900';
+  }
+
+  protected dayOff(): void {
+    const staffId = this.staffId() ?? this.staff()[0]?.id;
+    if (staffId == null) {
+      return;
+    }
+    const date = this.dayKey(this.cursor());
+    this.appointmentsApi
+      .createBlock({ staff_id: staffId, starts_at: `${date}T08:00:00`, ends_at: `${date}T20:00:00`, note: 'Día libre' })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.blockNotice.set('Día libre');
+          this.loadAppointments(this.range(), this.staffId(), this.serviceId());
+        },
+        error: (error: unknown) => this.blockError.set(readError(error, 'No pudimos cerrar el día.')),
+      });
+  }
+
+  protected tellPrice(appointment: Appointment): void {
+    const phone = (appointment.client_phone ?? '').replace(/\D/g, '');
+    if (!phone || appointment.quoted_price == null) {
+      return;
+    }
+    const slug = this.auth.currentUser()?.slug ?? '';
+    const link = appointment.cancel_token && slug ? ` ${location.origin}/${slug}/manage/${appointment.cancel_token}` : '';
+    const deposit = appointment.deposit_amount ? ` El anticipo es $${appointment.deposit_amount}.` : '';
+    const text = encodeURIComponent(
+      `Hola ${appointment.client_name}, el precio de ${appointment.service_name} quedó en $${appointment.quoted_price}.${deposit}${link}`,
+    );
+    window.open(`https://wa.me/${phone}?text=${text}`, '_blank', 'noopener');
+  }
+
+  protected saveQuote(appointment: Appointment, value: string): void {
+    const amount = Number(value);
+    if (!value.trim() || Number.isNaN(amount)) {
+      return;
+    }
+    this.appointmentsApi
+      .quote(appointment.id, amount)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((saved) => {
+        this.selected.update((current) => (current ? { ...current, appointment: saved } : current));
+        this.tellPrice(saved);
+      });
+  }
+
+  protected repeat(appointment: Appointment, weeks: number): void {
+    const start = parseTimestamp(appointment.starts_at);
+    const time = appointment.starts_at.slice(11, 16);
+    const jobs = [1, 2, 3].map((step) => {
+      const next = new Date(start);
+      next.setDate(next.getDate() + weeks * 7 * step);
+      return this.appointmentsApi
+        .createAdminAppointment({
+          service_id: appointment.service_id,
+          staff_id: appointment.staff_id,
+          starts_at: `${this.dayKey(next)}T${time}:00`,
+          client_name: appointment.client_name,
+          client_phone: appointment.client_phone || '',
+          client_email: appointment.client_email,
+          notes: appointment.notes,
+        })
+        .pipe(catchError(() => of(null)));
+    });
+    forkJoin(jobs)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.blockNotice.set('Citas repetidas');
+        this.closeAppointment();
+        this.loadAppointments(this.range(), this.staffId(), this.serviceId());
+      });
+  }
+
+  protected openBlock(): void {
+    this.blockForm.patchValue({
+      staff_id: this.staffId() ?? this.staff()[0]?.id ?? null,
+      date: this.dayKey(this.cursor()),
+    });
+    this.blocking.set(true);
+    this.blockError.set(null);
+  }
+
+  protected saveBlock(): void {
+    const value = this.blockForm.getRawValue();
+    if (value.staff_id == null || !value.date) {
+      return;
+    }
+    if (value.start >= value.end) {
+      this.blockError.set('La hora de fin debe ser posterior.');
+      return;
+    }
+    if (value.repeat === 'always') {
+      this.blockSaving.set(true);
+      this.appointmentsApi
+        .createStanding({
+          staff_id: value.staff_id,
+          start_time: value.start,
+          end_time: value.end,
+          note: value.note.trim() || null,
+        })
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe({
+          next: () => {
+            this.blockSaving.set(false);
+            this.blocking.set(false);
+            this.blockNotice.set('Comida fija, de lunes a viernes');
+            this.loadAppointments(this.range(), this.staffId(), this.serviceId());
+          },
+          error: (error: unknown) => {
+            this.blockSaving.set(false);
+            this.blockError.set(readError(error, 'No pudimos guardar la comida fija.'));
+          },
+        });
+      return;
+    }
+    const days = repeatDays(value.date, value.repeat);
+    this.blockSaving.set(true);
+    this.blockError.set(null);
+    forkJoin(
+      days.map((day) =>
+        this.appointmentsApi.createBlock({
+          staff_id: value.staff_id as number,
+          starts_at: `${day}T${value.start}:00`,
+          ends_at: `${day}T${value.end}:00`,
+          note: value.note.trim() || null,
+        }),
+      ),
+    )
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.blockSaving.set(false);
+          this.blocking.set(false);
+          this.blockNotice.set(days.length === 1 ? 'Horario bloqueado' : `Se bloquearon ${days.length} días`);
+          this.loadAppointments(this.range(), this.staffId(), this.serviceId());
+        },
+        error: (error: unknown) => {
+          this.blockSaving.set(false);
+          this.blockError.set(readError(error, 'No pudimos bloquear ese horario.'));
+        },
+      });
+  }
+
+  protected removeBlock(block: TimeBlock, event: Event): void {
+    event.stopPropagation();
+    if (block.rule_id) {
+      if (!confirm('¿Quitar esta comida de todos los días?')) {
+        return;
+      }
+      this.appointmentsApi
+        .deleteStanding(block.rule_id)
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe({
+          next: () => {
+            this.blockNotice.set('Comida fija eliminada');
+            this.loadAppointments(this.range(), this.staffId(), this.serviceId());
+          },
+          error: (error: unknown) => this.blockError.set(readError(error, 'No pudimos quitar el bloqueo.')),
+        });
+      return;
+    }
+    if (!confirm('¿Eliminar este bloqueo y liberar el horario?')) {
+      return;
+    }
+    this.agendaApi
+      .deleteBlock(block.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.blockNotice.set('Bloqueo eliminado');
+          this.loadAppointments(this.range(), this.staffId(), this.serviceId());
+        },
+        error: (error: unknown) => this.blockError.set(readError(error, 'No pudimos quitar el bloqueo.')),
+      });
+  }
+
+  protected blocksOn(day: Date, staffId?: number): TimeBlock[] {
+    const key = this.dayKey(day);
+    return this.blocks().filter(
+      (item) => item.starts_at.startsWith(key) && (staffId == null || item.staff_id === staffId),
+    );
+  }
+
+  protected spanStyle(startsAt: string, endsAt: string): { top: string; height: string } {
+    const start = parseTimestamp(startsAt);
+    const end = parseTimestamp(endsAt);
+    const startMinutes = start.getHours() * 60 + start.getMinutes();
+    const endMinutes = end.getHours() * 60 + end.getMinutes();
+    const span = DAY_END_MINUTES - DAY_START_MINUTES;
+    const top = clamp(((startMinutes - DAY_START_MINUTES) / span) * 100, 0, 98);
+    const height = clamp(((endMinutes - startMinutes) / span) * 100, 4, 100 - top);
+    return { top: `${top}%`, height: `${height}%` };
   }
 
   protected blockStyle(appointment: Appointment): { top: string; height: string } {
@@ -304,6 +520,7 @@ export class AgendaPageComponent {
       client_phone: '',
       client_email: '',
       notes: '',
+      quoted_price: '',
     });
     if (this.isStaff()) {
       this.form.controls.staff_id.disable();
@@ -345,6 +562,7 @@ export class AgendaPageComponent {
         client_phone: value.client_phone.trim(),
         client_email: value.client_email.trim() || null,
         notes: value.notes.trim() || null,
+        quoted_price: String(value.quoted_price ?? '').trim() ? Number(value.quoted_price) : null,
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
@@ -362,10 +580,13 @@ export class AgendaPageComponent {
 
   protected openAppointment(appointment: Appointment, event: MouseEvent): void {
     event.stopPropagation();
-    const width = 288;
-    const x = Math.max(8, Math.min(event.clientX, window.innerWidth - width - 8));
-    const y = Math.max(8, Math.min(event.clientY, window.innerHeight - 240));
-    this.selected.set({ appointment, x, y });
+    const margin = 8;
+    const width = 320;
+    const x = Math.max(margin, Math.min(event.clientX, window.innerWidth - width - margin));
+    const room = window.innerHeight - margin * 2;
+    const want = Math.min(560, room);
+    const y = Math.max(margin, Math.min(event.clientY, window.innerHeight - want - margin));
+    this.selected.set({ appointment, x, y, maxHeight: window.innerHeight - y - margin });
   }
 
   protected closeAppointment(): void {
@@ -462,20 +683,27 @@ export class AgendaPageComponent {
     const current = ++this.requestId;
     this.isLoading.set(true);
     this.loadError.set(null);
-    this.appointmentsApi
-      .getAppointments({
+    forkJoin({
+      items: this.appointmentsApi.getAppointments({
         start_date: range.start,
         end_date: range.end,
         staff_id: staffId,
         service_id: serviceId,
-      })
+      }),
+      blocks: this.appointmentsApi.getBlocks({
+        start_date: range.start,
+        end_date: range.end,
+        staff_id: staffId,
+      }),
+    })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: (items) => {
+        next: ({ items, blocks }) => {
           if (current !== this.requestId) {
             return;
           }
           this.appointments.set(items);
+          this.blocks.set(blocks);
           this.isLoading.set(false);
         },
         error: (error: unknown) => {
@@ -483,6 +711,7 @@ export class AgendaPageComponent {
             return;
           }
           this.appointments.set([]);
+          this.blocks.set([]);
           this.isLoading.set(false);
           this.loadError.set(readError(error, 'No pudimos cargar las citas.'));
         },
@@ -585,6 +814,30 @@ function formatPeriod(view: CalendarView, cursor: Date, week: Date[]): string {
 
 function capitalize(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function repeatDays(anchor: string, mode: 'day' | 'weekdays' | 'weeks' | 'always'): string[] {
+  const [year, month, day] = anchor.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  if (mode === 'day' || Number.isNaN(date.getTime())) {
+    return [anchor];
+  }
+  const monday = new Date(date);
+  monday.setDate(date.getDate() - ((date.getDay() + 6) % 7));
+  const span = mode === 'weekdays' ? 5 : 28;
+  const days: string[] = [];
+  for (let offset = 0; offset < span; offset += 1) {
+    const next = new Date(monday);
+    next.setDate(monday.getDate() + offset);
+    const weekday = next.getDay();
+    if (weekday === 0 || weekday === 6) {
+      continue;
+    }
+    const monthText = String(next.getMonth() + 1).padStart(2, '0');
+    const dayText = String(next.getDate()).padStart(2, '0');
+    days.push(`${next.getFullYear()}-${monthText}-${dayText}`);
+  }
+  return days;
 }
 
 function readError(error: unknown, fallback: string): string {
