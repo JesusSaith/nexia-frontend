@@ -23,6 +23,7 @@ export interface DashboardSummary {
   week_appointments_count: number;
   upcoming_today: Appointment[];
   week_trend: WeekTrendPoint[];
+  month_trend?: WeekTrendPoint[];
 }
 
 export interface DashboardStats {

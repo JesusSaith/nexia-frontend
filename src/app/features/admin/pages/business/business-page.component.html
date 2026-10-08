@@ -82,6 +82,7 @@
             </a>
           </div>
         </div>
+        <img class="mt-4 h-28 w-28 rounded-xl bg-white p-1" [src]="'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + bookingUrl()" alt="QR para reservar" />
         <a class="mt-4 inline-flex items-center gap-2 text-sm text-slate-600 underline-offset-2 hover:underline" [href]="bookingUrl()" target="_blank" rel="noopener">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.5"/></svg>
           Ver página pública

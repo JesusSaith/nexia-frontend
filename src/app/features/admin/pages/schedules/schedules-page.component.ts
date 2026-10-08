@@ -45,6 +45,7 @@ export class SchedulesPageComponent {
   protected readonly loadError = signal<string | null>(null);
   protected readonly formError = signal<string | null>(null);
   protected readonly savedMessage = signal<string | null>(null);
+  protected readonly slotTimes = signal('');
 
   constructor() {
     this.loadStaff();
@@ -53,6 +54,7 @@ export class SchedulesPageComponent {
   protected onStaff(value: number | ''): void {
     const staffId = value === '' ? null : value;
     this.staffId.set(staffId);
+    this.slotTimes.set(this.staff().find((member) => member.id === staffId)?.slot_times ?? '');
     this.savedMessage.set(null);
     this.formError.set(null);
     if (staffId === null) {
@@ -94,6 +96,16 @@ export class SchedulesPageComponent {
       return;
     }
 
+    const clocks = this.slotTimes()
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean);
+    if (clocks.some((part) => !/^\d{2}:\d{2}$/.test(part))) {
+      this.formError.set('Escribe los horarios como 09:30, 12:30, 15:00, 18:00.');
+      this.savedMessage.set(null);
+      return;
+    }
+
     const invalid = this.days().find((day) => day.end_time <= day.start_time);
     if (invalid) {
       this.formError.set(
@@ -108,11 +120,14 @@ export class SchedulesPageComponent {
     this.savedMessage.set(null);
 
     this.schedulesApi
-      .updateStaffSchedule(staffId, this.days())
+      .updateStaffSchedule(staffId, this.days(), clocks.join(', '))
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (rows) => {
           this.days.set(mergeWeek(rows));
+          this.staff.update((list) =>
+            list.map((member) => (member.id === staffId ? { ...member, slot_times: clocks.join(', ') || null } : member)),
+          );
           this.isLoading.set(false);
           this.savedMessage.set('Horario guardado.');
         },

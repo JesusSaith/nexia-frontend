@@ -14,6 +14,7 @@ export interface BusinessBrand {
   deposit_amount?: number | null;
   deposit_percent?: number | null;
   deposit_account?: string | null;
+  deposit_hold_hours?: number | null;
 }
 
 export interface BusinessProfileUpdate {
@@ -37,6 +38,7 @@ export interface PublicService {
   deposit_amount?: number | null;
   duration_minutes: number;
   variable_price?: boolean;
+  image_url?: string | null;
 }
 
 export interface PublicStaff {

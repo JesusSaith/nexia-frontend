@@ -13,11 +13,32 @@
           <p class="mt-1 text-sm text-slate-500">Fotos, calificaciones y comentarios de tus clientes.</p>
         </header>
         @if (notices().length > 0) {
-          <ul class="mb-6 flex flex-col gap-2">
-            @for (notice of notices(); track notice.id) {
-              <li class="rounded border border-rose-100 bg-rose-50 px-3 py-2 text-sm">{{ notice.message }}</li>
+          <section class="mb-8">
+            <h2 class="mb-3 text-sm font-semibold">Avisos</h2>
+            <ul class="flex flex-col gap-3">
+              @for (notice of pagedNotices(); track notice.id) {
+                <li class="rounded-2xl border border-[#eceae6] border-l-4 px-4 py-3 shadow-sm" [class]="noticeTone(notice.message)">
+                  <p class="text-xs text-slate-500">{{ noticeWhen(notice.created_at) }}</p>
+                  <p class="mt-1 text-sm font-medium text-[#1E1B1E]">{{ noticeText(notice.message) }}</p>
+                  <div class="mt-2 flex flex-wrap gap-2">
+                    @if (noticeCita(notice.message); as citaId) {
+                      <a class="rounded-full bg-[#1E1B1E] px-3 py-1 text-xs text-white" [routerLink]="['/admin/agenda']" [queryParams]="{ cita: citaId }">Ver cita</a>
+                    }
+                    @for (phone of noticePhones(notice.message); track phone) {
+                      <a class="rounded-full bg-[#25D366] px-3 py-1 text-xs text-white" [href]="waitWhatsapp(notice.message, phone)" target="_blank" rel="noopener">Avisar por WhatsApp</a>
+                    }
+                  </div>
+                </li>
+              }
+            </ul>
+            @if (noticePages() > 1) {
+              <div class="mt-4 flex items-center justify-between text-sm">
+                <button type="button" class="rounded-full border px-3 py-1 disabled:opacity-40" [disabled]="noticePage() === 0" (click)="noticePage.update((page) => page - 1)">Anterior</button>
+                <span class="text-slate-500">{{ noticePage() + 1 }} / {{ noticePages() }}</span>
+                <button type="button" class="rounded-full border px-3 py-1 disabled:opacity-40" [disabled]="noticePage() + 1 >= noticePages()" (click)="noticePage.update((page) => page + 1)">Siguiente</button>
+              </div>
             }
-          </ul>
+          </section>
         }
 
         @if (reviews().length === 0) {
@@ -43,6 +64,14 @@
                       }
                     </p>
                     <p class="mt-3 text-sm leading-6">{{ review.comment }}</p>
+                    @if (review.reply) {
+                      <p class="mt-2 rounded-xl bg-[#f7f4f5] px-3 py-2 text-sm text-slate-600">Respuesta: {{ review.reply }}</p>
+                    } @else {
+                      <form class="mt-3 flex gap-2" (submit)="replyReview(review, $event)">
+                        <input name="reply" class="w-full rounded-full border px-3 py-1 text-sm" placeholder="Responder al cliente" />
+                        <button type="submit" class="rounded-full bg-[#1E1B1E] px-3 py-1 text-xs text-white">Publicar</button>
+                      </form>
+                    }
                     @if (review.photo_url) {
                       <img
                         [src]="review.photo_url"
@@ -59,6 +88,24 @@
       </div>
 
       <aside class="flex flex-col gap-4 lg:sticky lg:top-6">
+        <section class="rounded border p-4">
+          <h2 class="mb-3 text-sm font-semibold">Hoy</h2>
+          @if (todayVisits().length === 0) {
+            <p class="text-sm text-slate-500">No hay citas hoy.</p>
+          } @else {
+            <ul class="flex flex-col gap-3">
+              @for (item of todayVisits(); track item.id) {
+                <li class="text-sm">
+                  <p class="font-medium">{{ item.client_name }}</p>
+                  <p class="text-xs text-slate-500">{{ item.service_name }} · {{ slotLabel(item.starts_at) }}</p>
+                  @if (item.client_phone) {
+                    <a class="mt-1 inline-block text-xs font-medium text-[#128C7E]" [href]="remind(item, 'hoy')" target="_blank" rel="noopener">Recordar por WhatsApp</a>
+                  }
+                </li>
+              }
+            </ul>
+          }
+        </section>
         <section class="rounded border p-4">
           <h2 class="mb-3 text-sm font-semibold">Mañana</h2>
           @if (tomorrow().length === 0) {

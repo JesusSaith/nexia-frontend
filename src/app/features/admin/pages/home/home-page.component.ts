@@ -45,12 +45,22 @@ export class HomePageComponent {
   protected readonly reviews = signal<Review[]>([]);
   protected readonly upcoming = signal<Appointment[]>([]);
   protected readonly booked = signal<Appointment[]>([]);
-  protected readonly notices = signal<{ id: number; message: string }[]>([]);
+  protected readonly notices = signal<{ id: number; message: string; created_at: string }[]>([]);
+  protected readonly noticePage = signal(0);
+  protected readonly pagedNotices = computed(() => {
+    const start = this.noticePage() * 10;
+    return this.notices().slice(start, start + 10);
+  });
+  protected readonly noticePages = computed(() => Math.max(1, Math.ceil(this.notices().length / 10)));
   protected readonly openings = signal<{ staff: string; slots: AvailabilitySlot[] }[]>([]);
   protected readonly clients = signal<{ id: number; full_name: string; phone: string }[]>([]);
   protected readonly offerId = signal<number | null>(null);
   protected readonly tomorrow = computed(() => {
     const day = inputDate(addDays(new Date(), 1));
+    return this.booked().filter((item) => item.status === 'scheduled' && item.starts_at.slice(0, 10) === day);
+  });
+  protected readonly todayVisits = computed(() => {
+    const day = inputDate(new Date());
     return this.booked().filter((item) => item.status === 'scheduled' && item.starts_at.slice(0, 10) === day);
   });
   protected readonly stats = signal<DashboardStats | null>(null);
@@ -88,6 +98,17 @@ export class HomePageComponent {
           this.loadError.set(readError(error, 'No pudimos cargar el inicio.'));
         },
       });
+  }
+
+  protected replyReview(review: Review, event: Event): void {
+    event.preventDefault();
+    const reply = String(new FormData(event.target as HTMLFormElement).get('reply') ?? '').trim();
+    if (!reply) {
+      return;
+    }
+    this.reviewsApi.reply(review.id, reply).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((updated) => {
+      this.reviews.update((rows) => rows.map((row) => (row.id === updated.id ? updated : row)));
+    });
   }
 
   protected initial(name: string): string {
@@ -154,13 +175,52 @@ export class HomePageComponent {
     window.open(`https://wa.me/${phone}?text=${text}`, '_blank', 'noopener');
   }
 
-  protected remind(item: Appointment): string {
+  protected remind(item: Appointment, when: 'hoy' | 'mañana' = 'mañana'): string {
     const phone = (item.client_phone ?? '').replace(/\D/g, '');
     const slug = this.auth.currentUser()?.slug ?? '';
-    const link = item.cancel_token && slug ? ` ${location.origin}/${slug}/manage/${item.cancel_token}` : '';
+    const link = item.cancel_token && slug ? ` Confírmala aquí: ${location.origin}/${slug}/manage/${item.cancel_token}` : '';
     const text = encodeURIComponent(
-      `Hola ${item.client_name}, te recordamos tu cita de ${item.service_name} mañana a las ${this.timeFormat.format(parseLocal(item.starts_at))}.${link}`,
+      `Hola ${item.client_name}, te recordamos tu cita de ${item.service_name} ${when} a las ${this.timeFormat.format(parseLocal(item.starts_at))}.${link}`,
     );
+    return `https://wa.me/${phone}?text=${text}`;
+  }
+
+  protected noticeText(message: string): string {
+    return message.replace(/\s*#\d+\s*$/, '');
+  }
+
+  protected noticeWhen(value: string): string {
+    const date = parseLocal(value);
+    return `${this.dayFormat.format(date)} · ${this.timeFormat.format(date)}`;
+  }
+
+  protected noticeTone(message: string): string {
+    if (message.includes('comprobante')) {
+      return 'border-l-[#b76e79] bg-[#fdf7f8]';
+    }
+    if (message.includes('espera') || message.includes('Horario libre')) {
+      return 'border-l-emerald-500 bg-emerald-50';
+    }
+    if (message.includes('cancel') || message.includes('liberó')) {
+      return 'border-l-stone-400 bg-stone-50';
+    }
+    return 'border-l-[#1E1B1E] bg-white';
+  }
+
+  protected noticeCita(message: string): number | null {
+    const match = message.match(/#(\d+)\s*$/);
+    return match ? Number(match[1]) : null;
+  }
+
+  protected noticePhones(message: string): string[] {
+    return message.startsWith('Horario libre') ? [...message.matchAll(/\d{8,}/g)].map((match) => match[0]) : [];
+  }
+
+  protected waitWhatsapp(message: string, phone: string): string {
+    const time = message.match(/\d{2}:\d{2}/)?.[0] ?? '';
+    const slug = this.auth.currentUser()?.slug ?? '';
+    const link = slug ? ` ${location.origin}/${slug}/book` : '';
+    const text = encodeURIComponent(`Hola, se liberó un horario${time ? ` a las ${time}` : ''}. Reserva aquí:${link}`);
     return `https://wa.me/${phone}?text=${text}`;
   }
 

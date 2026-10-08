@@ -14,7 +14,12 @@ export class SchedulesService {
     return this.http.get<Schedule[]>(`${this.apiBaseUrl}/schedules/staff/${staffId}`);
   }
 
-  updateStaffSchedule(staffId: number, schedules: ScheduleItem[]): Observable<Schedule[]> {
-    return this.http.put<Schedule[]>(`${this.apiBaseUrl}/schedules/staff/${staffId}`, { schedules });
+  updateStaffSchedule(
+    staffId: number,
+    schedules: ScheduleItem[],
+    slotTimes?: string | null,
+  ): Observable<Schedule[]> {
+    const body = slotTimes === undefined ? { schedules } : { schedules, slot_times: slotTimes };
+    return this.http.put<Schedule[]>(`${this.apiBaseUrl}/schedules/staff/${staffId}`, body);
   }
 }

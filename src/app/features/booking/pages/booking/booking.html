@@ -15,6 +15,17 @@
         }
       </div>
     </div>
+    @if (opinions().length) {
+      <section class="flex flex-col gap-2">
+        <h2 class="text-sm font-medium">Opiniones</h2>
+        @for (review of opinions(); track review.id) {
+          <p class="text-sm text-slate-600">{{ review.client_name }}: {{ review.comment }}</p>
+          @if (review.reply) {
+            <p class="text-sm">Respuesta del negocio: {{ review.reply }}</p>
+          }
+        }
+      </section>
+    }
     <div class="flex flex-wrap gap-3 text-sm">
       @if (brand()?.phone) {
         <a class="underline" [href]="'tel:' + brand()!.phone">{{ brand()!.phone }}</a>
@@ -60,17 +71,22 @@
             @for (service of services(); track service.id) {
               <button
                 type="button"
-                class="choice-card p-4 text-left"
+                class="choice-card flex gap-3 p-4 text-left"
                 [class.choice-selected]="selectedService()?.id === service.id"
                 (click)="selectService(service)"
               >
-                <span class="block font-medium">{{ service.name }}</span>
-                <span class="mt-1 block text-sm text-slate-600">
-                  {{ service.duration_minutes }} min · {{ service.variable_price ? 'Precio según lo que pidas' : formatPrice(service.price) }}
-                </span>
-                @if (service.description) {
-                  <span class="mt-1 block text-sm text-slate-500">{{ service.description }}</span>
+                @if (service.image_url) {
+                  <img class="h-16 w-16 shrink-0 rounded-xl object-cover" [src]="service.image_url" alt="" />
                 }
+                <span class="min-w-0">
+                  <span class="block font-medium">{{ service.name }}</span>
+                  <span class="mt-1 block text-sm text-slate-600">
+                    {{ service.duration_minutes }} min · {{ service.variable_price ? 'Precio según lo que pidas' : formatPrice(service.price) }}
+                  </span>
+                  @if (service.description) {
+                    <span class="mt-1 block text-sm text-slate-500">{{ service.description }}</span>
+                  }
+                </span>
               </button>
             }
           </div>
@@ -125,16 +141,40 @@
     </section>
   } @else if (step() === 2) {
     <section class="flex flex-col gap-4">
-      <mat-form-field appearance="outline" class="w-full sm:max-w-xs">
-        <mat-label>Fecha</mat-label>
-        <input
-          matInput
-          type="date"
-          [min]="minDate"
-          [value]="date()"
-          (change)="onDate($any($event.target).value)"
-        />
-      </mat-form-field>
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-base font-medium capitalize">{{ monthLabel() }}</p>
+          @if (themeLabel()) {
+            <p class="text-sm text-slate-500">{{ themeLabel() }}</p>
+          }
+        </div>
+        <div class="flex gap-2">
+          <button type="button" class="rounded-full border px-3 py-1 text-sm" (click)="shiftMonth(-1)">‹</button>
+          <button type="button" class="rounded-full border px-3 py-1 text-sm" (click)="shiftMonth(1)">›</button>
+        </div>
+      </div>
+      <div class="grid grid-cols-7 text-center text-xs text-slate-400">
+        @for (label of ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']; track label) {
+          <div>{{ label }}</div>
+        }
+      </div>
+      <div class="grid grid-cols-7 gap-1 text-center">
+        @for (day of monthDays(); track dayIso(day)) {
+          <button
+            type="button"
+            class="flex h-10 flex-col items-center justify-center rounded-lg text-sm"
+            [class.text-slate-300]="day.getMonth() !== dateMonth() || dayIso(day) < minDate"
+            [class.brand-solid]="dayIso(day) === date()"
+            [disabled]="day.getMonth() !== dateMonth() || dayIso(day) < minDate"
+            (click)="pickMonthDay(day)"
+          >
+            {{ day.getDate() }}
+            @if (openDays().includes(dayIso(day))) {
+              <span class="mx-auto mt-0.5 block h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+            }
+          </button>
+        }
+      </div>
 
       @if (slotsError(); as message) {
         <p role="alert" class="text-sm text-red-700">{{ message }}</p>
@@ -143,20 +183,36 @@
           <mat-spinner diameter="32" />
         </div>
       } @else if (slots().length === 0) {
-        <p class="text-sm text-slate-600">No hay horarios disponibles para esta fecha.</p>
+        <p class="text-sm text-slate-600">Ese día no tiene horarios libres. Déjanos tus datos y te avisamos.</p>
+        @if (waitSent()) {
+          <p class="text-sm text-emerald-700">Listo. Te avisamos si se libera un horario.</p>
+        } @else {
+          <div class="flex flex-col gap-2 sm:max-w-sm">
+            <input class="rounded border px-3 py-2 text-sm" placeholder="Nombre" [value]="waitName()" (input)="waitName.set($any($event.target).value)" />
+            <input class="rounded border px-3 py-2 text-sm" placeholder="Teléfono" [value]="waitPhone()" (input)="waitPhone.set($any($event.target).value)" />
+            <button type="button" class="brand-solid rounded-full px-4 py-2 text-sm" (click)="joinWait()">Avisarme</button>
+          </div>
+        }
       } @else {
         <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
           @for (slot of slots(); track slot.starts_at) {
             <button
               type="button"
-              class="rounded border border-slate-200 bg-white px-3 py-2 text-sm"
-              [class.choice-selected]="selectedSlot() === slot.starts_at"
+              class="rounded-full border px-3 py-2 text-sm"
+              [class.border-slate-200]="selectedSlot() !== slot.starts_at"
+              [class.bg-white]="selectedSlot() !== slot.starts_at"
+              [class.brand-solid]="selectedSlot() === slot.starts_at"
+              [class.border-transparent]="selectedSlot() === slot.starts_at"
+              [attr.aria-pressed]="selectedSlot() === slot.starts_at"
               (click)="selectSlot(slot.starts_at)"
             >
               {{ formatTime(slot.starts_at) }}
             </button>
           }
         </div>
+        @if (selectedSlot(); as chosen) {
+          <p class="text-sm font-medium" style="color: var(--booking-primary)">Horario elegido: {{ formatTime(chosen) }}</p>
+        }
       }
 
       <div class="flex justify-between">
@@ -195,7 +251,7 @@
         }
       </mat-form-field>
       <mat-form-field appearance="outline">
-        <mat-label>{{ selectedService()?.variable_price ? 'Diseño o detalle' : 'Notas' }}</mat-label>
+        <mat-label>{{ selectedService()?.variable_price ? 'Qué necesitas' : 'Notas' }}</mat-label>
         <textarea matInput rows="2" formControlName="notes"></textarea>
       </mat-form-field>
 
@@ -229,13 +285,19 @@
         {{ appointment.status === 'awaiting_deposit' ? 'Transfiere el anticipo. La cita se confirma cuando llegue el depósito.' : 'Tu lugar está asegurado en nuestro sistema.' }}
       </p>
       @if (appointment.status === 'awaiting_deposit' && appointment.deposit_amount) {
-        <p class="mt-4 text-sm font-medium">{{ appointment.deposit_amount }} · {{ brand()?.deposit_account }}</p>
+        <ol class="mt-4 w-full space-y-2 text-left text-sm">
+          <li class="rounded-xl bg-rose-50 px-3 py-2">
+            1. Transfiere <strong>${{ appointment.deposit_amount }}</strong> a {{ brand()?.deposit_account }}
+            <button type="button" class="ml-2 text-xs font-medium underline" (click)="copyAccount()">{{ accountCopied() ? 'Copiada' : 'Copiar cuenta' }}</button>
+          </li>
+          <li class="rounded-xl bg-rose-50 px-3 py-2">2. Sube la foto del comprobante para que el negocio confirme tu cita</li>
+        </ol>
         @if (proofSent()) {
-          <p class="mt-3 text-sm text-emerald-700">Comprobante enviado. El negocio lo ve en la agenda.</p>
+          <p class="mt-3 text-sm text-emerald-700">Foto enviada. El negocio la ve en la agenda y ahí acepta la cita.</p>
         } @else {
-          <label class="mt-4 block w-full text-left text-sm">
-            Captura del depósito
-            <input class="mt-1 block w-full text-sm" type="file" accept="image/png,image/jpeg,image/webp" (change)="onProof($event)" />
+          <label class="mt-4 flex h-11 w-full cursor-pointer items-center justify-center rounded-full bg-[#1E1B1E] text-sm text-white">
+            Subir comprobante
+            <input class="hidden" type="file" accept="image/png,image/jpeg,image/webp" (change)="onProof($event)" />
           </label>
           @if (formError(); as message) {
             <p class="mt-2 text-sm text-red-700" role="alert">{{ message }}</p>

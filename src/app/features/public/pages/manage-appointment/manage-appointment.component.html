@@ -51,11 +51,11 @@
       @if (item.status === 'awaiting_deposit' && item.deposit_amount) {
         <p class="mt-4 text-sm">Transfiere {{ item.deposit_amount }} a {{ item.deposit_account }}. El horario se libera si el depósito no llega a tiempo.</p>
         @if (item.payment_proof) {
-          <p class="mt-2 text-sm text-emerald-700">Comprobante enviado.</p>
+          <p class="mt-2 text-sm text-emerald-700">Foto enviada. El negocio confirma la cita cuando la revise.</p>
         } @else {
-          <label class="mt-3 block text-sm">
-            Comprobante
-            <input class="mt-1 block w-full text-sm" type="file" accept="image/png,image/jpeg,image/webp" (change)="onProof($event)" />
+          <label class="mt-3 flex h-11 cursor-pointer items-center justify-center rounded-2xl bg-[#1E1B1E] text-sm text-white">
+            Subir comprobante
+            <input class="hidden" type="file" accept="image/png,image/jpeg,image/webp" (change)="onProof($event)" />
           </label>
         }
       }

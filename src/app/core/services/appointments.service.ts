@@ -39,6 +39,9 @@ export class AppointmentsService {
     if (params.service_id != null) {
       httpParams = httpParams.set('service_id', params.service_id);
     }
+    if (params.client_phone) {
+      httpParams = httpParams.set('client_phone', params.client_phone);
+    }
     return this.http.get<Appointment[]>(`${this.apiBaseUrl}/appointments`, { params: httpParams });
   }
 
@@ -78,5 +81,9 @@ export class AppointmentsService {
 
   updateStatus(id: number, status: AppointmentStatus): Observable<Appointment> {
     return this.http.put<Appointment>(`${this.apiBaseUrl}/appointments/${id}/status`, { status });
+  }
+
+  clearProof(id: number): Observable<Appointment> {
+    return this.http.post<Appointment>(`${this.apiBaseUrl}/appointments/${id}/another-proof`, {});
   }
 }

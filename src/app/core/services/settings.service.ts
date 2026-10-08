@@ -27,6 +27,7 @@ export interface BusinessSettings {
   deposit_percent: number | null;
   deposit_account: string | null;
   deposit_hold_hours: number | null;
+  buffer_minutes: number;
   hours: BusinessHour[];
 }
 
@@ -40,6 +41,7 @@ export interface ProfileUpdate {
   deposit_percent: number | null;
   deposit_account: string | null;
   deposit_hold_hours: number | null;
+  buffer_minutes?: number | null;
 }
 
 @Injectable({ providedIn: 'root' })

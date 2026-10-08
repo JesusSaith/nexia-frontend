@@ -77,6 +77,11 @@
         <input formControlName="depositHoldHours" type="number" min="1" max="72" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" />
       </label>
       <p class="mt-1 text-xs text-stone-500">Si el depósito no llega en ese tiempo, el horario se libera solo. El anticipo de un servicio, si lo tiene, reemplaza este monto.</p>
+      <label class="mt-4 block max-w-xs text-sm">
+        Minutos entre citas
+        <input formControlName="bufferMinutes" type="number" min="0" max="120" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" />
+      </label>
+      <p class="mt-1 text-xs text-stone-500">Tiempo libre después de cada cita para preparar el siguiente servicio. 0 las deja seguidas.</p>
       <button type="submit" class="mt-6 h-10 rounded-xl bg-[#1E1B1E] px-4 text-sm text-white hover:bg-black disabled:opacity-50" [disabled]="savingProfile()">
         {{ savingProfile() ? 'Guardando…' : 'Guardar Perfil' }}
       </button>

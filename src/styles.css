@@ -226,6 +226,11 @@ button[aria-label^='Agendar']:active {
   }
 }
 
+.service-sheet .mdc-dialog__surface {
+  border-radius: 20px;
+  overflow: hidden;
+}
+
 mat-icon {
   font-family: 'Material Symbols Outlined';
   font-weight: normal;

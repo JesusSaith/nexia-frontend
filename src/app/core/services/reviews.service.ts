@@ -17,4 +17,12 @@ export class ReviewsService {
   createPublicReview(slug: string, data: ReviewCreate): Observable<Review> {
     return this.http.post<Review>(`${this.apiBaseUrl}/reviews/public/${slug}`, data);
   }
+
+  getPublicReviews(slug: string): Observable<Review[]> {
+    return this.http.get<Review[]>(`${this.apiBaseUrl}/reviews/public/${slug}`);
+  }
+
+  reply(id: number, reply: string): Observable<Review> {
+    return this.http.put<Review>(`${this.apiBaseUrl}/reviews/${id}`, { reply });
+  }
 }

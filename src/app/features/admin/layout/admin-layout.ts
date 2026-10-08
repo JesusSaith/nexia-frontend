@@ -7,12 +7,14 @@ import { MatListModule } from '@angular/material/list';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatToolbarModule } from '@angular/material/toolbar';
-import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { map } from 'rxjs';
+import { Router, NavigationEnd, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { interval, of } from 'rxjs';
+import { catchError, filter, map, startWith, switchMap } from 'rxjs/operators';
 
 import { UserRole } from '@core/models/user.model';
 import { AuthService } from '@core/services/auth.service';
 import { BookingService } from '@core/services/booking.service';
+import { DashboardService } from '@core/services/dashboard.service';
 
 interface AdminNavLink {
   label: string;
@@ -34,7 +36,7 @@ const MANAGER_LINKS: readonly AdminNavLink[] = [
   { label: 'Home', path: '/admin/home', exact: true, icon: 'home' },
   { label: 'Dashboard', path: '/admin/dashboard', exact: true, icon: 'space_dashboard' },
   { label: 'Agenda', path: '/admin/agenda', exact: true, icon: 'calendar_month' },
-  { label: 'Servicios', path: '/admin/services', exact: false, icon: 'content_cut' },
+  { label: 'Servicios', path: '/admin/services', exact: false, icon: 'category' },
   { label: 'Equipo', path: '/admin/staff', exact: false, icon: 'groups' },
   { label: 'Horarios', path: '/admin/schedules', exact: false, icon: 'schedule' },
   { label: 'Clientes', path: '/admin/clientes', exact: false, icon: 'person' },
@@ -64,11 +66,29 @@ const PLATFORM_LINKS: readonly AdminNavLink[] = [
     MatMenuModule,
   ],
   templateUrl: './admin-layout.html',
+  styles: `
+    .nexia-toast {
+      animation: nexia-toast-in 0.4s ease;
+    }
+    @keyframes nexia-toast-in {
+      from {
+        opacity: 0;
+        transform: translateY(-18px) scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: none;
+      }
+    }
+  `,
 })
 export class AdminLayoutComponent {
   private readonly authService = inject(AuthService);
   private readonly bookingApi = inject(BookingService);
   private readonly router = inject(Router);
+  private readonly noticesApi = inject(DashboardService);
+  private seenNotice = Number(sessionStorage.getItem('nexia-seen-notice') || 0);
+  private toastedNotice = this.seenNotice;
   private readonly destroyRef = inject(DestroyRef);
   private readonly handset = toSignal(
     inject(BreakpointObserver)
@@ -88,11 +108,15 @@ export class AdminLayoutComponent {
   });
 
   protected readonly currentUser = this.authService.currentUser;
+  protected readonly logoUrl = signal<string | null>(null);
+  protected readonly brandName = signal<string | null>(null);
   protected readonly brandColor = signal('#E11D48');
   protected readonly canvasColor = signal<string | null>(null);
   protected readonly sidebarOpen = signal(false);
   protected readonly loggingOut = signal(false);
   protected readonly logoutError = signal<string | null>(null);
+  protected readonly unread = signal(0);
+  protected readonly toast = signal<string | null>(null);
   protected readonly isHandset = this.handset;
 
   protected readonly businessName = computed(
@@ -109,6 +133,27 @@ export class AdminLayoutComponent {
         .subscribe((brand) => {
           this.brandColor.set(safeHex(brand.primary_color));
           this.canvasColor.set(safeHexOrNull(brand.canvas_color));
+          this.logoUrl.set(brand.logo_url);
+          this.brandName.set(brand.name);
+        });
+      interval(20000)
+        .pipe(
+          startWith(0),
+          switchMap(() => this.noticesApi.getNotices().pipe(catchError(() => of([])))),
+          takeUntilDestroyed(this.destroyRef),
+        )
+        .subscribe((rows) => this.applyNotices(rows));
+      this.router.events
+        .pipe(
+          filter((event) => event instanceof NavigationEnd),
+          takeUntilDestroyed(this.destroyRef),
+        )
+        .subscribe(() => {
+          if (this.router.url.startsWith('/admin/home')) {
+            this.seenNotice = Math.max(this.seenNotice, this.toastedNotice);
+            sessionStorage.setItem('nexia-seen-notice', String(this.seenNotice));
+            this.unread.set(0);
+          }
         });
     }
   }
@@ -117,6 +162,25 @@ export class AdminLayoutComponent {
     const role = this.authService.role();
     return role ? ROLE_LABELS[role] : 'Sin sesión';
   });
+
+  private applyNotices(rows: { id: number; message: string }[]): void {
+    const fresh = rows.filter((row) => row.id > this.seenNotice);
+    if (this.router.url.startsWith('/admin/home')) {
+      const max = rows.reduce((top, row) => Math.max(top, row.id), this.seenNotice);
+      this.seenNotice = max;
+      this.toastedNotice = max;
+      sessionStorage.setItem('nexia-seen-notice', String(max));
+      this.unread.set(0);
+      return;
+    }
+    this.unread.set(fresh.length);
+    const newest = fresh[0];
+    if (newest && newest.id > this.toastedNotice) {
+      this.toastedNotice = newest.id;
+      this.toast.set(newest.message.replace(/\s*#\d+\s*$/, ''));
+      setTimeout(() => this.toast.set(null), 7000);
+    }
+  }
 
   protected toggleSidebar(): void {
     this.sidebarOpen.update((open) => !open);

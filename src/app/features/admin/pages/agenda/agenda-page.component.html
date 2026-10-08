@@ -1,45 +1,33 @@
 <section>
-  <header class="mb-6 flex flex-col gap-4">
-    <div class="flex flex-wrap items-end justify-between gap-3">
-      <div>
-        <h1>{{ isStaff() ? 'Mi Agenda' : 'Agenda' }}</h1>
-        <p class="mt-1 text-sm text-slate-500">Toca un horario libre para crear una cita.</p>
+  @if (previewUrl(); as src) {
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" (click)="previewUrl.set(null)">
+      <div class="flex max-h-[92vh] w-full max-w-5xl flex-col gap-3 rounded-2xl bg-white p-4" (click)="$event.stopPropagation()">
+        <img [src]="src" alt="Vista previa del mes" class="max-h-[74vh] w-full object-contain" />
+        <div class="flex justify-end gap-2">
+          <button type="button" class="h-10 rounded-full px-4 text-sm" (click)="previewUrl.set(null)">Cerrar</button>
+          <button type="button" class="h-10 rounded-full bg-[#25D366] px-4 text-sm text-white" (click)="sharePreview()">WhatsApp</button>
+          <button type="button" class="h-10 rounded-full bg-[#1E1B1E] px-4 text-sm text-white" (click)="savePreview()">Descargar</button>
+        </div>
       </div>
-      <button mat-stroked-button type="button" (click)="openBlock()">Bloquear horario</button>
-      <button mat-stroked-button type="button" (click)="dayOff()">Día libre</button>
-      <button mat-flat-button color="primary" type="button" (click)="openCreate()">
-        <mat-icon>add</mat-icon>
-        Nueva Cita
-      </button>
     </div>
-
-    <div class="flex flex-wrap items-center gap-2">
-      <button mat-icon-button type="button" aria-label="Anterior" (click)="shift(-1)">
-        <mat-icon>chevron_left</mat-icon>
-      </button>
-      <button mat-stroked-button type="button" (click)="goToday()">Hoy</button>
-      <button mat-icon-button type="button" aria-label="Siguiente" (click)="shift(1)">
-        <mat-icon>chevron_right</mat-icon>
-      </button>
-      <p class="min-w-48 text-sm font-medium">{{ periodLabel() }}</p>
-      @if (isLoading()) {
-        <mat-spinner diameter="18" />
-      }
-
-      <div class="inline-flex">
+  }
+  <header class="mb-6 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+    <div class="flex flex-wrap items-center gap-x-5 gap-y-3">
+      <h1>{{ isStaff() ? 'Mi Agenda' : 'Agenda' }}</h1>
+      <button type="button" class="h-10 rounded-full border border-[#e4dfda] bg-white px-4 text-sm font-medium text-[#b76e79]" (click)="goToday()">Hoy</button>
+      <div class="inline-flex items-center gap-1">
         @for (view of views; track view.id) {
-          <button
-            type="button"
-            class="nx-tab"
-            [class.nx-tab-on]="currentView() === view.id"
-            (click)="setView(view.id)"
-          >
+          <button type="button" class="nx-tab px-3" [class.nx-tab-on]="currentView() === view.id" (click)="setView(view.id)">
             {{ view.label }}
           </button>
         }
       </div>
-
-      <mat-form-field appearance="outline" class="w-full sm:w-52" subscriptSizing="dynamic">
+      @if (isLoading()) {
+        <mat-spinner diameter="18" />
+      }
+    </div>
+    <div class="flex flex-wrap items-center gap-3">
+      <mat-form-field appearance="outline" class="w-full sm:w-48" subscriptSizing="dynamic">
         <mat-label>Servicio</mat-label>
         <mat-select [value]="serviceId() ?? ''" (selectionChange)="onService($event.value)">
           <mat-option value="">Todos</mat-option>
@@ -49,17 +37,12 @@
         </mat-select>
       </mat-form-field>
       @if (!isStaff()) {
-        <mat-form-field appearance="outline" class="w-full sm:w-52" subscriptSizing="dynamic">
+        <mat-form-field appearance="outline" class="w-full sm:w-48" subscriptSizing="dynamic">
           <mat-label>Colaborador</mat-label>
           <mat-select [value]="staffId() ?? ''" (selectionChange)="onStaff($event.value)">
             <mat-option value="">Todos</mat-option>
             @for (member of staff(); track member.id) {
-              <mat-option [value]="member.id">
-                {{ member.full_name }}
-                @if (serviceId() !== null && isAvailable(member.id)) {
-                  <span class="text-emerald-700"> · disponible</span>
-                }
-              </mat-option>
+              <mat-option [value]="member.id">{{ member.full_name }}</mat-option>
             }
           </mat-select>
         </mat-form-field>
@@ -122,73 +105,88 @@
     <p role="alert" class="mb-3 text-sm text-red-700">{{ message }}</p>
   }
 
-  @switch (currentView()) {
-    @case ('month') {
-      <div class="overflow-x-auto">
-        <div class="grid min-w-[720px] grid-cols-7 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-          @for (label of weekdayLabels; track label) {
-            <div class="border-b border-r border-slate-200 px-2 py-1 text-xs text-slate-500">{{ label }}</div>
-          }
-          @for (week of monthWeeks(); track dayKey(week[0])) {
-            @for (day of week; track dayKey(day)) {
-              <div class="relative min-h-28 border-b border-r border-slate-200">
-                <button
-                  type="button"
-                  class="absolute inset-0"
-                  [attr.aria-label]="'Ver ' + dayKey(day)"
-                  (click)="openDay(day)"
-                ></button>
-                <div class="pointer-events-none relative p-1">
-                  <span
-                    class="inline-flex h-6 w-6 items-center justify-center rounded-full text-sm"
-                    [class.text-slate-400]="!inCurrentMonth(day)"
-                    [class.brand-solid]="isToday(day)"
-                    [class.text-white]="isToday(day)"
-                  >
-                    {{ day.getDate() }}
-                  </span>
-                </div>
-                <div class="relative z-10 flex flex-col gap-1 px-1 pb-1">
-                  @for (item of preview(day); track item.id) {
-                    <button
-                      type="button"
-                      class="truncate rounded px-1 py-0.5 text-left text-xs"
-                      [class]="statusClass(item.status)"
-                      (click)="openAppointment(item, $event)"
-                    >
-                      {{ formatTime(item.starts_at) }} {{ item.client_name }}
-                    </button>
-                  }
-                  @for (block of blocksOn(day); track block.starts_at + block.staff_id + block.id) {
-                    <button type="button" class="block w-full truncate rounded bg-slate-200 px-1 py-0.5 text-left text-xs text-slate-600" (click)="removeBlock(block, $event)">
-                      {{ formatTime(block.starts_at) }} {{ block.note || 'Bloqueado' }}
-                    </button>
-                  }
-                  @if (hiddenCount(day) > 0) {
-                    <span class="px-1 text-xs text-slate-500">+{{ hiddenCount(day) }} más</span>
-                  }
-                </div>
-              </div>
-            }
-          }
+  <div class="overflow-x-auto rounded-2xl border border-[#eceae6] bg-white lg:grid lg:grid-cols-[228px_minmax(0,1fr)_240px]">
+    <aside class="flex flex-col gap-2 border-b border-[#f0eeeb] p-5 lg:border-b-0 lg:border-r">
+      <button type="button" class="h-11 w-full rounded-full bg-[#b76e79] text-sm font-medium text-white shadow-sm" (click)="openCreate()">Nueva cita</button>
+      <button type="button" class="h-11 w-full whitespace-nowrap rounded-full border border-[#e4dfda] bg-[#faf9f7] text-sm font-medium text-[#1E1B1E]" (click)="openBlock()">Bloquear horario</button>
+      <button type="button" class="h-11 w-full whitespace-nowrap rounded-full border border-[#e4dfda] bg-[#faf9f7] text-sm font-medium text-[#1E1B1E]" (click)="dayOff()">Día libre</button>
+      <p class="mt-4 text-xs leading-5 text-stone-500">Elige el día. A la derecha quedan los horarios libres.</p>
+      <p class="flex items-center gap-2 text-xs text-stone-500"><span class="h-2 w-2 rounded-full bg-[#b76e79]"></span>Cita</p>
+      <p class="flex items-center gap-2 text-xs text-stone-500"><span class="h-2 w-2 rounded-full bg-sky-300"></span>Día libre o bloqueo</p>
+      <p class="flex items-center gap-2 text-xs text-stone-500"><span class="h-2 w-2 rounded-full bg-emerald-400"></span>Horario libre</p>
+    </aside>
+    <div class="min-w-0 p-5">
+      <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <p class="text-lg font-semibold">{{ periodLabel() }}</p>
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            class="inline-flex h-10 items-center gap-2 rounded-full bg-[#1E1B1E] px-4 text-sm font-medium text-white disabled:opacity-60"
+            title="Vista previa del mes con horarios, tu logo y el enlace para agendar"
+            [disabled]="exporting()"
+            (click)="exportMonth()"
+          >
+            {{ exporting() ? 'Preparando…' : 'Ver mes' + (monthService() ? ' · ' + monthService() : '') }}
+          </button>
+          <button type="button" class="h-10 rounded-full border border-[#e4dfda] bg-white px-4 text-sm font-medium" (click)="copyBooking()">
+            {{ linkCopied() ? 'Copiado' : 'Copiar enlace' }}
+          </button>
+          <a class="inline-flex h-10 items-center rounded-full bg-[#25D366] px-4 text-sm font-medium text-white" [href]="whatsappHref()" target="_blank" rel="noopener">WhatsApp</a>
+          <div class="flex rounded-full border border-[#e4dfda]">
+            <button type="button" class="flex h-10 w-10 items-center justify-center" aria-label="Anterior" (click)="shift(-1)">
+              <mat-icon>chevron_left</mat-icon>
+            </button>
+            <button type="button" class="flex h-10 w-10 items-center justify-center border-l border-[#e4dfda]" aria-label="Siguiente" (click)="shift(1)">
+              <mat-icon>chevron_right</mat-icon>
+            </button>
+          </div>
         </div>
       </div>
+  @switch (currentView()) {
+    @case ('month') {
+          <div class="min-w-[36rem] grid grid-cols-7 text-center text-xs text-stone-400">
+            @for (label of weekdayLabels; track label) {
+              <div class="py-2">{{ label }}</div>
+            }
+          </div>
+          @for (week of monthWeeks(); track dayKey(week[0])) {
+            <div class="min-w-[36rem] grid grid-cols-7 text-center">
+              @for (day of week; track dayKey(day)) {
+                <button
+                  type="button"
+                  class="mx-auto my-1.5 flex h-14 w-12 flex-col items-center justify-center rounded-lg text-base"
+                  [class.text-stone-300]="!inCurrentMonth(day)"
+                  [class.bg-[#1E1B1E]]="isSelected(day)"
+                  [class.text-white]="isSelected(day)"
+                  [class.bg-[#f3f1ee]]="!isSelected(day) && (preview(day).length > 0 || blocksOn(day).length > 0)"
+                  (click)="selectDay(day)"
+                >
+                  {{ day.getDate() }}
+                  <span class="mt-0.5 flex h-1.5 justify-center gap-0.5">
+                    @for (id of serviceDots(day); track id) {
+                      <span class="h-1.5 w-1.5 rounded-full" [style.background]="serviceColor(id)"></span>
+                    }
+                  </span>
+                </button>
+              }
+            </div>
+          }
     }
     @case ('week') {
       <div class="overflow-auto rounded border border-slate-200 bg-white">
-        <div class="grid min-w-[840px]" style="grid-template-columns: 3.5rem repeat(7, minmax(0, 1fr))">
+        <div class="grid min-w-[1100px] gap-x-2" style="grid-template-columns: 3.5rem repeat(7, minmax(8.5rem, 1fr))">
           <div class="border-b border-slate-200"></div>
           @for (day of weekDays(); track dayKey(day)) {
-            <div class="border-b border-l border-slate-200 px-2 py-2 text-center">
+            <button type="button" class="w-full border-b border-l border-slate-200 px-2 py-2 text-center" (click)="selectDay(day)">
               <div class="text-xs text-slate-500">{{ weekdayName(day) }}</div>
               <div
                 class="mx-auto mt-1 flex h-8 w-8 items-center justify-center rounded-full text-sm"
-                [class.brand-solid]="isToday(day)"
-                [class.text-white]="isToday(day)"
+                [class.bg-[#1E1B1E]]="isSelected(day)"
+                [class.text-white]="isSelected(day)"
               >
                 {{ day.getDate() }}
               </div>
-            </div>
+            </button>
           }
           <div class="relative" [style.height.px]="gridHeight">
             @for (slot of slots; track slot) {
@@ -213,7 +211,7 @@
               @for (block of blocksOn(day); track block.starts_at + block.staff_id + block.id) {
                 <button
                   type="button"
-                  class="absolute inset-x-1 z-10 overflow-hidden rounded bg-slate-300 px-1 text-left text-xs text-slate-700"
+                  class="absolute inset-x-2 z-10 overflow-hidden rounded bg-slate-300 px-1 text-left text-xs text-slate-700"
                   [style.top]="spanStyle(block.starts_at, block.ends_at).top"
                   [style.height]="spanStyle(block.starts_at, block.ends_at).height"
                   (click)="removeBlock(block, $event)"
@@ -224,14 +222,20 @@
               @for (item of appointmentsOn(day); track item.id) {
                 <button
                   type="button"
-                  class="absolute inset-x-1 z-10 overflow-hidden rounded px-1 text-left text-xs"
-                  [class]="statusClass(item.status)"
+                  class="absolute inset-x-2 z-10 overflow-hidden rounded px-1 text-left text-xs text-white"
+                  [style.background]="serviceColor(item.service_id)"
                   [style.top]="blockStyle(item).top"
                   [style.height]="blockStyle(item).height"
                   (click)="openAppointment(item, $event)"
                 >
                   <span class="block font-medium">{{ formatTime(item.starts_at) }}</span>
                   <span class="block truncate">{{ item.client_name }}</span>
+                  @if (mark(item)) {
+                    <span class="block truncate text-[10px]">{{ mark(item) }}</span>
+                    @if (mark(item).startsWith('Anticipo')) {
+                      <button type="button" class="text-[10px] underline" (click)="receiveDeposit(item, $event)">Recibido</button>
+                    }
+                  }
                 </button>
               }
             </div>
@@ -286,7 +290,7 @@
                 @for (block of blocksOn(cursor(), member.id); track block.starts_at + block.staff_id + block.id) {
                   <button
                     type="button"
-                    class="absolute inset-x-1 z-10 overflow-hidden rounded bg-slate-300 px-1 text-left text-xs text-slate-700"
+                    class="absolute inset-x-2 z-10 overflow-hidden rounded bg-slate-300 px-1 text-left text-xs text-slate-700"
                     [style.top]="spanStyle(block.starts_at, block.ends_at).top"
                     [style.height]="spanStyle(block.starts_at, block.ends_at).height"
                     (click)="removeBlock(block, $event)"
@@ -297,14 +301,20 @@
                 @for (item of appointmentsOn(cursor(), member.id); track item.id) {
                   <button
                     type="button"
-                    class="absolute inset-x-1 z-10 overflow-hidden rounded px-1 text-left text-xs"
-                    [class]="statusClass(item.status)"
+                    class="absolute inset-x-2 z-10 overflow-hidden rounded px-1 text-left text-xs text-white"
+                    [style.background]="serviceColor(item.service_id)"
                     [style.top]="blockStyle(item).top"
                     [style.height]="blockStyle(item).height"
                     (click)="openAppointment(item, $event)"
                   >
                     <span class="block font-medium">{{ formatTime(item.starts_at) }} {{ item.service_name }}</span>
                     <span class="block truncate">{{ item.client_name }}</span>
+                  @if (mark(item)) {
+                    <span class="block truncate text-[10px]">{{ mark(item) }}</span>
+                    @if (mark(item).startsWith('Anticipo')) {
+                      <button type="button" class="text-[10px] underline" (click)="receiveDeposit(item, $event)">Recibido</button>
+                    }
+                  }
                   </button>
                 }
               </div>
@@ -314,6 +324,41 @@
       }
     }
   }
+    </div>
+    <aside class="border-t border-[#f0eeeb] p-4 lg:border-l lg:border-t-0">
+      <p class="text-sm font-medium">{{ weekdayName(cursor()) }} {{ cursor().getDate() }}</p>
+      <div class="mt-3 flex max-h-[32rem] flex-col gap-2 overflow-y-auto">
+        @for (item of appointmentsOn(cursor()); track item.id) {
+          <button type="button" class="flex items-center gap-2 rounded-xl border border-[#eceae6] px-3 py-2 text-left text-sm" (click)="openAppointment(item, $event)">
+            <span class="h-2 w-2 shrink-0 rounded-full" [style.background]="serviceColor(item.service_id)"></span>
+            <span class="min-w-0">
+              <span class="block">{{ formatTime(item.starts_at) }}</span>
+              <span class="block truncate text-xs text-stone-500">{{ item.client_name }}</span>
+              @if (mark(item)) {
+                <span class="block truncate text-xs text-[#b76e79]">{{ mark(item) }}</span>
+                @if (mark(item).startsWith('Anticipo')) {
+                  <button type="button" class="text-xs text-[#b76e79] underline" (click)="receiveDeposit(item, $event)">Recibido</button>
+                }
+              }
+            </span>
+          </button>
+        }
+        @for (block of blocksOn(cursor()); track block.starts_at + block.staff_id + block.id) {
+          <button type="button" class="rounded-xl bg-[#f3f1ee] px-3 py-2 text-left text-sm text-stone-600" (click)="removeBlock(block, $event)">
+            {{ formatTime(block.starts_at) }} {{ block.note || 'Bloqueado' }}
+          </button>
+        }
+        @for (label of openTimes(); track label) {
+          <button type="button" class="rounded-xl border border-[#eceae6] px-3 py-2 text-left text-sm" (click)="openAtTime(label)">
+            <span class="mr-2 inline-block h-2 w-2 rounded-full bg-emerald-400"></span>{{ label }}
+          </button>
+        }
+        @if (openTimes().length === 0) {
+          <p class="px-1 text-sm text-stone-400">Sin horarios libres</p>
+        }
+      </div>
+    </aside>
+  </div>
 </section>
 
 @if (selected(); as pop) {
@@ -328,6 +373,13 @@
     <p class="text-sm text-slate-600">{{ formatTime(pop.appointment.starts_at) }} · {{ pop.appointment.service_name }}</p>
     <p class="text-sm text-slate-600">{{ pop.appointment.staff_name }}</p>
     <p class="mt-2 text-sm">{{ pop.appointment.client_phone || 'Sin teléfono' }}</p>
+    @if (pop.history.length) {
+      <ul class="mt-2 text-xs text-slate-500">
+        @for (line of pop.history; track line) {
+          <li>{{ line }}</li>
+        }
+      </ul>
+    }
     <p class="text-sm">{{ pop.appointment.client_email || 'Sin correo' }}</p>
     @if (pop.appointment.notes) {
       <p class="mt-2 text-sm text-slate-600">{{ pop.appointment.notes }}</p>
@@ -338,11 +390,19 @@
       <input class="mt-1 w-full rounded border px-2 py-1" type="number" min="0" [value]="pop.appointment.quoted_price ?? ''" (change)="saveQuote(pop.appointment, $any($event.target).value)" />
     </label>
     @if (pop.appointment.payment_proof) {
-      <img [src]="pop.appointment.payment_proof" alt="Comprobante" class="mt-2 max-h-40 w-full rounded object-cover" />
+      <p class="mt-3 text-xs font-medium">Comprobante</p>
+      <img [src]="pop.appointment.payment_proof" alt="Comprobante" class="mt-1 max-h-48 w-full rounded object-contain" />
+    } @else if (pop.appointment.status === 'awaiting_deposit') {
+      <p class="mt-3 text-xs text-slate-500">Aún no sube el comprobante.</p>
     }
     @if (pop.appointment.status === 'awaiting_deposit') {
-      <div class="mt-3 flex flex-wrap gap-2">
-        <button mat-flat-button color="primary" type="button" (click)="setStatus(pop.appointment, 'scheduled')">Depósito recibido</button>
+      <div class="mt-3 flex flex-col gap-2">
+        <button mat-flat-button color="primary" type="button" (click)="acceptAndTell(pop.appointment)">
+          {{ pop.appointment.payment_proof ? 'Aceptar y avisar' : 'Depósito recibido' }}
+        </button>
+        @if (pop.appointment.payment_proof) {
+          <button mat-stroked-button type="button" (click)="askAnother(pop.appointment)">Pedir otra foto</button>
+        }
         <button mat-stroked-button type="button" (click)="setStatus(pop.appointment, 'cancelled')">Liberar horario</button>
       </div>
     }
@@ -407,7 +467,7 @@
         <input matInput type="email" formControlName="client_email" />
       </mat-form-field>
       <mat-form-field appearance="outline">
-        <mat-label>Notas o diseño</mat-label>
+        <mat-label>Notas</mat-label>
         <textarea matInput rows="3" formControlName="notes"></textarea>
       </mat-form-field>
       <mat-form-field appearance="outline">

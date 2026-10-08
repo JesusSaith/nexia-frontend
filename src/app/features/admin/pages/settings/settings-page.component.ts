@@ -37,6 +37,7 @@ export class SettingsPageComponent {
     depositPercent: new FormControl<number | null>(null),
     depositAccount: new FormControl('', { nonNullable: true }),
     depositHoldHours: new FormControl<number | null>(3),
+    bufferMinutes: new FormControl<number | null>(0),
   });
 
   protected readonly hoursForm = new FormGroup({
@@ -125,6 +126,7 @@ export class SettingsPageComponent {
         deposit_percent: value.depositPercent === null || value.depositPercent === undefined || String(value.depositPercent) === '' ? null : Number(value.depositPercent),
         deposit_account: value.depositAccount.trim() || null,
         deposit_hold_hours: value.depositHoldHours === null || String(value.depositHoldHours) === '' ? 3 : Number(value.depositHoldHours),
+        buffer_minutes: value.bufferMinutes === null || String(value.bufferMinutes) === '' ? 0 : Number(value.bufferMinutes),
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
@@ -181,6 +183,7 @@ export class SettingsPageComponent {
       depositPercent: settings.deposit_percent,
       depositAccount: settings.deposit_account ?? '',
       depositHoldHours: settings.deposit_hold_hours ?? 3,
+      bufferMinutes: settings.buffer_minutes ?? 0,
     });
     this.fillHours(settings.hours);
   }

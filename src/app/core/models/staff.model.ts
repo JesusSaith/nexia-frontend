@@ -8,6 +8,7 @@ export interface Staff {
   user_id?: number | null;
   avatar_url?: string | null;
   bio?: string | null;
+  slot_times?: string | null;
   service_ids?: number[];
 }
 

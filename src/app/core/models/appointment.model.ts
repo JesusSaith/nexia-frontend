@@ -33,6 +33,8 @@ export interface Appointment {
   payment_proof?: string | null;
   quoted_price?: number | null;
   client_confirmed?: boolean;
+  price_accepted?: boolean;
+  created_at?: string | null;
 }
 
 export interface AppointmentQuery {
@@ -40,6 +42,7 @@ export interface AppointmentQuery {
   end_date?: string;
   staff_id?: number | null;
   service_id?: number | null;
+  client_phone?: string | null;
 }
 
 export interface AdminAppointmentCreate {

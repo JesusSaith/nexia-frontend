@@ -46,6 +46,8 @@ export class ServicesPageComponent {
   protected readonly loadError = signal<string | null>(null);
   protected readonly formError = signal<string | null>(null);
   protected readonly editing = signal<Service | null>(null);
+  protected readonly photoPreview = signal('');
+  protected readonly photoPending = signal(false);
   protected readonly columns = ['name', 'price', 'duration', 'status', 'actions'];
   private readonly validationTick = signal(0);
 
@@ -68,12 +70,14 @@ export class ServicesPageComponent {
       nonNullable: true,
       validators: [Validators.required, Validators.min(1), Validators.max(1440), Validators.pattern(/^\d+$/)],
     }),
+    is_active: new FormControl(true, { nonNullable: true }),
+    image_url: new FormControl('', { nonNullable: true }),
   });
 
   private readonly formEvents = toSignal(this.form.events, { initialValue: undefined });
 
   protected readonly dialogTitle = computed(() =>
-    this.editing() ? 'Editar servicio' : 'Nuevo servicio',
+    this.editing() ? 'Editar servicio' : 'Crear servicio',
   );
 
   protected readonly nameError = computed(() => {
@@ -113,13 +117,26 @@ export class ServicesPageComponent {
   protected openCreate(): void {
     this.editing.set(null);
     this.formError.set(null);
-    this.form.reset({ name: '', description: '', price: '', deposit_amount: '', variable_price: false, duration_minutes: '' });
+    this.photoPreview.set('');
+    this.photoPending.set(false);
+    this.form.reset({
+      name: '',
+      description: '',
+      price: '',
+      deposit_amount: '',
+      variable_price: false,
+      duration_minutes: '',
+      is_active: true,
+      image_url: '',
+    });
     this.openEditor();
   }
 
   protected openEdit(service: Service): void {
     this.editing.set(service);
     this.formError.set(null);
+    this.photoPreview.set(service.image_url ?? '');
+    this.photoPending.set(false);
     this.form.setValue({
       name: service.name,
       description: service.description ?? '',
@@ -127,6 +144,8 @@ export class ServicesPageComponent {
       deposit_amount: service.deposit_amount == null ? '' : String(service.deposit_amount),
       duration_minutes: String(service.duration_minutes),
       variable_price: Boolean(service.variable_price),
+      is_active: service.is_active,
+      image_url: service.image_url ?? '',
     });
     this.openEditor();
   }
@@ -153,6 +172,8 @@ export class ServicesPageComponent {
       deposit_amount: String(raw.deposit_amount ?? '').trim() ? Number(raw.deposit_amount) : null,
       duration_minutes: Number(raw.duration_minutes),
       variable_price: raw.variable_price,
+      is_active: raw.is_active,
+      image_url: raw.image_url || null,
     };
     const current = this.editing();
     const request = current
@@ -215,10 +236,67 @@ export class ServicesPageComponent {
     this.services.update((items) => items.map((item) => (item.id === current.id ? next : item)));
   }
 
+  protected clearPhoto(): void {
+    const current = this.photoPreview();
+    if (current.startsWith('blob:')) {
+      URL.revokeObjectURL(current);
+    }
+    this.photoPreview.set('');
+    this.photoPending.set(false);
+    this.form.controls.image_url.setValue('', { emitEvent: false });
+  }
+
+  protected pickPhoto(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) {
+      return;
+    }
+    const current = this.photoPreview();
+    if (current.startsWith('blob:')) {
+      URL.revokeObjectURL(current);
+    }
+    this.photoPreview.set(URL.createObjectURL(file));
+    this.photoPending.set(true);
+    this.formError.set(null);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const image = new Image();
+      image.onload = () => {
+        const width = 480;
+        const height = 360;
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext('2d');
+        if (!context) {
+          this.photoPending.set(false);
+          return;
+        }
+        const scale = Math.max(width / image.width, height / image.height);
+        const drawnWidth = image.width * scale;
+        const drawnHeight = image.height * scale;
+        context.drawImage(image, (width - drawnWidth) / 2, (height - drawnHeight) / 2, drawnWidth, drawnHeight);
+        const url = canvas.toDataURL('image/jpeg', 0.7);
+        if (url.length > 180000) {
+          this.photoPending.set(false);
+          this.formError.set('Esa foto es demasiado pesada.');
+          return;
+        }
+        this.form.controls.image_url.setValue(url, { emitEvent: false });
+        this.photoPending.set(false);
+      };
+      image.src = String(reader.result);
+    };
+    reader.readAsDataURL(file);
+  }
+
   private openEditor(): void {
     this.dialogRef = this.dialog.open(this.editor(), {
-      width: '480px',
-      maxWidth: 'calc(100vw - 32px)',
+      width: '980px',
+      maxWidth: 'calc(100vw - 24px)',
+      panelClass: 'service-sheet',
       autoFocus: 'first-tabbable',
     });
   }

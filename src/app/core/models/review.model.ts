@@ -4,6 +4,7 @@ export interface Review {
   rating: number;
   comment: string;
   photo_url: string | null;
+  reply?: string | null;
   created_at: string;
 }
 

@@ -80,6 +80,13 @@ export class BookingService {
     });
   }
 
+  joinWaitlist(
+    slug: string,
+    body: { service_id: number; staff_id: number; day: string; client_name: string; client_phone: string },
+  ): Observable<{ ok: boolean }> {
+    return this.http.post<{ ok: boolean }>(`${this.apiBaseUrl}/businesses/${slug}/waitlist`, body);
+  }
+
   getClient(id: number): Observable<ClientCard> {
     return this.http.get<ClientCard>(`${this.apiBaseUrl}/clients/${id}`);
   }

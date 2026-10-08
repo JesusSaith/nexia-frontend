@@ -7,6 +7,7 @@ export interface Service {
   duration_minutes: number;
   is_active: boolean;
   variable_price?: boolean;
+  image_url?: string | null;
 }
 
 export interface ServiceWrite {
@@ -17,6 +18,7 @@ export interface ServiceWrite {
   duration_minutes: number;
   is_active?: boolean;
   variable_price?: boolean;
+  image_url?: string | null;
 }
 
 export type ServiceUpdate = Partial<ServiceWrite>;

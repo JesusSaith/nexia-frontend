@@ -8,11 +8,13 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ActivatedRoute } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { forkJoin, of } from 'rxjs';
+import { catchError, map } from 'rxjs/operators';
 
 import { Appointment } from '@core/models/appointment.model';
 import { BusinessBrand, PublicService, PublicStaff } from '@core/models/business.model';
 import { BookingService } from '@core/services/booking.service';
+import { Review } from '@core/models/review.model';
 import { ReviewsService } from '@core/services/reviews.service';
 
 const STEPS = [
@@ -70,11 +72,16 @@ export class Booking {
 
   protected readonly step = signal(1);
   protected readonly brand = signal<BusinessBrand | null>(null);
+  protected readonly opinions = signal<Review[]>([]);
   protected readonly services = signal<PublicService[]>([]);
   protected readonly staff = signal<PublicStaff[]>([]);
   protected readonly selectedService = signal<PublicService | null>(null);
   protected readonly selectedStaff = signal<PublicStaff | null>(null);
   protected readonly date = signal(this.minDate);
+  protected readonly waitName = signal('');
+  protected readonly waitPhone = signal('');
+  protected readonly waitSent = signal(false);
+  protected readonly openDays = signal<string[]>([]);
   protected readonly slots = signal<{ starts_at: string }[]>([]);
   protected readonly selectedSlot = signal<string | null>(null);
   protected readonly confirmation = signal<Appointment | null>(null);
@@ -207,12 +214,107 @@ export class Booking {
     }
     this.step.set(2);
     this.loadSlots();
+    this.loadOpenDays();
   }
 
   protected onDate(value: string): void {
     this.date.set(value);
     this.selectedSlot.set(null);
+    this.waitSent.set(false);
     this.loadSlots();
+  }
+
+  protected monthDays(): Date[] {
+    const cursor = new Date(`${this.date()}T12:00:00`);
+    const start = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+    const lead = (start.getDay() + 6) % 7;
+    const count = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate();
+    const days: Date[] = [];
+    for (let index = 0; index < lead; index += 1) {
+      days.push(new Date(start.getFullYear(), start.getMonth(), 1 - lead + index));
+    }
+    for (let day = 1; day <= count; day += 1) {
+      days.push(new Date(start.getFullYear(), start.getMonth(), day));
+    }
+    return days;
+  }
+
+  protected monthLabel(): string {
+    return new Intl.DateTimeFormat('es-MX', { month: 'long', year: 'numeric' }).format(new Date(`${this.date()}T12:00:00`));
+  }
+
+  protected themeLabel(): string {
+    const month = new Date(`${this.date()}T12:00:00`).getMonth();
+    if (month === 9) return '🎃 Halloween';
+    if (month === 10) return '🌼 Día de Muertos';
+    if (month === 11) return '🎄 Navidad y Año Nuevo';
+    if (month === 1) return '♥ San Valentín';
+    return '';
+  }
+
+  protected dateMonth(): number {
+    return new Date(`${this.date()}T12:00:00`).getMonth();
+  }
+
+  protected dayIso(day: Date): string {
+    const month = String(day.getMonth() + 1).padStart(2, '0');
+    const date = String(day.getDate()).padStart(2, '0');
+    return `${day.getFullYear()}-${month}-${date}`;
+  }
+
+  protected pickMonthDay(day: Date): void {
+    const iso = this.dayIso(day);
+    if (iso < this.minDate || day.getMonth() !== new Date(`${this.date()}T12:00:00`).getMonth()) {
+      return;
+    }
+    this.onDate(iso);
+  }
+
+  protected shiftMonth(direction: -1 | 1): void {
+    const cursor = new Date(`${this.date()}T12:00:00`);
+    const next = new Date(cursor.getFullYear(), cursor.getMonth() + direction, 1);
+    const iso = this.dayIso(next);
+    this.onDate(iso < this.minDate ? this.minDate : iso);
+    this.loadOpenDays();
+  }
+
+  private loadOpenDays(): void {
+    const service = this.selectedService();
+    const member = this.selectedStaff();
+    if (!service || !member) {
+      return;
+    }
+    const days = this.monthDays().filter((day) => this.dayIso(day) >= this.minDate && day.getMonth() === this.dateMonth());
+    forkJoin(
+      days.map((day) =>
+        this.bookingApi.getAvailability(this.slug, service.id, member.id, this.dayIso(day)).pipe(
+          map((rows) => (rows.length > 0 ? this.dayIso(day) : '')),
+          catchError(() => of('')),
+        ),
+      ),
+    )
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((keys) => this.openDays.set(keys.filter((key) => key.length > 0)));
+  }
+
+  protected joinWait(): void {
+    const service = this.selectedService();
+    const member = this.selectedStaff();
+    const name = this.waitName().trim();
+    const phone = this.waitPhone().trim();
+    if (!service || !member || name.length < 2 || phone.length < 8 || this.waitSent()) {
+      return;
+    }
+    this.bookingApi
+      .joinWaitlist(this.slug, {
+        service_id: service.id,
+        staff_id: member.id,
+        day: this.date(),
+        client_name: name,
+        client_phone: phone,
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({ next: () => this.waitSent.set(true) });
   }
 
   protected selectSlot(startsAt: string): void {
@@ -263,7 +365,7 @@ export class Booking {
 
     const { client_name, client_phone, client_email, notes } = this.clientForm.getRawValue();
     if (service.variable_price && !notes.trim()) {
-      this.formError.set('Cuéntanos el diseño o el detalle para cotizar.');
+      this.formError.set('Cuéntanos qué necesitas para cotizar.');
       return;
     }
     this.isSaving.set(true);
@@ -287,6 +389,7 @@ export class Booking {
           this.isSaving.set(false);
           this.confirmation.set(appointment);
           this.step.set(4);
+          this.tellDeposit(appointment, client_phone);
         },
         error: (error: unknown) => {
           this.isSaving.set(false);
@@ -393,6 +496,7 @@ export class Booking {
           this.services.set(services);
           this.staff.set(staff);
           this.isLoading.set(false);
+          this.reviewsApi.getPublicReviews(this.slug).pipe(catchError(() => of([] as Review[]))).subscribe((rows) => this.opinions.set(rows));
         },
         error: (error: unknown) => {
           this.isLoading.set(false);
@@ -436,6 +540,30 @@ export class Booking {
   }
 
   protected readonly proofSent = signal(false);
+  protected readonly accountCopied = signal(false);
+
+  protected copyAccount(): void {
+    const account = this.brand()?.deposit_account ?? '';
+    if (!account) {
+      return;
+    }
+    void navigator.clipboard.writeText(account).then(() => this.accountCopied.set(true));
+  }
+
+  private tellDeposit(appointment: Appointment, clientPhone: string): void {
+    if (appointment.status !== 'awaiting_deposit' || !appointment.deposit_amount || !appointment.cancel_token) {
+      return;
+    }
+    const phone = (this.brand()?.phone ?? '').replace(/\D/g, '');
+    if (!phone) {
+      return;
+    }
+    const link = `${location.origin}/${this.slug}/manage/${appointment.cancel_token}`;
+    const text = encodeURIComponent(
+      `Hola, aparté mi cita. El anticipo es $${appointment.deposit_amount} a la cuenta ${this.brand()?.deposit_account ?? ''}. Subo el comprobante aquí: ${link}`,
+    );
+    window.open(`https://wa.me/${phone}?text=${text}`, '_blank', 'noopener');
+  }
 
   protected onProof(event: Event): void {
     const file = (event.target as HTMLInputElement).files?.[0];
