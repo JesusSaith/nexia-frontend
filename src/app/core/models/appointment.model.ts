@@ -14,6 +14,10 @@ export interface AppointmentCreate {
   client_phone: string;
   client_email?: string | null;
   notes?: string | null;
+  extra_service_ids?: number[];
+  resource_name?: string | null;
+  answers?: string | null;
+  use_package?: boolean;
 }
 
 export interface Appointment {
@@ -35,6 +39,9 @@ export interface Appointment {
   client_confirmed?: boolean;
   price_accepted?: boolean;
   created_at?: string | null;
+  resource_name?: string | null;
+  extra_label?: string | null;
+  answers?: string | null;
 }
 
 export interface AppointmentQuery {

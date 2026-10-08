@@ -60,18 +60,15 @@
           }
         </mat-select>
       </mat-form-field>
-      <mat-form-field appearance="outline" subscriptSizing="dynamic">
-        <mat-label>Día</mat-label>
-        <input matInput type="date" formControlName="date" />
-      </mat-form-field>
-      <mat-form-field appearance="outline" subscriptSizing="dynamic">
-        <mat-label>Desde</mat-label>
-        <input matInput type="time" formControlName="start" />
-      </mat-form-field>
-      <mat-form-field appearance="outline" subscriptSizing="dynamic">
-        <mat-label>Hasta</mat-label>
-        <input matInput type="time" formControlName="end" />
-      </mat-form-field>
+      <label class="text-sm">Día
+        <app-date-field class="mt-1 block" formControlName="date" [fromToday]="true" />
+      </label>
+      <label class="text-sm">Desde
+        <app-time-field class="mt-1 block" formControlName="start" />
+      </label>
+      <label class="text-sm">Hasta
+        <app-time-field class="mt-1 block" formControlName="end" />
+      </label>
       <mat-form-field appearance="outline" subscriptSizing="dynamic">
         <mat-label>Nota</mat-label>
         <input matInput formControlName="note" />
@@ -105,12 +102,12 @@
     <p role="alert" class="mb-3 text-sm text-red-700">{{ message }}</p>
   }
 
-  <div class="overflow-x-auto rounded-2xl border border-[#eceae6] bg-white lg:grid lg:grid-cols-[228px_minmax(0,1fr)_240px]">
-    <aside class="flex flex-col gap-2 border-b border-[#f0eeeb] p-5 lg:border-b-0 lg:border-r">
+  <div class="overflow-hidden rounded-2xl border border-[#eceae6] bg-white lg:grid lg:grid-cols-[228px_minmax(0,1fr)_240px]">
+    <aside class="flex flex-col gap-2 border-b border-[#f0eeeb] p-3 sm:grid sm:grid-cols-3 lg:flex lg:flex-col lg:border-b-0 lg:border-r lg:p-5">
       <button type="button" class="h-11 w-full rounded-full bg-[#b76e79] text-sm font-medium text-white shadow-sm" (click)="openCreate()">Nueva cita</button>
       <button type="button" class="h-11 w-full whitespace-nowrap rounded-full border border-[#e4dfda] bg-[#faf9f7] text-sm font-medium text-[#1E1B1E]" (click)="openBlock()">Bloquear horario</button>
       <button type="button" class="h-11 w-full whitespace-nowrap rounded-full border border-[#e4dfda] bg-[#faf9f7] text-sm font-medium text-[#1E1B1E]" (click)="dayOff()">Día libre</button>
-      <p class="mt-4 text-xs leading-5 text-stone-500">Elige el día. A la derecha quedan los horarios libres.</p>
+      <p class="mt-2 text-xs leading-5 text-stone-500 sm:col-span-3 lg:mt-4">Elige el día. A la derecha quedan los horarios libres.</p>
       <p class="flex items-center gap-2 text-xs text-stone-500"><span class="h-2 w-2 rounded-full bg-[#b76e79]"></span>Cita</p>
       <p class="flex items-center gap-2 text-xs text-stone-500"><span class="h-2 w-2 rounded-full bg-sky-300"></span>Día libre o bloqueo</p>
       <p class="flex items-center gap-2 text-xs text-stone-500"><span class="h-2 w-2 rounded-full bg-emerald-400"></span>Horario libre</p>
@@ -118,21 +115,21 @@
     <div class="min-w-0 p-5">
       <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
         <p class="text-lg font-semibold">{{ periodLabel() }}</p>
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            class="inline-flex h-10 items-center gap-2 rounded-full bg-[#1E1B1E] px-4 text-sm font-medium text-white disabled:opacity-60"
+            class="inline-flex h-10 shrink-0 items-center gap-2 rounded-full bg-[#1E1B1E] px-4 text-sm font-medium text-white disabled:opacity-60"
             title="Vista previa del mes con horarios, tu logo y el enlace para agendar"
             [disabled]="exporting()"
             (click)="exportMonth()"
           >
             {{ exporting() ? 'Preparando…' : 'Ver mes' + (monthService() ? ' · ' + monthService() : '') }}
           </button>
-          <button type="button" class="h-10 rounded-full border border-[#e4dfda] bg-white px-4 text-sm font-medium" (click)="copyBooking()">
+          <button type="button" class="h-10 shrink-0 rounded-full border border-[#e4dfda] bg-white px-4 text-sm font-medium" (click)="copyBooking()">
             {{ linkCopied() ? 'Copiado' : 'Copiar enlace' }}
           </button>
-          <a class="inline-flex h-10 items-center rounded-full bg-[#25D366] px-4 text-sm font-medium text-white" [href]="whatsappHref()" target="_blank" rel="noopener">WhatsApp</a>
-          <div class="flex rounded-full border border-[#e4dfda]">
+          <a class="inline-flex h-10 shrink-0 items-center rounded-full bg-[#25D366] px-4 text-sm font-medium text-white" [href]="whatsappHref()" target="_blank" rel="noopener">WhatsApp</a>
+          <div class="flex shrink-0 rounded-full border border-[#e4dfda]">
             <button type="button" class="flex h-10 w-10 items-center justify-center" aria-label="Anterior" (click)="shift(-1)">
               <mat-icon>chevron_left</mat-icon>
             </button>
@@ -144,17 +141,17 @@
       </div>
   @switch (currentView()) {
     @case ('month') {
-          <div class="min-w-[36rem] grid grid-cols-7 text-center text-xs text-stone-400">
+          <div class="grid grid-cols-7 text-center text-[10px] text-stone-400 sm:text-xs">
             @for (label of weekdayLabels; track label) {
               <div class="py-2">{{ label }}</div>
             }
           </div>
           @for (week of monthWeeks(); track dayKey(week[0])) {
-            <div class="min-w-[36rem] grid grid-cols-7 text-center">
+            <div class="grid grid-cols-7 text-center">
               @for (day of week; track dayKey(day)) {
                 <button
                   type="button"
-                  class="mx-auto my-1.5 flex h-14 w-12 flex-col items-center justify-center rounded-lg text-base"
+                  class="mx-auto my-1 flex h-11 w-full max-w-12 flex-col items-center justify-center rounded-lg text-sm sm:my-1.5 sm:h-14 sm:text-base"
                   [class.text-stone-300]="!inCurrentMonth(day)"
                   [class.bg-[#1E1B1E]]="isSelected(day)"
                   [class.text-white]="isSelected(day)"
@@ -173,7 +170,7 @@
           }
     }
     @case ('week') {
-      <div class="overflow-auto rounded border border-slate-200 bg-white">
+      <div class="max-w-full min-w-0 overflow-auto rounded border border-slate-200 bg-white">
         <div class="grid min-w-[1100px] gap-x-2" style="grid-template-columns: 3.5rem repeat(7, minmax(8.5rem, 1fr))">
           <div class="border-b border-slate-200"></div>
           @for (day of weekDays(); track dayKey(day)) {
@@ -247,7 +244,7 @@
       @if (visibleStaff().length === 0) {
         <p class="py-10 text-center text-sm text-slate-600">No hay colaboradores activos para este día.</p>
       } @else {
-        <div class="overflow-auto rounded border border-slate-200 bg-white">
+        <div class="max-w-full min-w-0 overflow-auto rounded border border-slate-200 bg-white">
           <div
             class="grid min-w-[640px]"
             [style.grid-template-columns]="'3.5rem repeat(' + visibleStaff().length + ', minmax(160px, 1fr))'"
@@ -363,7 +360,7 @@
 
 @if (selected(); as pop) {
   <button type="button" class="fixed inset-0 z-30 cursor-default" aria-label="Cerrar detalle" (click)="closeAppointment()"></button>
-  <article class="fixed z-40 w-80 overflow-y-auto rounded border border-slate-200 bg-white p-3 shadow" [style.left.px]="pop.x" [style.top.px]="pop.y" [style.max-height.px]="pop.maxHeight">
+  <article class="fixed z-40 w-[min(20rem,calc(100vw-1rem))] overflow-y-auto rounded border border-slate-200 bg-white p-3 shadow" [style.left.px]="pop.x" [style.top.px]="pop.y" [style.max-height.px]="pop.maxHeight">
     <div class="flex items-start justify-between gap-2">
       <h2 class="text-sm font-medium">{{ pop.appointment.client_name }}</h2>
       <button mat-icon-button type="button" aria-label="Cerrar" (click)="closeAppointment()">
@@ -371,7 +368,13 @@
       </button>
     </div>
     <p class="text-sm text-slate-600">{{ formatTime(pop.appointment.starts_at) }} · {{ pop.appointment.service_name }}</p>
+    @if (pop.appointment.extra_label) {
+      <p class="text-sm text-slate-600">También: {{ pop.appointment.extra_label }}</p>
+    }
     <p class="text-sm text-slate-600">{{ pop.appointment.staff_name }}</p>
+    @if (pop.appointment.resource_name) {
+      <p class="text-sm text-slate-600">Recurso: {{ pop.appointment.resource_name }}</p>
+    }
     <p class="mt-2 text-sm">{{ pop.appointment.client_phone || 'Sin teléfono' }}</p>
     @if (pop.history.length) {
       <ul class="mt-2 text-xs text-slate-500">
@@ -381,6 +384,9 @@
       </ul>
     }
     <p class="text-sm">{{ pop.appointment.client_email || 'Sin correo' }}</p>
+    @if (pop.appointment.answers) {
+      <p class="mt-2 whitespace-pre-line text-sm text-slate-600">{{ pop.appointment.answers }}</p>
+    }
     @if (pop.appointment.notes) {
       <p class="mt-2 text-sm text-slate-600">{{ pop.appointment.notes }}</p>
     }
@@ -406,6 +412,12 @@
         <button mat-stroked-button type="button" (click)="setStatus(pop.appointment, 'cancelled')">Liberar horario</button>
       </div>
     }
+    @if (pop.appointment.status === 'completed') {
+      <div class="mt-3 flex flex-col gap-2">
+        <button mat-stroked-button type="button" (click)="repeat(pop.appointment, 3)">Siguiente en 3 semanas</button>
+        <button mat-stroked-button type="button" (click)="repeat(pop.appointment, 4)">Siguiente en 4 semanas</button>
+      </div>
+    }
     @if (pop.appointment.status === 'scheduled') {
       <div class="mt-3 flex flex-col gap-2">
         @if (pendingId() === pop.appointment.id) {
@@ -419,71 +431,92 @@
         }
       </div>
     }
+    @if (freed().length) {
+      <div class="mt-3 flex flex-col gap-2">
+        @for (row of freed(); track row.href) {
+          <a class="text-sm font-medium text-[#128C7E]" [href]="row.href" target="_blank" rel="noopener">Ofrecer el horario a {{ row.name }}</a>
+        }
+      </div>
+    }
   </article>
 }
 
 <ng-template #editor>
-  <h2 mat-dialog-title>Nueva cita</h2>
-  <mat-dialog-content>
-    <form id="appointment-form" class="flex flex-col gap-1 pt-2" [formGroup]="form" (ngSubmit)="save()">
-      <mat-form-field appearance="outline">
-        <mat-label>Servicio</mat-label>
-        <mat-select formControlName="service_id">
-          @for (service of activeServices(); track service.id) {
-            <mat-option [value]="service.id">{{ service.name }}</mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
-      <mat-form-field appearance="outline">
-        <mat-label>Colaborador</mat-label>
-        <mat-select formControlName="staff_id">
-          @for (member of staff(); track member.id) {
-            @if (member.is_active) {
-              <mat-option [value]="member.id">{{ member.full_name }}</mat-option>
-            }
-          }
-        </mat-select>
-      </mat-form-field>
-      <div class="grid gap-3 sm:grid-cols-2">
-        <mat-form-field appearance="outline">
-          <mat-label>Fecha</mat-label>
-          <input matInput type="date" formControlName="date" />
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>Hora de inicio</mat-label>
-          <input matInput type="time" formControlName="time" />
-        </mat-form-field>
+  <form id="appointment-form" [formGroup]="form" (ngSubmit)="save()">
+    <header class="flex items-center gap-3 border-b border-stone-200 px-5 py-4">
+      <button type="button" aria-label="Cerrar" (click)="closeEditor()" [disabled]="isSaving()">
+        <mat-icon>close</mat-icon>
+      </button>
+      <h2 class="flex-1 text-lg font-medium">Nueva cita</h2>
+      <button type="submit" class="h-10 rounded-xl bg-[#1E1B1E] px-4 text-sm text-white disabled:opacity-50" [disabled]="isSaving()">
+        {{ isSaving() ? 'Guardando…' : 'Guardar' }}
+      </button>
+    </header>
+    <div class="grid gap-6 p-5 lg:grid-cols-[minmax(0,1fr)_280px]">
+      <div class="flex flex-col gap-3">
+        <label class="text-sm">Nombre del cliente
+          <input formControlName="client_name" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2" />
+        </label>
+        <div class="grid gap-3 sm:grid-cols-2">
+          <label class="text-sm">Teléfono
+            <input type="tel" formControlName="client_phone" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2" (input)="matchClient($any($event.target).value)" />
+          </label>
+          <label class="text-sm">Correo
+            <input type="email" formControlName="client_email" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2" />
+          </label>
+        </div>
+        @if (known(); as person) {
+          <p class="rounded-xl bg-[#f8eef0] px-3 py-2 text-sm">Ya vino · {{ person.visit_count }} {{ person.visit_count === 1 ? 'visita' : 'visitas' }} · {{ pesos(person.total_spent) }}@if (person.cancel_count) { · {{ person.cancel_count }} {{ person.cancel_count === 1 ? 'cancelación' : 'cancelaciones' }} }</p>
+        } @else if (freshPhone()) {
+          <p class="text-xs text-stone-400">Primera vez con este teléfono.</p>
+        }
+        <label class="text-sm">Notas
+          <textarea formControlName="notes" rows="3" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2"></textarea>
+        </label>
+        <label class="text-sm">Precio acordado
+          <input type="number" min="0" formControlName="quoted_price" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2" />
+        </label>
+        @if (formError(); as message) {
+          <p role="alert" class="text-sm text-red-700">{{ message }}</p>
+        }
       </div>
-      <mat-form-field appearance="outline">
-        <mat-label>Nombre del cliente</mat-label>
-        <input matInput formControlName="client_name" />
-      </mat-form-field>
-      <mat-form-field appearance="outline">
-        <mat-label>Teléfono</mat-label>
-        <input matInput type="tel" formControlName="client_phone" />
-      </mat-form-field>
-      <mat-form-field appearance="outline">
-        <mat-label>Correo</mat-label>
-        <input matInput type="email" formControlName="client_email" />
-      </mat-form-field>
-      <mat-form-field appearance="outline">
-        <mat-label>Notas</mat-label>
-        <textarea matInput rows="3" formControlName="notes"></textarea>
-      </mat-form-field>
-      <mat-form-field appearance="outline">
-        <mat-label>Precio acordado</mat-label>
-        <input matInput type="number" min="0" formControlName="quoted_price" />
-        <span matTextPrefix>$&nbsp;</span>
-      </mat-form-field>
-      @if (formError(); as message) {
-        <p role="alert" class="text-sm text-red-700">{{ message }}</p>
-      }
-    </form>
-  </mat-dialog-content>
-  <mat-dialog-actions align="end">
-    <button mat-button type="button" (click)="closeEditor()" [disabled]="isSaving()">Cerrar</button>
-    <button mat-flat-button color="primary" type="submit" form="appointment-form" [disabled]="isSaving()">
-      {{ isSaving() ? 'Guardando…' : 'Guardar' }}
-    </button>
-  </mat-dialog-actions>
+      <aside class="flex flex-col gap-4">
+        <div class="rounded-2xl border border-stone-200 p-4">
+          <label class="text-sm">Servicio
+            <select formControlName="service_id" class="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2">
+              <option [ngValue]="null">Elegir</option>
+              @for (service of activeServices(); track service.id) {
+                <option [ngValue]="service.id">{{ service.name }}</option>
+              }
+            </select>
+          </label>
+          <label class="mt-3 block text-sm">Colaborador
+            <select formControlName="staff_id" class="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2">
+              <option [ngValue]="null">Elegir</option>
+              @for (member of staff(); track member.id) {
+                @if (member.is_active) {
+                  <option [ngValue]="member.id">{{ member.full_name }}</option>
+                }
+              }
+            </select>
+          </label>
+        </div>
+        <div class="rounded-2xl border border-stone-200 p-4">
+          <p class="mb-2 text-sm font-medium">Cuándo</p>
+          <label class="text-sm">Fecha
+            <app-date-field class="mt-1 block" formControlName="date" [allow]="bookableDay" />
+          </label>
+          <p class="mt-1 text-xs text-stone-400">Solo días en los que trabaja el colaborador.</p>
+          <label class="mt-3 block text-sm">Hora de inicio
+            <app-time-field class="mt-1 block" formControlName="time" [options]="slotTimes()" />
+          </label>
+          @if (!slotsReady()) {
+            <p class="mt-2 text-xs text-stone-400">Elige servicio y colaborador para ver las horas libres.</p>
+          } @else if (slotTimes().length === 0) {
+            <p class="mt-2 text-xs text-stone-500">Ese día no tiene horarios libres.</p>
+          }
+        </div>
+      </aside>
+    </div>
+  </form>
 </ng-template>

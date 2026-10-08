@@ -1,17 +1,62 @@
-<section>
-  <header class="mb-6">
-    <h1>Clientes</h1>
-    <p class="mt-1 text-sm text-slate-500">Quienes reservan quedan guardados en este negocio, sin una cuenta.</p>
-  </header>
+<section class="-mx-3 -my-5 min-h-full bg-[#f4f3f1] px-3 py-6 font-['Plus_Jakarta_Sans',sans-serif] text-[#1E1B1E] md:-mx-10 md:-my-9 md:px-8 md:py-8">
+  <h1 class="text-[28px] font-semibold tracking-tight">Clientes</h1>
+  <p class="mt-1 text-sm text-stone-500">Quien reserva con el mismo teléfono queda en una sola ficha.</p>
+
   @if (loadError(); as message) {
-    <p role="alert" class="text-sm text-red-700">{{ message }}</p>
+    <p role="alert" class="mt-4 text-sm text-red-700">{{ message }}</p>
   } @else if (clients().length === 0) {
-    <p class="text-sm text-slate-500">Todavía no hay clientes.</p>
+    <p class="mt-6 text-sm text-stone-500">Todavía no hay clientes.</p>
   } @else {
-    <label class="mb-4 block max-w-sm">
+    <div class="mt-5 grid gap-4 lg:grid-cols-2">
+      <article class="rounded-2xl border border-[#eceae6] bg-white p-5 shadow-[0_1px_2px_rgba(30,27,30,0.04)]">
+        <h2 class="text-base font-semibold">Mejores clientes</h2>
+        <p class="mt-1 text-xs text-stone-400">Los 10 que más han dejado</p>
+        @if (best().length === 0) {
+          <p class="py-8 text-sm text-stone-500">Todavía no hay visitas completadas.</p>
+        } @else {
+          <ol class="mt-3 divide-y divide-[#f3f1ee]">
+            @for (client of best(); track client.id; let index = $index) {
+              <li>
+                <button type="button" class="flex w-full items-center gap-3 py-3 text-left" (click)="open(client.id)">
+                  <span class="w-5 text-sm font-semibold text-[#b76e79]">{{ index + 1 }}</span>
+                  <span class="flex h-8 w-8 items-center justify-center rounded-full bg-[#f8eef0] text-xs font-semibold text-[#b76e79]">{{ initials(client.full_name) }}</span>
+                  <span class="min-w-0 flex-1">
+                    <span class="block truncate text-sm font-medium">{{ client.full_name }}</span>
+                    <span class="block text-xs text-stone-500">{{ client.visit_count }} {{ client.visit_count === 1 ? 'visita' : 'visitas' }}</span>
+                  </span>
+                  <span class="text-sm font-medium">{{ spent(client.total_spent) }}</span>
+                </button>
+              </li>
+            }
+          </ol>
+        }
+      </article>
+      <article class="rounded-2xl border border-[#eceae6] bg-white p-5 shadow-[0_1px_2px_rgba(30,27,30,0.04)]">
+        <h2 class="text-base font-semibold">Más cancelan</h2>
+        <p class="mt-1 text-xs text-stone-400">Los 10 con más citas canceladas</p>
+        @if (cancellers().length === 0) {
+          <p class="py-8 text-sm text-stone-500">Nadie ha cancelado.</p>
+        } @else {
+          <ol class="mt-3 divide-y divide-[#f3f1ee]">
+            @for (client of cancellers(); track client.id; let index = $index) {
+              <li>
+                <button type="button" class="flex w-full items-center gap-3 py-3 text-left" (click)="open(client.id)">
+                  <span class="w-5 text-sm font-semibold text-stone-400">{{ index + 1 }}</span>
+                  <span class="flex h-8 w-8 items-center justify-center rounded-full bg-[#f4f3f1] text-xs font-semibold">{{ initials(client.full_name) }}</span>
+                  <span class="min-w-0 flex-1 truncate text-sm font-medium">{{ client.full_name }}</span>
+                  <span class="text-sm text-stone-500">{{ client.cancel_count }} {{ client.cancel_count === 1 ? 'cancelación' : 'cancelaciones' }}</span>
+                </button>
+              </li>
+            }
+          </ol>
+        }
+      </article>
+    </div>
+
+    <label class="mt-6 block max-w-sm">
       <span class="sr-only">Buscar cliente</span>
       <input
-        class="w-full rounded border px-3 py-2 text-sm"
+        class="w-full rounded-xl border border-[#eceae6] bg-white px-3 py-2 text-sm"
         type="search"
         placeholder="Buscar por nombre o teléfono"
         [ngModel]="query()"
@@ -19,52 +64,59 @@
       />
     </label>
     @if (visible().length === 0) {
-      <p class="text-sm text-slate-500">Ningún cliente coincide con esa búsqueda.</p>
+      <p class="mt-4 text-sm text-stone-500">Ningún cliente coincide con esa búsqueda.</p>
     } @else {
-    <ul class="divide-y divide-[var(--border-subtle)] rounded border bg-white">
-      @for (client of visible(); track client.id) {
-        <li>
-          <button type="button" class="w-full px-4 py-3 text-left hover:bg-slate-50" (click)="open(client.id)">
-            <p class="text-sm font-medium">{{ client.full_name }}</p>
-            <p class="text-sm text-slate-500">{{ client.phone }}@if (client.email) { · {{ client.email }} }</p>
-          </button>
-        </li>
-      }
-    </ul>
+      <ul class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        @for (client of visible(); track client.id) {
+          <li>
+            <button type="button" class="flex h-full w-full gap-3 rounded-2xl border border-[#eceae6] bg-white p-4 text-left shadow-[0_1px_2px_rgba(30,27,30,0.04)]" (click)="open(client.id)">
+              <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f8eef0] text-xs font-semibold text-[#b76e79]">{{ initials(client.full_name) }}</span>
+              <span class="min-w-0">
+                <span class="block truncate text-sm font-medium">{{ client.full_name }}</span>
+                <span class="mt-0.5 block truncate text-sm text-stone-500">{{ client.phone }}@if (client.email) { · {{ client.email }} }</span>
+                <span class="mt-1 block text-xs text-stone-500">{{ client.visit_count > 0 ? 'Ya vino · ' + client.visit_count + (client.visit_count === 1 ? ' visita · ' : ' visitas · ') + spent(client.total_spent) : 'Primera vez' }}</span>
+                @if (client.cancel_count > 0) {
+                  <span class="mt-0.5 block text-xs text-stone-400">{{ client.cancel_count }} {{ client.cancel_count === 1 ? 'cancelación' : 'cancelaciones' }}</span>
+                }
+              </span>
+            </button>
+          </li>
+        }
+      </ul>
     }
   }
 </section>
 
 @if (card(); as person) {
-  <div class="fixed inset-0 z-30 bg-black/20" (click)="close()"></div>
+  <div class="fixed inset-0 z-30 bg-[#1E1B1E]/20" (click)="close()"></div>
   <aside class="fixed inset-y-0 right-0 z-40 flex w-full max-w-md flex-col gap-4 overflow-auto bg-white p-5 shadow-xl">
     <div class="flex items-start justify-between gap-3">
       <div>
         <h2 class="text-lg font-semibold">{{ person.full_name }}</h2>
-        <p class="text-sm text-slate-500">{{ person.phone }}</p>
+        <p class="text-sm text-stone-500">{{ person.phone }}</p>
       </div>
       <button type="button" aria-label="Cerrar" (click)="close()">
         <mat-icon>close</mat-icon>
       </button>
     </div>
     <div class="grid grid-cols-2 gap-3">
-      <p class="rounded border p-3 text-sm"><span class="block text-2xl font-semibold">{{ person.visit_count }}</span> visitas</p>
-      <p class="rounded border p-3 text-sm"><span class="block text-2xl font-semibold">{{ spent(person.total_spent) }}</span> en total</p>
-      <p class="col-span-2 rounded border p-3 text-sm"><span class="font-semibold">{{ person.no_show_count }}</span> no llegó</p>
+      <p class="rounded-2xl border border-[#eceae6] p-3 text-sm"><span class="block text-2xl font-semibold">{{ person.visit_count }}</span> visitas</p>
+      <p class="rounded-2xl border border-[#eceae6] p-3 text-sm"><span class="block text-2xl font-semibold">{{ spent(person.total_spent) }}</span> en total</p>
+      <p class="col-span-2 rounded-2xl border border-[#eceae6] p-3 text-sm"><span class="font-semibold">{{ person.no_show_count }}</span> no llegó</p>
     </div>
     <ul class="flex flex-col gap-2">
       @for (visit of person.visits; track visit.starts_at + visit.service_name) {
-        <li class="rounded border px-3 py-2 text-sm">
+        <li class="rounded-xl border border-[#eceae6] px-3 py-2 text-sm">
           <p class="font-medium">{{ visit.service_name }}</p>
-          <p class="text-slate-500">{{ visitWhen(visit.starts_at) }} · {{ visit.staff_name }} · {{ spent(visit.price) }}</p>
+          <p class="text-stone-500">{{ visitWhen(visit.starts_at) }} · {{ visit.staff_name }} · {{ spent(visit.price) }}</p>
         </li>
       }
     </ul>
     <label class="text-sm">
       Notas internas
-      <textarea class="mt-1 w-full rounded border px-3 py-2" rows="3" [ngModel]="notes()" (ngModelChange)="notes.set($event)"></textarea>
+      <textarea class="mt-1 w-full rounded-xl border border-[#eceae6] px-3 py-2" rows="3" [ngModel]="notes()" (ngModelChange)="notes.set($event)"></textarea>
     </label>
-    <button type="button" class="h-10 rounded bg-[#1E1B1E] text-sm text-white" (click)="saveNotes()">Guardar notas</button>
+    <button type="button" class="h-10 rounded-full bg-[#1E1B1E] text-sm text-white" (click)="saveNotes()">Guardar notas</button>
     @if (saved()) {
       <p class="text-sm text-emerald-700">Notas guardadas.</p>
     }

@@ -8,7 +8,6 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatTableModule } from '@angular/material/table';
 import { finalize } from 'rxjs';
 
 import { Service, ServiceWrite } from '@core/models/service.model';
@@ -24,7 +23,6 @@ import { ServicesService } from '@core/services/services.service';
     MatIconModule,
     MatInputModule,
     MatProgressSpinnerModule,
-    MatTableModule,
   ],
   templateUrl: './services.html',
 })
@@ -48,7 +46,6 @@ export class ServicesPageComponent {
   protected readonly editing = signal<Service | null>(null);
   protected readonly photoPreview = signal('');
   protected readonly photoPending = signal(false);
-  protected readonly columns = ['name', 'price', 'duration', 'status', 'actions'];
   private readonly validationTick = signal(0);
 
   protected readonly form = new FormGroup({
@@ -72,6 +69,8 @@ export class ServicesPageComponent {
     }),
     is_active: new FormControl(true, { nonNullable: true }),
     image_url: new FormControl('', { nonNullable: true }),
+    questions: new FormControl('', { nonNullable: true }),
+    capacity: new FormControl('1', { nonNullable: true }),
   });
 
   private readonly formEvents = toSignal(this.form.events, { initialValue: undefined });
@@ -128,6 +127,8 @@ export class ServicesPageComponent {
       duration_minutes: '',
       is_active: true,
       image_url: '',
+      questions: '',
+      capacity: '1',
     });
     this.openEditor();
   }
@@ -146,6 +147,8 @@ export class ServicesPageComponent {
       variable_price: Boolean(service.variable_price),
       is_active: service.is_active,
       image_url: service.image_url ?? '',
+      questions: service.questions ?? '',
+      capacity: String(service.capacity ?? 1),
     });
     this.openEditor();
   }
@@ -174,6 +177,8 @@ export class ServicesPageComponent {
       variable_price: raw.variable_price,
       is_active: raw.is_active,
       image_url: raw.image_url || null,
+      questions: raw.questions.trim() || null,
+      capacity: Number(raw.capacity) || 1,
     };
     const current = this.editing();
     const request = current

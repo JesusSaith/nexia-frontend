@@ -40,6 +40,7 @@ const MANAGER_LINKS: readonly AdminNavLink[] = [
   { label: 'Equipo', path: '/admin/staff', exact: false, icon: 'groups' },
   { label: 'Horarios', path: '/admin/schedules', exact: false, icon: 'schedule' },
   { label: 'Clientes', path: '/admin/clientes', exact: false, icon: 'person' },
+  // FUTURE_PHASE_INVENTORY: { label: 'Inventario', path: '/admin/caja', exact: true, icon: 'inventory_2' },
   { label: 'Configuración', path: '/admin/settings', exact: true, icon: 'tune' },
 ];
 
@@ -89,6 +90,7 @@ export class AdminLayoutComponent {
   private readonly noticesApi = inject(DashboardService);
   private seenNotice = Number(sessionStorage.getItem('nexia-seen-notice') || 0);
   private toastedNotice = this.seenNotice;
+  private toastTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly destroyRef = inject(DestroyRef);
   private readonly handset = toSignal(
     inject(BreakpointObserver)
@@ -178,8 +180,21 @@ export class AdminLayoutComponent {
     if (newest && newest.id > this.toastedNotice) {
       this.toastedNotice = newest.id;
       this.toast.set(newest.message.replace(/\s*#\d+\s*$/, ''));
-      setTimeout(() => this.toast.set(null), 7000);
+      if (this.toastTimer) {
+        clearTimeout(this.toastTimer);
+      }
+      this.toastTimer = setTimeout(() => this.toast.set(null), 7000);
     }
+  }
+
+  protected closeToast(event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+    if (this.toastTimer) {
+      clearTimeout(this.toastTimer);
+      this.toastTimer = null;
+    }
+    this.toast.set(null);
   }
 
   protected toggleSidebar(): void {

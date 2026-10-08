@@ -13,6 +13,7 @@ import { ScheduleItem } from '@core/models/schedule.model';
 import { Staff } from '@core/models/staff.model';
 import { SchedulesService } from '@core/services/schedules.service';
 import { StaffService } from '@core/services/staff.service';
+import { TimeFieldComponent } from '@shared/components/when-field/when-field';
 
 const DAY_LABELS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'] as const;
 
@@ -26,6 +27,7 @@ const DAY_LABELS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sába
     MatProgressSpinnerModule,
     MatSelectModule,
     MatSlideToggleModule,
+    TimeFieldComponent,
   ],
   templateUrl: './schedules-page.component.html',
 })
@@ -46,6 +48,7 @@ export class SchedulesPageComponent {
   protected readonly formError = signal<string | null>(null);
   protected readonly savedMessage = signal<string | null>(null);
   protected readonly slotTimes = signal('');
+  protected readonly draftClock = signal('09:00');
 
   constructor() {
     this.loadStaff();
@@ -68,11 +71,84 @@ export class SchedulesPageComponent {
     this.patchDay(dayOfWeek, { is_active: isActive });
   }
 
+  protected patchBreak(dayOfWeek: number, field: 'break_start' | 'break_end', value: string): void {
+    this.patchDay(dayOfWeek, { [field]: value ? value.slice(0, 5) : '' });
+  }
+
   protected setTime(dayOfWeek: number, field: 'start_time' | 'end_time', value: string): void {
     if (!value) {
       return;
     }
     this.patchDay(dayOfWeek, { [field]: value.slice(0, 5) });
+  }
+
+  protected clocks(): string[] {
+    return this.slotTimes()
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean);
+  }
+
+  protected addClock(): void {
+    const clock = this.draftClock().slice(0, 5);
+    if (!/^\d{2}:\d{2}$/.test(clock) || this.clocks().includes(clock)) {
+      return;
+    }
+    this.slotTimes.set([...this.clocks(), clock].sort().join(', '));
+    this.formError.set(null);
+  }
+
+  protected removeClock(clock: string): void {
+    this.slotTimes.set(this.clocks().filter((item) => item !== clock).join(', '));
+  }
+
+  protected dayClocks(day: ScheduleItem): string[] {
+    return (day.slot_times ?? '')
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean);
+  }
+
+  protected addDayClock(dayOfWeek: number): void {
+    const clock = this.draftClock().slice(0, 5);
+    const day = this.days().find((item) => item.day_of_week === dayOfWeek);
+    if (!day || !/^\d{2}:\d{2}$/.test(clock) || this.dayClocks(day).includes(clock)) {
+      return;
+    }
+    this.patchDay(dayOfWeek, { slot_times: [...this.dayClocks(day), clock].sort().join(', ') });
+  }
+
+  protected removeDayClock(dayOfWeek: number, clock: string): void {
+    const day = this.days().find((item) => item.day_of_week === dayOfWeek);
+    if (!day) {
+      return;
+    }
+    this.patchDay(dayOfWeek, { slot_times: this.dayClocks(day).filter((item) => item !== clock).join(', ') });
+  }
+
+  protected copyClocksToDays(): void {
+    const raw = this.clocks().join(', ');
+    this.days.update((items) => items.map((day) => (day.is_active ? { ...day, slot_times: raw } : day)));
+    this.savedMessage.set(null);
+  }
+
+  protected preview(day: ScheduleItem): string {
+    if (!day.is_active) {
+      return 'Día cerrado.';
+    }
+    const own = this.dayClocks(day);
+    const clocks = own.length ? own : this.clocks();
+    const pause = day.break_start && day.break_end ? ` Descanso ${day.break_start}–${day.break_end}.` : '';
+    if (!clocks.length) {
+      return `Horarios seguidos, según la duración del servicio.${pause}`;
+    }
+    const shown = clocks.filter(
+      (clock) => clock >= day.start_time && clock <= day.end_time && !this.inBreak(clock, day),
+    );
+    if (!shown.length) {
+      return `Ninguna hora cabe en este turno.${pause}`;
+    }
+    return `${shown.join(' · ')}${own.length ? '' : ' (las de arriba)'}.${pause}`;
   }
 
   protected applyMondayToWorkdays(): void {
@@ -83,11 +159,22 @@ export class SchedulesPageComponent {
     this.days.update((items) =>
       items.map((day) =>
         day.day_of_week >= 1 && day.day_of_week <= 4
-          ? { ...day, start_time: monday.start_time, end_time: monday.end_time }
+          ? {
+              ...day,
+              start_time: monday.start_time,
+              end_time: monday.end_time,
+              slot_times: monday.slot_times ?? '',
+              break_start: monday.break_start ?? '',
+              break_end: monday.break_end ?? '',
+            }
           : day,
       ),
     );
     this.savedMessage.set(null);
+  }
+
+  private inBreak(clock: string, day: ScheduleItem): boolean {
+    return !!day.break_start && !!day.break_end && clock >= day.break_start && clock < day.break_end;
   }
 
   protected save(): void {
@@ -102,6 +189,15 @@ export class SchedulesPageComponent {
       .filter(Boolean);
     if (clocks.some((part) => !/^\d{2}:\d{2}$/.test(part))) {
       this.formError.set('Escribe los horarios como 09:30, 12:30, 15:00, 18:00.');
+      this.savedMessage.set(null);
+      return;
+    }
+
+    const broken = this.days().find(
+      (day) => (day.break_start && !day.break_end) || (!day.break_start && day.break_end) || (day.break_start && day.break_end && day.break_end <= day.break_start),
+    );
+    if (broken) {
+      this.formError.set(`Revisa el descanso de ${DAY_LABELS[broken.day_of_week]}.`);
       this.savedMessage.set(null);
       return;
     }
@@ -200,6 +296,9 @@ function defaultWeek(): ScheduleItem[] {
     start_time: '09:00',
     end_time: '18:00',
     is_active: dayOfWeek <= 4,
+    slot_times: '',
+    break_start: '',
+    break_end: '',
   }));
 }
 
@@ -215,6 +314,9 @@ function mergeWeek(rows: ScheduleItem[]): ScheduleItem[] {
       start_time: row.start_time.slice(0, 5),
       end_time: row.end_time.slice(0, 5),
       is_active: row.is_active,
+      slot_times: row.slot_times ?? '',
+      break_start: row.break_start?.slice(0, 5) ?? '',
+      break_end: row.break_end?.slice(0, 5) ?? '',
     };
   });
 }

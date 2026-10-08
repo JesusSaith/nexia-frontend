@@ -77,6 +77,11 @@ export class Booking {
   protected readonly staff = signal<PublicStaff[]>([]);
   protected readonly selectedService = signal<PublicService | null>(null);
   protected readonly selectedStaff = signal<PublicStaff | null>(null);
+  protected readonly extraIds = signal<number[]>([]);
+  protected readonly resource = signal<string | null>(null);
+  protected readonly answers = signal('');
+  protected readonly usePackage = signal(false);
+  protected readonly packageLeft = signal<{ label: string; total: number; remaining: number } | null>(null);
   protected readonly date = signal(this.minDate);
   protected readonly waitName = signal('');
   protected readonly waitPhone = signal('');
@@ -130,7 +135,10 @@ export class Booking {
     if (!service) {
       return members;
     }
-    return members.filter((member) => (member.service_ids ?? []).includes(service.id));
+    return members.filter((member) => {
+      const ids = member.service_ids ?? [];
+      return ids.includes(service.id) && this.extraIds().every((id) => ids.includes(id));
+    });
   });
   protected readonly canChooseSchedule = computed(
     () => this.selectedService() !== null && this.selectedStaff() !== null,
@@ -262,9 +270,52 @@ export class Booking {
     return `${day.getFullYear()}-${month}-${date}`;
   }
 
+  protected toggleExtra(id: number): void {
+    this.extraIds.update((ids) => (ids.includes(id) ? ids.filter((item) => item !== id) : [...ids, id]));
+    this.selectedStaff.set(null);
+    this.selectedSlot.set(null);
+  }
+
+  protected lookPackage(phone: string): void {
+    const trimmed = phone.trim();
+    if (trimmed.length < 8) {
+      this.packageLeft.set(null);
+      this.usePackage.set(false);
+      return;
+    }
+    this.bookingApi.packageLeft(this.slug, trimmed).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (row) => {
+        this.packageLeft.set(row);
+        if (!row) {
+          this.usePackage.set(false);
+        }
+      },
+      error: () => this.packageLeft.set(null),
+    });
+  }
+
+  protected pickResource(value: string): void {
+    this.resource.set(value || null);
+    this.selectedSlot.set(null);
+    this.loadSlots();
+  }
+
+  protected resourceList(): string[] {
+    return (this.brand()?.resources ?? '').split(',').map((item) => item.trim()).filter(Boolean);
+  }
+
+  protected maxDate(): string {
+    const ahead = this.brand()?.max_days_ahead ?? 90;
+    const day = new Date();
+    day.setDate(day.getDate() + ahead);
+    const month = String(day.getMonth() + 1).padStart(2, '0');
+    const date = String(day.getDate()).padStart(2, '0');
+    return `${day.getFullYear()}-${month}-${date}`;
+  }
+
   protected pickMonthDay(day: Date): void {
     const iso = this.dayIso(day);
-    if (iso < this.minDate || day.getMonth() !== new Date(`${this.date()}T12:00:00`).getMonth()) {
+    if (iso < this.minDate || iso > this.maxDate() || day.getMonth() !== new Date(`${this.date()}T12:00:00`).getMonth()) {
       return;
     }
     this.onDate(iso);
@@ -380,6 +431,10 @@ export class Booking {
         client_phone,
         client_email: client_email.trim() || null,
         notes: notes.trim() || null,
+        extra_service_ids: this.extraIds(),
+        resource_name: this.resource(),
+        answers: this.answers().trim() || null,
+        use_package: this.usePackage(),
       })
       .pipe(
         takeUntilDestroyed(this.destroyRef),
@@ -493,6 +548,7 @@ export class Booking {
       .subscribe({
         next: ({ brand, services, staff }) => {
           this.brand.set(brand);
+          document.title = brand.name;
           this.services.set(services);
           this.staff.set(staff);
           this.isLoading.set(false);
@@ -518,7 +574,7 @@ export class Booking {
     this.slotsError.set(null);
 
     this.bookingApi
-      .getAvailability(this.slug, service.id, member.id, date)
+      .getAvailability(this.slug, service.id, member.id, date, this.extraIds(), this.resource())
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (slots) => {

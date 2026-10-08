@@ -11,6 +11,9 @@ interface GuestClient {
   phone: string;
   email: string | null;
   notes: string | null;
+  visit_count: number;
+  total_spent: number;
+  cancel_count: number;
 }
 
 @Component({
@@ -38,6 +41,18 @@ export class Customers {
       return client.full_name.toLowerCase().includes(term) || client.phone.toLowerCase().includes(term) || (digits.length > 0 && phone.includes(digits));
     });
   });
+  protected readonly best = computed(() =>
+    this.clients()
+      .filter((client) => client.total_spent > 0 || client.visit_count > 0)
+      .sort((a, b) => b.total_spent - a.total_spent || b.visit_count - a.visit_count)
+      .slice(0, 10),
+  );
+  protected readonly cancellers = computed(() =>
+    this.clients()
+      .filter((client) => client.cancel_count > 0)
+      .sort((a, b) => b.cancel_count - a.cancel_count || b.total_spent - a.total_spent)
+      .slice(0, 10),
+  );
   protected readonly loadError = signal<string | null>(null);
   protected readonly card = signal<ClientCard | null>(null);
   protected readonly notes = signal('');
@@ -66,6 +81,17 @@ export class Customers {
 
   protected close(): void {
     this.card.set(null);
+  }
+
+  protected initials(name: string): string {
+    return (
+      name
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase() ?? '')
+        .join('') || '·'
+    );
   }
 
   protected spent(amount: number): string {

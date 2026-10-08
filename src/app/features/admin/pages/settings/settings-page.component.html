@@ -1,5 +1,7 @@
 <section class="-mx-5 -my-7 min-h-full bg-[#FDF7F8] px-5 py-7 font-['Plus_Jakarta_Sans',sans-serif] text-[#1E1B1E] md:-mx-10 md:-my-9 md:px-10 md:py-9">
   <h1 class="text-2xl font-semibold tracking-tight">Configuración del Negocio</h1>
+  <p class="mt-2 text-sm text-slate-600">Entra con el mismo correo en el celular y en la computadora. Las dos sesiones se quedan abiertas.</p>
+  <button type="button" class="mt-3 h-9 rounded-full bg-[#1E1B1E] px-4 text-sm text-white" (click)="downloadBackup()">Descargar copia</button>
 
   @if (notice(); as message) {
     <p class="mt-4 rounded-xl bg-white px-4 py-2 text-sm text-rose-700 shadow-sm" role="status">{{ message }}</p>
@@ -66,6 +68,10 @@
           Cuenta o clave
           <input formControlName="depositAccount" placeholder="CLABE o referencia" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" />
         </label>
+        <label class="block text-sm">
+          Enlace de pago
+          <input formControlName="paymentUrl" placeholder="https://" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" />
+        </label>
       </div>
       <label class="mt-4 block max-w-xs text-sm">
         Porcentaje del precio acordado
@@ -82,6 +88,28 @@
         <input formControlName="bufferMinutes" type="number" min="0" max="120" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" />
       </label>
       <p class="mt-1 text-xs text-stone-500">Tiempo libre después de cada cita para preparar el siguiente servicio. 0 las deja seguidas.</p>
+      <label class="mt-4 block max-w-xs text-sm">
+        Cómo llamas a quien atiende
+        <input formControlName="staffLabel" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" placeholder="Colaborador" />
+      </label>
+      <div class="mt-4 grid max-w-xl gap-4 sm:grid-cols-2">
+        <label class="block text-sm">
+          Horas mínimas de anticipación
+          <input formControlName="minNoticeHours" type="number" min="0" max="168" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" />
+        </label>
+        <label class="block text-sm">
+          Días hacia adelante
+          <input formControlName="maxDaysAhead" type="number" min="1" max="365" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" />
+        </label>
+      </div>
+      <label class="mt-4 block text-sm">
+        Recursos (sala, cancha, equipo)
+        <input formControlName="resources" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" placeholder="Sala 1, Sala 2" />
+      </label>
+      <label class="mt-4 block text-sm">
+        Texto al cancelar
+        <textarea formControlName="cancelPolicy" rows="2" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" placeholder="Puedes cancelar hasta 24 horas antes."></textarea>
+      </label>
       <button type="submit" class="mt-6 h-10 rounded-xl bg-[#1E1B1E] px-4 text-sm text-white hover:bg-black disabled:opacity-50" [disabled]="savingProfile()">
         {{ savingProfile() ? 'Guardando…' : 'Guardar Perfil' }}
       </button>
@@ -105,8 +133,8 @@
             </label>
             @if (isOpen(index)) {
               <span class="flex gap-2">
-                <input type="time" formControlName="open_time" class="rounded-xl border border-gray-200 px-2 py-1.5 text-sm outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" />
-                <input type="time" formControlName="close_time" class="rounded-xl border border-gray-200 px-2 py-1.5 text-sm outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" />
+                <app-time-field class="min-w-28" formControlName="open_time" />
+                <app-time-field class="min-w-28" formControlName="close_time" />
               </span>
             }
           </div>

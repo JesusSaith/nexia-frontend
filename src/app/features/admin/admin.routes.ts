@@ -64,6 +64,13 @@ export const adminRoutes: Routes = [
       },
       { path: 'servicios', redirectTo: 'services', pathMatch: 'full' },
       { path: 'equipo', redirectTo: 'staff', pathMatch: 'full' },
+      // FUTURE_PHASE_INVENTORY: ventas e inventario.
+      // {
+      //   path: 'caja',
+      //   canActivate: [managers],
+      //   loadComponent: () =>
+      //     import('./pages/caja/caja-page.component').then((m) => m.CajaPageComponent),
+      // },
       {
         path: 'clientes',
         loadComponent: () => import('./pages/customers/customers').then((m) => m.Customers),

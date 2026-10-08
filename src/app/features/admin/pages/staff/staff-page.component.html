@@ -36,7 +36,7 @@
               <div class="flex items-start justify-between gap-2">
                 <div>
                   <h2 class="font-medium">{{ member.full_name }}</h2>
-                  <p class="text-sm text-slate-600">{{ member.role_title }}</p>
+                  <p class="text-sm text-slate-600">{{ member.role_title }}@if (member.commission_percent) { · {{ member.commission_percent }}% }</p>
                 </div>
                 <!-- FUTURE_PHASE_2_UNIFIED_PLATFORM: badge de cuenta de acceso -->
               </div>
@@ -84,101 +84,75 @@
 </section>
 
 <ng-template #editor>
-  <h2 mat-dialog-title>{{ dialogTitle() }}</h2>
-  <mat-dialog-content>
-    <div class="mb-4 inline-flex overflow-hidden rounded border border-slate-200">
-      @for (item of sections; track item.id) {
-        <button
-          type="button"
-          class="px-3 py-1.5 text-sm"
-          [class.brand-solid]="section() === item.id"
-          [class.text-white]="section() === item.id"
-          (click)="section.set(item.id)"
-        >
-          {{ item.label }}
-        </button>
-      }
-    </div>
-
-    <form id="staff-form" class="flex flex-col gap-1" [formGroup]="form" (ngSubmit)="save()">
-      @if (section() === 'info') {
-        <mat-form-field appearance="outline">
-          <mat-label>Nombre</mat-label>
-          <input matInput formControlName="full_name" />
-          @if (nameError()) {
-            <mat-error>{{ nameError() }}</mat-error>
-          }
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>Puesto</mat-label>
-          <input matInput formControlName="role_title" />
-          @if (roleError()) {
-            <mat-error>{{ roleError() }}</mat-error>
-          }
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>Correo</mat-label>
-          <input matInput type="email" formControlName="email" />
-          @if (emailError()) {
-            <mat-error>{{ emailError() }}</mat-error>
-          }
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>Teléfono</mat-label>
-          <input matInput type="tel" formControlName="phone" />
-        </mat-form-field>
-        <label class="mb-4 flex items-center gap-3 text-sm">
-          @if (form.controls.avatar_url.value) {
-            <img [src]="form.controls.avatar_url.value" alt="" class="h-14 w-14 rounded-full object-cover" />
-          } @else {
-            <span class="flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-xs text-slate-500">Foto</span>
-          }
-          <input type="file" accept="image/png,image/jpeg,image/webp" (change)="onPhoto($event)" />
+  <form id="staff-form" [formGroup]="form" (ngSubmit)="save()">
+    <header class="flex items-center gap-3 border-b border-stone-200 px-5 py-4">
+      <button type="button" aria-label="Cerrar" (click)="closeForm()">
+        <mat-icon>close</mat-icon>
+      </button>
+      <h2 class="flex-1 text-lg font-medium">{{ dialogTitle() }}</h2>
+      <button type="submit" class="h-10 rounded-xl bg-[#1E1B1E] px-4 text-sm text-white disabled:opacity-50" [disabled]="isSaving() || photoPending()">
+        {{ photoPending() ? 'Preparando foto…' : isSaving() ? 'Guardando…' : 'Guardar' }}
+      </button>
+    </header>
+    <div class="grid gap-6 p-5 lg:grid-cols-[minmax(0,1fr)_280px]">
+      <div class="flex flex-col gap-3">
+        <label class="text-sm">Nombre
+          <input formControlName="full_name" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2" />
         </label>
-        <mat-form-field appearance="outline">
-          <mat-label>Biografía</mat-label>
-          <textarea matInput rows="3" formControlName="bio"></textarea>
-        </mat-form-field>
-      } @else if (section() === 'services') {
-        @if (activeServices().length === 0) {
-          <p class="py-4 text-sm text-slate-600">No hay servicios activos en el catálogo.</p>
-        } @else {
-          <div class="flex flex-col gap-2 py-2">
+        @if (nameError()) { <p class="text-sm text-red-700">{{ nameError() }}</p> }
+        <label class="text-sm">Puesto
+          <input formControlName="role_title" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2" />
+        </label>
+        @if (roleError()) { <p class="text-sm text-red-700">{{ roleError() }}</p> }
+        <div class="grid gap-3 sm:grid-cols-2">
+          <label class="text-sm">Correo
+            <input type="email" formControlName="email" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2" />
+          </label>
+          <label class="text-sm">Teléfono
+            <input type="tel" formControlName="phone" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2" />
+          </label>
+        </div>
+        @if (emailError()) { <p class="text-sm text-red-700">{{ emailError() }}</p> }
+        <label class="text-sm">Comisión %
+          <input type="number" min="0" max="100" formControlName="commission_percent" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2" />
+        </label>
+        <label class="text-sm">Notas
+          <textarea formControlName="bio" rows="3" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2"></textarea>
+        </label>
+        @if (formError(); as message) { <p role="alert" class="text-sm text-red-700">{{ message }}</p> }
+      </div>
+      <aside class="flex flex-col gap-4">
+        <div class="rounded-2xl border border-stone-200 p-4">
+          <p class="mb-2 text-sm font-medium">Foto</p>
+          @if (photoPreview(); as src) {
+            <img [src]="src" alt="" class="mb-3 h-28 w-28 rounded-2xl object-cover" />
+            <button type="button" class="text-sm text-rose-700" (click)="clearPhoto()">Quitar</button>
+          } @else {
+            <label class="flex h-28 cursor-pointer items-center justify-center rounded-2xl border border-dashed border-stone-300 text-sm text-stone-500">
+              +
+              <input type="file" accept="image/png,image/jpeg,image/webp" class="sr-only" (change)="onPhoto($event)" />
+            </label>
+          }
+          @if (photoPreview()) {
+            <label class="mt-2 block text-sm text-stone-500">
+              Cambiar
+              <input type="file" accept="image/png,image/jpeg,image/webp" class="mt-1 block text-xs" (change)="onPhoto($event)" />
+            </label>
+          }
+        </div>
+        <div class="rounded-2xl border border-stone-200 p-4">
+          <p class="mb-2 text-sm font-medium">Servicios</p>
+          @if (activeServices().length === 0) {
+            <p class="text-sm text-slate-600">No hay servicios activos.</p>
+          } @else {
             @for (service of activeServices(); track service.id) {
-              <mat-checkbox
-                [checked]="hasService(service.id)"
-                (change)="toggleService(service.id, $event.checked)"
-              >
+              <mat-checkbox class="block" [checked]="hasService(service.id)" (change)="toggleService(service.id, $event.checked)">
                 {{ service.name }}
               </mat-checkbox>
             }
-          </div>
-        }
-      } @else if (false) {
-        <!-- FUTURE_PHASE_2_UNIFIED_PLATFORM: cuenta de acceso del colaborador -->
-      } @else if (editing()?.user_id) {
-        <p class="py-4 text-sm text-slate-600">Este colaborador ya tiene acceso activo.</p>
-      } @else {
-        <p class="mb-3 text-sm text-slate-600">Asigna un correo y una contraseña para que pueda entrar al panel.</p>
-        <mat-form-field appearance="outline">
-          <mat-label>Correo de acceso</mat-label>
-          <input matInput type="email" formControlName="account_email" />
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>Contraseña</mat-label>
-          <input matInput type="password" formControlName="account_password" />
-        </mat-form-field>
-      }
-
-      @if (formError(); as message) {
-        <p role="alert" class="text-sm text-red-700">{{ message }}</p>
-      }
-    </form>
-  </mat-dialog-content>
-  <mat-dialog-actions align="end">
-    <button mat-button type="button" (click)="closeForm()" [disabled]="isSaving()">Cerrar</button>
-    <button mat-flat-button color="primary" type="submit" form="staff-form" [disabled]="isSaving()">
-      {{ isSaving() ? 'Guardando…' : 'Guardar' }}
-    </button>
-  </mat-dialog-actions>
+          }
+        </div>
+      </aside>
+    </div>
+  </form>
 </ng-template>

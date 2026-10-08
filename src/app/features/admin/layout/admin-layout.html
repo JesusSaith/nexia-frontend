@@ -28,20 +28,20 @@
 
   <mat-sidenav-content>
     <header class="border-b border-[var(--border-subtle)] bg-white">
-      <div class="mx-auto grid h-16 max-w-7xl grid-cols-[1fr_auto_1fr] items-center gap-4 px-4 md:px-8">
-        <div class="flex items-center gap-2">
+      <div class="mx-auto flex h-16 max-w-7xl items-center gap-2 px-3 md:grid md:grid-cols-[1fr_auto_1fr] md:gap-4 md:px-8">
+        <div class="flex shrink-0 items-center gap-1">
           @if (isHandset()) {
             <button mat-icon-button type="button" aria-label="Abrir menú" (click)="toggleSidebar()">
               <mat-icon>menu</mat-icon>
             </button>
           }
-          <img src="/nexia-mark.png" alt="Nexia" class="h-11 w-11 object-contain" />
+          <img src="/nexia-mark.png" alt="Nexia" class="h-9 w-9 object-contain md:h-11 md:w-11" />
         </div>
-        <div class="flex max-w-[16rem] items-center gap-3 sm:max-w-none">
+        <div class="flex min-w-0 flex-1 items-center gap-2 md:flex-none md:gap-3">
           @if (logoUrl(); as logo) {
-            <img [src]="logo" [alt]="brandName() || businessName()" class="h-11 w-11 shrink-0 rounded-full object-cover" />
+            <img [src]="logo" [alt]="brandName() || businessName()" class="h-9 w-9 shrink-0 rounded-full object-cover md:h-11 md:w-11" />
           }
-          <span class="truncate text-lg font-semibold sm:text-xl">{{ brandName() || businessName() }}</span>
+          <span class="truncate text-base font-semibold md:text-xl">{{ brandName() || businessName() }}</span>
         </div>
         <div class="justify-self-end">
           <button mat-button type="button" [matMenuTriggerFor]="userMenu">
@@ -84,24 +84,28 @@
       <p role="alert" class="bg-red-50 px-4 py-2 text-sm text-red-700">{{ message }}</p>
     }
 
-    <main class="mx-auto w-full max-w-7xl px-5 py-7 md:px-10 md:py-9">
+    <main class="mx-auto w-full max-w-7xl px-3 py-5 md:px-10 md:py-9">
       <router-outlet />
     </main>
     @if (toast(); as message) {
       <div class="pointer-events-none fixed inset-x-0 top-20 z-50 flex justify-center px-4">
-        <a
-          class="nexia-toast pointer-events-auto flex w-full max-w-xl items-center gap-4 rounded-3xl border border-[#f0d5d8] bg-white px-5 py-4 shadow-[0_18px_50px_rgba(30,27,30,0.18)]"
-          routerLink="/admin/home"
+        <div
+          class="nexia-toast pointer-events-auto flex w-full max-w-xl items-center gap-2 rounded-3xl border border-[#f0d5d8] bg-white px-3 py-3 shadow-[0_18px_50px_rgba(30,27,30,0.18)] sm:gap-3 sm:px-5 sm:py-4"
         >
-          <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#b76e79] text-white">
-            <mat-icon>notifications</mat-icon>
-          </span>
-          <span class="min-w-0 flex-1">
-            <span class="block text-xs font-semibold uppercase tracking-wide text-[#b76e79]">Nuevo aviso</span>
-            <span class="mt-1 block text-base font-medium leading-snug text-[#1E1B1E]">{{ message }}</span>
-          </span>
-          <span class="shrink-0 rounded-full bg-[#1E1B1E] px-4 py-2 text-sm text-white">Ver</span>
-        </a>
+          <a class="flex min-w-0 flex-1 items-center gap-3" routerLink="/admin/home">
+            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#b76e79] text-white sm:h-12 sm:w-12">
+              <mat-icon>notifications</mat-icon>
+            </span>
+            <span class="min-w-0 flex-1">
+              <span class="block text-xs font-semibold uppercase tracking-wide text-[#b76e79]">Nuevo aviso</span>
+              <span class="mt-1 block text-base font-medium leading-snug text-[#1E1B1E]">{{ message }}</span>
+            </span>
+            <span class="shrink-0 rounded-full bg-[#1E1B1E] px-3 py-1.5 text-xs text-white sm:px-4 sm:py-2 sm:text-sm">Ver</span>
+          </a>
+          <button type="button" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#1E1B1E] hover:bg-[#fdf7f8]" aria-label="Cerrar aviso" (click)="closeToast($event)">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
       </div>
     }
   </mat-sidenav-content>

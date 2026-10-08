@@ -16,6 +16,7 @@ import { BookingService } from '@core/services/booking.service';
 import { DashboardService } from '@core/services/dashboard.service';
 import { ServicesService } from '@core/services/services.service';
 import { StaffService } from '@core/services/staff.service';
+import { PackagesService, VisitPackage } from '@core/services/packages.service';
 import { ReviewsService } from '@core/services/reviews.service';
 
 @Component({
@@ -31,7 +32,12 @@ export class HomePageComponent {
   private readonly bookingApi = inject(BookingService);
   private readonly staffApi = inject(StaffService);
   private readonly servicesApi = inject(ServicesService);
+  private readonly packagesApi = inject(PackagesService);
   private readonly destroyRef = inject(DestroyRef);
+  protected readonly packages = signal<VisitPackage[]>([]);
+  protected readonly packageName = signal('');
+  protected readonly packagePhone = signal('');
+  protected readonly packageVisits = signal(5);
   private readonly timeFormat = new Intl.DateTimeFormat('es-MX', {
     hour: '2-digit',
     minute: '2-digit',
@@ -59,6 +65,10 @@ export class HomePageComponent {
     const day = inputDate(addDays(new Date(), 1));
     return this.booked().filter((item) => item.status === 'scheduled' && item.starts_at.slice(0, 10) === day);
   });
+  protected readonly readyReminders = computed(() =>
+    this.tomorrow().filter((item) => (item.client_phone ?? '').replace(/\D/g, '').length >= 8),
+  );
+  protected readonly remindersSent = signal(sessionStorage.getItem('nexia-reminders') === inputDate(new Date()));
   protected readonly todayVisits = computed(() => {
     const day = inputDate(new Date());
     return this.booked().filter((item) => item.status === 'scheduled' && item.starts_at.slice(0, 10) === day);
@@ -76,13 +86,15 @@ export class HomePageComponent {
       stats: this.dashboardApi.getStats(),
       appointments: this.appointmentsApi.getAppointments({ start_date: start, end_date: end }),
       notices: this.dashboardApi.getNotices(),
+      packages: this.packagesApi.list().pipe(catchError(() => of([] as VisitPackage[]))),
     })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: ({ reviews, stats, appointments, notices }) => {
+        next: ({ reviews, stats, appointments, notices, packages }) => {
           const now = Date.now() - 30 * 60 * 1000;
           this.reviews.set(reviews);
           this.notices.set(notices);
+          this.packages.set(packages);
           this.booked.set(appointments);
           this.stats.set(stats);
           this.upcoming.set(
@@ -98,6 +110,20 @@ export class HomePageComponent {
           this.loadError.set(readError(error, 'No pudimos cargar el inicio.'));
         },
       });
+  }
+
+  protected savePackage(): void {
+    const name = this.packageName().trim();
+    const phone = this.packagePhone().trim();
+    const visits = Number(this.packageVisits());
+    if (!name || !phone || !visits) {
+      return;
+    }
+    this.packagesApi.create(name, phone, visits).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((row) => {
+      this.packages.update((items) => [row, ...items]);
+      this.packageName.set('');
+      this.packagePhone.set('');
+    });
   }
 
   protected replyReview(review: Review, event: Event): void {
@@ -175,12 +201,21 @@ export class HomePageComponent {
     window.open(`https://wa.me/${phone}?text=${text}`, '_blank', 'noopener');
   }
 
+  protected sendReminders(): void {
+    for (const item of this.readyReminders()) {
+      window.open(this.remind(item), '_blank', 'noopener');
+    }
+    sessionStorage.setItem('nexia-reminders', inputDate(new Date()));
+    this.remindersSent.set(true);
+  }
+
   protected remind(item: Appointment, when: 'hoy' | 'mañana' = 'mañana'): string {
     const phone = (item.client_phone ?? '').replace(/\D/g, '');
     const slug = this.auth.currentUser()?.slug ?? '';
     const link = item.cancel_token && slug ? ` Confírmala aquí: ${location.origin}/${slug}/manage/${item.cancel_token}` : '';
+    const shop = this.auth.currentUser()?.businessName ?? '';
     const text = encodeURIComponent(
-      `Hola ${item.client_name}, te recordamos tu cita de ${item.service_name} ${when} a las ${this.timeFormat.format(parseLocal(item.starts_at))}.${link}`,
+      `Hola ${item.client_name}, te recordamos tu cita en ${shop}: ${item.service_name} ${when} a las ${this.timeFormat.format(parseLocal(item.starts_at))}.${link}`,
     );
     return `https://wa.me/${phone}?text=${text}`;
   }

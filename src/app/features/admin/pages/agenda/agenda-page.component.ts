@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, TemplateRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
@@ -10,13 +10,14 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
-import { forkJoin, of } from 'rxjs';
-import { catchError, map } from 'rxjs/operators';
+import { forkJoin, interval, of } from 'rxjs';
+import { catchError, distinctUntilChanged, map, switchMap } from 'rxjs/operators';
 
 import { Appointment, AppointmentStatus } from '@core/models/appointment.model';
 import { ScheduleItem } from '@core/models/schedule.model';
 import { Service } from '@core/models/service.model';
 import { Staff } from '@core/models/staff.model';
+import { DateFieldComponent, TimeFieldComponent } from '@shared/components/when-field/when-field';
 import { AgendaService } from '@core/services/agenda.service';
 import { AppointmentsService, TimeBlock } from '@core/services/appointments.service';
 import { AuthService } from '@core/services/auth.service';
@@ -62,6 +63,7 @@ const SLOTS = Array.from(
 @Component({
   selector: 'app-agenda-page',
   imports: [
+    FormsModule,
     ReactiveFormsModule,
     MatButtonModule,
     MatDialogModule,
@@ -70,6 +72,8 @@ const SLOTS = Array.from(
     MatInputModule,
     MatProgressSpinnerModule,
     MatSelectModule,
+    DateFieldComponent,
+    TimeFieldComponent,
   ],
   templateUrl: './agenda-page.component.html',
 })
@@ -138,6 +142,23 @@ export class AgendaPageComponent {
   protected readonly pendingId = signal<number | null>(null);
   protected readonly loadError = signal<string | null>(null);
   protected readonly formError = signal<string | null>(null);
+  protected readonly slotTimes = signal<string[]>([]);
+  protected readonly slotsReady = signal(false);
+  protected readonly guests = signal<{ phone: string; visit_count: number; total_spent: number; cancel_count: number; full_name: string }[]>([]);
+  protected readonly known = signal<{ visit_count: number; total_spent: number; cancel_count: number; full_name: string } | null>(null);
+  protected readonly freshPhone = signal(false);
+  protected readonly freed = signal<{ name: string; href: string }[]>([]);
+  private readonly pesosFormat = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
+  protected readonly bookableDay = (iso: string): boolean => {
+    const staffId = this.form.controls.staff_id.value;
+    if (staffId == null) {
+      return false;
+    }
+    const day = new Date(`${iso}T12:00:00`);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return day >= today && this.workingWindow(staffId, day) !== null;
+  };
 
   protected readonly form = new FormGroup({
     service_id: new FormControl<number | null>(null, Validators.required),
@@ -205,6 +226,38 @@ export class AgendaPageComponent {
       const serviceId = this.serviceId();
       this.loadAppointments(range, staffId, serviceId);
     });
+    this.form.valueChanges
+      .pipe(
+        map((value) => `${value.service_id ?? ''}|${value.staff_id ?? ''}|${value.date}`),
+        distinctUntilChanged(),
+        switchMap((key) => {
+          const [serviceId, staffId, date] = key.split('|');
+          const slug = this.auth.currentUser()?.slug;
+          if (!slug || !serviceId || !staffId || !date) {
+            return of(null);
+          }
+          return this.booking.getAvailability(slug, Number(serviceId), Number(staffId), date).pipe(
+            map((rows) => rows.map((row) => row.starts_at.slice(11, 16))),
+            catchError(() => of([] as string[])),
+          );
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((times) => {
+        this.slotsReady.set(times !== null);
+        this.slotTimes.set(times ?? []);
+        const current = this.form.controls.time.value;
+        if (current && times && !times.includes(current)) {
+          this.form.controls.time.setValue('', { emitEvent: false });
+        }
+      });
+    interval(20000)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        if (this.ownStaffReady()) {
+          this.loadAppointments(this.range(), this.staffId(), this.serviceId(), true);
+        }
+      });
     effect(() => {
       const slug = this.auth.currentUser()?.slug;
       const service = this.pickedService();
@@ -712,6 +765,15 @@ export class AgendaPageComponent {
 
   protected repeat(appointment: Appointment, weeks: number): void {
     const start = parseTimestamp(appointment.starts_at);
+    const next = new Date(start);
+    next.setDate(next.getDate() + weeks * 7);
+    const slug = this.auth.currentUser()?.slug;
+    const phone = (appointment.client_phone ?? '').replace(/\D/g, '');
+    if (phone && slug) {
+      const when = next.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+      const text = `Hola ${appointment.client_name}. Tu siguiente visita puede ser el ${when}. Agenda aquí: ${location.origin}/${slug}/book`;
+      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
+    }
     const time = appointment.starts_at.slice(11, 16);
     const jobs = [1, 2, 3].map((step) => {
       const next = new Date(start);
@@ -899,17 +961,40 @@ export class AgendaPageComponent {
       notes: '',
       quoted_price: '',
     });
+    this.known.set(null);
+    this.freshPhone.set(false);
+    if (this.guests().length === 0) {
+      this.booking.getClients().pipe(takeUntilDestroyed(this.destroyRef)).subscribe((rows) => this.guests.set(rows));
+    }
     if (this.isStaff()) {
       this.form.controls.staff_id.disable();
     }
     this.dialogRef = this.dialog.open(this.editor(), {
-      width: '480px',
+      width: '980px',
       maxWidth: 'calc(100vw - 32px)',
+      panelClass: 'service-sheet',
+      autoFocus: 'first-tabbable',
     });
   }
 
   protected openCreate(): void {
     this.openCreateAt(this.cursor(), 9 * 60, this.staffId() ?? undefined);
+  }
+
+  protected pesos(amount: number): string {
+    return this.pesosFormat.format(amount);
+  }
+
+  protected matchClient(phone: string): void {
+    const key = phone.replace(/\D/g, '');
+    if (key.length < 7) {
+      this.known.set(null);
+      this.freshPhone.set(false);
+      return;
+    }
+    const found = this.guests().find((row) => row.phone.replace(/\D/g, '') === key);
+    this.known.set(found ?? null);
+    this.freshPhone.set(!found);
   }
 
   protected closeEditor(): void {
@@ -958,11 +1043,12 @@ export class AgendaPageComponent {
   protected openAppointment(appointment: Appointment, event: MouseEvent): void {
     event.stopPropagation();
     const margin = 8;
-    const width = 320;
+    const width = Math.min(320, window.innerWidth - margin * 2);
     const x = Math.max(margin, Math.min(event.clientX, window.innerWidth - width - margin));
     const room = window.innerHeight - margin * 2;
     const want = Math.min(560, room);
     const y = Math.max(margin, Math.min(event.clientY, window.innerHeight - want - margin));
+    this.freed.set([]);
     this.selected.set({ appointment, x, y, maxHeight: window.innerHeight - y - margin, history: [] });
     this.loadHistory(appointment);
   }
@@ -1047,11 +1133,32 @@ export class AgendaPageComponent {
             current?.appointment.id === appointment.id ? { ...current, appointment: next } : current,
           );
           this.pendingId.set(null);
+          if (status === 'cancelled' || status === 'no_show') {
+            this.offerFreed(appointment);
+          }
         },
         error: (error: unknown) => {
           this.pendingId.set(null);
           this.loadError.set(readError(error, 'No pudimos actualizar la cita.'));
         },
+      });
+  }
+
+  private offerFreed(appointment: Appointment): void {
+    const day = appointment.starts_at.slice(0, 10);
+    this.appointmentsApi
+      .waiters(day, appointment.service_id, appointment.staff_id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((rows) => {
+        const slug = this.auth.currentUser()?.slug ?? '';
+        const shop = this.auth.currentUser()?.businessName ?? 'el negocio';
+        const when = appointment.starts_at.slice(11, 16);
+        this.freed.set(
+          rows.map((row) => ({
+            name: row.client_name,
+            href: `https://wa.me/${row.client_phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola ${row.client_name}, en ${shop} se liberó ${appointment.service_name} el ${day} a las ${when}. Aparta aquí: ${location.origin}/${slug}/book`)}`,
+          })),
+        );
       });
   }
 
@@ -1117,9 +1224,11 @@ export class AgendaPageComponent {
       .subscribe((rows) => this.schedules.set(new Map(rows)));
   }
 
-  private loadAppointments(range: DateRange, staffId: number | null, serviceId: number | null): void {
+  private loadAppointments(range: DateRange, staffId: number | null, serviceId: number | null, quiet = false): void {
     const current = ++this.requestId;
-    this.isLoading.set(true);
+    if (!quiet) {
+      this.isLoading.set(true);
+    }
     this.loadError.set(null);
     forkJoin({
       items: this.appointmentsApi.getAppointments({
@@ -1145,7 +1254,7 @@ export class AgendaPageComponent {
           this.isLoading.set(false);
           const cita = Number(this.route.snapshot.queryParamMap.get('cita'));
           const found = items.find((item) => item.id === cita);
-          if (found) {
+          if (!quiet && found) {
             this.selected.set({ appointment: found, x: 24, y: 88, maxHeight: 560, history: [] });
             this.loadHistory(found);
           }
@@ -1154,10 +1263,12 @@ export class AgendaPageComponent {
           if (current !== this.requestId) {
             return;
           }
-          this.appointments.set([]);
-          this.blocks.set([]);
+          if (!quiet) {
+            this.appointments.set([]);
+            this.blocks.set([]);
+            this.loadError.set(readError(error, 'No pudimos cargar las citas.'));
+          }
           this.isLoading.set(false);
-          this.loadError.set(readError(error, 'No pudimos cargar las citas.'));
         },
       });
   }

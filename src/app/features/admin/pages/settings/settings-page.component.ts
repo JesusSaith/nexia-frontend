@@ -1,7 +1,9 @@
-import { HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormArray, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+
+import { TimeFieldComponent } from '@shared/components/when-field/when-field';
 
 import { API_BASE_URL } from '@core/config/api-base-url';
 import { BusinessHour, BusinessSettings, SettingsService } from '@core/services/settings.service';
@@ -10,13 +12,29 @@ const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', '
 
 @Component({
   selector: 'app-settings-page',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, TimeFieldComponent],
   templateUrl: './settings-page.component.html',
 })
 export class SettingsPageComponent {
   private readonly settingsApi = inject(SettingsService);
+  private readonly http = inject(HttpClient);
   private readonly apiBaseUrl = inject(API_BASE_URL);
   private readonly destroyRef = inject(DestroyRef);
+
+  protected downloadBackup(): void {
+    this.http
+      .get<Record<string, unknown>>(`${this.apiBaseUrl}/settings/backup`)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((data) => {
+        const file = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(file);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'nexia-copia.json';
+        link.click();
+        URL.revokeObjectURL(url);
+      });
+  }
 
   protected readonly days = DAYS;
   protected readonly logoUrl = signal<string | null>(null);
@@ -38,6 +56,12 @@ export class SettingsPageComponent {
     depositAccount: new FormControl('', { nonNullable: true }),
     depositHoldHours: new FormControl<number | null>(3),
     bufferMinutes: new FormControl<number | null>(0),
+    staffLabel: new FormControl('Colaborador', { nonNullable: true }),
+    minNoticeHours: new FormControl<number | null>(0),
+    maxDaysAhead: new FormControl<number | null>(90),
+    cancelPolicy: new FormControl('', { nonNullable: true }),
+    resources: new FormControl('', { nonNullable: true }),
+    paymentUrl: new FormControl('', { nonNullable: true }),
   });
 
   protected readonly hoursForm = new FormGroup({
@@ -127,6 +151,12 @@ export class SettingsPageComponent {
         deposit_account: value.depositAccount.trim() || null,
         deposit_hold_hours: value.depositHoldHours === null || String(value.depositHoldHours) === '' ? 3 : Number(value.depositHoldHours),
         buffer_minutes: value.bufferMinutes === null || String(value.bufferMinutes) === '' ? 0 : Number(value.bufferMinutes),
+        staff_label: value.staffLabel.trim() || 'Colaborador',
+        min_notice_hours: value.minNoticeHours === null || String(value.minNoticeHours) === '' ? 0 : Number(value.minNoticeHours),
+        max_days_ahead: value.maxDaysAhead === null || String(value.maxDaysAhead) === '' ? 90 : Number(value.maxDaysAhead),
+        cancel_policy: value.cancelPolicy.trim() || null,
+        resources: value.resources.trim() || null,
+        payment_url: value.paymentUrl.trim() || null,
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
@@ -184,6 +214,12 @@ export class SettingsPageComponent {
       depositAccount: settings.deposit_account ?? '',
       depositHoldHours: settings.deposit_hold_hours ?? 3,
       bufferMinutes: settings.buffer_minutes ?? 0,
+      staffLabel: settings.staff_label || 'Colaborador',
+      minNoticeHours: settings.min_notice_hours ?? 0,
+      maxDaysAhead: settings.max_days_ahead ?? 90,
+      cancelPolicy: settings.cancel_policy ?? '',
+      resources: settings.resources ?? '',
+      paymentUrl: settings.payment_url ?? '',
     });
     this.fillHours(settings.hours);
   }

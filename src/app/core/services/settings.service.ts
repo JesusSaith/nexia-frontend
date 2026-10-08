@@ -28,6 +28,12 @@ export interface BusinessSettings {
   deposit_account: string | null;
   deposit_hold_hours: number | null;
   buffer_minutes: number;
+  staff_label: string;
+  min_notice_hours: number;
+  max_days_ahead: number;
+  cancel_policy: string | null;
+  resources: string | null;
+  payment_url: string | null;
   hours: BusinessHour[];
 }
 
@@ -42,6 +48,12 @@ export interface ProfileUpdate {
   deposit_account: string | null;
   deposit_hold_hours: number | null;
   buffer_minutes?: number | null;
+  staff_label?: string | null;
+  min_notice_hours?: number | null;
+  max_days_ahead?: number | null;
+  cancel_policy?: string | null;
+  resources?: string | null;
+  payment_url?: string | null;
 }
 
 @Injectable({ providedIn: 'root' })

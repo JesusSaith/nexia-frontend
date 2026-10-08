@@ -5,9 +5,11 @@ import { ActivatedRoute } from '@angular/router';
 
 import { AvailabilitySlot } from '@core/models/appointment.model';
 import { BookingService, ManagedAppointment } from '@core/services/booking.service';
+import { DateFieldComponent } from '@shared/components/when-field/when-field';
 
 @Component({
   selector: 'app-manage-appointment',
+  imports: [DateFieldComponent],
   templateUrl: './manage-appointment.component.html',
   styleUrl: './manage-appointment.component.css',
 })
@@ -91,6 +93,7 @@ export class ManageAppointmentComponent {
           .subscribe({
             next: (appointment) => {
               this.appointment.set(appointment);
+              document.title = appointment.business_name;
               this.saving.set(false);
               this.notice.set('Comprobante enviado');
             },
@@ -121,6 +124,21 @@ export class ManageAppointmentComponent {
           this.errorMessage.set('No pudimos guardar la aceptación.');
         },
       });
+  }
+
+  protected markPaid(): void {
+    this.saving.set(true);
+    this.bookingApi.markPaid(this.token).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (appointment) => {
+        this.appointment.set(appointment);
+        this.saving.set(false);
+        this.notice.set('Anticipo registrado. Tu cita quedó confirmada.');
+      },
+      error: () => {
+        this.saving.set(false);
+        this.errorMessage.set('No pudimos registrar el pago.');
+      },
+    });
   }
 
   protected confirmVisit(): void {

@@ -73,6 +73,7 @@ export class StaffPageComponent {
     phone: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(32)] }),
     avatar_url: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(180000)] }),
     bio: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(2000)] }),
+    commission_percent: new FormControl('0', { nonNullable: true }),
     account_email: new FormControl('', {
       nonNullable: true,
       validators: [Validators.email, Validators.maxLength(255)],
@@ -85,8 +86,10 @@ export class StaffPageComponent {
 
   private readonly formEvents = toSignal(this.form.events, { initialValue: undefined });
   protected readonly activeServices = computed(() => this.services().filter((item) => item.is_active));
+  protected readonly photoPreview = signal<string | null>(null);
+  protected readonly photoPending = signal(false);
   protected readonly dialogTitle = computed(() =>
-    this.editing() ? 'Editar colaborador' : 'Nuevo colaborador',
+    this.editing() ? 'Editar colaborador' : 'Agregar colaborador',
   );
   protected readonly nameError = computed(() => {
     this.formEvents();
@@ -146,9 +149,11 @@ export class StaffPageComponent {
       phone: '',
       avatar_url: '',
       bio: '',
+      commission_percent: '0',
       account_email: '',
       account_password: '',
     });
+    this.photoPreview.set(null);
     this.openEditor();
   }
 
@@ -164,17 +169,28 @@ export class StaffPageComponent {
       phone: member.phone ?? '',
       avatar_url: member.avatar_url ?? '',
       bio: member.bio ?? '',
+      commission_percent: String(member.commission_percent ?? 0),
       account_email: '',
       account_password: '',
     });
+    this.photoPreview.set(member.avatar_url || null);
     this.openEditor();
   }
 
   protected onPhoto(event: Event): void {
-    const file = (event.target as HTMLInputElement).files?.[0];
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
     if (!file) {
       return;
     }
+    const preview = URL.createObjectURL(file);
+    const previous = this.photoPreview();
+    if (previous?.startsWith('blob:')) {
+      URL.revokeObjectURL(previous);
+    }
+    this.photoPreview.set(preview);
+    this.photoPending.set(true);
     const reader = new FileReader();
     reader.onload = () => {
       const image = new Image();
@@ -185,6 +201,7 @@ export class StaffPageComponent {
         canvas.height = size;
         const context = canvas.getContext('2d');
         if (!context) {
+          this.photoPending.set(false);
           return;
         }
         const scale = Math.max(size / image.width, size / image.height);
@@ -194,14 +211,25 @@ export class StaffPageComponent {
         const url = canvas.toDataURL('image/jpeg', 0.72);
         if (url.length > 180000) {
           this.formError.set('Esa foto es demasiado pesada.');
+          this.photoPending.set(false);
           return;
         }
-        this.form.controls.avatar_url.setValue(url);
+        this.form.controls.avatar_url.setValue(url, { emitEvent: false });
         this.formError.set(null);
+        this.photoPending.set(false);
       };
       image.src = String(reader.result);
     };
     reader.readAsDataURL(file);
+  }
+
+  protected clearPhoto(): void {
+    const previous = this.photoPreview();
+    if (previous?.startsWith('blob:')) {
+      URL.revokeObjectURL(previous);
+    }
+    this.photoPreview.set(null);
+    this.form.controls.avatar_url.setValue('', { emitEvent: false });
   }
 
   protected closeForm(): void {
@@ -236,6 +264,7 @@ export class StaffPageComponent {
       phone: raw.phone.trim() || null,
       avatar_url: raw.avatar_url.trim() || null,
       bio: raw.bio.trim() || null,
+      commission_percent: Math.min(100, Math.max(0, Number(raw.commission_percent) || 0)),
     };
     const current = this.editing();
     const serviceIds = this.selectedServices();
@@ -309,8 +338,9 @@ export class StaffPageComponent {
 
   private openEditor(): void {
     this.dialogRef = this.dialog.open(this.editor(), {
-      width: '560px',
+      width: '980px',
       maxWidth: 'calc(100vw - 32px)',
+      panelClass: 'service-sheet',
       autoFocus: 'first-tabbable',
     });
   }

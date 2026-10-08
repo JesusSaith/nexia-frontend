@@ -9,6 +9,8 @@ import { BusinessBrand, BusinessProfileUpdate, PublicService, PublicStaff } from
 export interface ManagedAppointment {
   business_name: string;
   business_slug: string;
+  logo_url?: string | null;
+  primary_color?: string | null;
   service_id: number;
   service_name: string;
   staff_id: number;
@@ -25,6 +27,8 @@ export interface ManagedAppointment {
   quoted_price: number | null;
   variable_price: boolean;
   price_accepted: boolean;
+  cancel_policy?: string | null;
+  payment_url?: string | null;
 }
 
 export interface ClientCard {
@@ -70,11 +74,19 @@ export class BookingService {
     serviceId: number,
     staffId: number,
     date: string,
+    extra: number[] = [],
+    resource: string | null = null,
   ): Observable<AvailabilitySlot[]> {
-    const params = new HttpParams()
+    let params = new HttpParams()
       .set('service_id', serviceId)
       .set('staff_id', staffId)
       .set('date', date);
+    if (extra.length) {
+      params = params.set('extra', extra.join(','));
+    }
+    if (resource) {
+      params = params.set('resource', resource);
+    }
     return this.http.get<AvailabilitySlot[]>(`${this.apiBaseUrl}/businesses/${slug}/availability`, {
       params,
     });
@@ -97,8 +109,8 @@ export class BookingService {
     });
   }
 
-  getClients(): Observable<{ id: number; full_name: string; phone: string; email: string | null; notes: string | null }[]> {
-    return this.http.get<{ id: number; full_name: string; phone: string; email: string | null; notes: string | null }[]>(
+  getClients(): Observable<{ id: number; full_name: string; phone: string; email: string | null; notes: string | null; visit_count: number; total_spent: number; cancel_count: number }[]> {
+    return this.http.get<{ id: number; full_name: string; phone: string; email: string | null; notes: string | null; visit_count: number; total_spent: number; cancel_count: number }[]>(
       `${this.apiBaseUrl}/clients`,
     );
   }
@@ -128,6 +140,17 @@ export class BookingService {
     data: { new_date: string; new_time: string; staff_id: number },
   ): Observable<ManagedAppointment> {
     return this.http.post<ManagedAppointment>(`${this.apiBaseUrl}/public/appointments/${token}/reschedule`, data);
+  }
+
+  packageLeft(slug: string, phone: string): Observable<{ label: string; total: number; remaining: number } | null> {
+    return this.http.get<{ label: string; total: number; remaining: number } | null>(
+      `${this.apiBaseUrl}/businesses/${slug}/package`,
+      { params: new HttpParams().set('phone', phone) },
+    );
+  }
+
+  markPaid(token: string): Observable<ManagedAppointment> {
+    return this.http.post<ManagedAppointment>(`${this.apiBaseUrl}/public/appointments/${token}/paid`, {});
   }
 
   createAppointment(slug: string, data: AppointmentCreate): Observable<Appointment> {

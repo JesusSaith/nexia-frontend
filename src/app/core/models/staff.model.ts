@@ -9,6 +9,7 @@ export interface Staff {
   avatar_url?: string | null;
   bio?: string | null;
   slot_times?: string | null;
+  commission_percent?: number;
   service_ids?: number[];
 }
 
@@ -19,6 +20,7 @@ export interface StaffWrite {
   phone: string | null;
   avatar_url?: string | null;
   bio?: string | null;
+  commission_percent?: number;
   is_active?: boolean;
 }
 

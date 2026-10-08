@@ -90,11 +90,23 @@
               </button>
             }
           </div>
+          @if (selectedService() && services().length > 1) {
+            <p class="mb-2 mt-4 text-sm text-slate-600">¿Agregas otro servicio a la misma cita?</p>
+            <div class="flex flex-wrap gap-2">
+              @for (service of services(); track service.id) {
+                @if (service.id !== selectedService()?.id) {
+                  <button type="button" class="rounded-full border px-3 py-1 text-sm" [class.brand-solid]="extraIds().includes(service.id)" (click)="toggleExtra(service.id)">
+                    {{ service.name }} · {{ service.duration_minutes }} min
+                  </button>
+                }
+              }
+            </div>
+          }
         }
       </div>
 
       <div>
-        <h2 class="mb-3 text-base font-medium">Colaborador</h2>
+        <h2 class="mb-3 text-base font-medium">{{ brand()?.staff_label || 'Colaborador' }}</h2>
         @if (!selectedService()) {
           <p class="text-sm text-slate-600">Elige un servicio para ver quién lo realiza.</p>
         } @else if (eligibleStaff().length === 0) {
@@ -163,9 +175,9 @@
           <button
             type="button"
             class="flex h-10 flex-col items-center justify-center rounded-lg text-sm"
-            [class.text-slate-300]="day.getMonth() !== dateMonth() || dayIso(day) < minDate"
+            [class.text-slate-300]="day.getMonth() !== dateMonth() || dayIso(day) < minDate || dayIso(day) > maxDate()"
             [class.brand-solid]="dayIso(day) === date()"
-            [disabled]="day.getMonth() !== dateMonth() || dayIso(day) < minDate"
+            [disabled]="day.getMonth() !== dateMonth() || dayIso(day) < minDate || dayIso(day) > maxDate()"
             (click)="pickMonthDay(day)"
           >
             {{ day.getDate() }}
@@ -176,6 +188,17 @@
         }
       </div>
 
+      @if (resourceList().length) {
+        <label class="mb-3 block text-sm">
+          Recurso
+          <select class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" [value]="resource() ?? ''" (change)="pickResource($any($event.target).value)">
+            <option value="">Sin recurso</option>
+            @for (item of resourceList(); track item) {
+              <option [value]="item">{{ item }}</option>
+            }
+          </select>
+        </label>
+      }
       @if (slotsError(); as message) {
         <p role="alert" class="text-sm text-red-700">{{ message }}</p>
       } @else if (slotsLoading()) {
@@ -238,7 +261,7 @@
       </mat-form-field>
       <mat-form-field appearance="outline">
         <mat-label>Teléfono</mat-label>
-        <input matInput type="tel" formControlName="client_phone" autocomplete="tel" />
+        <input matInput type="tel" formControlName="client_phone" autocomplete="tel" (change)="lookPackage($any($event.target).value)" />
         @if (phoneError(); as message) {
           <mat-error>{{ message }}</mat-error>
         }
@@ -250,6 +273,16 @@
           <mat-error>{{ message }}</mat-error>
         }
       </mat-form-field>
+      @if (packageLeft(); as pack) {
+        <label class="mb-3 flex items-center gap-2 text-sm">
+          <input type="checkbox" [checked]="usePackage()" (change)="usePackage.set($any($event.target).checked)" />
+          Usar paquete {{ pack.label }}. Quedan {{ pack.remaining }}.
+        </label>
+      }
+      @if (selectedService()?.questions) {
+        <p class="mb-2 whitespace-pre-line text-sm text-slate-600">{{ selectedService()!.questions }}</p>
+        <textarea class="mb-3 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" rows="3" placeholder="Tus respuestas" [value]="answers()" (input)="answers.set($any($event.target).value)"></textarea>
+      }
       <mat-form-field appearance="outline">
         <mat-label>{{ selectedService()?.variable_price ? 'Qué necesitas' : 'Notas' }}</mat-label>
         <textarea matInput rows="2" formControlName="notes"></textarea>
