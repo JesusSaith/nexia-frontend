@@ -1,19 +1,18 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 
+import { BusinessCopy } from '@core/business-copy';
+import { Toasts } from '@core/toasts';
 import { ScheduleItem } from '@core/models/schedule.model';
 import { Staff } from '@core/models/staff.model';
 import { SchedulesService } from '@core/services/schedules.service';
 import { StaffService } from '@core/services/staff.service';
-import { TimeFieldComponent } from '@shared/components/when-field/when-field';
+import { PickFieldComponent, TimeFieldComponent } from '@shared/components/when-field/when-field';
 
 const DAY_LABELS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'] as const;
 
@@ -21,18 +20,18 @@ const DAY_LABELS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sába
   selector: 'app-schedules-page',
   imports: [
     MatButtonModule,
-    MatFormFieldModule,
     MatIconModule,
-    MatInputModule,
     MatProgressSpinnerModule,
-    MatSelectModule,
     MatSlideToggleModule,
+    PickFieldComponent,
     TimeFieldComponent,
   ],
   templateUrl: './schedules-page.component.html',
 })
 export class SchedulesPageComponent {
   private readonly schedulesApi = inject(SchedulesService);
+  protected readonly copy = inject(BusinessCopy);
+  private readonly toasts = inject(Toasts);
   private readonly staffApi = inject(StaffService);
   private readonly destroyRef = inject(DestroyRef);
   private requestId = 0;
@@ -52,6 +51,14 @@ export class SchedulesPageComponent {
 
   constructor() {
     this.loadStaff();
+  }
+
+  protected readonly staffPicks = computed(() =>
+    this.staff().map((member) => ({ value: member.id, label: member.full_name })),
+  );
+
+  protected pickStaff(value: string | number | null): void {
+    this.onStaff(typeof value === 'number' ? value : '');
   }
 
   protected onStaff(value: number | ''): void {
@@ -226,6 +233,7 @@ export class SchedulesPageComponent {
           );
           this.isLoading.set(false);
           this.savedMessage.set('Horario guardado.');
+          this.toasts.show('Se guardó el horario.');
         },
         error: (error: unknown) => {
           this.isLoading.set(false);

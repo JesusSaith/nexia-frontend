@@ -1,6 +1,7 @@
 export interface Service {
   id: number;
   name: string;
+  category?: string | null;
   description: string | null;
   price: number;
   deposit_amount?: number | null;
@@ -14,6 +15,7 @@ export interface Service {
 
 export interface ServiceWrite {
   name: string;
+  category?: string | null;
   description: string | null;
   price: number;
   deposit_amount?: number | null;

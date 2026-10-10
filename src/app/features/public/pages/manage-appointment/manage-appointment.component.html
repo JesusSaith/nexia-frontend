@@ -54,7 +54,7 @@
         <p class="mt-4 text-sm">El anticipo se calcula cuando quede el precio acordado.</p>
       }
       @if (item.status === 'awaiting_deposit' && item.deposit_amount) {
-        <p class="mt-4 text-sm">Transfiere {{ item.deposit_amount }} a {{ item.deposit_account }}. El horario se libera si el depósito no llega a tiempo.</p>
+        <p class="mt-4 text-sm">Transfiere {{ item.deposit_amount }} a {{ item.deposit_account }}. Ese anticipo se descuenta del total y en la cita pagas lo que falte. El horario se libera si el depósito no llega a tiempo.</p>
         @if (item.payment_proof) {
           <p class="mt-2 text-sm text-emerald-700">Foto enviada. El negocio confirma la cita cuando la revise.</p>
         } @else {

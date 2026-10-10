@@ -13,52 +13,33 @@
       <p class="mb-6 mt-1 text-sm text-slate-500">Entra al panel de tu negocio.</p>
 
       <form class="flex flex-col gap-3" [formGroup]="form" (ngSubmit)="submit()">
-        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
-          <mat-label>Correo</mat-label>
-          <input matInput type="email" formControlName="email" autocomplete="email" />
-          @if (emailError()) {
-            <mat-error>{{ emailError() }}</mat-error>
-          }
-        </mat-form-field>
-
-        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
-          <mat-label>Contraseña</mat-label>
-          <input
-            matInput
-            [type]="hidePassword() ? 'password' : 'text'"
-            formControlName="password"
-            autocomplete="current-password"
-          />
-          <button
-            mat-icon-button
-            matSuffix
-            type="button"
-            (click)="hidePassword.set(!hidePassword())"
-            [attr.aria-label]="hidePassword() ? 'Mostrar contraseña' : 'Ocultar contraseña'"
-          >
-            <mat-icon>{{ hidePassword() ? 'visibility' : 'visibility_off' }}</mat-icon>
-          </button>
-          @if (passwordError()) {
-            <mat-error>{{ passwordError() }}</mat-error>
-          }
-        </mat-form-field>
-
+        <label class="rounded-xl border border-[#e4dfda] bg-white px-3 py-2">
+          <span class="block text-xs text-slate-500">Correo</span>
+          <input class="w-full bg-transparent text-sm outline-none" type="email" formControlName="email" autocomplete="email" />
+        </label>
+        @if (emailError()) {
+          <p class="text-sm text-red-700">{{ emailError() }}</p>
+        }
+        <label class="rounded-xl border border-[#e4dfda] bg-white px-3 py-2">
+          <span class="block text-xs text-slate-500">Contraseña</span>
+          <span class="flex items-center gap-2">
+            <input class="min-w-0 flex-1 bg-transparent text-sm leading-5 outline-none" [type]="hidePassword() ? 'password' : 'text'" formControlName="password" autocomplete="current-password" />
+            <button type="button" class="grid h-5 w-5 shrink-0 place-items-center text-slate-400" (click)="hidePassword.set(!hidePassword())" [attr.aria-label]="hidePassword() ? 'Mostrar contraseña' : 'Ocultar contraseña'">
+              <mat-icon class="!h-4 !w-4 !text-[16px] !leading-4">{{ hidePassword() ? 'visibility' : 'visibility_off' }}</mat-icon>
+            </button>
+          </span>
+        </label>
+        @if (passwordError()) {
+          <p class="text-sm text-red-700">{{ passwordError() }}</p>
+        }
         @if (errorMessage(); as message) {
           <p role="alert" class="text-sm text-red-700">{{ message }}</p>
         }
-
-        <button mat-flat-button color="primary" class="!h-11" type="submit" [disabled]="submitting()">
+        <button class="h-11 rounded-full bg-[#1E1B1E] text-sm font-medium text-white disabled:opacity-50" type="submit" [disabled]="submitting()">
           {{ submitting() ? 'Entrando…' : 'Entrar' }}
         </button>
       </form>
-
-      <a
-        mat-stroked-button
-        class="mt-4 !h-11 w-full"
-        routerLink="/auth/register"
-      >
-        Crear cuenta
-      </a>
+      <a class="mt-4 flex h-11 items-center justify-center rounded-full border border-[#e4dfda] text-sm" routerLink="/auth/register">Crear cuenta</a>
     </div>
   </section>
 </main>

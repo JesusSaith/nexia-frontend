@@ -1,11 +1,12 @@
 <section class="-mx-5 -my-7 min-h-full bg-[#FDF7F8] px-5 py-7 font-['Plus_Jakarta_Sans',sans-serif] text-[#1E1B1E] md:-mx-10 md:-my-9 md:px-10 md:py-9">
-  <h1 class="text-2xl font-semibold tracking-tight">Configuración del Negocio</h1>
-  <p class="mt-2 text-sm text-slate-600">Entra con el mismo correo en el celular y en la computadora. Las dos sesiones se quedan abiertas.</p>
-  <button type="button" class="mt-3 h-9 rounded-full bg-[#1E1B1E] px-4 text-sm text-white" (click)="downloadBackup()">Descargar copia</button>
+  <div class="flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <h1 class="text-2xl font-semibold tracking-tight">Configuración del Negocio</h1>
+      <p class="mt-2 text-sm text-slate-600">Entra con el mismo correo en el celular y en la computadora. Las dos sesiones se quedan abiertas.</p>
+    </div>
+    <button type="button" class="text-sm text-slate-500 underline-offset-2 hover:underline" (click)="downloadBackup()">Descargar copia</button>
+  </div>
 
-  @if (notice(); as message) {
-    <p class="mt-4 rounded-xl bg-white px-4 py-2 text-sm text-rose-700 shadow-sm" role="status">{{ message }}</p>
-  }
   @if (errorMessage(); as message) {
     <p class="mt-4 text-sm text-red-700" role="alert">{{ message }}</p>
   }
@@ -13,105 +14,156 @@
   @if (isLoading()) {
     <div class="mt-6 h-64 animate-pulse rounded-2xl border border-rose-100 bg-white"></div>
   } @else {
-    <form class="mt-6 rounded-2xl border border-rose-100 bg-white p-6 shadow-sm" [formGroup]="profileForm" (ngSubmit)="saveProfile()">
-      <h2 class="text-base font-semibold">Marca y contacto</h2>
-      <div class="mt-5 flex items-center gap-4">
-        <label class="relative cursor-pointer">
-          <input type="file" accept="image/png,image/jpeg,image/webp" class="sr-only" (change)="onLogo($event)" />
-          @if (logoSrc(); as src) {
-            <img [src]="src" alt="Logo" class="h-24 w-24 rounded-full object-cover" />
-          } @else {
-            <span class="flex h-24 w-24 items-center justify-center rounded-full bg-gray-100 text-gray-400">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-7 w-7" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 8h3l2-2h6l2 2h3v10H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
-            </span>
+    <form class="mt-6 flex flex-col gap-4" [formGroup]="profileForm" (ngSubmit)="saveProfile()">
+      <section class="rounded-2xl border border-[#eceae6] bg-white p-5">
+        <h2 class="text-base font-semibold">Marca</h2>
+        <p class="mt-1 text-xs text-stone-500">{{ uploading() ? 'Subiendo…' : 'Haz clic en el logo para cambiarlo. El teléfono y la dirección se ven en la reserva.' }}</p>
+        <div class="mt-4 flex flex-col gap-4 sm:flex-row">
+          <label class="relative shrink-0 cursor-pointer">
+            <input type="file" accept="image/png,image/jpeg,image/webp" class="sr-only" (change)="onLogo($event)" />
+            @if (logoSrc(); as src) {
+              <img [src]="src" alt="Logo" class="h-24 w-24 rounded-2xl border border-[#eceae6] bg-white object-contain" (error)="logoUrl.set(null)" />
+            } @else {
+              <span class="flex h-24 w-24 items-center justify-center rounded-2xl bg-[#f4f3f1] text-stone-400">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-7 w-7" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 8h3l2-2h6l2 2h3v10H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+              </span>
+            }
+            <span class="sr-only">Cambiar logo</span>
+          </label>
+          <div class="grid flex-1 gap-3 sm:grid-cols-2">
+            <label class="rounded-xl border border-[#e4dfda] px-3 py-2">
+              <span class="block text-xs text-slate-500">Teléfono público</span>
+              <input class="w-full bg-transparent text-sm outline-none" formControlName="phone" />
+            </label>
+            <label class="rounded-xl border border-[#e4dfda] px-3 py-2">
+              <span class="block text-xs text-slate-500">Dirección</span>
+              <input class="w-full bg-transparent text-sm outline-none" formControlName="address" />
+            </label>
+            <label class="rounded-xl border border-[#e4dfda] px-3 py-2">
+              <span class="block text-xs text-slate-500">Instagram</span>
+              <input class="w-full bg-transparent text-sm outline-none" formControlName="instagram" />
+            </label>
+            <label class="rounded-xl border border-[#e4dfda] px-3 py-2">
+              <span class="block text-xs text-slate-500">Facebook</span>
+              <input class="w-full bg-transparent text-sm outline-none" formControlName="facebook" />
+            </label>
+            <label class="rounded-xl border border-[#e4dfda] px-3 py-2 sm:col-span-2">
+              <span class="block text-xs text-slate-500">Qué hace tu negocio</span>
+              <input class="w-full bg-transparent text-sm outline-none" formControlName="description" placeholder="Cortes, color y peinados" />
+            </label>
+          </div>
+        </div>
+        <div class="mt-4 grid gap-3 sm:grid-cols-2">
+          <label class="rounded-xl border border-[#e4dfda] px-3 py-2">
+            <span class="block text-xs text-slate-500">Promoción</span>
+            <input class="w-full bg-transparent text-sm outline-none" maxlength="80" placeholder="2x1 en color" [value]="promo()" (input)="promo.set($any($event.target).value)" />
+          </label>
+          <label class="rounded-xl border border-[#e4dfda] px-3 py-2">
+            <span class="block text-xs text-slate-500">Visible hasta</span>
+            <input class="w-full bg-transparent text-sm outline-none" type="date" [value]="promoUntil()" (change)="promoUntil.set($any($event.target).value)" />
+          </label>
+        </div>
+        <div class="mt-4 flex flex-wrap items-center gap-3">
+          @for (photo of photos(); track photo) {
+            <button type="button" class="relative" (click)="removePhoto($index)" aria-label="Quitar foto">
+              <img [src]="photo" alt="" class="h-16 w-16 rounded-xl object-cover" />
+            </button>
           }
-          <span class="sr-only">{{ uploading() ? 'Subiendo logo' : 'Cambiar logo' }}</span>
-        </label>
-        <p class="text-sm text-stone-500">{{ uploading() ? 'Subiendo…' : 'Haz clic en el logo para cambiarlo.' }}</p>
-      </div>
+          @if (photos().length < 3) {
+            <label class="flex h-16 w-16 cursor-pointer items-center justify-center rounded-xl border border-dashed border-[#e4dfda] text-xs text-stone-500">
+              Foto
+              <input type="file" accept="image/png,image/jpeg,image/webp" class="sr-only" (change)="addPhotos($event)" />
+            </label>
+          }
+        </div>
+        <p class="mt-2 text-xs text-stone-500">Hasta 3 fotos del trabajo. El cliente las ve debajo del nombre, en la página de reservas. Toca una para quitarla.</p>
+      </section>
 
-      <div class="mt-6 grid gap-4 sm:grid-cols-2">
-        <label class="block text-sm">
-          Teléfono público
-          <input formControlName="phone" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" />
-        </label>
-        <label class="block text-sm">
-          Dirección
-          <input formControlName="address" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" />
-        </label>
-        <label class="block text-sm">
-          <span class="inline-flex items-center gap-1">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="4" width="16" height="16" rx="4"/><circle cx="12" cy="12" r="3.5"/><circle cx="17.5" cy="6.5" r="0.8" fill="currentColor"/></svg>
-            Enlace de Instagram
+      <section class="rounded-2xl border border-[#eceae6] bg-white p-5">
+        <h2 class="text-base font-semibold">Cómo se reserva</h2>
+        <p class="mt-1 text-xs text-stone-500">Vacío en cancelar: el cliente puede cambiar la cita hasta que empiece. 0 minutos las deja seguidas.</p>
+        <div class="mt-4 grid gap-3 sm:grid-cols-2">
+          <label class="rounded-xl border border-[#e4dfda] px-3 py-2">
+            <span class="block text-xs text-slate-500">Horas para cancelar</span>
+            <input class="w-full bg-transparent text-sm outline-none" formControlName="cancelHours" type="number" min="0" max="168" placeholder="Sin límite" />
+          </label>
+          <label class="rounded-xl border border-[#e4dfda] px-3 py-2">
+            <span class="block text-xs text-slate-500">Horas mínimas de anticipación</span>
+            <input class="w-full bg-transparent text-sm outline-none" formControlName="minNoticeHours" type="number" min="0" max="168" />
+          </label>
+          <label class="rounded-xl border border-[#e4dfda] px-3 py-2">
+            <span class="block text-xs text-slate-500">Días hacia adelante</span>
+            <input class="w-full bg-transparent text-sm outline-none" formControlName="maxDaysAhead" type="number" min="1" max="365" />
+          </label>
+          <label class="rounded-xl border border-[#e4dfda] px-3 py-2">
+            <span class="block text-xs text-slate-500">Minutos entre citas</span>
+            <input class="w-full bg-transparent text-sm outline-none" formControlName="bufferMinutes" type="number" min="0" max="120" />
+          </label>
+          <div class="sm:col-span-2">
+            <span class="mb-1 block text-xs text-slate-500">Tipo de negocio</span>
+            <app-pick-field formControlName="staffLabel" [options]="rolePicks" placeholder="Elegir" />
+          </div>
+          <label class="rounded-xl border border-[#e4dfda] px-3 py-2 sm:col-span-2">
+            <span class="block text-xs text-slate-500">Recursos (sala, cancha, equipo)</span>
+            <input class="w-full bg-transparent text-sm outline-none" formControlName="resources" placeholder="Sala 1, Sala 2" />
+          </label>
+          <label class="rounded-xl border border-[#e4dfda] px-3 py-2 sm:col-span-2">
+            <span class="block text-xs text-slate-500">Texto al cancelar</span>
+            <textarea class="w-full bg-transparent text-sm outline-none" rows="2" formControlName="cancelPolicy" placeholder="Puedes cancelar hasta 24 horas antes."></textarea>
+          </label>
+        </div>
+      </section>
+
+      <section class="rounded-2xl border border-[#eceae6] bg-white p-5">
+        <h2 class="text-base font-semibold">Cuando no hay citas</h2>
+        <p class="mt-1 text-xs text-stone-500">El enlace sigue en Perfil. Aquí decides si la página pública acepta reservas.</p>
+        <button type="button" class="mt-4 flex items-center gap-3 text-sm" (click)="pauseBookings.set(!pauseBookings())">
+          <span class="relative h-6 w-10 rounded-full transition-colors" [class]="pauseBookings() ? 'bg-[#1E1B1E]' : 'bg-stone-300'">
+            <span class="absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform" [class]="pauseBookings() ? 'left-4' : 'left-0.5'"></span>
           </span>
-          <input formControlName="instagram" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" />
-        </label>
-        <label class="block text-sm">
-          <span class="inline-flex items-center gap-1">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 8h2a4 4 0 0 1 0 8h-2M10 16H8a4 4 0 0 1 0-8h2M9 12h6"/></svg>
-            Enlace de Facebook
-          </span>
-          <input formControlName="facebook" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" />
-        </label>
-      </div>
-      <label class="mt-4 block max-w-xs text-sm">
-        Horas de anticipación para cancelar
-        <input formControlName="cancelHours" type="number" min="0" max="168" placeholder="Sin límite" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" />
-      </label>
-      <p class="mt-1 text-xs text-stone-500">Vacío: el cliente puede cambiar la cita hasta que empiece.</p>
-      <div class="mt-4 grid gap-4 sm:grid-cols-2">
-        <label class="block text-sm">
-          Anticipo
-          <input formControlName="depositAmount" type="number" min="0" placeholder="Sin anticipo" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" />
-        </label>
-        <label class="block text-sm">
-          Cuenta o clave
-          <input formControlName="depositAccount" placeholder="CLABE o referencia" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" />
-        </label>
-        <label class="block text-sm">
-          Enlace de pago
-          <input formControlName="paymentUrl" placeholder="https://" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" />
-        </label>
-      </div>
-      <label class="mt-4 block max-w-xs text-sm">
-        Porcentaje del precio acordado
-        <input formControlName="depositPercent" type="number" min="1" max="100" placeholder="Ej. 50" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" />
-      </label>
-      <p class="mt-1 text-xs text-stone-500">En un servicio de precio variable, el anticipo es este porcentaje del precio acordado. El monto fijo de arriba sigue para los servicios con precio fijo.</p>
-      <label class="mt-4 block max-w-xs text-sm">
-        Horas para recibir el anticipo
-        <input formControlName="depositHoldHours" type="number" min="1" max="72" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" />
-      </label>
-      <p class="mt-1 text-xs text-stone-500">Si el depósito no llega en ese tiempo, el horario se libera solo. El anticipo de un servicio, si lo tiene, reemplaza este monto.</p>
-      <label class="mt-4 block max-w-xs text-sm">
-        Minutos entre citas
-        <input formControlName="bufferMinutes" type="number" min="0" max="120" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" />
-      </label>
-      <p class="mt-1 text-xs text-stone-500">Tiempo libre después de cada cita para preparar el siguiente servicio. 0 las deja seguidas.</p>
-      <label class="mt-4 block max-w-xs text-sm">
-        Cómo llamas a quien atiende
-        <input formControlName="staffLabel" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" placeholder="Colaborador" />
-      </label>
-      <div class="mt-4 grid max-w-xl gap-4 sm:grid-cols-2">
-        <label class="block text-sm">
-          Horas mínimas de anticipación
-          <input formControlName="minNoticeHours" type="number" min="0" max="168" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" />
-        </label>
-        <label class="block text-sm">
-          Días hacia adelante
-          <input formControlName="maxDaysAhead" type="number" min="1" max="365" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" />
-        </label>
-      </div>
-      <label class="mt-4 block text-sm">
-        Recursos (sala, cancha, equipo)
-        <input formControlName="resources" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" placeholder="Sala 1, Sala 2" />
-      </label>
-      <label class="mt-4 block text-sm">
-        Texto al cancelar
-        <textarea formControlName="cancelPolicy" rows="2" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400" placeholder="Puedes cancelar hasta 24 horas antes."></textarea>
-      </label>
-      <button type="submit" class="mt-6 h-10 rounded-xl bg-[#1E1B1E] px-4 text-sm text-white hover:bg-black disabled:opacity-50" [disabled]="savingProfile()">
-        {{ savingProfile() ? 'Guardando…' : 'Guardar Perfil' }}
+          No tomar citas por ahora
+        </button>
+        <div class="mt-4 grid gap-3 sm:grid-cols-2">
+          <label class="rounded-xl border border-[#e4dfda] px-3 py-2">
+            <span class="block text-xs text-slate-500">Cerramos desde</span>
+            <input class="w-full bg-transparent text-sm outline-none" type="date" [value]="closedFrom()" (change)="closedFrom.set($any($event.target).value)" />
+          </label>
+          <label class="rounded-xl border border-[#e4dfda] px-3 py-2">
+            <span class="block text-xs text-slate-500">Hasta</span>
+            <input class="w-full bg-transparent text-sm outline-none" type="date" [value]="closedTo()" (change)="closedTo.set($any($event.target).value)" />
+          </label>
+        </div>
+      </section>
+
+      <section class="rounded-2xl border border-[#eceae6] bg-white p-5">
+        <h2 class="text-base font-semibold">Anticipo</h2>
+        <p class="mt-1 text-xs text-stone-500">El monto vale para precio fijo. El porcentaje, para precio acordado. Si no llega a tiempo, el horario se libera.</p>
+        <div class="mt-4 grid gap-3 sm:grid-cols-2">
+          <label class="rounded-xl border border-[#e4dfda] px-3 py-2">
+            <span class="block text-xs text-slate-500">Monto</span>
+            <input class="w-full bg-transparent text-sm outline-none" formControlName="depositAmount" type="number" min="0" placeholder="Sin anticipo" />
+          </label>
+          <label class="rounded-xl border border-[#e4dfda] px-3 py-2">
+            <span class="block text-xs text-slate-500">Porcentaje del precio acordado</span>
+            <input class="w-full bg-transparent text-sm outline-none" formControlName="depositPercent" type="number" min="1" max="100" placeholder="Ej. 50" />
+          </label>
+          <label class="rounded-xl border border-[#e4dfda] px-3 py-2">
+            <span class="block text-xs text-slate-500">Cuenta o clave</span>
+            <input class="w-full bg-transparent text-sm outline-none" formControlName="depositAccount" placeholder="CLABE o referencia" />
+          </label>
+          <label class="rounded-xl border border-[#e4dfda] px-3 py-2">
+            <span class="block text-xs text-slate-500">Horas para recibirlo</span>
+            <input class="w-full bg-transparent text-sm outline-none" formControlName="depositHoldHours" type="number" min="1" max="72" />
+          </label>
+          <label class="rounded-xl border border-[#e4dfda] px-3 py-2 sm:col-span-2">
+            <span class="block text-xs text-slate-500">Enlace de pago</span>
+            <input class="w-full bg-transparent text-sm outline-none" formControlName="paymentUrl" placeholder="https://" />
+          </label>
+        </div>
+      </section>
+
+      <button type="submit" class="h-11 self-start rounded-full bg-[#1E1B1E] px-5 text-sm font-medium text-white disabled:opacity-50" [disabled]="savingProfile()">
+        {{ savingProfile() ? 'Guardando…' : 'Guardar' }}
       </button>
     </form>
 

@@ -8,15 +8,18 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { finalize } from 'rxjs';
+import { finalize, forkJoin } from 'rxjs';
 
 import { Service, ServiceWrite } from '@core/models/service.model';
+import { Toasts } from '@core/toasts';
 import { ServicesService } from '@core/services/services.service';
+import { PickFieldComponent } from '@shared/components/when-field/when-field';
 
 @Component({
   selector: 'app-services-page',
   imports: [
     ReactiveFormsModule,
+    PickFieldComponent,
     MatButtonModule,
     MatDialogModule,
     MatFormFieldModule,
@@ -28,9 +31,11 @@ import { ServicesService } from '@core/services/services.service';
 })
 export class ServicesPageComponent {
   private readonly servicesApi = inject(ServicesService);
+  private readonly toasts = inject(Toasts);
   private readonly destroyRef = inject(DestroyRef);
   private readonly dialog = inject(MatDialog);
   private readonly editor = viewChild.required<TemplateRef<unknown>>('editor');
+  private readonly categoryEditor = viewChild.required<TemplateRef<unknown>>('categoryEditor');
   private dialogRef: MatDialogRef<unknown> | null = null;
   private readonly currency = new Intl.NumberFormat('es-MX', {
     style: 'currency',
@@ -38,6 +43,10 @@ export class ServicesPageComponent {
   });
 
   protected readonly services = signal<Service[]>([]);
+  protected readonly catalog = signal<string[]>([]);
+  protected readonly categoryFilter = signal('');
+  protected readonly categoryName = signal('');
+  protected readonly categoryError = signal<string | null>(null);
   protected readonly isLoading = signal(true);
   protected readonly isSaving = signal(false);
   protected readonly pendingId = signal<number | null>(null);
@@ -49,6 +58,7 @@ export class ServicesPageComponent {
   private readonly validationTick = signal(0);
 
   protected readonly form = new FormGroup({
+    category: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(80)] }),
     name: new FormControl('', {
       nonNullable: true,
       validators: [Validators.required, Validators.maxLength(255)],
@@ -74,6 +84,20 @@ export class ServicesPageComponent {
   });
 
   private readonly formEvents = toSignal(this.form.events, { initialValue: undefined });
+
+  protected readonly categories = computed(() =>
+    [...this.catalog()].sort((a, b) => a.localeCompare(b, 'es')),
+  );
+  protected readonly categoryPicks = computed(() => [
+    { value: '', label: 'Elige una categoría' },
+    ...this.categories().map((name) => ({ value: name, label: name })),
+  ]);
+
+  protected readonly visible = computed(() => {
+    const name = this.categoryFilter();
+    const rows = this.services();
+    return name ? rows.filter((row) => row.category === name) : rows;
+  });
 
   protected readonly dialogTitle = computed(() =>
     this.editing() ? 'Editar servicio' : 'Crear servicio',
@@ -113,13 +137,49 @@ export class ServicesPageComponent {
     return this.currency.format(price);
   }
 
-  protected openCreate(): void {
+  protected openCategory(): void {
+    this.categoryName.set('');
+    this.categoryError.set(null);
+    this.dialogRef = this.dialog.open(this.categoryEditor(), {
+      width: '420px',
+      maxWidth: 'calc(100vw - 24px)',
+      panelClass: 'service-sheet',
+      autoFocus: 'first-tabbable',
+    });
+  }
+
+  protected saveCategory(): void {
+    const name = this.categoryName().trim();
+    if (!name || this.isSaving()) {
+      this.categoryError.set(name ? null : 'Escribe el nombre de la categoría.');
+      return;
+    }
+    this.isSaving.set(true);
+    this.categoryError.set(null);
+    this.servicesApi
+      .createCategory(name)
+      .pipe(takeUntilDestroyed(this.destroyRef), finalize(() => this.isSaving.set(false)))
+      .subscribe({
+        next: (row) => {
+          this.catalog.update((items) => (items.includes(row.name) ? items : [...items, row.name]));
+          this.categoryFilter.set(row.name);
+          this.dialogRef?.close();
+          this.toasts.show('Se creó la categoría.');
+        },
+        error: (error: HttpErrorResponse) => {
+          this.categoryError.set(this.messageFor(error, 'No pudimos crear la categoría.'));
+        },
+      });
+  }
+
+  protected openCreate(category = ''): void {
     this.editing.set(null);
     this.formError.set(null);
     this.photoPreview.set('');
     this.photoPending.set(false);
     this.form.reset({
       name: '',
+      category: category,
       description: '',
       price: '',
       deposit_amount: '',
@@ -140,6 +200,7 @@ export class ServicesPageComponent {
     this.photoPending.set(false);
     this.form.setValue({
       name: service.name,
+      category: service.category ?? '',
       description: service.description ?? '',
       price: String(service.price),
       deposit_amount: service.deposit_amount == null ? '' : String(service.deposit_amount),
@@ -170,6 +231,7 @@ export class ServicesPageComponent {
     const raw = this.form.getRawValue();
     const payload: ServiceWrite = {
       name: raw.name.trim(),
+      category: raw.category.trim() || null,
       description: raw.description.trim() || null,
       price: Number(raw.price),
       deposit_amount: String(raw.deposit_amount ?? '').trim() ? Number(raw.deposit_amount) : null,
@@ -191,6 +253,7 @@ export class ServicesPageComponent {
       next: () => {
         this.dialogRef?.close();
         this.load(true);
+        this.toasts.show(current ? 'Se guardó el servicio.' : 'Se creó el servicio.');
       },
       error: (error: HttpErrorResponse) => {
         this.formError.set(this.messageFor(error, 'No pudimos guardar el servicio.'));
@@ -311,14 +374,19 @@ export class ServicesPageComponent {
       this.isLoading.set(true);
     }
     this.loadError.set(null);
-    this.servicesApi
-      .getServices()
+    forkJoin({
+      services: this.servicesApi.getServices(),
+      categories: this.servicesApi.getCategories(),
+    })
       .pipe(
         takeUntilDestroyed(this.destroyRef),
         finalize(() => this.isLoading.set(false)),
       )
       .subscribe({
-        next: (items) => this.services.set(items),
+        next: ({ services, categories }) => {
+          this.services.set(services);
+          this.catalog.set(categories.map((item) => item.name));
+        },
         error: (error: HttpErrorResponse) => {
           this.loadError.set(this.messageFor(error, 'No pudimos cargar los servicios.'));
         },

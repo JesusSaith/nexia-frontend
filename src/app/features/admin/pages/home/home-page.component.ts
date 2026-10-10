@@ -61,6 +61,7 @@ export class HomePageComponent {
   protected readonly openings = signal<{ staff: string; slots: AvailabilitySlot[] }[]>([]);
   protected readonly clients = signal<{ id: number; full_name: string; phone: string }[]>([]);
   protected readonly offerId = signal<number | null>(null);
+  protected readonly clientPicks = computed(() => this.clients().map((client) => ({ value: client.id, label: client.full_name })));
   protected readonly tomorrow = computed(() => {
     const day = inputDate(addDays(new Date(), 1));
     return this.booked().filter((item) => item.status === 'scheduled' && item.starts_at.slice(0, 10) === day);
@@ -227,19 +228,6 @@ export class HomePageComponent {
   protected noticeWhen(value: string): string {
     const date = parseLocal(value);
     return `${this.dayFormat.format(date)} · ${this.timeFormat.format(date)}`;
-  }
-
-  protected noticeTone(message: string): string {
-    if (message.includes('comprobante')) {
-      return 'border-l-[#b76e79] bg-[#fdf7f8]';
-    }
-    if (message.includes('espera') || message.includes('Horario libre')) {
-      return 'border-l-emerald-500 bg-emerald-50';
-    }
-    if (message.includes('cancel') || message.includes('liberó')) {
-      return 'border-l-stone-400 bg-stone-50';
-    }
-    return 'border-l-[#1E1B1E] bg-white';
   }
 
   protected noticeCita(message: string): number | null {

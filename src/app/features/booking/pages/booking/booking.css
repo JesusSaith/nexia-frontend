@@ -27,6 +27,60 @@
   }
 }
 
+.contact-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.contact-chip:hover {
+  text-decoration: underline;
+}
+
+.step-tabs {
+  display: flex;
+  overflow-x: auto;
+  border-bottom: 1px solid #e7e5e4;
+}
+
+.step-tab {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-width: max-content;
+  padding: 0.75rem 0.6rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: transparent;
+  color: #a8a29e;
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.step-tab.is-done {
+  color: #44403c;
+}
+
+.step-tab.is-current {
+  border-bottom-color: var(--booking-primary);
+  color: var(--booking-primary);
+  font-weight: 600;
+}
+
+.step-tab:disabled {
+  cursor: default;
+}
+
+.step-tab:disabled:not(.is-current) {
+  opacity: 0.4;
+}
+
 .choice-selected {
   border-color: var(--booking-primary);
   box-shadow: inset 0 0 0 2px var(--booking-primary);

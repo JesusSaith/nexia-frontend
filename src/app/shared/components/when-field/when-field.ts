@@ -298,3 +298,96 @@ export class TimeFieldComponent implements ControlValueAccessor {
     this.dismiss();
   }
 }
+
+export type PickOption = { value: string | number | null; label: string };
+
+@Component({
+  selector: 'app-pick-field',
+  template: `
+    <button type="button" class="flex w-full items-center justify-between gap-3 text-left text-sm" [class.h-10]="!bare()" [class.rounded-xl]="!bare()" [class.border]="!bare()" [class.border-gray-200]="!bare()" [class.bg-white]="!bare()" [class.px-3]="!bare()" (click)="toggle($event)">
+      <span class="truncate" [class.text-stone-400]="label() === placeholder()">{{ label() }}</span>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" class="h-4 w-4 shrink-0 text-stone-400" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M5 7.5 10 12.5 15 7.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <ng-template #panel>
+      <div class="pick-sheet max-h-64 overflow-auto rounded-2xl border border-[#eceae6] bg-white p-1.5 shadow-lg" style="width:100%" (click)="$event.stopPropagation()">
+        @for (option of options(); track option.label) {
+          <button type="button" class="block w-full rounded-xl px-3 py-2 text-left text-sm" [class.bg-[#f8eef0]]="same(option.value)" [class.font-medium]="same(option.value)" (click)="choose(option.value)">{{ option.label }}</button>
+        }
+      </div>
+    </ng-template>
+  `,
+  providers: [{ provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => PickFieldComponent), multi: true }],
+})
+export class PickFieldComponent implements ControlValueAccessor {
+  private readonly host = inject(ElementRef<HTMLElement>);
+  private readonly overlay = inject(Overlay);
+  private readonly view = inject(ViewContainerRef);
+  private readonly panel = viewChild.required<TemplateRef<unknown>>('panel');
+  private sheet: OverlayRef | null = null;
+  private readonly own = signal<string | number | null | undefined>(undefined);
+  readonly options = input<PickOption[]>([]);
+  readonly placeholder = input('Elegir');
+  readonly bare = input(false);
+  readonly valueIn = input<string | number | null>(null);
+  readonly picked = output<string | number | null>();
+  protected readonly open = signal(false);
+  private onChange: (value: string | number | null) => void = () => undefined;
+  private onTouched: () => void = () => undefined;
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => this.dismiss());
+  }
+
+  protected readonly current = computed(() => (this.own() !== undefined ? this.own() : this.valueIn()));
+  protected readonly label = computed(() => this.options().find((option) => this.same(option.value))?.label ?? this.placeholder());
+
+  writeValue(value: string | number | null): void {
+    this.own.set(value);
+  }
+
+  registerOnChange(fn: (value: string | number | null) => void): void {
+    this.onChange = fn;
+  }
+
+  registerOnTouched(fn: () => void): void {
+    this.onTouched = fn;
+  }
+
+  @HostListener('document:click', ['$event'])
+  protected closeOutside(event: MouseEvent): void {
+    const target = event.target as Node;
+    if (!this.open() || this.host.nativeElement.contains(target) || this.sheet?.overlayElement.contains(target)) {
+      return;
+    }
+    this.dismiss();
+  }
+
+  protected same(value: string | number | null): boolean {
+    return this.current() === value;
+  }
+
+  protected toggle(event: MouseEvent): void {
+    event.stopPropagation();
+    if (this.open()) {
+      this.dismiss();
+      return;
+    }
+    const anchor = event.currentTarget as HTMLElement;
+    this.sheet = openSheet(this.overlay, this.view, anchor, this.panel(), Math.max(180, anchor.offsetWidth));
+    this.open.set(true);
+  }
+
+  protected choose(value: string | number | null): void {
+    this.own.set(value);
+    this.onChange(value);
+    this.onTouched();
+    this.picked.emit(value);
+    this.dismiss();
+  }
+
+  private dismiss(): void {
+    this.sheet?.dispose();
+    this.sheet = null;
+    this.open.set(false);
+  }
+}

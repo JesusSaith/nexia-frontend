@@ -10,6 +10,14 @@ export class ServicesService {
   private readonly http = inject(HttpClient);
   private readonly apiBaseUrl = inject(API_BASE_URL);
 
+  getCategories(): Observable<{ id: number; name: string }[]> {
+    return this.http.get<{ id: number; name: string }[]>(`${this.apiBaseUrl}/services/categories`);
+  }
+
+  createCategory(name: string): Observable<{ id: number; name: string }> {
+    return this.http.post<{ id: number; name: string }>(`${this.apiBaseUrl}/services/categories`, { name });
+  }
+
   getServices(): Observable<Service[]> {
     return this.http.get<Service[]>(`${this.apiBaseUrl}/services/`);
   }

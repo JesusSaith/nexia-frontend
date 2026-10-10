@@ -11,38 +11,36 @@
       <mat-spinner diameter="36" />
     </div>
   } @else {
-    <form class="flex flex-col gap-1" [formGroup]="form" (ngSubmit)="save()">
-      <p class="mb-2 text-sm text-slate-600">{{ profile()?.role_title }}</p>
-      <mat-form-field appearance="outline">
-        <mat-label>Nombre</mat-label>
-        <input matInput formControlName="full_name" />
-        @if (nameError()) {
-          <mat-error>{{ nameError() }}</mat-error>
-        }
-      </mat-form-field>
-      <mat-form-field appearance="outline">
-        <mat-label>Teléfono</mat-label>
-        <input matInput type="tel" formControlName="phone" />
-      </mat-form-field>
-      <mat-form-field appearance="outline">
-        <mat-label>Foto</mat-label>
-        <input matInput formControlName="avatar_url" placeholder="https://" />
-      </mat-form-field>
-      <mat-form-field appearance="outline">
-        <mat-label>Biografía</mat-label>
-        <textarea matInput rows="4" formControlName="bio"></textarea>
-      </mat-form-field>
+    <form class="flex flex-col gap-3" [formGroup]="form" (ngSubmit)="save()">
+      <p class="text-sm text-slate-600">{{ profile()?.role_title }}</p>
+      <label class="rounded-xl border border-[#e4dfda] bg-white px-3 py-2">
+        <span class="block text-xs text-slate-500">Nombre</span>
+        <input class="w-full bg-transparent text-sm outline-none" formControlName="full_name" />
+      </label>
+      @if (nameError()) {
+        <p class="text-sm text-red-700">{{ nameError() }}</p>
+      }
+      <label class="rounded-xl border border-[#e4dfda] bg-white px-3 py-2">
+        <span class="block text-xs text-slate-500">Teléfono</span>
+        <input class="w-full bg-transparent text-sm outline-none" type="tel" formControlName="phone" />
+      </label>
+      <label class="rounded-xl border border-[#e4dfda] bg-white px-3 py-2">
+        <span class="block text-xs text-slate-500">Foto</span>
+        <input class="w-full bg-transparent text-sm outline-none" formControlName="avatar_url" placeholder="https://" />
+      </label>
+      <label class="rounded-xl border border-[#e4dfda] bg-white px-3 py-2">
+        <span class="block text-xs text-slate-500">Biografía</span>
+        <textarea class="w-full bg-transparent text-sm outline-none" rows="4" formControlName="bio"></textarea>
+      </label>
       @if (formError(); as message) {
         <p role="alert" class="text-sm text-red-700">{{ message }}</p>
       }
       @if (saved()) {
         <p class="text-sm text-emerald-700">Perfil guardado.</p>
       }
-      <div>
-        <button mat-flat-button color="primary" type="submit" [disabled]="isSaving()">
-          {{ isSaving() ? 'Guardando…' : 'Guardar' }}
-        </button>
-      </div>
+      <button class="h-11 rounded-full bg-[#1E1B1E] text-sm font-medium text-white disabled:opacity-50" type="submit" [disabled]="isSaving()">
+        {{ isSaving() ? 'Guardando…' : 'Guardar' }}
+      </button>
     </form>
   }
 </section>

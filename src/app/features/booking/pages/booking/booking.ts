@@ -3,19 +3,19 @@ import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ActivatedRoute } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 
+import { businessWords } from '@core/business-words';
+import { closedSpan, dateClosed, liveOffer, splitNote } from '@core/shop-note';
 import { Appointment } from '@core/models/appointment.model';
 import { BusinessBrand, PublicService, PublicStaff } from '@core/models/business.model';
 import { BookingService } from '@core/services/booking.service';
 import { Review } from '@core/models/review.model';
 import { ReviewsService } from '@core/services/reviews.service';
+import { PickFieldComponent } from '@shared/components/when-field/when-field';
 
 const STEPS = [
   { id: 1, label: 'Servicio' },
@@ -31,10 +31,8 @@ const FALLBACK_COLOR = '#E11D48';
   imports: [
     ReactiveFormsModule,
     MatButtonModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatInputModule,
     MatProgressSpinnerModule,
+    PickFieldComponent,
   ],
   templateUrl: './booking.html',
   styleUrl: './booking.css',
@@ -64,6 +62,21 @@ export class Booking {
   private slotsRequest = 0;
 
   protected readonly steps = STEPS;
+  protected readonly categories = computed(() => {
+    const names = new Set<string>();
+    for (const service of this.services()) {
+      const name = service.category?.trim();
+      if (name) {
+        names.add(name);
+      }
+    }
+    return [...names].sort((a, b) => a.localeCompare(b, 'es'));
+  });
+  protected readonly visibleServices = computed(() => {
+    const name = this.categoryFilter();
+    const rows = this.services();
+    return name ? rows.filter((service) => service.category === name) : rows;
+  });
   protected readonly slug =
     this.route.snapshot.paramMap.get('businessSlug') ??
     this.route.parent?.snapshot.paramMap.get('businessSlug') ??
@@ -71,9 +84,13 @@ export class Booking {
   protected readonly minDate = todayInputValue();
 
   protected readonly step = signal(1);
+  protected readonly reached = signal(1);
   protected readonly brand = signal<BusinessBrand | null>(null);
+  protected readonly petName = signal('');
+  protected readonly copy = computed(() => businessWords(this.brand()?.staff_label));
   protected readonly opinions = signal<Review[]>([]);
   protected readonly services = signal<PublicService[]>([]);
+  protected readonly categoryFilter = signal('');
   protected readonly staff = signal<PublicStaff[]>([]);
   protected readonly selectedService = signal<PublicService | null>(null);
   protected readonly selectedStaff = signal<PublicStaff | null>(null);
@@ -99,6 +116,7 @@ export class Booking {
   protected readonly reviewStars = [1, 2, 3, 4, 5];
 
   protected readonly isLoading = signal(true);
+  protected readonly logoFailed = signal(false);
   protected readonly slotsLoading = signal(false);
   protected readonly isSaving = signal(false);
   protected readonly loadError = signal<string | null>(null);
@@ -124,6 +142,10 @@ export class Booking {
 
   private readonly formEvents = toSignal(this.clientForm.events, { initialValue: undefined });
 
+  protected readonly shopNote = computed(() => splitNote(this.brand()?.resources).note);
+  protected readonly gallery = computed(() => this.shopNote().photos);
+  protected readonly closedLabel = computed(() => closedSpan(this.shopNote()));
+  protected readonly offer = computed(() => liveOffer(this.shopNote(), todayInputValue()));
   protected readonly primaryColor = computed(() => safeColor(this.brand()?.primary_color));
   protected readonly canvasColor = computed(() => {
     const value = this.brand()?.canvas_color;
@@ -220,7 +242,7 @@ export class Booking {
     if (!this.canChooseSchedule()) {
       return;
     }
-    this.step.set(2);
+    this.moveTo(2);
     this.loadSlots();
     this.loadOpenDays();
   }
@@ -294,14 +316,18 @@ export class Booking {
     });
   }
 
-  protected pickResource(value: string): void {
-    this.resource.set(value || null);
+  protected pickResource(value: string | number | null): void {
+    this.resource.set(typeof value === 'string' && value ? value : null);
     this.selectedSlot.set(null);
     this.loadSlots();
   }
 
+  protected resourcePicks(): { value: string; label: string }[] {
+    return [{ value: '', label: 'Sin recurso' }, ...this.resourceList().map((item) => ({ value: item, label: item }))];
+  }
+
   protected resourceList(): string[] {
-    return (this.brand()?.resources ?? '').split(',').map((item) => item.trim()).filter(Boolean);
+    return splitNote(this.brand()?.resources).text.split(',').map((item) => item.trim()).filter(Boolean);
   }
 
   protected maxDate(): string {
@@ -376,11 +402,22 @@ export class Booking {
     if (!this.selectedSlot()) {
       return;
     }
-    this.step.set(3);
+    this.moveTo(3);
+  }
+
+  protected openStep(id: number): void {
+    if (this.confirmation() || id < 1 || id > this.reached() || id === this.step()) {
+      return;
+    }
+    this.step.set(id);
+    if (id === 2) {
+      this.loadSlots();
+      this.loadOpenDays();
+    }
   }
 
   protected back(): void {
-    this.step.update((current) => Math.max(1, current - 1));
+    this.openStep(this.step() - 1);
   }
 
   protected depositAmount(): number | null {
@@ -419,6 +456,10 @@ export class Booking {
       this.formError.set('Cuéntanos qué necesitas para cotizar.');
       return;
     }
+    if (this.copy().pet && !this.petName().trim()) {
+      this.formError.set('Escribe el nombre de la mascota.');
+      return;
+    }
     this.isSaving.set(true);
     this.formError.set(null);
 
@@ -430,7 +471,7 @@ export class Booking {
         client_name,
         client_phone,
         client_email: client_email.trim() || null,
-        notes: notes.trim() || null,
+        notes: [this.copy().pet && this.petName().trim() ? `Mascota: ${this.petName().trim()}` : '', notes.trim()].filter(Boolean).join('\n') || null,
         extra_service_ids: this.extraIds(),
         resource_name: this.resource(),
         answers: this.answers().trim() || null,
@@ -443,7 +484,7 @@ export class Booking {
         next: (appointment) => {
           this.isSaving.set(false);
           this.confirmation.set(appointment);
-          this.step.set(4);
+          this.moveTo(4);
           this.tellDeposit(appointment, client_phone);
         },
         error: (error: unknown) => {
@@ -516,6 +557,7 @@ export class Booking {
 
   protected restart(): void {
     this.step.set(1);
+    this.reached.set(1);
     this.selectedService.set(null);
     this.selectedStaff.set(null);
     this.selectedSlot.set(null);
@@ -566,6 +608,13 @@ export class Booking {
     const member = this.selectedStaff();
     const date = this.date();
     if (!service || !member || !date) {
+      return;
+    }
+
+    if (dateClosed(date, this.shopNote())) {
+      this.slots.set([]);
+      this.slotsLoading.set(false);
+      this.slotsError.set(`Cerramos del ${closedSpan(this.shopNote())}.`);
       return;
     }
 
@@ -676,6 +725,22 @@ export class Booking {
 
   protected openWhatsapp(href: string): void {
     window.open(href, '_blank', 'noopener');
+  }
+
+  protected businessWhatsapp(phone: string): string {
+    return `https://wa.me/${phone.replace(/\D/g, '')}`;
+  }
+
+  protected instagramHandle(value: string): string {
+    const trimmed = value.trim();
+    const fromUrl = trimmed.match(/instagram\.com\/([^/?#]+)/i)?.[1];
+    const handle = (fromUrl ?? trimmed).replace(/^@/, '').split(/[/?#]/)[0];
+    return handle ? `@${handle}` : trimmed;
+  }
+
+  private moveTo(id: number): void {
+    this.step.set(id);
+    this.reached.update((current) => Math.max(current, id));
   }
 
   protected externalHref(value: string, host: string): string {

@@ -6,7 +6,7 @@
     </div>
     <button mat-flat-button color="primary" type="button" (click)="openCreate()">
       <mat-icon>person_add</mat-icon>
-      Agregar colaborador
+      Agregar {{ copy.text().person.toLowerCase() }}
     </button>
   </header>
 
@@ -19,7 +19,7 @@
       <mat-spinner diameter="36" />
     </div>
   } @else if (staff().length === 0) {
-    <p class="py-10 text-center text-sm text-slate-600">No hay colaboradores en el equipo.</p>
+    <p class="py-10 text-center text-sm text-slate-600">No hay {{ copy.text().people.toLowerCase() }} en el equipo.</p>
   } @else {
     <div class="grid gap-3 sm:grid-cols-2">
       @for (member of staff(); track member.id) {
@@ -84,17 +84,17 @@
 </section>
 
 <ng-template #editor>
-  <form id="staff-form" [formGroup]="form" (ngSubmit)="save()">
-    <header class="flex items-center gap-3 border-b border-stone-200 px-5 py-4">
-      <button type="button" aria-label="Cerrar" (click)="closeForm()">
+  <form id="staff-form" class="flex max-h-[92vh] flex-col bg-white" [formGroup]="form" (ngSubmit)="save()">
+    <header class="flex items-center justify-between border-b border-[#eceae6] px-4 py-3">
+      <button type="button" class="flex h-9 w-9 items-center justify-center rounded-full hover:bg-stone-100" aria-label="Cerrar" (click)="closeForm()">
         <mat-icon>close</mat-icon>
       </button>
-      <h2 class="flex-1 text-lg font-medium">{{ dialogTitle() }}</h2>
-      <button type="submit" class="h-10 rounded-xl bg-[#1E1B1E] px-4 text-sm text-white disabled:opacity-50" [disabled]="isSaving() || photoPending()">
+      <h2 class="text-lg font-semibold">{{ dialogTitle() }}</h2>
+      <button type="submit" class="rounded-full bg-[#1E1B1E] px-5 py-2 text-sm font-medium text-white disabled:opacity-50" [disabled]="isSaving() || photoPending()">
         {{ photoPending() ? 'Preparando foto…' : isSaving() ? 'Guardando…' : 'Guardar' }}
       </button>
     </header>
-    <div class="grid gap-6 p-5 lg:grid-cols-[minmax(0,1fr)_280px]">
+    <div class="grid gap-6 overflow-y-auto p-5 lg:grid-cols-[minmax(0,1fr)_280px]">
       <div class="flex flex-col gap-3">
         <label class="text-sm">Nombre
           <input formControlName="full_name" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2" />

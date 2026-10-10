@@ -4,10 +4,13 @@
       <h1>Servicios</h1>
       <p class="mt-1 text-sm text-slate-500">Precio, duración y lo que ofreces.</p>
     </div>
-    <button mat-flat-button color="primary" type="button" (click)="openCreate()">
-      <mat-icon>add</mat-icon>
-      Nuevo servicio
-    </button>
+    <div class="flex flex-wrap gap-2">
+      <button mat-stroked-button type="button" (click)="openCategory()">Nueva categoría</button>
+      <button mat-flat-button color="primary" type="button" (click)="openCreate(categoryFilter())">
+        <mat-icon>add</mat-icon>
+        Nuevo servicio
+      </button>
+    </div>
   </header>
 
   @if (loadError(); as message) {
@@ -18,11 +21,25 @@
     <div class="flex justify-center py-16">
       <mat-spinner diameter="36" />
     </div>
-  } @else if (services().length === 0) {
-    <p class="py-10 text-center text-sm text-slate-600">No hay servicios en el catálogo.</p>
+  } @else if (services().length === 0 && categories().length === 0) {
+    <p class="py-10 text-center text-sm text-slate-600">Crea una categoría y después el servicio que va dentro.</p>
   } @else {
+    @if (categories().length) {
+      <div class="mb-4 flex flex-wrap gap-2">
+        <button type="button" class="rounded-full border px-3 py-1 text-sm" [class.bg-stone-900]="!categoryFilter()" [class.text-white]="!categoryFilter()" (click)="categoryFilter.set('')">Todas</button>
+        @for (name of categories(); track name) {
+          <button type="button" class="rounded-full border px-3 py-1 text-sm" [class.bg-stone-900]="categoryFilter() === name" [class.text-white]="categoryFilter() === name" (click)="categoryFilter.set(name)">{{ name }}</button>
+        }
+      </div>
+    }
+    @if (visible().length === 0) {
+      <div class="py-10 text-center">
+        <p class="text-sm text-slate-600">Esta categoría todavía no tiene servicios.</p>
+        <button mat-stroked-button class="mt-3" type="button" (click)="openCreate(categoryFilter())">Agregar servicio</button>
+      </div>
+    } @else {
     <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-      @for (row of services(); track row.id) {
+      @for (row of visible(); track row.id) {
         <article class="flex flex-col overflow-hidden rounded-2xl border border-[#eceae6] bg-white shadow-[0_1px_2px_rgba(30,27,30,0.04)]" [class.opacity-60]="!row.is_active">
           @if (row.image_url) {
             <img class="h-36 w-full object-cover" [src]="row.image_url" [alt]="row.name" />
@@ -31,6 +48,9 @@
           }
           <div class="flex flex-1 flex-col gap-3 p-4">
             <div class="min-w-0">
+              @if (row.category) {
+                <p class="text-xs font-medium text-stone-400">{{ row.category }}</p>
+              }
               <h2 class="truncate text-base font-semibold">{{ row.name }}</h2>
               <p class="mt-1 line-clamp-2 text-sm text-stone-500">{{ row.description || 'Sin descripción' }}</p>
             </div>
@@ -56,6 +76,7 @@
         </article>
       }
     </div>
+    }
   }
 </section>
 
@@ -76,6 +97,10 @@
           <span class="block text-xs text-slate-500">Nombre</span>
           <input class="w-full bg-transparent text-sm outline-none" formControlName="name" />
         </label>
+        <label class="rounded-xl border border-[#e4dfda] px-3 py-2">
+          <span class="block text-xs text-slate-500">Categoría</span>
+          <app-pick-field class="block" formControlName="category" [options]="categoryPicks()" [bare]="true" />
+        </label>
         @if (nameError()) {
           <p class="text-sm text-red-700">{{ nameError() }}</p>
         }
@@ -88,10 +113,18 @@
             <span class="block text-xs text-slate-500">Precio</span>
             <input class="w-full bg-transparent text-sm outline-none" type="number" min="0" step="0.01" formControlName="price" />
           </label>
-          <label class="rounded-xl border border-[#e4dfda] px-3 py-2">
-            <span class="block text-xs text-slate-500">Anticipo</span>
+          <div class="rounded-xl border border-[#e4dfda] px-3 py-2">
+            <span class="flex items-center gap-1 text-xs text-slate-500">
+              Anticipo
+              <details class="relative">
+                <summary class="flex cursor-pointer list-none text-slate-400 [&::-webkit-details-marker]:hidden" aria-label="Para qué sirve el anticipo">
+                  <mat-icon class="!text-[16px] !h-4 !w-4">info</mat-icon>
+                </summary>
+                <p class="absolute left-0 z-10 mt-1 w-56 rounded-xl border border-[#eceae6] bg-white p-3 text-xs font-normal text-slate-600 shadow">Si lo dejas vacío, se usa el anticipo del negocio, el de Configuración.</p>
+              </details>
+            </span>
             <input class="w-full bg-transparent text-sm outline-none" type="number" min="0" step="0.01" formControlName="deposit_amount" placeholder="El del negocio" />
-          </label>
+          </div>
         </div>
         @if (priceError()) {
           <p class="text-sm text-red-700">{{ priceError() }}</p>
@@ -134,22 +167,63 @@
           }
         </section>
         <section class="rounded-2xl border border-[#eceae6] p-4">
-          <label class="flex items-start gap-2 text-sm">
-            <input type="checkbox" formControlName="variable_price" />
-            <span>El precio cambia según lo que pidan. El cliente lo acepta después.</span>
-          </label>
-          <p class="mt-3 text-xs text-slate-500">Si el anticipo queda vacío, se usa el del negocio.</p>
-          <label class="mt-3 block text-sm">Cupo de la misma hora
+          <div class="flex items-start gap-2">
+            <label class="flex flex-1 items-start gap-2 text-sm">
+              <input type="checkbox" formControlName="variable_price" />
+              <span>El precio cambia según lo que pidan</span>
+            </label>
+            <details class="relative shrink-0">
+              <summary class="flex cursor-pointer list-none text-slate-400 [&::-webkit-details-marker]:hidden" aria-label="Para qué sirve el precio variable">
+                <mat-icon class="!text-[18px] !h-[18px] !w-[18px]">info</mat-icon>
+              </summary>
+              <p class="absolute right-0 z-10 mt-1 w-60 rounded-xl border border-[#eceae6] bg-white p-3 text-xs text-slate-600 shadow">Actívalo si el precio no es fijo, como un diseño a medida. El cliente describe lo que quiere y tú confirmas el costo después. Si lo dejas apagado, se cobra el precio de la izquierda.</p>
+            </details>
+          </div>
+          <div class="mt-4">
+            <span class="flex items-center gap-1 text-sm">
+              Cupo de la misma hora
+              <details class="relative">
+                <summary class="flex cursor-pointer list-none text-slate-400 [&::-webkit-details-marker]:hidden" aria-label="Para qué sirve el cupo">
+                  <mat-icon class="!text-[18px] !h-[18px] !w-[18px]">info</mat-icon>
+                </summary>
+                <p class="absolute right-0 z-10 mt-1 w-60 rounded-xl border border-[#eceae6] bg-white p-3 text-xs font-normal text-slate-600 shadow">Cuántas citas caben en el mismo horario. 1 es una persona a la vez. Súbelo si varias pueden atenderse juntas, por ejemplo una clase.</p>
+              </details>
+            </span>
             <input formControlName="capacity" type="number" min="1" max="100" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2" />
-          </label>
-          <label class="mt-3 block text-sm">Preguntas, una por línea
-            <textarea formControlName="questions" rows="3" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2" placeholder="¿Cuál es el motivo de tu visita?"></textarea>
-          </label>
+          </div>
+          <div class="mt-3">
+            <span class="flex items-center gap-1 text-sm">
+              Preguntas al reservar
+              <details class="relative">
+                <summary class="flex cursor-pointer list-none text-slate-400 [&::-webkit-details-marker]:hidden" aria-label="Para qué sirven las preguntas">
+                  <mat-icon class="!text-[18px] !h-[18px] !w-[18px]">info</mat-icon>
+                </summary>
+                <p class="absolute right-0 z-10 mt-1 w-60 rounded-xl border border-[#eceae6] bg-white p-3 text-xs font-normal text-slate-600 shadow">El cliente las ve al reservar y responde ahí. Escribe una pregunta por línea. Si lo dejas vacío, no se le pregunta nada.</p>
+              </details>
+            </span>
+            <textarea formControlName="questions" rows="3" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2" placeholder="Una pregunta por línea"></textarea>
+          </div>
         </section>
         @if (formError(); as message) {
           <p role="alert" class="text-sm text-red-700">{{ message }}</p>
         }
       </div>
     </div>
+  </form>
+</ng-template>
+
+<ng-template #categoryEditor>
+  <form class="flex flex-col gap-4 bg-white p-5" (ngSubmit)="saveCategory()">
+    <h2 class="text-lg font-semibold">Nueva categoría</h2>
+    <label>
+      <span class="block text-xs text-slate-500">Nombre</span>
+      <input class="mt-1 w-full rounded-xl border border-[#e4dfda] px-3 py-2 text-sm outline-none" [value]="categoryName()" (input)="categoryName.set($any($event.target).value)" />
+    </label>
+    @if (categoryError(); as message) {
+      <p class="text-sm text-red-700">{{ message }}</p>
+    }
+    <button type="submit" class="rounded-full bg-[#1E1B1E] px-5 py-2 text-sm font-medium text-white disabled:opacity-50" [disabled]="isSaving()">
+      {{ isSaving() ? 'Guardando…' : 'Crear' }}
+    </button>
   </form>
 </ng-template>

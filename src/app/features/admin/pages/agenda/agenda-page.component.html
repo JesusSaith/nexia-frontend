@@ -11,6 +11,12 @@
       </div>
     </div>
   }
+  @if (focus(); as kind) {
+    <p class="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-[#f0d5d8] bg-[#f8eef0] px-4 py-3 text-sm">
+      <span>{{ kind === 'missed' ? 'Citas que no se hicieron en este periodo.' : 'Anticipos por cobrar en este periodo.' }}</span>
+      <button type="button" class="text-xs text-[#b76e79]" (click)="focus.set(null)">Ver todas</button>
+    </p>
+  }
   <header class="mb-6 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
     <div class="flex flex-wrap items-center gap-x-5 gap-y-3">
       <h1>{{ isStaff() ? 'Mi Agenda' : 'Agenda' }}</h1>
@@ -27,39 +33,16 @@
       }
     </div>
     <div class="flex flex-wrap items-center gap-3">
-      <mat-form-field appearance="outline" class="w-full sm:w-48" subscriptSizing="dynamic">
-        <mat-label>Servicio</mat-label>
-        <mat-select [value]="serviceId() ?? ''" (selectionChange)="onService($event.value)">
-          <mat-option value="">Todos</mat-option>
-          @for (service of activeServices(); track service.id) {
-            <mat-option [value]="service.id">{{ service.name }}</mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
+      <app-pick-field class="block w-full sm:w-48" [options]="filterServices()" [valueIn]="serviceId() ?? ''" placeholder="Servicio" (picked)="pickFilterService($event)" />
       @if (!isStaff()) {
-        <mat-form-field appearance="outline" class="w-full sm:w-48" subscriptSizing="dynamic">
-          <mat-label>Colaborador</mat-label>
-          <mat-select [value]="staffId() ?? ''" (selectionChange)="onStaff($event.value)">
-            <mat-option value="">Todos</mat-option>
-            @for (member of staff(); track member.id) {
-              <mat-option [value]="member.id">{{ member.full_name }}</mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
+        <app-pick-field class="block w-full sm:w-48" [options]="filterStaff()" [valueIn]="staffId() ?? ''" [placeholder]="copy.text().person" (picked)="pickFilterStaff($event)" />
       }
     </div>
   </header>
 
   @if (blocking()) {
     <form class="mb-4 grid gap-3 rounded-2xl border bg-white p-4 sm:grid-cols-5" [formGroup]="blockForm" (ngSubmit)="saveBlock()">
-      <mat-form-field appearance="outline" subscriptSizing="dynamic">
-        <mat-label>Colaborador</mat-label>
-        <mat-select formControlName="staff_id">
-          @for (member of staff(); track member.id) {
-            <mat-option [value]="member.id">{{ member.full_name }}</mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
+      <app-pick-field class="block" formControlName="staff_id" [options]="blockStaff()" [placeholder]="copy.text().person" />
       <label class="text-sm">Día
         <app-date-field class="mt-1 block" formControlName="date" [fromToday]="true" />
       </label>
@@ -69,19 +52,11 @@
       <label class="text-sm">Hasta
         <app-time-field class="mt-1 block" formControlName="end" />
       </label>
-      <mat-form-field appearance="outline" subscriptSizing="dynamic">
-        <mat-label>Nota</mat-label>
-        <input matInput formControlName="note" />
-      </mat-form-field>
-      <mat-form-field class="sm:col-span-2" appearance="outline" subscriptSizing="dynamic">
-        <mat-label>Repetir</mat-label>
-        <mat-select formControlName="repeat">
-          <mat-option value="day">Solo este día</mat-option>
-          <mat-option value="weekdays">Lun a vie de esta semana</mat-option>
-          <mat-option value="weeks">Lun a vie, 4 semanas</mat-option>
-          <mat-option value="always">Siempre, lun a vie</mat-option>
-        </mat-select>
-      </mat-form-field>
+      <label class="rounded-xl border border-[#e4dfda] bg-white px-3 py-2 text-sm">
+        <span class="block text-xs text-slate-500">Nota</span>
+        <input class="w-full bg-transparent outline-none" formControlName="note" />
+      </label>
+      <app-pick-field class="block sm:col-span-2" formControlName="repeat" [options]="repeatPicks" placeholder="Repetir" />
       @if (blockError(); as message) {
         <p class="sm:col-span-5 text-sm text-red-700" role="alert">{{ message }}</p>
       }
@@ -94,6 +69,15 @@
     </form>
   }
 
+  @if (clientNotice(); as href) {
+    <p class="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white px-4 py-2 text-sm shadow-sm">
+      <span>La {{ copy.text().visit.toLowerCase() }} quedó agendada.</span>
+      <span class="flex gap-3">
+        <a class="font-medium text-[#b76e79]" [href]="href" target="_blank" rel="noopener">Enviar por WhatsApp</a>
+        <button type="button" class="text-stone-500" (click)="clientNotice.set(null)">Cerrar</button>
+      </span>
+    </p>
+  }
   @if (blockNotice(); as message) {
     <p class="mb-3 rounded-xl bg-white px-4 py-2 text-sm text-rose-700 shadow-sm" role="status">{{ message }}</p>
   }
@@ -242,7 +226,7 @@
     }
     @case ('day') {
       @if (visibleStaff().length === 0) {
-        <p class="py-10 text-center text-sm text-slate-600">No hay colaboradores activos para este día.</p>
+        <p class="py-10 text-center text-sm text-slate-600">No hay {{ copy.text().people.toLowerCase() }} activos para este día.</p>
       } @else {
         <div class="max-w-full min-w-0 overflow-auto rounded border border-slate-200 bg-white">
           <div
@@ -391,6 +375,14 @@
       <p class="mt-2 text-sm text-slate-600">{{ pop.appointment.notes }}</p>
     }
     <p class="mt-2 text-xs text-slate-500">{{ statusLabel(pop.appointment.status) }}{{ pop.appointment.status === 'scheduled' ? (pop.appointment.client_confirmed ? ' · Confirmó' : ' · Sin confirmar') : '' }}</p>
+    @if (bill(pop.appointment); as row) {
+      <p class="mt-2 text-sm">
+        Total {{ pesos(row.total) }}.
+        @if (row.deposit) {
+          {{ row.pending ? 'Falta el anticipo de' : 'Anticipo' }} {{ pesos(row.deposit) }}{{ row.pending ? '' : ' ya descontado' }}. En la cita cobra {{ pesos(row.rest) }}.
+        }
+      </p>
+    }
     <label class="mt-2 block text-xs">
       Precio acordado
       <input class="mt-1 w-full rounded border px-2 py-1" type="number" min="0" [value]="pop.appointment.quoted_price ?? ''" (change)="saveQuote(pop.appointment, $any($event.target).value)" />
@@ -442,21 +434,26 @@
 }
 
 <ng-template #editor>
-  <form id="appointment-form" [formGroup]="form" (ngSubmit)="save()">
-    <header class="flex items-center gap-3 border-b border-stone-200 px-5 py-4">
-      <button type="button" aria-label="Cerrar" (click)="closeEditor()" [disabled]="isSaving()">
+  <form id="appointment-form" class="flex max-h-[92vh] flex-col bg-white" [formGroup]="form" (ngSubmit)="save()">
+    <header class="flex items-center justify-between border-b border-[#eceae6] px-4 py-3">
+      <button type="button" class="flex h-9 w-9 items-center justify-center rounded-full hover:bg-stone-100" aria-label="Cerrar" (click)="closeEditor()" [disabled]="isSaving()">
         <mat-icon>close</mat-icon>
       </button>
-      <h2 class="flex-1 text-lg font-medium">Nueva cita</h2>
-      <button type="submit" class="h-10 rounded-xl bg-[#1E1B1E] px-4 text-sm text-white disabled:opacity-50" [disabled]="isSaving()">
+      <h2 class="text-lg font-semibold">Nueva {{ copy.text().visit.toLowerCase() }}</h2>
+      <button type="submit" class="rounded-full bg-[#1E1B1E] px-5 py-2 text-sm font-medium text-white disabled:opacity-50" [disabled]="isSaving()">
         {{ isSaving() ? 'Guardando…' : 'Guardar' }}
       </button>
     </header>
-    <div class="grid gap-6 p-5 lg:grid-cols-[minmax(0,1fr)_280px]">
+    <div class="grid gap-6 overflow-y-auto p-5 lg:grid-cols-[minmax(0,1fr)_280px]">
       <div class="flex flex-col gap-3">
-        <label class="text-sm">Nombre del cliente
+        <label class="text-sm">Nombre del {{ copy.text().client.toLowerCase() }}
           <input formControlName="client_name" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2" />
         </label>
+        @if (copy.text().pet) {
+          <label class="text-sm">Mascota
+            <input class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2" [value]="petName()" (input)="petName.set($any($event.target).value)" />
+          </label>
+        }
         <div class="grid gap-3 sm:grid-cols-2">
           <label class="text-sm">Teléfono
             <input type="tel" formControlName="client_phone" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2" (input)="matchClient($any($event.target).value)" />
@@ -474,8 +471,16 @@
           <textarea formControlName="notes" rows="3" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2"></textarea>
         </label>
         <label class="text-sm">Precio acordado
-          <input type="number" min="0" formControlName="quoted_price" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2" />
+          <input type="number" min="0" formControlName="quoted_price" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2" placeholder="El del servicio" />
         </label>
+        <p class="text-xs text-stone-400">El precio que cerraron por WhatsApp. Si lo dejas vacío, se usa el del servicio. La clienta no pasa por la reserva pública.</p>
+        <label class="flex items-start gap-2 text-sm">
+          <input type="checkbox" formControlName="waive_deposit" />
+          <span>Sin anticipo. Es clienta de confianza.</span>
+        </label>
+        @if (chargeHint(); as hint) {
+          <p class="rounded-xl bg-[#f8eef0] px-3 py-2 text-sm">{{ hint }}</p>
+        }
         @if (formError(); as message) {
           <p role="alert" class="text-sm text-red-700">{{ message }}</p>
         }
@@ -483,22 +488,10 @@
       <aside class="flex flex-col gap-4">
         <div class="rounded-2xl border border-stone-200 p-4">
           <label class="text-sm">Servicio
-            <select formControlName="service_id" class="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2">
-              <option [ngValue]="null">Elegir</option>
-              @for (service of activeServices(); track service.id) {
-                <option [ngValue]="service.id">{{ service.name }}</option>
-              }
-            </select>
+            <app-pick-field class="mt-1 block" formControlName="service_id" [options]="servicePicks()" />
           </label>
-          <label class="mt-3 block text-sm">Colaborador
-            <select formControlName="staff_id" class="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2">
-              <option [ngValue]="null">Elegir</option>
-              @for (member of staff(); track member.id) {
-                @if (member.is_active) {
-                  <option [ngValue]="member.id">{{ member.full_name }}</option>
-                }
-              }
-            </select>
+          <label class="mt-3 block text-sm">{{ copy.text().person }}
+            <app-pick-field class="mt-1 block" formControlName="staff_id" [options]="staffPicks()" />
           </label>
         </div>
         <div class="rounded-2xl border border-stone-200 p-4">
@@ -506,12 +499,12 @@
           <label class="text-sm">Fecha
             <app-date-field class="mt-1 block" formControlName="date" [allow]="bookableDay" />
           </label>
-          <p class="mt-1 text-xs text-stone-400">Solo días en los que trabaja el colaborador.</p>
+          <p class="mt-1 text-xs text-stone-400">Solo días en los que trabaja el {{ copy.text().person.toLowerCase() }}.</p>
           <label class="mt-3 block text-sm">Hora de inicio
             <app-time-field class="mt-1 block" formControlName="time" [options]="slotTimes()" />
           </label>
           @if (!slotsReady()) {
-            <p class="mt-2 text-xs text-stone-400">Elige servicio y colaborador para ver las horas libres.</p>
+            <p class="mt-2 text-xs text-stone-400">Elige servicio y {{ copy.text().person.toLowerCase() }} para ver las horas libres.</p>
           } @else if (slotTimes().length === 0) {
             <p class="mt-2 text-xs text-stone-500">Ese día no tiene horarios libres.</p>
           }

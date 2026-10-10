@@ -11,6 +11,8 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { forkJoin, of, switchMap } from 'rxjs';
 
+import { BusinessCopy } from '@core/business-copy';
+import { Toasts } from '@core/toasts';
 import { Service } from '@core/models/service.model';
 import { Staff, StaffWrite } from '@core/models/staff.model';
 import { ServicesService } from '@core/services/services.service';
@@ -34,7 +36,9 @@ type StaffSection = 'info' | 'services' | 'account';
 })
 export class StaffPageComponent {
   private readonly staffApi = inject(StaffService);
+  protected readonly copy = inject(BusinessCopy);
   private readonly servicesApi = inject(ServicesService);
+  private readonly toasts = inject(Toasts);
   private readonly destroyRef = inject(DestroyRef);
   private readonly dialog = inject(MatDialog);
   private readonly editor = viewChild.required<TemplateRef<unknown>>('editor');
@@ -89,7 +93,7 @@ export class StaffPageComponent {
   protected readonly photoPreview = signal<string | null>(null);
   protected readonly photoPending = signal(false);
   protected readonly dialogTitle = computed(() =>
-    this.editing() ? 'Editar colaborador' : 'Agregar colaborador',
+    this.editing() ? `Editar ${this.copy.text().person.toLowerCase()}` : `Agregar ${this.copy.text().person.toLowerCase()}`,
   );
   protected readonly nameError = computed(() => {
     this.formEvents();
@@ -291,6 +295,14 @@ export class StaffPageComponent {
           this.isSaving.set(false);
           this.dialogRef?.close();
           this.load(true);
+          const person = this.copy.text().person.toLowerCase();
+          this.toasts.show(
+            needsAccount
+              ? `Se creó la cuenta del ${person}.`
+              : current
+                ? `Se guardó el ${person}.`
+                : `Se creó el ${person}.`,
+          );
         },
         error: (error: unknown) => {
           this.isSaving.set(false);

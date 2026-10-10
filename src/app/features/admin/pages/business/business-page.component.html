@@ -57,13 +57,13 @@
       @if (link(shop.website, 'web'); as url) {
         <a [href]="url" target="_blank" rel="noopener">Sitio web</a>
       }
-      @if (shop.slug) {
+      @if (shop.slug && readyToShare()) {
         <a [href]="bookingUrl()" target="_blank" rel="noopener">Reservas</a>
       }
     </p>
 
-    @if (bookingUrl()) {
-      <section class="mt-6 rounded-2xl border border-rose-200 bg-rose-50/50 p-6">
+    @if (readyToShare() && bookingUrl()) {
+      <section class="mt-6 rounded-2xl border p-6" style="border-color: color-mix(in srgb, var(--primary) 28%, white); background: color-mix(in srgb, var(--primary) 8%, white)">
         <h2 class="text-base font-semibold">Tu enlace de reservas</h2>
         <p class="mt-1 text-sm text-slate-600">Así entra quien quiere agendar contigo.</p>
         <div class="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center">
@@ -77,7 +77,7 @@
               }
               Copiar enlace
             </button>
-            <a class="inline-flex h-11 items-center rounded-xl border border-rose-300 bg-white px-4 text-sm text-rose-700" [href]="whatsappHref()" target="_blank" rel="noopener">
+            <a class="inline-flex h-11 items-center rounded-xl border bg-white px-4 text-sm" style="border-color: color-mix(in srgb, var(--primary) 35%, white); color: var(--primary)" [href]="whatsappHref()" target="_blank" rel="noopener">
               Enviar por WhatsApp
             </a>
           </div>
@@ -91,14 +91,14 @@
     }
 
     @if (gaps().length > 0) {
-      <section class="mt-4 rounded-xl border border-orange-200 bg-orange-50 p-4 text-orange-800">
-        <h2 class="text-sm font-semibold">Completa tu perfil para dar más confianza a tus clientes</h2>
+      <section class="mt-4 rounded-xl border p-4" style="border-color: color-mix(in srgb, var(--primary) 35%, white); background: color-mix(in srgb, var(--primary) 12%, white); color: var(--primary)">
+        <h2 class="text-sm font-semibold">{{ readyToShare() ? 'Completa tu perfil para dar más confianza a tus clientes' : 'Para compartir el enlace, falta esto' }}</h2>
         <ul class="mt-2 list-disc pl-5 text-sm">
           @for (item of gaps(); track item) {
             <li>{{ item }}</li>
           }
         </ul>
-        <a routerLink="/admin/settings" class="mt-3 inline-flex h-9 items-center rounded-lg bg-[#1E1B1E] px-3 text-sm text-white">Completar</a>
+        <a [routerLink]="nextStep()" class="mt-3 inline-flex h-9 items-center rounded-lg bg-[#1E1B1E] px-3 text-sm text-white">Completar</a>
       </section>
     }
   </article>

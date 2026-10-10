@@ -13,11 +13,13 @@ import { MatSelectModule } from '@angular/material/select';
 import { forkJoin, interval, of } from 'rxjs';
 import { catchError, distinctUntilChanged, map, switchMap } from 'rxjs/operators';
 
+import { BusinessCopy } from '@core/business-copy';
+import { Toasts } from '@core/toasts';
 import { Appointment, AppointmentStatus } from '@core/models/appointment.model';
 import { ScheduleItem } from '@core/models/schedule.model';
 import { Service } from '@core/models/service.model';
 import { Staff } from '@core/models/staff.model';
-import { DateFieldComponent, TimeFieldComponent } from '@shared/components/when-field/when-field';
+import { DateFieldComponent, PickFieldComponent, TimeFieldComponent } from '@shared/components/when-field/when-field';
 import { AgendaService } from '@core/services/agenda.service';
 import { AppointmentsService, TimeBlock } from '@core/services/appointments.service';
 import { AuthService } from '@core/services/auth.service';
@@ -74,6 +76,7 @@ const SLOTS = Array.from(
     MatSelectModule,
     DateFieldComponent,
     TimeFieldComponent,
+    PickFieldComponent,
   ],
   templateUrl: './agenda-page.component.html',
 })
@@ -83,6 +86,9 @@ export class AgendaPageComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly booking = inject(BookingService);
   private openRequest = 0;
+  private readonly toasts = inject(Toasts);
+  protected readonly copy = inject(BusinessCopy);
+  protected readonly petName = signal('');
   private readonly appointmentsApi = inject(AppointmentsService);
   private readonly servicesApi = inject(ServicesService);
   private readonly staffApi = inject(StaffService);
@@ -108,9 +114,15 @@ export class AgendaPageComponent {
   protected readonly gridHeight = SLOTS.length * SLOT_HEIGHT;
 
   protected readonly isStaff = this.auth.isStaff;
+  protected readonly focus = signal<'missed' | 'deposit' | null>(null);
   protected readonly currentView = signal<CalendarView>('month');
   protected readonly openTimes = signal<string[]>([]);
   protected readonly holdHours = signal(3);
+  protected readonly depositRules = signal<{ account: string | null; amount: number | null; percent: number | null }>({
+    account: null,
+    amount: null,
+    percent: null,
+  });
   protected readonly exporting = signal(false);
   protected readonly previewUrl = signal<string | null>(null);
   protected readonly linkCopied = signal(false);
@@ -128,6 +140,17 @@ export class AgendaPageComponent {
   protected readonly blockError = signal<string | null>(null);
   protected readonly blockNotice = signal<string | null>(null);
   private readonly agendaApi = inject(AgendaService);
+  protected readonly blockStaff = computed(() =>
+    this.staff()
+      .filter((member) => member.is_active)
+      .map((member) => ({ value: member.id, label: member.full_name })),
+  );
+  protected readonly repeatPicks = [
+    { value: 'day', label: 'Solo este día' },
+    { value: 'weekdays', label: 'Lun a vie de esta semana' },
+    { value: 'weeks', label: 'Lun a vie, 4 semanas' },
+    { value: 'always', label: 'Siempre, lun a vie' },
+  ];
   protected readonly blockForm = new FormGroup({
     staff_id: new FormControl<number | null>(null, Validators.required),
     date: new FormControl('', { nonNullable: true, validators: Validators.required }),
@@ -179,9 +202,30 @@ export class AgendaPageComponent {
     }),
     notes: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(2000)] }),
     quoted_price: new FormControl('', { nonNullable: true }),
+    waive_deposit: new FormControl(false, { nonNullable: true }),
   });
 
   protected readonly activeServices = computed(() => this.services().filter((item) => item.is_active));
+  protected readonly servicePicks = computed(() => [
+    { value: null, label: 'Elegir' },
+    ...this.activeServices().map((item) => ({ value: item.id, label: item.name })),
+  ]);
+  protected readonly staffPicks = computed(() => [
+    { value: null, label: 'Elegir' },
+    ...this.staff()
+      .filter((member) => member.is_active)
+      .map((member) => ({ value: member.id, label: member.full_name })),
+  ]);
+  protected readonly filterServices = computed(() => [
+    { value: '', label: 'Todos' },
+    ...this.activeServices().map((item) => ({ value: item.id, label: item.name })),
+  ]);
+  protected readonly filterStaff = computed(() => [
+    { value: '', label: 'Todos' },
+    ...this.staff()
+      .filter((member) => member.is_active)
+      .map((member) => ({ value: member.id, label: member.full_name })),
+  ]);
   protected readonly weekDays = computed(() => {
     const start = startOfWeek(this.cursor());
     return Array.from({ length: 7 }, (_, index) => addDays(start, index));
@@ -211,12 +255,31 @@ export class AgendaPageComponent {
   });
 
   constructor() {
+    const estado = this.route.snapshot.queryParamMap.get('estado');
+    if (estado === 'missed' || estado === 'deposit') {
+      this.focus.set(estado);
+    }
+    const vista = this.route.snapshot.queryParamMap.get('vista');
+    if (vista === 'day' || vista === 'week' || vista === 'month') {
+      this.currentView.set(vista);
+    }
+    const dia = this.route.snapshot.queryParamMap.get('dia');
+    if (dia && /^\d{4}-\d{2}-\d{2}$/.test(dia)) {
+      this.cursor.set(new Date(`${dia}T12:00:00`));
+    }
     this.destroyRef.onDestroy(() => this.dialogRef?.close());
     this.loadCatalog();
     this.booking
       .getMyBrand()
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((brand) => this.holdHours.set(brand.deposit_hold_hours || 3));
+      .subscribe((brand) => {
+        this.holdHours.set(brand.deposit_hold_hours || 3);
+        this.depositRules.set({
+          account: brand.deposit_account ?? null,
+          amount: brand.deposit_amount ?? null,
+          percent: brand.deposit_percent ?? null,
+        });
+      });
     effect(() => {
       if (!this.ownStaffReady()) {
         return;
@@ -308,6 +371,16 @@ export class AgendaPageComponent {
   protected onService(value: number | ''): void {
     this.serviceId.set(value === '' ? null : value);
     this.selected.set(null);
+  }
+
+  protected readonly clientNotice = signal<string | null>(null);
+
+  protected pickFilterService(value: string | number | null): void {
+    this.onService(typeof value === 'number' ? value : '');
+  }
+
+  protected pickFilterStaff(value: string | number | null): void {
+    this.onStaff(typeof value === 'number' ? value : '');
   }
 
   protected onStaff(value: number | ''): void {
@@ -678,9 +751,19 @@ export class AgendaPageComponent {
 
   protected appointmentsOn(day: Date, staffId?: number): Appointment[] {
     const key = toInputDate(day);
-    return this.appointments().filter(
-      (item) => item.starts_at.startsWith(key) && (staffId == null || item.staff_id === staffId),
-    );
+    const focus = this.focus();
+    return this.appointments().filter((item) => {
+      if (!item.starts_at.startsWith(key) || (staffId != null && item.staff_id !== staffId)) {
+        return false;
+      }
+      if (focus === 'missed') {
+        return item.status === 'cancelled' || item.status === 'no_show';
+      }
+      if (focus === 'deposit') {
+        return item.status === 'awaiting_deposit';
+      }
+      return true;
+    });
   }
 
   protected preview(day: Date): Appointment[] {
@@ -950,6 +1033,7 @@ export class AgendaPageComponent {
   protected openCreateAt(day: Date, minutes: number, staffId?: number): void {
     this.selected.set(null);
     this.formError.set(null);
+    this.petName.set('');
     this.form.reset({
       service_id: this.serviceId(),
       staff_id: staffId ?? this.staffId(),
@@ -960,6 +1044,7 @@ export class AgendaPageComponent {
       client_email: '',
       notes: '',
       quoted_price: '',
+      waive_deposit: false,
     });
     this.known.set(null);
     this.freshPhone.set(false);
@@ -983,6 +1068,56 @@ export class AgendaPageComponent {
 
   protected pesos(amount: number): string {
     return this.pesosFormat.format(amount);
+  }
+
+  protected chargeHint(): string | null {
+    const value = this.form.getRawValue();
+    const service = this.services().find((item) => item.id === value.service_id);
+    if (!service) {
+      return null;
+    }
+    const quoted = String(value.quoted_price ?? '').trim() ? Number(value.quoted_price) : null;
+    const total = quoted ?? service.price;
+    if (value.waive_deposit) {
+      return `Sin anticipo. En la cita cobra ${this.pesos(total)}.`;
+    }
+    const deposit = this.previewDeposit(service, quoted);
+    if (!deposit) {
+      return null;
+    }
+    const rest = Math.max(0, Math.round((total - deposit) * 100) / 100);
+    return `Anticipo ${this.pesos(deposit)}. En la cita cobra ${this.pesos(rest)}.`;
+  }
+
+  protected bill(appointment: Appointment): { total: number; deposit: number; rest: number; pending: boolean } | null {
+    const service = this.services().find((item) => item.id === appointment.service_id);
+    const total = appointment.quoted_price ?? service?.price;
+    const deposit = appointment.deposit_amount ?? 0;
+    if (total == null || (!deposit && appointment.quoted_price == null)) {
+      return null;
+    }
+    return {
+      total,
+      deposit,
+      rest: Math.max(0, Math.round((total - deposit) * 100) / 100),
+      pending: appointment.status === 'awaiting_deposit',
+    };
+  }
+
+  private previewDeposit(service: { variable_price?: boolean; deposit_amount?: number | null; price: number }, quoted: number | null): number | null {
+    const rules = this.depositRules();
+    if (!rules.account) {
+      return null;
+    }
+    if (service.variable_price && rules.percent) {
+      if (quoted == null) {
+        return null;
+      }
+      const amount = Math.round((quoted * rules.percent) / 100 * 100) / 100;
+      return amount || null;
+    }
+    const fixed = service.deposit_amount ?? rules.amount;
+    return fixed || null;
   }
 
   protected matchClient(phone: string): void {
@@ -1023,15 +1158,17 @@ export class AgendaPageComponent {
         client_name: value.client_name.trim(),
         client_phone: value.client_phone.trim(),
         client_email: value.client_email.trim() || null,
-        notes: value.notes.trim() || null,
         quoted_price: String(value.quoted_price ?? '').trim() ? Number(value.quoted_price) : null,
+        notes: [this.copy.text().pet && this.petName().trim() ? `Mascota: ${this.petName().trim()}` : '', value.notes.trim()].filter(Boolean).join('\n') || null,
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: () => {
+        next: (created) => {
           this.isSaving.set(false);
           this.closeEditor();
           this.loadAppointments(this.range(), this.staffId(), this.serviceId());
+          this.toasts.show(`Se agendó la ${this.copy.text().visit.toLowerCase()}.`);
+          this.clientNotice.set(this.clientWhatsapp(created));
         },
         error: (error: unknown) => {
           this.isSaving.set(false);
@@ -1084,6 +1221,19 @@ export class AgendaPageComponent {
 
   protected closeAppointment(): void {
     this.selected.set(null);
+  }
+
+  private clientWhatsapp(appointment: Appointment): string | null {
+    const phone = (appointment.client_phone ?? '').replace(/\D/g, '');
+    if (!phone) {
+      return null;
+    }
+    const slug = this.auth.currentUser()?.slug ?? '';
+    const link = appointment.cancel_token && slug ? `${location.origin}/${slug}/manage/${appointment.cancel_token}` : '';
+    const day = appointment.starts_at.slice(0, 10);
+    const time = appointment.starts_at.slice(11, 16);
+    const text = `Hola ${appointment.client_name}, tu ${this.copy.text().visit.toLowerCase()} de ${appointment.service_name} quedó el ${day} a las ${time}.${link ? ` Puedes verla o cancelarla aquí: ${link}` : ''}`;
+    return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
   }
 
   protected receiveDeposit(appointment: Appointment, event: Event): void {

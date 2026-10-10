@@ -1,20 +1,37 @@
 <main class="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8">
-  <header class="flex flex-col gap-3">
-    <div class="flex items-center gap-3">
-      @if (brand()?.logo_url) {
-        <img [src]="brand()!.logo_url" alt="" class="h-14 w-14 rounded-full object-cover" />
+  <header class="flex flex-col gap-3 overflow-hidden rounded-3xl border bg-white" style="border-color: color-mix(in srgb, var(--booking-primary, var(--primary)) 28%, white)">
+    <div class="flex items-center gap-4 px-5 py-5" style="background: color-mix(in srgb, var(--booking-primary, var(--primary)) 12%, white)">
+      @if (brand()?.logo_url && !logoFailed()) {
+        <img [src]="brand()!.logo_url" [alt]="brand()?.name || ''" class="h-16 w-16 rounded-2xl bg-white object-contain p-1" (error)="logoFailed.set(true)" />
       } @else {
-        <span class="brand-fill flex h-14 w-14 items-center justify-center rounded-full text-lg font-semibold">
+        <span class="brand-fill flex h-16 w-16 items-center justify-center rounded-2xl text-lg font-semibold">
           {{ (brand()?.name || 'N').charAt(0) }}
         </span>
       }
       <div>
-        <h1 class="text-xl font-medium">{{ brand()?.name || 'Reservar cita' }}</h1>
+        <p class="text-xs font-medium uppercase tracking-wide" style="color: var(--booking-primary, var(--primary))">Reservas</p>
+        <h1 class="text-2xl font-semibold">{{ brand()?.name || 'Reservar ' + copy().visit.toLowerCase() }}</h1>
+        @if (brand()?.description) {
+          <p class="text-sm text-slate-600">{{ brand()?.description }}</p>
+        }
         @if (brand()?.address) {
           <p class="text-sm text-slate-600">{{ brand()?.address }}</p>
         }
       </div>
     </div>
+    @if (offer(); as text) {
+      <p class="mx-5 rounded-2xl px-4 py-2 text-sm text-white" style="background: var(--booking-primary, var(--primary))">{{ text }}</p>
+    }
+    @if (gallery().length) {
+      <div class="flex gap-2 px-5">
+        @for (photo of gallery(); track photo) {
+          <img [src]="photo" alt="Trabajo del negocio" class="h-28 w-28 rounded-2xl object-cover" />
+        }
+      </div>
+    }
+    @if (closedLabel(); as label) {
+      <p class="px-5 text-sm" style="color: var(--booking-primary, var(--primary))">Cerramos del {{ label }}.</p>
+    }
     @if (opinions().length) {
       <section class="flex flex-col gap-2">
         <h2 class="text-sm font-medium">Opiniones</h2>
@@ -26,12 +43,35 @@
         }
       </section>
     }
-    <div class="flex flex-wrap gap-3 text-sm">
+    <div class="flex flex-wrap items-center gap-4 px-5 pb-4 text-sm">
       @if (brand()?.phone) {
-        <a class="underline" [href]="'tel:' + brand()!.phone">{{ brand()!.phone }}</a>
+        <a class="contact-chip" [href]="businessWhatsapp(brand()!.phone!)" target="_blank" rel="noopener">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-5 w-5" aria-hidden="true">
+            <path fill="#25D366" d="M12.04 2C6.58 2 2.15 6.4 2.15 11.83c0 1.74.46 3.44 1.34 4.94L2 22l5.39-1.41a10 10 0 0 0 4.65 1.18h.01c5.46 0 9.89-4.4 9.89-9.83C21.94 6.4 17.5 2 12.04 2z"/>
+            <path fill="#fff" d="M17.1 14.55c-.22-.11-1.28-.63-1.48-.7-.2-.07-.34-.11-.48.11-.14.22-.55.7-.67.84-.12.15-.25.16-.47.05-.22-.11-.92-.34-1.75-1.08-.65-.57-1.09-1.28-1.21-1.5-.13-.22-.01-.34.1-.45.1-.1.22-.25.33-.37.11-.13.15-.22.22-.37.07-.14.04-.27-.02-.38-.06-.11-.48-1.16-.66-1.59-.17-.41-.35-.36-.48-.36h-.41c-.14 0-.37.05-.56.27-.2.22-.74.72-.74 1.76s.76 2.04.86 2.18c.11.15 1.49 2.28 3.61 3.2.5.22.9.35 1.2.45.51.16.97.14 1.33.08.41-.06 1.28-.52 1.46-1.03.18-.5.18-.94.13-1.03-.05-.1-.2-.15-.42-.26z"/>
+          </svg>
+          {{ brand()!.phone }}
+        </a>
       }
       @if (brand()?.instagram) {
-        <a class="underline" [href]="externalHref(brand()!.instagram!, 'instagram.com')" target="_blank" rel="noopener">Instagram</a>
+        <a class="contact-chip" [href]="externalHref(brand()!.instagram!, 'instagram.com')" target="_blank" rel="noopener">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-5 w-5" aria-hidden="true">
+            <defs>
+              <radialGradient id="ig" cx="30%" cy="110%" r="120%">
+                <stop offset="0%" stop-color="#feda75"/>
+                <stop offset="25%" stop-color="#fa7e1e"/>
+                <stop offset="50%" stop-color="#d62976"/>
+                <stop offset="75%" stop-color="#962fbf"/>
+                <stop offset="100%" stop-color="#4f5bd5"/>
+              </radialGradient>
+            </defs>
+            <rect width="24" height="24" rx="6" fill="url(#ig)"/>
+            <rect x="6" y="6" width="12" height="12" rx="4" fill="none" stroke="#fff" stroke-width="1.6"/>
+            <circle cx="12" cy="12" r="2.6" fill="none" stroke="#fff" stroke-width="1.6"/>
+            <circle cx="16.4" cy="7.6" r="0.9" fill="#fff"/>
+          </svg>
+          {{ instagramHandle(brand()!.instagram!) }}
+        </a>
       }
       @if (brand()?.facebook) {
         <a class="underline" [href]="externalHref(brand()!.facebook!, 'facebook.com')" target="_blank" rel="noopener">Facebook</a>
@@ -39,20 +79,25 @@
     </div>
   </header>
 
-  @if (!confirmation()) {
-  <ol class="flex flex-wrap gap-2">
+  <nav class="step-tabs" aria-label="Pasos de la reserva">
     @for (item of steps; track item.id) {
-      <li
-        class="rounded-full px-3 py-1 text-sm"
-        [class.brand-solid]="step() === item.id"
-        [class.brand-soft]="step() > item.id"
-        [class.bg-white]="step() < item.id"
+      <button
+        type="button"
+        class="step-tab"
+        [class.is-current]="step() === item.id"
+        [class.is-done]="step() > item.id"
+        [disabled]="item.id > reached() || !!confirmation()"
+        (click)="openStep(item.id)"
       >
-        {{ item.id }}. {{ item.label }}
-      </li>
+        @if (step() > item.id) {
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" class="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" d="M16.7 5.3a1 1 0 0 1 0 1.4l-7.2 7.2a1 1 0 0 1-1.4 0L3.3 9.1a1 1 0 1 1 1.4-1.4l4.1 4.1 6.5-6.5a1 1 0 0 1 1.4 0z" clip-rule="evenodd"/>
+          </svg>
+        }
+        {{ item.label }}
+      </button>
     }
-  </ol>
-  }
+  </nav>
 
   @if (loadError(); as message) {
     <p role="alert" class="text-sm text-red-700">{{ message }}</p>
@@ -64,11 +109,22 @@
     <section class="flex flex-col gap-6">
       <div>
         <h2 class="mb-3 text-base font-medium">Servicio</h2>
-        @if (services().length === 0) {
-          <p class="text-sm text-slate-600">Este negocio no tiene servicios disponibles.</p>
+        @if (categories().length) {
+          <div class="mb-3 flex flex-wrap gap-2">
+            <button type="button" class="rounded-full border px-3 py-1 text-sm" [class.brand-solid]="!categoryFilter()" (click)="categoryFilter.set('')">Todas</button>
+            @for (name of categories(); track name) {
+              <button type="button" class="rounded-full border px-3 py-1 text-sm" [class.brand-solid]="categoryFilter() === name" (click)="categoryFilter.set(name)">{{ name }}</button>
+            }
+          </div>
+        }
+        @if (shopNote().pause || services().length === 0) {
+          <p class="text-sm text-slate-600">{{ shopNote().pause ? 'Por ahora no estamos tomando citas.' : 'Estamos preparando las reservas.' }}</p>
+          @if (brand()?.phone; as phone) {
+            <a class="mt-3 inline-flex h-10 items-center rounded-full px-4 text-sm text-white" style="background: var(--booking-primary, var(--primary))" [href]="businessWhatsapp(phone)" target="_blank" rel="noopener">Escribir por WhatsApp</a>
+          }
         } @else {
           <div class="grid gap-3 sm:grid-cols-2">
-            @for (service of services(); track service.id) {
+            @for (service of visibleServices(); track service.id) {
               <button
                 type="button"
                 class="choice-card flex gap-3 p-4 text-left"
@@ -79,6 +135,9 @@
                   <img class="h-16 w-16 shrink-0 rounded-xl object-cover" [src]="service.image_url" alt="" />
                 }
                 <span class="min-w-0">
+                  @if (service.category) {
+                    <span class="block text-xs text-slate-400">{{ service.category }}</span>
+                  }
                   <span class="block font-medium">{{ service.name }}</span>
                   <span class="mt-1 block text-sm text-slate-600">
                     {{ service.duration_minutes }} min · {{ service.variable_price ? 'Precio según lo que pidas' : formatPrice(service.price) }}
@@ -91,15 +150,39 @@
             }
           </div>
           @if (selectedService() && services().length > 1) {
-            <p class="mb-2 mt-4 text-sm text-slate-600">¿Agregas otro servicio a la misma cita?</p>
-            <div class="flex flex-wrap gap-2">
-              @for (service of services(); track service.id) {
-                @if (service.id !== selectedService()?.id) {
-                  <button type="button" class="rounded-full border px-3 py-1 text-sm" [class.brand-solid]="extraIds().includes(service.id)" (click)="toggleExtra(service.id)">
-                    {{ service.name }} · {{ service.duration_minutes }} min
-                  </button>
+            <div class="mt-5">
+              <p class="text-sm font-medium">¿Sumas otro servicio?</p>
+              <p class="mb-3 text-sm text-slate-500">Queda en la misma {{ copy().visit.toLowerCase() }}, con el mismo {{ copy().person.toLowerCase() }}.</p>
+              <div class="grid gap-2 sm:grid-cols-2">
+                @for (service of services(); track service.id) {
+                  @if (service.id !== selectedService()?.id) {
+                    <button
+                      type="button"
+                      class="choice-card flex items-center gap-3 px-3 py-2 text-left"
+                      [class.choice-selected]="extraIds().includes(service.id)"
+                      (click)="toggleExtra(service.id)"
+                    >
+                      @if (service.image_url) {
+                        <img class="h-11 w-11 shrink-0 rounded-lg object-cover" [src]="service.image_url" alt="" />
+                      }
+                      <span class="min-w-0 flex-1">
+                        <span class="block truncate text-sm font-medium">{{ service.name }}</span>
+                        <span class="block text-xs text-slate-500">
+                          {{ service.duration_minutes }} min
+                          @if (!service.variable_price) {
+                            · {{ formatPrice(service.price) }}
+                          }
+                        </span>
+                      </span>
+                      <span
+                        class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-sm"
+                        [class.brand-solid]="extraIds().includes(service.id)"
+                        [class.border-transparent]="extraIds().includes(service.id)"
+                      >{{ extraIds().includes(service.id) ? '✓' : '+' }}</span>
+                    </button>
+                  }
                 }
-              }
+              </div>
             </div>
           }
         }
@@ -191,12 +274,7 @@
       @if (resourceList().length) {
         <label class="mb-3 block text-sm">
           Recurso
-          <select class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" [value]="resource() ?? ''" (change)="pickResource($any($event.target).value)">
-            <option value="">Sin recurso</option>
-            @for (item of resourceList(); track item) {
-              <option [value]="item">{{ item }}</option>
-            }
-          </select>
+          <app-pick-field class="mt-1 block" [options]="resourcePicks()" [valueIn]="resource() ?? ''" (picked)="pickResource($event)" />
         </label>
       }
       @if (slotsError(); as message) {
@@ -211,8 +289,14 @@
           <p class="text-sm text-emerald-700">Listo. Te avisamos si se libera un horario.</p>
         } @else {
           <div class="flex flex-col gap-2 sm:max-w-sm">
-            <input class="rounded border px-3 py-2 text-sm" placeholder="Nombre" [value]="waitName()" (input)="waitName.set($any($event.target).value)" />
-            <input class="rounded border px-3 py-2 text-sm" placeholder="Teléfono" [value]="waitPhone()" (input)="waitPhone.set($any($event.target).value)" />
+            <label class="rounded-xl border border-[#e4dfda] bg-white px-3 py-2">
+              <span class="block text-xs text-slate-500">Nombre</span>
+              <input class="w-full bg-transparent text-sm outline-none" [value]="waitName()" (input)="waitName.set($any($event.target).value)" />
+            </label>
+            <label class="rounded-xl border border-[#e4dfda] bg-white px-3 py-2">
+              <span class="block text-xs text-slate-500">Teléfono</span>
+              <input class="w-full bg-transparent text-sm outline-none" [value]="waitPhone()" (input)="waitPhone.set($any($event.target).value)" />
+            </label>
             <button type="button" class="brand-solid rounded-full px-4 py-2 text-sm" (click)="joinWait()">Avisarme</button>
           </div>
         }
@@ -251,42 +335,50 @@
       </div>
     </section>
   } @else if (step() === 3) {
-    <form class="flex flex-col gap-1" [formGroup]="clientForm" (ngSubmit)="confirm()">
-      <mat-form-field appearance="outline">
-        <mat-label>Nombre</mat-label>
-        <input matInput formControlName="client_name" autocomplete="name" />
-        @if (nameError(); as message) {
-          <mat-error>{{ message }}</mat-error>
-        }
-      </mat-form-field>
-      <mat-form-field appearance="outline">
-        <mat-label>Teléfono</mat-label>
-        <input matInput type="tel" formControlName="client_phone" autocomplete="tel" (change)="lookPackage($any($event.target).value)" />
-        @if (phoneError(); as message) {
-          <mat-error>{{ message }}</mat-error>
-        }
-      </mat-form-field>
-      <mat-form-field appearance="outline">
-        <mat-label>Correo (opcional)</mat-label>
-        <input matInput type="email" formControlName="client_email" autocomplete="email" />
-        @if (emailError(); as message) {
-          <mat-error>{{ message }}</mat-error>
-        }
-      </mat-form-field>
+    <form class="flex flex-col gap-3" [formGroup]="clientForm" (ngSubmit)="confirm()">
+      <label class="rounded-xl border border-[#e4dfda] bg-white px-3 py-2">
+        <span class="block text-xs text-slate-500">Nombre del {{ copy().client.toLowerCase() }}</span>
+        <input class="w-full bg-transparent text-sm outline-none" formControlName="client_name" autocomplete="name" />
+      </label>
+      @if (nameError(); as message) {
+        <p class="text-sm text-red-700">{{ message }}</p>
+      }
+      <label class="rounded-xl border border-[#e4dfda] bg-white px-3 py-2">
+        <span class="block text-xs text-slate-500">Teléfono</span>
+        <input class="w-full bg-transparent text-sm outline-none" type="tel" formControlName="client_phone" autocomplete="tel" (change)="lookPackage($any($event.target).value)" />
+      </label>
+      @if (phoneError(); as message) {
+        <p class="text-sm text-red-700">{{ message }}</p>
+      }
+      @if (copy().pet) {
+        <label class="rounded-xl border border-[#e4dfda] bg-white px-3 py-2">
+          <span class="block text-xs text-slate-500">Mascota</span>
+          <input class="w-full bg-transparent text-sm outline-none" [value]="petName()" (input)="petName.set($any($event.target).value)" />
+        </label>
+      }
+      <label class="rounded-xl border border-[#e4dfda] bg-white px-3 py-2">
+        <span class="block text-xs text-slate-500">Correo (opcional)</span>
+        <input class="w-full bg-transparent text-sm outline-none" type="email" formControlName="client_email" autocomplete="email" />
+      </label>
+      @if (emailError(); as message) {
+        <p class="text-sm text-red-700">{{ message }}</p>
+      }
       @if (packageLeft(); as pack) {
-        <label class="mb-3 flex items-center gap-2 text-sm">
+        <label class="flex items-center gap-2 text-sm">
           <input type="checkbox" [checked]="usePackage()" (change)="usePackage.set($any($event.target).checked)" />
           Usar paquete {{ pack.label }}. Quedan {{ pack.remaining }}.
         </label>
       }
       @if (selectedService()?.questions) {
-        <p class="mb-2 whitespace-pre-line text-sm text-slate-600">{{ selectedService()!.questions }}</p>
-        <textarea class="mb-3 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" rows="3" placeholder="Tus respuestas" [value]="answers()" (input)="answers.set($any($event.target).value)"></textarea>
+        <label class="rounded-xl border border-[#e4dfda] bg-white px-3 py-2">
+          <span class="block whitespace-pre-line text-xs text-slate-500">{{ selectedService()!.questions }}</span>
+          <textarea class="mt-1 w-full resize-none bg-transparent text-sm outline-none" rows="3" placeholder="Tus respuestas" [value]="answers()" (input)="answers.set($any($event.target).value)"></textarea>
+        </label>
       }
-      <mat-form-field appearance="outline">
-        <mat-label>{{ selectedService()?.variable_price ? 'Qué necesitas' : 'Notas' }}</mat-label>
-        <textarea matInput rows="2" formControlName="notes"></textarea>
-      </mat-form-field>
+      <label class="rounded-xl border border-[#e4dfda] bg-white px-3 py-2">
+        <span class="block text-xs text-slate-500">{{ selectedService()?.variable_price ? 'Qué necesitas' : 'Notas' }}</span>
+        <textarea class="w-full resize-none bg-transparent text-sm outline-none" rows="2" formControlName="notes"></textarea>
+      </label>
 
       @if (formError(); as message) {
         <p role="alert" class="mb-3 text-sm text-red-700">{{ message }}</p>
@@ -298,13 +390,13 @@
         </p>
       } @else if (depositAmount(); as amount) {
         <p class="mb-4 rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-sm">
-          Para apartar este horario transfiere ${{ amount }} a {{ brand()?.deposit_account }}. La cita se confirma cuando el negocio reciba el depósito.
+          Para apartar este horario transfiere ${{ amount }} a {{ brand()?.deposit_account }}. Ese anticipo se descuenta del total: en la cita pagas lo que falte.
         </p>
       }
       <div class="flex justify-between">
         <button mat-button type="button" (click)="back()" [disabled]="isSaving()">Atrás</button>
         <button type="submit" class="brand-fill h-10 rounded px-4 text-sm disabled:opacity-50" [disabled]="isSaving()">
-          {{ isSaving() ? 'Reservando…' : (holdsDeposit() ? 'Apartar horario' : 'Confirmar cita') }}
+          {{ isSaving() ? 'Reservando…' : (holdsDeposit() ? 'Apartar horario' : 'Confirmar ' + copy().visit.toLowerCase()) }}
         </button>
       </div>
     </form>
@@ -313,14 +405,14 @@
       <span class="flex h-16 w-16 items-center justify-center rounded-full bg-rose-50 text-rose-500">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-8 w-8" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M5 12.5l5 5L20 7"/></svg>
       </span>
-      <h2 class="mt-5 text-2xl font-semibold text-[#1E1B1E]">{{ appointment.status === 'awaiting_deposit' ? 'Tu horario está apartado' : '¡Tu cita está reservada!' }}</h2>
+      <h2 class="mt-5 text-2xl font-semibold text-[#1E1B1E]">{{ appointment.status === 'awaiting_deposit' ? 'Tu horario está apartado' : '¡Tu ' + copy().visit.toLowerCase() + ' está reservada!' }}</h2>
       <p class="mt-2 text-sm text-slate-500">
         {{ appointment.status === 'awaiting_deposit' ? 'Transfiere el anticipo. La cita se confirma cuando llegue el depósito.' : 'Tu lugar está asegurado en nuestro sistema.' }}
       </p>
       @if (appointment.status === 'awaiting_deposit' && appointment.deposit_amount) {
         <ol class="mt-4 w-full space-y-2 text-left text-sm">
           <li class="rounded-xl bg-rose-50 px-3 py-2">
-            1. Transfiere <strong>${{ appointment.deposit_amount }}</strong> a {{ brand()?.deposit_account }}
+            1. Transfiere <strong>${{ appointment.deposit_amount }}</strong> a {{ brand()?.deposit_account }}. Se descuenta del total.
             <button type="button" class="ml-2 text-xs font-medium underline" (click)="copyAccount()">{{ accountCopied() ? 'Copiada' : 'Copiar cuenta' }}</button>
           </li>
           <li class="rounded-xl bg-rose-50 px-3 py-2">2. Sube la foto del comprobante para que el negocio confirme tu cita</li>

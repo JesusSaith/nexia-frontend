@@ -38,8 +38,8 @@
           <img src="/nexia-mark.png" alt="Nexia" class="h-9 w-9 object-contain md:h-11 md:w-11" />
         </div>
         <div class="flex min-w-0 flex-1 items-center gap-2 md:flex-none md:gap-3">
-          @if (logoUrl(); as logo) {
-            <img [src]="logo" [alt]="brandName() || businessName()" class="h-9 w-9 shrink-0 rounded-full object-cover md:h-11 md:w-11" />
+          @if (headerLogo(); as logo) {
+            <img [src]="logo" [alt]="brandName() || businessName()" class="h-9 w-9 shrink-0 rounded-xl object-contain md:h-11 md:w-11" (error)="clearLogo()" />
           }
           <span class="truncate text-base font-semibold md:text-xl">{{ brandName() || businessName() }}</span>
         </div>
@@ -87,10 +87,24 @@
     <main class="mx-auto w-full max-w-7xl px-3 py-5 md:px-10 md:py-9">
       <router-outlet />
     </main>
+    @if (toasts.message(); as saved) {
+      <div class="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">
+        <div class="nexia-toast pointer-events-auto flex items-center gap-3 rounded-full border bg-white py-2 pl-2 pr-3 shadow-[0_18px_50px_rgba(30,27,30,0.16)]" style="border-color: color-mix(in srgb, var(--primary) 30%, white)">
+          <span class="flex h-9 w-9 items-center justify-center rounded-full text-white" style="background: var(--primary)">
+            <mat-icon class="!h-5 !w-5 !text-[20px]">check</mat-icon>
+          </span>
+          <span class="text-sm font-medium text-[#1E1B1E]">{{ saved }}</span>
+          <button type="button" class="flex h-8 w-8 items-center justify-center rounded-full text-stone-500" aria-label="Cerrar" (click)="toasts.close()">
+            <mat-icon class="!h-4 !w-4 !text-[16px]">close</mat-icon>
+          </button>
+        </div>
+      </div>
+    }
     @if (toast(); as message) {
       <div class="pointer-events-none fixed inset-x-0 top-20 z-50 flex justify-center px-4">
         <div
-          class="nexia-toast pointer-events-auto flex w-full max-w-xl items-center gap-2 rounded-3xl border border-[#f0d5d8] bg-white px-3 py-3 shadow-[0_18px_50px_rgba(30,27,30,0.18)] sm:gap-3 sm:px-5 sm:py-4"
+          class="nexia-toast pointer-events-auto flex w-full max-w-xl items-center gap-2 rounded-3xl border bg-white px-3 py-3 shadow-[0_18px_50px_rgba(30,27,30,0.18)] sm:gap-3 sm:px-5 sm:py-4"
+          style="border-color: color-mix(in srgb, var(--primary) 30%, white)"
         >
           <a class="flex min-w-0 flex-1 items-center gap-3" routerLink="/admin/home">
             <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#b76e79] text-white sm:h-12 sm:w-12">

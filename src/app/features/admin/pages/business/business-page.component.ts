@@ -1,6 +1,8 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { forkJoin, of } from 'rxjs';
+import { catchError, switchMap } from 'rxjs/operators';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -13,6 +15,8 @@ import { AuthService } from '@core/services/auth.service';
 import { BookingService } from '@core/services/booking.service';
 import { DashboardService } from '@core/services/dashboard.service';
 import { StaffService } from '@core/services/staff.service';
+import { ServicesService } from '@core/services/services.service';
+import { SchedulesService } from '@core/services/schedules.service';
 
 @Component({
   selector: 'app-business-page',
@@ -31,7 +35,9 @@ export class BusinessPageComponent {
   private readonly bookingApi = inject(BookingService);
   private readonly dashboardApi = inject(DashboardService);
   private readonly staffApi = inject(StaffService);
+  private readonly servicesApi = inject(ServicesService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly schedulesApi = inject(SchedulesService);
   private readonly timeFormat = new Intl.DateTimeFormat('es-MX', { hour: '2-digit', minute: '2-digit' });
 
   protected readonly isOwner = inject(AuthService).isOwner;
@@ -48,6 +54,23 @@ export class BusinessPageComponent {
   protected readonly nextLabel = signal('Sin pendientes');
   protected readonly teamCount = signal<number | null>(null);
   protected readonly copied = signal(false);
+  protected readonly serviceCount = signal<number | null>(null);
+  protected readonly hasHours = signal<boolean | null>(null);
+  protected readonly readyToShare = computed(
+    () => (this.serviceCount() ?? 0) > 0 && (this.teamCount() ?? 0) > 0 && this.hasHours() === true,
+  );
+  protected readonly nextStep = computed(() => {
+    if (this.serviceCount() === 0) {
+      return '/admin/services';
+    }
+    if (this.teamCount() === 0) {
+      return '/admin/staff';
+    }
+    if (this.hasHours() === false) {
+      return '/admin/schedules';
+    }
+    return '/admin/settings';
+  });
   protected readonly toast = signal<string | null>(null);
 
   protected readonly bookingUrl = computed(() => {
@@ -58,6 +81,15 @@ export class BusinessPageComponent {
   protected readonly gaps = computed(() => {
     const shop = this.brand();
     const missing: string[] = [];
+    if (this.serviceCount() === 0) {
+      missing.push('Agrega un servicio');
+    }
+    if (this.teamCount() === 0) {
+      missing.push('Agrega a alguien del equipo');
+    }
+    if (this.hasHours() === false) {
+      missing.push('Agrega un horario');
+    }
     if (!shop?.logo_url) {
       missing.push('Sube el logo de tu marca');
     }
@@ -66,9 +98,6 @@ export class BusinessPageComponent {
     }
     if (!shop?.instagram?.trim()) {
       missing.push('Agrega tu Instagram');
-    }
-    if (this.teamCount() === 0) {
-      missing.push('Agrega a alguien del equipo');
     }
     return missing;
   });
@@ -112,7 +141,24 @@ export class BusinessPageComponent {
     this.staffApi
       .getStaff()
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((members) => this.teamCount.set(members.filter((member) => member.is_active).length));
+      .pipe(
+        switchMap((members) => {
+          const active = members.filter((member) => member.is_active);
+          this.teamCount.set(active.length);
+          if (active.length === 0) {
+            return of([]);
+          }
+          return forkJoin(
+            active.map((member) => this.schedulesApi.getStaffSchedule(member.id).pipe(catchError(() => of([])))),
+          );
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((rows) => this.hasHours.set(rows.some((days) => days.some((day) => day.is_active))));
+    this.servicesApi
+      .getServices()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((rows) => this.serviceCount.set(rows.filter((row) => row.is_active).length));
   }
 
   protected copyLink(): void {

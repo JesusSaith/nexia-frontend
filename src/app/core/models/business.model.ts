@@ -39,6 +39,7 @@ export interface BusinessProfileUpdate {
 export interface PublicService {
   id: number;
   name: string;
+  category?: string | null;
   description: string | null;
   price: number;
   deposit_amount?: number | null;

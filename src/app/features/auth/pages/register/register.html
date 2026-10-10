@@ -1,73 +1,95 @@
 <main class="flex min-h-dvh items-center justify-center p-4">
-  <mat-card class="w-full max-w-[420px]">
+  <mat-card class="w-full max-w-xl">
     <mat-card-content>
-      <div class="mb-6 flex items-center gap-2">
+      <div class="mb-1 flex items-center gap-2">
         <mat-icon>storefront</mat-icon>
-        <h1 class="text-xl font-medium">Crear cuenta</h1>
+        <h1 class="text-xl font-medium">Crear tu negocio</h1>
       </div>
+      <p class="mb-4 text-sm text-stone-500">Esta cuenta es del dueño. Los colaboradores no crean un negocio: los das de alta después, en Equipo. Los campos con <span class="text-[#b76e79]">*</span> son obligatorios.</p>
 
-      <form class="flex flex-col gap-3" [formGroup]="form" (ngSubmit)="submit()">
-        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
-          <mat-label>Nombre</mat-label>
-          <mat-icon matPrefix>person</mat-icon>
-          <input matInput formControlName="fullName" autocomplete="name" />
+      <form class="flex flex-col gap-5" [formGroup]="form" (ngSubmit)="submit()">
+        <div class="flex flex-col gap-2">
+          <p class="text-sm font-medium">Tu cuenta</p>
+          <label class="rounded-xl border border-[#e4dfda] bg-white px-3 py-2">
+            <span class="block text-xs text-slate-500">Nombre <span class="text-[#b76e79]">*</span></span>
+            <input class="w-full bg-transparent text-sm outline-none" formControlName="fullName" autocomplete="name" />
+          </label>
           @if (fullNameError()) {
-            <mat-error>{{ fullNameError() }}</mat-error>
+            <p class="text-sm text-red-700">{{ fullNameError() }}</p>
           }
-        </mat-form-field>
-
-        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
-          <mat-label>Negocio</mat-label>
-          <mat-icon matPrefix>store</mat-icon>
-          <input matInput formControlName="businessName" autocomplete="organization" />
-          @if (businessNameError()) {
-            <mat-error>{{ businessNameError() }}</mat-error>
-          }
-        </mat-form-field>
-
-        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
-          <mat-label>Correo</mat-label>
-          <mat-icon matPrefix>mail</mat-icon>
-          <input matInput type="email" formControlName="email" autocomplete="email" />
+          <label class="rounded-xl border border-[#e4dfda] bg-white px-3 py-2">
+            <span class="block text-xs text-slate-500">Correo <span class="text-[#b76e79]">*</span></span>
+            <input class="w-full bg-transparent text-sm outline-none" type="email" formControlName="email" autocomplete="email" />
+          </label>
           @if (emailError()) {
-            <mat-error>{{ emailError() }}</mat-error>
+            <p class="text-sm text-red-700">{{ emailError() }}</p>
           }
-        </mat-form-field>
-
-        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
-          <mat-label>Contraseña</mat-label>
-          <mat-icon matPrefix>lock</mat-icon>
-          <input
-            matInput
-            [type]="hidePassword() ? 'password' : 'text'"
-            formControlName="password"
-            autocomplete="new-password"
-          />
-          <button
-            mat-icon-button
-            matSuffix
-            type="button"
-            (click)="hidePassword.set(!hidePassword())"
-            [attr.aria-label]="hidePassword() ? 'Mostrar contraseña' : 'Ocultar contraseña'"
-          >
-            <mat-icon>{{ hidePassword() ? 'visibility' : 'visibility_off' }}</mat-icon>
-          </button>
+          <label class="rounded-xl border border-[#e4dfda] bg-white px-3 py-2">
+            <span class="block text-xs text-slate-500">Contraseña <span class="text-[#b76e79]">*</span></span>
+            <span class="flex items-center gap-2">
+              <input
+                class="min-w-0 flex-1 bg-transparent text-sm leading-5 outline-none"
+                [type]="hidePassword() ? 'password' : 'text'"
+                formControlName="password"
+                autocomplete="new-password"
+              />
+              <button
+                type="button"
+                class="grid h-5 w-5 shrink-0 place-items-center text-slate-400"
+                (click)="hidePassword.set(!hidePassword())"
+                [attr.aria-label]="hidePassword() ? 'Mostrar contraseña' : 'Ocultar contraseña'"
+              >
+                <mat-icon class="!h-4 !w-4 !text-[16px] !leading-4">{{ hidePassword() ? 'visibility' : 'visibility_off' }}</mat-icon>
+              </button>
+            </span>
+          </label>
           @if (passwordError()) {
-            <mat-error>{{ passwordError() }}</mat-error>
+            <p class="text-sm text-red-700">{{ passwordError() }}</p>
           }
-        </mat-form-field>
+        </div>
+
+        <div class="flex flex-col gap-2">
+          <p class="text-sm font-medium">El negocio</p>
+          <label class="rounded-xl border border-[#e4dfda] bg-white px-3 py-2">
+            <span class="block text-xs text-slate-500">Tipo de negocio <span class="text-[#b76e79]">*</span></span>
+            <app-pick-field class="block" formControlName="kind" [options]="kindPicks" [bare]="true" placeholder="Elegir" />
+          </label>
+          @if (kindError()) {
+            <p class="text-sm text-red-700">{{ kindError() }}</p>
+          }
+          <label class="rounded-xl border border-[#e4dfda] bg-white px-3 py-2">
+            <span class="block text-xs text-slate-500">Nombre del negocio <span class="text-[#b76e79]">*</span></span>
+            <input class="w-full bg-transparent text-sm outline-none" formControlName="businessName" autocomplete="organization" />
+          </label>
+          @if (businessNameError()) {
+            <p class="text-sm text-red-700">{{ businessNameError() }}</p>
+          }
+          <label class="rounded-xl border border-[#e4dfda] bg-white px-3 py-2">
+            <span class="block text-xs text-slate-500">Teléfono <span class="text-[#b76e79]">*</span></span>
+            <input class="w-full bg-transparent text-sm outline-none" type="tel" formControlName="phone" autocomplete="tel" />
+          </label>
+          @if (phoneError()) {
+            <p class="text-sm text-red-700">{{ phoneError() }}</p>
+          }
+          <label class="rounded-xl border border-[#e4dfda] bg-white px-3 py-2">
+            <span class="block text-xs text-slate-500">Dirección</span>
+            <input class="w-full bg-transparent text-sm outline-none" formControlName="address" autocomplete="street-address" />
+          </label>
+          <label class="rounded-xl border border-[#e4dfda] bg-white px-3 py-2">
+            <span class="block text-xs text-slate-500">Instagram</span>
+            <input class="w-full bg-transparent text-sm leading-5 outline-none" formControlName="instagram" placeholder="@tunegocio" autocomplete="off" />
+          </label>
+        </div>
 
         @if (errorMessage(); as message) {
           <p role="alert" class="text-sm text-red-700">{{ message }}</p>
         }
 
-        <button mat-flat-button color="primary" type="submit" [disabled]="submitting()">
-          {{ submitting() ? 'Creando cuenta…' : 'Crear cuenta' }}
+        <button class="h-11 rounded-full bg-[#1E1B1E] text-sm font-medium text-white disabled:opacity-50" type="submit" [disabled]="submitting()">
+          {{ submitting() ? 'Creando cuenta…' : 'Crear negocio' }}
         </button>
+        <a class="-mt-2 block text-right text-sm text-[#b76e79]" routerLink="/auth/login">Ya tengo cuenta</a>
       </form>
     </mat-card-content>
-    <mat-card-actions align="end">
-      <a mat-button routerLink="/auth/login">Iniciar sesión</a>
-    </mat-card-actions>
   </mat-card>
 </main>

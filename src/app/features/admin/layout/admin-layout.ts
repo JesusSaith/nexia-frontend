@@ -13,7 +13,9 @@ import { catchError, filter, map, startWith, switchMap } from 'rxjs/operators';
 
 import { UserRole } from '@core/models/user.model';
 import { AuthService } from '@core/services/auth.service';
+import { BusinessCopy } from '@core/business-copy';
 import { BookingService } from '@core/services/booking.service';
+import { Toasts } from '@core/toasts';
 import { DashboardService } from '@core/services/dashboard.service';
 
 interface AdminNavLink {
@@ -86,6 +88,8 @@ const PLATFORM_LINKS: readonly AdminNavLink[] = [
 export class AdminLayoutComponent {
   private readonly authService = inject(AuthService);
   private readonly bookingApi = inject(BookingService);
+  private readonly copy = inject(BusinessCopy);
+  protected readonly toasts = inject(Toasts);
   private readonly router = inject(Router);
   private readonly noticesApi = inject(DashboardService);
   private seenNotice = Number(sessionStorage.getItem('nexia-seen-notice') || 0);
@@ -106,11 +110,13 @@ export class AdminLayoutComponent {
     if (this.authService.isStaff()) {
       return STAFF_LINKS;
     }
-    return MANAGER_LINKS;
+    const clients = this.copy.text().clients;
+    return MANAGER_LINKS.map((link) => (link.path === '/admin/clientes' ? { ...link, label: clients } : link));
   });
 
   protected readonly currentUser = this.authService.currentUser;
   protected readonly logoUrl = signal<string | null>(null);
+  protected readonly headerLogo = computed(() => this.copy.logo() ?? this.logoUrl());
   protected readonly brandName = signal<string | null>(null);
   protected readonly brandColor = signal('#E11D48');
   protected readonly canvasColor = signal<string | null>(null);
@@ -137,6 +143,8 @@ export class AdminLayoutComponent {
           this.canvasColor.set(safeHexOrNull(brand.canvas_color));
           this.logoUrl.set(brand.logo_url);
           this.brandName.set(brand.name);
+          this.copy.setLabel(brand.staff_label);
+          this.copy.setLogo(brand.logo_url);
         });
       interval(20000)
         .pipe(
@@ -209,6 +217,11 @@ export class AdminLayoutComponent {
     if (this.handset()) {
       this.closeSidebar();
     }
+  }
+
+  protected clearLogo(): void {
+    this.copy.setLogo(null);
+    this.logoUrl.set(null);
   }
 
   protected logout(): void {

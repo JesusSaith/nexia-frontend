@@ -61,6 +61,7 @@ export interface AdminAppointmentCreate {
   client_email?: string | null;
   notes?: string | null;
   quoted_price?: number | null;
+  waive_deposit?: boolean;
 }
 
 export interface AppointmentStatusUpdate {

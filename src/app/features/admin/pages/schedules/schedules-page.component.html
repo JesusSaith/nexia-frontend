@@ -7,17 +7,7 @@
         <p class="text-sm text-slate-500">Turno de cada persona del equipo. La reserva usa estos horarios.</p>
       </div>
     </div>
-    <mat-form-field appearance="outline" class="w-full sm:w-72" subscriptSizing="dynamic">
-      <mat-label>Colaborador</mat-label>
-      <mat-select [value]="staffId() ?? ''" (selectionChange)="onStaff($event.value)">
-        @if (staff().length === 0) {
-          <mat-option value="">Sin colaboradores</mat-option>
-        }
-        @for (member of staff(); track member.id) {
-          <mat-option [value]="member.id">{{ member.full_name }}</mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
+    <app-pick-field class="block w-full sm:w-72" [options]="staffPicks()" [valueIn]="staffId()" [placeholder]="copy.text().person" (picked)="pickStaff($event)" />
   </header>
 
   @if (loadError(); as message) {
@@ -29,7 +19,7 @@
       <mat-spinner diameter="36" />
     </div>
   } @else if (staffId() === null) {
-    <p class="py-10 text-center text-sm text-slate-600">Agrega un colaborador para configurar su horario.</p>
+    <p class="py-10 text-center text-sm text-slate-600">Agrega un {{ copy.text().person.toLowerCase() }} para configurar su horario.</p>
   } @else {
     <div class="mb-4 rounded-2xl border border-slate-200 bg-white p-4">
       <p class="text-sm font-medium">Horas en las que se puede agendar</p>
