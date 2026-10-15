@@ -211,7 +211,10 @@ export class BookingService {
    * muestren logo y nombre en la vista previa; luego redirige a /:slug/book.
    */
   shareUrl(slug: string): string {
-    return `${this.apiBaseUrl.replace(/\/api\/?$/, '')}/s/${slug}`;
+    const url = `${this.apiBaseUrl.replace(/\/api\/?$/, '')}/s/${slug}`;
+    // En local la app puede correr en cualquier puerto: se lo decimos al backend para que regrese aquí.
+    const local = typeof location !== 'undefined' && ['localhost', '127.0.0.1'].includes(location.hostname);
+    return local ? `${url}?app=${encodeURIComponent(location.origin)}` : url;
   }
 
   getPrivacy(slug: string): Observable<PrivacyNotice> {

@@ -1,7 +1,7 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router, UrlTree } from '@angular/router';
 
-import { UserRole } from '../models/user.model';
+import { CurrentUser, UserRole } from '../models/user.model';
 import { AuthService } from '../services/auth.service';
 
 /** Fase 1: /cliente no muestra el directorio. Lleva al motor de reservas del negocio. */
@@ -40,3 +40,21 @@ function homeFor(role: UserRole | undefined): UrlTree {
   }
   return router.createUrlTree(['/auth/login']);
 }
+
+/** A dónde va cada rol al entrar. El cliente (fase 1) solo reserva en el motor de su negocio. */
+export function sessionHome(user: CurrentUser): string | null {
+  if (user.role === 'super_admin') {
+    return '/super-admin';
+  }
+  if (user.role === 'client') {
+    return user.slug ? `/${user.slug}/book` : null;
+  }
+  return '/admin';
+}
+
+/** Login y registro: quien ya tiene sesión va directo a su panel en vez de ver el formulario. */
+export const guestGuard: CanActivateFn = () => {
+  const user = inject(AuthService).currentUser();
+  const home = user ? sessionHome(user) : null;
+  return home ? inject(Router).parseUrl(home) : true;
+};

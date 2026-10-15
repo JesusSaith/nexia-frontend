@@ -1,95 +1,223 @@
-<main class="flex min-h-dvh items-center justify-center p-4">
-  <mat-card class="w-full max-w-xl">
-    <mat-card-content>
-      <div class="mb-1 flex items-center gap-2">
-        <mat-icon>storefront</mat-icon>
-        <h1 class="text-xl font-medium">Crear tu negocio</h1>
-      </div>
-      <p class="mb-4 text-sm text-muted">Esta cuenta es del dueño. Los colaboradores no crean un negocio: los das de alta después, en Equipo. Los campos con <span class="text-accent">*</span> son obligatorios.</p>
+<main class="grid min-h-dvh grid-cols-1 bg-surface lg:h-dvh lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+  <section
+    class="hidden flex-col items-center justify-center gap-8 px-10 lg:flex"
+    style="background: linear-gradient(100deg, color-mix(in srgb, var(--primary) 14%, white) 0%, color-mix(in srgb, var(--primary) 6%, white) 62%, white 100%)"
+  >
+    <img src="/nexia-mark.png" alt="Nexia" class="w-full max-w-[16rem]" />
+    <ul class="flex max-w-xs flex-col gap-3">
+      @for (benefit of benefits; track benefit.icon) {
+        <li class="flex items-center gap-3 text-sm text-ink-soft">
+          <span class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-surface text-accent">
+            <mat-icon class="h-4.5! w-4.5! text-[18px]!">{{ benefit.icon }}</mat-icon>
+          </span>
+          {{ benefit.text }}
+        </li>
+      }
+    </ul>
+  </section>
 
-      <form class="flex flex-col gap-5" [formGroup]="form" (ngSubmit)="submit()">
-        <div class="flex flex-col gap-2">
-          <p class="text-sm font-medium">Tu cuenta</p>
-          <label class="rounded-xl border border-line bg-white px-3 py-2">
-            <span class="block text-xs text-muted">Nombre <span class="text-accent">*</span></span>
-            <input class="w-full bg-transparent text-sm outline-none" formControlName="fullName" autocomplete="name" />
-          </label>
-          @if (fullNameError()) {
-            <p class="text-sm text-red-700">{{ fullNameError() }}</p>
-          }
-          <label class="rounded-xl border border-line bg-white px-3 py-2">
-            <span class="block text-xs text-muted">Correo <span class="text-accent">*</span></span>
-            <input class="w-full bg-transparent text-sm outline-none" type="email" formControlName="email" autocomplete="email" />
-          </label>
-          @if (emailError()) {
-            <p class="text-sm text-red-700">{{ emailError() }}</p>
-          }
-          <label class="rounded-xl border border-line bg-white px-3 py-2">
-            <span class="block text-xs text-muted">Contraseña <span class="text-accent">*</span></span>
-            <span class="flex items-center gap-2">
-              <input
-                class="min-w-0 flex-1 bg-transparent text-sm leading-5 outline-none"
-                [type]="hidePassword() ? 'password' : 'text'"
-                formControlName="password"
-                autocomplete="new-password"
-              />
-              <button
-                type="button"
-                class="grid h-5 w-5 shrink-0 place-items-center text-muted"
-                (click)="hidePassword.set(!hidePassword())"
-                [attr.aria-label]="hidePassword() ? 'Mostrar contraseña' : 'Ocultar contraseña'"
-              >
-                <mat-icon class="!h-4 !w-4 !text-[16px] !leading-4">{{ hidePassword() ? 'visibility' : 'visibility_off' }}</mat-icon>
-              </button>
+  <section class="flex min-w-0 items-center justify-center px-4 py-3 sm:px-8 sm:py-5">
+    <div class="w-full max-w-xl">
+      <div class="mb-3 flex items-center gap-3 sm:mb-4">
+        <img src="/nexia-mark.png" alt="" class="h-9 w-auto lg:hidden" />
+        <div>
+          <h1 class="text-lg font-semibold leading-tight text-ink">Crea tu página de reservas</h1>
+          <p class="text-sm text-muted">Los servicios y horarios los ajustas después.</p>
+        </div>
+      </div>
+
+      <form class="flex flex-col gap-3 sm:gap-4" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+        <fieldset class="flex flex-col gap-2.5">
+          <legend class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Tu negocio</legend>
+
+          <div role="radiogroup" aria-label="Tipo de negocio" [attr.aria-describedby]="errors().businessKind ? 'kind-error' : null">
+            <div class="grid grid-cols-3 gap-1.5">
+              @for (kind of kindPicks; track kind.value; let first = $first) {
+                <label
+                  class="flex h-9 min-w-0 cursor-pointer items-center justify-center gap-2 rounded-lg border px-1.5 text-[11px] transition-colors sm:justify-start sm:px-2.5 sm:text-xs focus-within:ring-2 focus-within:ring-accent-soft"
+                  [class.border-accent]="form.controls.businessKind.value === kind.value"
+                  [class.bg-accent-soft]="form.controls.businessKind.value === kind.value"
+                  [class.font-medium]="form.controls.businessKind.value === kind.value"
+                  [class.text-ink]="form.controls.businessKind.value === kind.value"
+                  [class.border-line]="form.controls.businessKind.value !== kind.value"
+                  [class.text-ink-soft]="form.controls.businessKind.value !== kind.value"
+                >
+                  <input
+                    class="sr-only"
+                    type="radio"
+                    formControlName="businessKind"
+                    [value]="kind.value"
+                    [attr.data-field]="first ? 'businessKind' : null"
+                  />
+                  <mat-icon class="hidden! h-4! w-4! shrink-0 text-[16px]! sm:inline-block!" aria-hidden="true">{{ kind.icon }}</mat-icon>
+                  <span class="truncate">{{ kind.label }}</span>
+                </label>
+              }
+            </div>
+            @if (errors().businessKind) {
+              <p id="kind-error" class="field-error mt-1">{{ errors().businessKind }}</p>
+            }
+          </div>
+
+          <div class="grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-2.5">
+            <div class="min-w-0">
+              <label class="field" [class.field-invalid]="errors().businessName">
+                <span class="field-label">Nombre del negocio</span>
+                <input
+                  class="field-input"
+                  formControlName="businessName"
+                  data-field="businessName"
+                  autocomplete="organization"
+                  placeholder="Ej. Salón Ana"
+                  [attr.aria-invalid]="!!errors().businessName"
+                  [attr.aria-describedby]="errors().businessName ? 'name-error' : 'name-link'"
+                />
+                <span id="name-link" class="mt-0.5 block truncate text-[11px] text-muted">
+                  {{ bookingHost }}/<span class="font-medium text-ink-soft">{{ slug() || 'tu-negocio' }}</span>/book
+                </span>
+              </label>
+              @if (errors().businessName) {
+                <p id="name-error" class="field-error mt-1">{{ errors().businessName }}</p>
+              }
+            </div>
+
+            <div class="min-w-0">
+              <label class="field" [class.field-invalid]="errors().phone">
+                <span class="field-label truncate">WhatsApp<span class="hidden sm:inline"> del negocio</span></span>
+                <input
+                  class="field-input nums"
+                  type="tel"
+                  inputmode="numeric"
+                  maxlength="16"
+                  formControlName="phone"
+                  data-field="phone"
+                  autocomplete="tel-national"
+                  placeholder="10 dígitos"
+                  (input)="onPhoneInput()"
+                  [attr.aria-invalid]="!!errors().phone"
+                  [attr.aria-describedby]="errors().phone ? 'phone-error' : 'phone-hint'"
+                />
+                <span id="phone-hint" class="mt-0.5 block truncate text-[11px] text-muted">Aquí te escriben tus clientas</span>
+              </label>
+              @if (errors().phone) {
+                <p id="phone-error" class="field-error mt-1">{{ errors().phone }}</p>
+              }
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="flex flex-col gap-2.5">
+          <legend class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Tu cuenta</legend>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <div class="min-w-0">
+              <label class="field" [class.field-invalid]="errors().fullName">
+                <span class="field-label">Tu nombre</span>
+                <input
+                  class="field-input"
+                  formControlName="fullName"
+                  data-field="fullName"
+                  autocomplete="name"
+                  [attr.aria-invalid]="!!errors().fullName"
+                  [attr.aria-describedby]="errors().fullName ? 'fullname-error' : null"
+                />
+              </label>
+              @if (errors().fullName) {
+                <p id="fullname-error" class="field-error mt-1">{{ errors().fullName }}</p>
+              }
+            </div>
+
+            <div class="min-w-0">
+              <label class="field" [class.field-invalid]="errors().email">
+                <span class="field-label">Correo</span>
+                <input
+                  class="field-input"
+                  type="email"
+                  formControlName="email"
+                  data-field="email"
+                  autocomplete="email"
+                  [attr.aria-invalid]="!!errors().email"
+                  [attr.aria-describedby]="errors().email ? 'email-error' : null"
+                />
+              </label>
+              @if (errors().email) {
+                <p id="email-error" class="field-error mt-1">
+                  {{ errors().email }}
+                  @if (form.controls.email.hasError('taken')) {
+                    <a class="font-medium underline" routerLink="/auth/login" [queryParams]="{ email: form.controls.email.value }">Inicia sesión</a>
+                  }
+                </p>
+              }
+            </div>
+          </div>
+
+          <div>
+            <label class="field" [class.field-invalid]="errors().password">
+              <span class="field-label">Contraseña</span>
+              <span class="flex items-center gap-2">
+                <input
+                  class="field-input min-w-0 flex-1"
+                  [type]="hidePassword() ? 'password' : 'text'"
+                  formControlName="password"
+                  data-field="password"
+                  autocomplete="new-password"
+                  placeholder="Mínimo 8 caracteres"
+                  [attr.aria-invalid]="!!errors().password"
+                  [attr.aria-describedby]="errors().password ? 'password-error' : null"
+                />
+                <button
+                  type="button"
+                  class="grid h-6 w-6 shrink-0 place-items-center text-muted"
+                  (click)="hidePassword.set(!hidePassword())"
+                  [attr.aria-label]="hidePassword() ? 'Mostrar contraseña' : 'Ocultar contraseña'"
+                >
+                  <mat-icon class="h-4! w-4! text-[16px]! leading-4!">{{ hidePassword() ? 'visibility' : 'visibility_off' }}</mat-icon>
+                </button>
+              </span>
+            </label>
+            @if (errors().password) {
+              <p id="password-error" class="field-error mt-1">{{ errors().password }}</p>
+            }
+          </div>
+        </fieldset>
+
+        <div>
+          <label class="flex cursor-pointer items-start gap-2.5 text-sm text-ink-soft">
+            <input
+              class="mt-0.5 h-4 w-4 shrink-0 accent-(--primary)"
+              type="checkbox"
+              formControlName="acceptTerms"
+              data-field="acceptTerms"
+              [attr.aria-invalid]="!!errors().acceptTerms"
+              [attr.aria-describedby]="errors().acceptTerms ? 'terms-error' : null"
+            />
+            <span>
+              Acepto los <a class="font-medium text-accent underline-offset-2 hover:underline" routerLink="/terminos" target="_blank">términos y condiciones</a>
+              y el <a class="font-medium text-accent underline-offset-2 hover:underline" routerLink="/privacidad" target="_blank">aviso de privacidad</a>.
             </span>
           </label>
-          @if (passwordError()) {
-            <p class="text-sm text-red-700">{{ passwordError() }}</p>
+          @if (errors().acceptTerms) {
+            <p id="terms-error" class="field-error mt-1 pl-6.5">{{ errors().acceptTerms }}</p>
           }
-        </div>
-
-        <div class="flex flex-col gap-2">
-          <p class="text-sm font-medium">El negocio</p>
-          <label class="rounded-xl border border-line bg-white px-3 py-2">
-            <span class="block text-xs text-muted">Tipo de negocio <span class="text-accent">*</span></span>
-            <app-pick-field class="block" formControlName="kind" [options]="kindPicks" [bare]="true" placeholder="Elegir" />
-          </label>
-          @if (kindError()) {
-            <p class="text-sm text-red-700">{{ kindError() }}</p>
-          }
-          <label class="rounded-xl border border-line bg-white px-3 py-2">
-            <span class="block text-xs text-muted">Nombre del negocio <span class="text-accent">*</span></span>
-            <input class="w-full bg-transparent text-sm outline-none" formControlName="businessName" autocomplete="organization" />
-          </label>
-          @if (businessNameError()) {
-            <p class="text-sm text-red-700">{{ businessNameError() }}</p>
-          }
-          <label class="rounded-xl border border-line bg-white px-3 py-2">
-            <span class="block text-xs text-muted">Teléfono <span class="text-accent">*</span></span>
-            <input class="w-full bg-transparent text-sm outline-none" type="tel" formControlName="phone" autocomplete="tel" />
-          </label>
-          @if (phoneError()) {
-            <p class="text-sm text-red-700">{{ phoneError() }}</p>
-          }
-          <label class="rounded-xl border border-line bg-white px-3 py-2">
-            <span class="block text-xs text-muted">Dirección</span>
-            <input class="w-full bg-transparent text-sm outline-none" formControlName="address" autocomplete="street-address" />
-          </label>
-          <label class="rounded-xl border border-line bg-white px-3 py-2">
-            <span class="block text-xs text-muted">Instagram</span>
-            <input class="w-full bg-transparent text-sm leading-5 outline-none" formControlName="instagram" placeholder="@tunegocio" autocomplete="off" />
-          </label>
         </div>
 
         @if (errorMessage(); as message) {
-          <p role="alert" class="text-sm text-red-700">{{ message }}</p>
+          <p role="alert" class="badge-bad rounded-xl px-3 py-2 text-sm">{{ message }}</p>
         }
 
-        <button class="btn btn-primary disabled:opacity-50" type="submit" [disabled]="submitting()">
-          {{ submitting() ? 'Creando cuenta…' : 'Crear negocio' }}
-        </button>
-        <a class="-mt-2 block text-right text-sm text-accent" routerLink="/auth/login">Ya tengo cuenta</a>
+        <div class="flex flex-col gap-2">
+          <button class="btn btn-primary h-11 disabled:opacity-50" type="submit" [disabled]="submitting()">
+            {{ submitting() ? 'Creando tu negocio…' : 'Crear mi negocio' }}
+          </button>
+          <p class="text-center text-sm text-muted">
+            ¿Ya tienes cuenta? <a class="font-medium text-accent" routerLink="/auth/login">Inicia sesión</a>
+          </p>
+        </div>
       </form>
-    </mat-card-content>
-  </mat-card>
+
+      <p class="mt-2 text-center text-[11px] text-muted sm:mt-3 sm:text-xs">
+        ¿Trabajas en un negocio que ya usa Nexia? La dueña te da de alta desde Equipo.
+      </p>
+    </div>
+  </section>
 </main>

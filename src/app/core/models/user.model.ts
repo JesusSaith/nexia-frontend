@@ -23,4 +23,10 @@ export interface RegisterRequest {
   email: string;
   password: string;
   businessName: string;
+  phone: string;
+  businessKind?: string | null;
+  address?: string | null;
+  instagram?: string | null;
+  acceptTerms: boolean;
+  timezone?: string | null;
 }

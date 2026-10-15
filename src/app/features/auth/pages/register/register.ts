@@ -1,128 +1,115 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, ElementRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { Router, RouterLink } from '@angular/router';
 import { of } from 'rxjs';
-import { catchError, switchMap } from 'rxjs/operators';
+import { catchError, debounceTime, distinctUntilChanged, map, switchMap } from 'rxjs/operators';
 
+import { BUSINESS_KINDS } from '@core/business-kinds';
 import { AuthService } from '@core/services/auth.service';
-import { SettingsService } from '@core/services/settings.service';
-import { PickFieldComponent } from '@shared/components/when-field/when-field';
+import { Toasts } from '@core/toasts';
+
+type FieldName = 'businessKind' | 'businessName' | 'phone' | 'fullName' | 'email' | 'password' | 'acceptTerms';
+
+/** Orden en pantalla: al enviar con errores, el foco va al primero de esta lista que falle. */
+const FIELD_ORDER: FieldName[] = ['businessKind', 'businessName', 'phone', 'fullName', 'email', 'password', 'acceptTerms'];
+
+const MESSAGES: Record<FieldName, Record<string, string>> = {
+  businessKind: { required: 'Elige el tipo de negocio.' },
+  businessName: { required: 'Escribe el nombre del negocio.' },
+  phone: { required: 'Escribe el teléfono del negocio.', pattern: 'El teléfono debe tener 10 dígitos.' },
+  fullName: { required: 'Escribe tu nombre.' },
+  email: { required: 'Escribe tu correo.', email: 'Revisa el correo; parece incompleto.', taken: 'Ese correo ya tiene una cuenta.' },
+  password: { required: 'Crea una contraseña.', minlength: 'Usa al menos 8 caracteres.', maxlength: 'Usa máximo 72 caracteres.' },
+  acceptTerms: { required: 'Para crear tu cuenta necesitas aceptar los términos y el aviso de privacidad.' },
+};
+
+/** Zona del navegador de la dueña (p. ej. "America/Tijuana"); el backend usa CDMX si no la reconoce. */
+function browserTimezone(): string | null {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || null;
+  } catch {
+    return null;
+  }
+}
 
 @Component({
   selector: 'app-register',
-  imports: [
-    ReactiveFormsModule,
-    RouterLink,
-    MatCardModule,
-    MatIconModule,
-    PickFieldComponent,
-  ],
+  imports: [ReactiveFormsModule, RouterLink, MatIconModule],
   templateUrl: './register.html',
 })
 export class Register {
   private readonly authService = inject(AuthService);
-  private readonly settingsApi = inject(SettingsService);
+  private readonly toasts = inject(Toasts);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
-  protected readonly kindPicks = [
-    { value: 'belleza', label: 'Salón de belleza' },
-    { value: 'barberia', label: 'Barbería' },
-    { value: 'spa', label: 'Spa' },
-    { value: 'veterinaria', label: 'Veterinaria' },
-    { value: 'consultorio', label: 'Consultorio' },
-    { value: 'dental', label: 'Clínica dental' },
-    { value: 'estudio', label: 'Estudio' },
-    { value: 'clases', label: 'Clases o entrenamiento' },
-    { value: 'otro', label: 'Otro' },
+  protected readonly kindPicks = BUSINESS_KINDS;
+  protected readonly benefits = [
+    { icon: 'event_available', text: 'Tus clientas reservan solas, a cualquier hora.' },
+    { icon: 'payments', text: 'Pide anticipo por transferencia y evita las faltas.' },
+    { icon: 'chat', text: 'Confirma y recuerda citas por WhatsApp en un toque.' },
   ];
+  protected readonly bookingHost = window.location.host;
+
   protected readonly submitting = signal(false);
   protected readonly hidePassword = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
   private readonly validationTick = signal(0);
 
   protected readonly form = new FormGroup({
-    fullName: new FormControl('', {
-      nonNullable: true,
-      validators: [Validators.required],
-    }),
-    businessName: new FormControl('', {
-      nonNullable: true,
-      validators: [Validators.required],
-    }),
-    email: new FormControl('', {
-      nonNullable: true,
-      validators: [Validators.required, Validators.email],
-    }),
+    businessKind: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+    businessName: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+    phone: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.pattern(/^\d{10}$/)] }),
+    fullName: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+    email: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email] }),
     password: new FormControl('', {
       nonNullable: true,
-      validators: [Validators.required, Validators.minLength(8)],
+      validators: [Validators.required, Validators.minLength(8), Validators.maxLength(72)],
     }),
-    phone: new FormControl('', {
-      nonNullable: true,
-      validators: [Validators.required],
-    }),
-    kind: new FormControl('', {
-      nonNullable: true,
-      validators: [Validators.required],
-    }),
-    address: new FormControl('', { nonNullable: true }),
-    instagram: new FormControl('', { nonNullable: true }),
+    acceptTerms: new FormControl(false, { nonNullable: true, validators: [Validators.requiredTrue] }),
   });
 
   private readonly formEvents = toSignal(this.form.events, { initialValue: undefined });
 
-  protected readonly fullNameError = computed(() => {
+  protected readonly errors = computed(() => {
     this.formEvents();
     this.validationTick();
-    return this.fieldError('fullName', { required: 'Ingresa tu nombre.' });
+    return Object.fromEntries(FIELD_ORDER.map((name) => [name, this.fieldError(name)])) as Record<FieldName, string>;
   });
 
-  protected readonly businessNameError = computed(() => {
-    this.formEvents();
-    this.validationTick();
-    return this.fieldError('businessName', { required: 'Ingresa el nombre del negocio.' });
-  });
+  /** El enlace real que tendrá el negocio, ya con sufijo si el nombre está ocupado. */
+  protected readonly slug = toSignal(
+    this.form.controls.businessName.valueChanges.pipe(
+      map((name) => name.trim()),
+      debounceTime(300),
+      distinctUntilChanged(),
+      switchMap((name) => (name ? this.authService.slugPreview(name).pipe(catchError(() => of(''))) : of(''))),
+    ),
+    { initialValue: '' },
+  );
 
-  protected readonly emailError = computed(() => {
-    this.formEvents();
-    this.validationTick();
-    return this.fieldError('email', {
-      required: 'Ingresa tu correo.',
-      email: 'Ingresa un correo válido.',
-    });
-  });
-
-  protected readonly kindError = computed(() => {
-    this.formEvents();
-    this.validationTick();
-    return this.fieldError('kind', { required: 'Elige el tipo de negocio.' });
-  });
-
-  protected readonly phoneError = computed(() => {
-    this.formEvents();
-    this.validationTick();
-    return this.fieldError('phone', { required: 'Ingresa el teléfono del negocio.' });
-  });
-
-  protected readonly passwordError = computed(() => {
-    this.formEvents();
-    this.validationTick();
-    return this.fieldError('password', {
-      required: 'Ingresa tu contraseña.',
-      minlength: 'Usa al menos 8 caracteres.',
-    });
-  });
+  /** Solo dígitos y máximo 10, aunque peguen "+52 (55) 1234-5678". */
+  protected onPhoneInput(): void {
+    const control = this.form.controls.phone;
+    const digits = control.value.replace(/\D/g, '').replace(/^52(?=\d{10}$)/, '').slice(0, 10);
+    if (digits !== control.value) {
+      control.setValue(digits);
+    }
+  }
 
   protected submit(): void {
     this.form.markAllAsTouched();
     this.validationTick.update((tick) => tick + 1);
 
-    if (this.form.invalid || this.submitting()) {
+    if (this.submitting()) {
+      return;
+    }
+    if (this.form.invalid) {
+      this.focusFirstError();
       return;
     }
 
@@ -132,43 +119,33 @@ export class Register {
     const raw = this.form.getRawValue();
     this.authService
       .register({
-        fullName: raw.fullName,
-        email: raw.email,
+        fullName: raw.fullName.trim(),
+        email: raw.email.trim(),
         password: raw.password,
-        businessName: raw.businessName,
+        businessName: raw.businessName.trim(),
+        phone: raw.phone,
+        businessKind: raw.businessKind,
+        acceptTerms: raw.acceptTerms,
+        timezone: browserTimezone(),
       })
-      .pipe(
-        switchMap(() => this.settingsApi.getSettings()),
-        switchMap((settings) =>
-          this.settingsApi
-            .updateProfile({
-              phone: raw.phone.trim(),
-              address: raw.address.trim() || null,
-              instagram: raw.instagram.trim() || null,
-              facebook: settings.facebook,
-              cancel_hours: settings.cancel_hours,
-              deposit_amount: settings.deposit_amount,
-              deposit_percent: settings.deposit_percent,
-              deposit_account: settings.deposit_account,
-              deposit_hold_hours: settings.deposit_hold_hours,
-              buffer_minutes: settings.buffer_minutes,
-              staff_label: STAFF_BY_KIND[raw.kind] ?? settings.staff_label,
-              min_notice_hours: settings.min_notice_hours,
-              max_days_ahead: settings.max_days_ahead,
-              cancel_policy: settings.cancel_policy,
-              resources: settings.resources,
-              payment_url: settings.payment_url,
-            })
-            .pipe(catchError(() => of(settings))),
-        ),
-        takeUntilDestroyed(this.destroyRef),
-      )
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => {
+          this.toasts.show(
+            raw.businessKind === 'otro'
+              ? 'Tu negocio está listo. Empieza agregando tus servicios.'
+              : 'Tu negocio está listo. Te dejamos servicios sugeridos: ajusta precios y actívalos.',
+          );
           void this.router.navigateByUrl('/admin');
         },
         error: (error: HttpErrorResponse) => {
           this.submitting.set(false);
+          if (error.status === 409) {
+            this.form.controls.email.setErrors({ taken: true });
+            this.validationTick.update((tick) => tick + 1);
+            this.focusFirstError();
+            return;
+          }
           this.errorMessage.set(this.messageFor(error));
         },
       });
@@ -176,37 +153,27 @@ export class Register {
 
   private messageFor(error: HttpErrorResponse): string {
     if (error.status === 0) {
-      return 'No hay conexión con el servidor. Inténtalo de nuevo.';
+      return 'No hay conexión con el servidor. Revisa tu internet e inténtalo de nuevo.';
     }
-    if (error.status === 409) {
-      return 'Ese correo ya está registrado.';
+    if (error.status === 429) {
+      return 'Hiciste muchos intentos seguidos. Espera unos minutos y vuelve a intentarlo.';
     }
-    return 'No pudimos crear la cuenta. Revisa los datos.';
+    return 'No pudimos crear la cuenta. Revisa los datos e inténtalo de nuevo.';
   }
 
-  private fieldError(
-    name: 'fullName' | 'businessName' | 'email' | 'password' | 'phone' | 'kind',
-    messages: Record<string, string>,
-  ): string {
-    const control = this.form.controls[name];
+  private focusFirstError(): void {
+    const name = FIELD_ORDER.find((field) => this.form.controls[field].invalid);
+    if (name) {
+      this.host.nativeElement.querySelector<HTMLElement>(`[data-field="${name}"]`)?.focus();
+    }
+  }
 
+  private fieldError(name: FieldName): string {
+    const control = this.form.controls[name];
     if (!control.touched || control.valid) {
       return '';
     }
-
-    const errorKey = Object.keys(messages).find((key) => control.hasError(key));
-    return errorKey ? messages[errorKey] : '';
+    const errorKey = Object.keys(MESSAGES[name]).find((key) => control.hasError(key));
+    return errorKey ? MESSAGES[name][errorKey] : '';
   }
 }
-
-const STAFF_BY_KIND: Record<string, string> = {
-  belleza: 'Estilista',
-  barberia: 'Barbero',
-  spa: 'Terapeuta',
-  veterinaria: 'Veterinario',
-  consultorio: 'Especialista',
-  dental: 'Dentista',
-  estudio: 'Profesional',
-  clases: 'Instructor',
-  otro: 'Colaborador',
-};

@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { Observable, catchError, of, tap, timeout } from 'rxjs';
+import { Observable, catchError, map, of, tap, timeout } from 'rxjs';
 
 import { API_BASE_URL } from '../config/api-base-url';
 import { CurrentUser, LoginRequest, RegisterRequest } from '../models/user.model';
@@ -48,6 +48,25 @@ export class AuthService {
 
   register(payload: RegisterRequest): Observable<CurrentUser> {
     return this.http.post<CurrentUser>(`${this.apiBaseUrl}/auth/register`, payload).pipe(
+      tap((user) => this.currentUserState.set(user)),
+    );
+  }
+
+  /** Enlace que recibiría un negocio con este nombre (con sufijo -2, -3… si ya existe). */
+  slugPreview(name: string): Observable<string> {
+    return this.http
+      .get<{ slug: string }>(`${this.apiBaseUrl}/auth/slug-preview`, { params: { name } })
+      .pipe(map((response) => response.slug));
+  }
+
+  /** Siempre responde 204, exista o no la cuenta. */
+  forgotPassword(email: string): Observable<void> {
+    return this.http.post<void>(`${this.apiBaseUrl}/auth/forgot-password`, { email });
+  }
+
+  /** Cambia la contraseña con el enlace del correo y deja la sesión abierta. */
+  resetPassword(token: string, password: string): Observable<CurrentUser> {
+    return this.http.post<CurrentUser>(`${this.apiBaseUrl}/auth/reset-password`, { token, password }).pipe(
       tap((user) => this.currentUserState.set(user)),
     );
   }

@@ -19,6 +19,17 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/super-admin/super-admin-page.component').then((m) => m.SuperAdminPageComponent),
   },
+  // Términos y aviso de privacidad de Nexia (la plataforma). El aviso de cada negocio vive en /:slug/privacidad.
+  {
+    path: 'terminos',
+    data: { doc: 'terms' },
+    loadComponent: () => import('./features/legal/legal-page').then((m) => m.LegalPage),
+  },
+  {
+    path: 'privacidad',
+    data: { doc: 'privacy' },
+    loadComponent: () => import('./features/legal/legal-page').then((m) => m.LegalPage),
+  },
   // FUTURE_PHASE_2_UNIFIED_PLATFORM: /cliente es un directorio del equipo y un perfil de usuario.
   // En la fase 1 el cliente del piloto solo reserva en /:businessSlug/book, sin cruzar negocios.
   // {
