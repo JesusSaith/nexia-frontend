@@ -15,7 +15,7 @@ import { forkJoin, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 
 import { businessWords } from '@core/business-words';
-import { closedSpan, dateClosed, liveOffer, splitNote } from '@core/shop-note';
+import { closedSpan, dateClosed, liveOffer, noteOf } from '@core/shop-note';
 import { Appointment, AvailabilitySlot } from '@core/models/appointment.model';
 import { BusinessBrand, PublicService, PublicStaff } from '@core/models/business.model';
 import { BookingService } from '@core/services/booking.service';
@@ -217,7 +217,7 @@ export class Booking {
 
   private readonly formEvents = toSignal(this.clientForm.events, { initialValue: undefined });
 
-  protected readonly shopNote = computed(() => splitNote(this.brand()?.resources).note);
+  protected readonly shopNote = computed(() => noteOf(this.brand()));
   protected readonly gallery = computed(() => this.shopNote().photos);
   protected readonly closedLabel = computed(() => closedSpan(this.shopNote()));
   protected readonly offer = computed(() => liveOffer(this.shopNote(), todayInputValue()));
@@ -622,7 +622,7 @@ export class Booking {
   }
 
   protected resourceList(): string[] {
-    return splitNote(this.brand()?.resources).text.split(',').map((item) => item.trim()).filter(Boolean);
+    return (this.brand()?.resources ?? '').split(',').map((item) => item.trim()).filter(Boolean);
   }
 
   protected maxDate(): string {

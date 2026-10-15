@@ -22,6 +22,12 @@ export interface BusinessBrand {
   cancel_policy?: string | null;
   resources?: string | null;
   payment_url?: string | null;
+  bookings_paused?: boolean;
+  closed_from?: string | null;
+  closed_to?: string | null;
+  promo_text?: string | null;
+  promo_until?: string | null;
+  gallery?: string[];
   /** Lealtad: cada N visitas cobradas, la siguiente lleva X% de descuento. */
   loyalty_every?: number | null;
   loyalty_percent?: number | null;

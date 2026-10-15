@@ -7,41 +7,23 @@ export interface ShopNote {
   until: string;
 }
 
-const MARK = '\n#nx';
-const EMPTY: ShopNote = { pause: false, from: '', to: '', photos: [], promo: '', until: '' };
-
-export function splitNote(raw: string | null | undefined): { text: string; note: ShopNote } {
-  const source = raw ?? '';
-  const cut = source.indexOf(MARK);
-  const text = (cut === -1 ? source : source.slice(0, cut)).trim();
-  if (cut === -1) {
-    return { text, note: EMPTY };
-  }
-  try {
-    const parsed = JSON.parse(source.slice(cut + MARK.length)) as Partial<ShopNote> & { pause?: number };
-    const photos = Array.isArray(parsed.photos) ? parsed.photos.filter((item) => typeof item === 'string').slice(0, 3) : [];
-    return {
-      text,
-      note: {
-        pause: Boolean(parsed.pause),
-        from: typeof parsed.from === 'string' ? parsed.from : '',
-        to: typeof parsed.to === 'string' ? parsed.to : '',
-        photos,
-        promo: typeof parsed.promo === 'string' ? parsed.promo.slice(0, 80) : '',
-        until: typeof parsed.until === 'string' ? parsed.until : '',
-      },
-    };
-  } catch {
-    return { text, note: EMPTY };
-  }
-}
-
-export function joinNote(text: string, note: ShopNote): string {
-  const base = text.trim();
-  if (!note.pause && !note.from && !note.to && note.photos.length === 0 && !note.promo && !note.until) {
-    return base;
-  }
-  return `${base}${MARK}${JSON.stringify({ pause: note.pause ? 1 : 0, from: note.from, to: note.to, photos: note.photos, promo: note.promo, until: note.until })}`;
+/** Pausa, cierre, fotos y promoción con la forma que usa la página de reservas (columnas del negocio). */
+export function noteOf(brand: {
+  bookings_paused?: boolean;
+  closed_from?: string | null;
+  closed_to?: string | null;
+  promo_text?: string | null;
+  promo_until?: string | null;
+  gallery?: string[];
+} | null | undefined): ShopNote {
+  return {
+    pause: Boolean(brand?.bookings_paused),
+    from: brand?.closed_from ?? '',
+    to: brand?.closed_to ?? '',
+    photos: (brand?.gallery ?? []).slice(0, 3),
+    promo: brand?.promo_text ?? '',
+    until: brand?.promo_until ?? '',
+  };
 }
 
 export function liveOffer(note: ShopNote, today: string): string {

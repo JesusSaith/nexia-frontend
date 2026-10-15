@@ -62,6 +62,12 @@ export interface BusinessSettings {
   timezone: string;
   /** Tipos de aviso que le llegan por correo a la dueña. */
   email_alerts: string[];
+  bookings_paused: boolean;
+  closed_from: string | null;
+  closed_to: string | null;
+  promo_text: string | null;
+  promo_until: string | null;
+  gallery: string[];
   hours: BusinessHour[];
 }
 
@@ -94,6 +100,12 @@ export interface ProfileUpdate {
   coupons?: string | null;
   timezone?: string | null;
   email_alerts?: string[];
+  bookings_paused?: boolean;
+  closed_from?: string | null;
+  closed_to?: string | null;
+  promo_text?: string | null;
+  promo_until?: string | null;
+  gallery?: string[];
 }
 
 @Injectable({ providedIn: 'root' })

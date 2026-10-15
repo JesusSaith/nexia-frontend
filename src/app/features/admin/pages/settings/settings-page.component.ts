@@ -10,7 +10,6 @@ import { BusinessCopy } from '@core/business-copy';
 import { API_BASE_URL } from '@core/config/api-base-url';
 import { BusinessCoupon } from '@core/models/business.model';
 import { BusinessSettings, ProfileUpdate, SettingsService } from '@core/services/settings.service';
-import { joinNote, splitNote } from '@core/shop-note';
 import { Toasts } from '@core/toasts';
 import { Confirm } from '@shared/components/confirm/confirm';
 import { PickFieldComponent } from '@shared/components/when-field/when-field';
@@ -183,15 +182,13 @@ export class SettingsPageComponent {
       deposit_hold_hours: numberOr(value.depositHoldHours, 3),
       payment_url: value.paymentUrl.trim() || null,
       privacy_notice: value.privacyNotice.trim() || null,
-      resources:
-        joinNote(value.resources, {
-          pause: this.pauseBookings(),
-          from: this.closedFrom(),
-          to: this.closedTo(),
-          photos: this.photos(),
-          promo: this.promo().trim().slice(0, 80),
-          until: this.promo().trim() ? this.promoUntil() : '',
-        }) || null,
+      resources: value.resources.trim() || null,
+      bookings_paused: this.pauseBookings(),
+      closed_from: this.closedFrom() || null,
+      closed_to: this.closedTo() || null,
+      promo_text: this.promo().trim().slice(0, 80) || null,
+      promo_until: this.promo().trim() ? this.promoUntil() || null : null,
+      gallery: this.photos(),
       loyalty_every: loyalty.every,
       loyalty_percent: loyalty.percent,
       coupons: couponsJson(this.coupons()),
@@ -579,15 +576,14 @@ export class SettingsPageComponent {
 
   private apply(settings: BusinessSettings): void {
     this.savedSettings.set(settings);
-    const packed = splitNote(settings.resources);
     this.logoUrl.set(settings.logo_url);
     this.suggestedColor.set(null);
-    this.photos.set(packed.note.photos);
-    this.promo.set(packed.note.promo);
-    this.promoUntil.set(packed.note.until);
-    this.pauseBookings.set(packed.note.pause);
-    this.closedFrom.set(packed.note.from);
-    this.closedTo.set(packed.note.to);
+    this.photos.set(settings.gallery ?? []);
+    this.promo.set(settings.promo_text ?? '');
+    this.promoUntil.set(settings.promo_until ?? '');
+    this.pauseBookings.set(Boolean(settings.bookings_paused));
+    this.closedFrom.set(settings.closed_from ?? '');
+    this.closedTo.set(settings.closed_to ?? '');
     this.loyaltyEvery.set(settings.loyalty_every ?? null);
     this.loyaltyPercent.set(settings.loyalty_percent ?? null);
     this.coupons.set(parseCoupons(settings.coupons));
@@ -608,7 +604,7 @@ export class SettingsPageComponent {
       bufferMinutes: settings.buffer_minutes ?? 0,
       cancelHours: settings.cancel_hours,
       timezone: settings.timezone || 'America/Mexico_City',
-      resources: packed.text,
+      resources: settings.resources ?? '',
       cancelPolicy: settings.cancel_policy ?? '',
       depositAmount: settings.deposit_amount,
       depositPercent: settings.deposit_percent,

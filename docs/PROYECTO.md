@@ -119,6 +119,7 @@ Reserva (clienta o dueña)
   - máximo 6 intentos por **negocio + IP** cada 10 minutos (en memoria);
   - máximo 3 citas próximas por teléfono.
 - **Pausa y vacaciones:** la API también los respeta (disponibilidad, reservas y cambios de cita de la clienta) con `app/core/shop_note.py`; antes solo los aplicaba la página de reservas. Las citas que crea la dueña no se bloquean.
+- **Columnas propias:** pausa (`bookings_paused`), cierre (`closed_from`/`closed_to`), anuncio (`promo_text`/`promo_until`) y fotos (`gallery`, JSON) ya no viven empaquetados dentro de `resources`, que queda solo para salas o equipos. Los datos con el formato viejo se migran solos al arrancar.
 - **Contra registros en masa:** `/auth/register` usa el mismo límite de 6 intentos por IP cada 10 minutos (`app/core/throttle.py`).
 - **IP real:** el primer valor de `X-Forwarded-For` lo puede inventar cualquiera, así que la IP se lee contando desde la derecha `TRUSTED_PROXY_HOPS` saltos (0 en local; 2 detrás de Vercel → Render).
 - **Cookie de sesión:** respeta `COOKIE_SECURE` y `COOKIE_SAMESITE` del `.env` al iniciar sesión, al registrarse y al cerrar sesión.
