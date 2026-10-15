@@ -3,7 +3,8 @@ import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { of } from 'rxjs';
 import { catchError, switchMap } from 'rxjs/operators';
-import { FormArray, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { MatIconModule } from '@angular/material/icon';
+import { FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { PickFieldComponent, TimeFieldComponent } from '@shared/components/when-field/when-field';
 
@@ -30,7 +31,7 @@ const ROLE_PICKS = [
 
 @Component({
   selector: 'app-settings-page',
-  imports: [ReactiveFormsModule, PickFieldComponent, TimeFieldComponent],
+  imports: [ReactiveFormsModule, PickFieldComponent, TimeFieldComponent, MatIconModule],
   templateUrl: './settings-page.component.html',
 })
 export class SettingsPageComponent {
@@ -38,6 +39,7 @@ export class SettingsPageComponent {
   private readonly bookingApi = inject(BookingService);
   private readonly copy = inject(BusinessCopy);
   private readonly toasts = inject(Toasts);
+  protected readonly privacyUrl = signal<string | null>(null);
   private readonly http = inject(HttpClient);
   private readonly apiBaseUrl = inject(API_BASE_URL);
   private readonly destroyRef = inject(DestroyRef);
@@ -82,6 +84,7 @@ export class SettingsPageComponent {
     minNoticeHours: new FormControl<number | null>(0),
     maxDaysAhead: new FormControl<number | null>(90),
     cancelPolicy: new FormControl('', { nonNullable: true }),
+    privacyNotice: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(10000)] }),
     resources: new FormControl('', { nonNullable: true }),
     paymentUrl: new FormControl('', { nonNullable: true }),
   });
@@ -243,6 +246,7 @@ export class SettingsPageComponent {
         min_notice_hours: value.minNoticeHours === null || String(value.minNoticeHours) === '' ? 0 : Number(value.minNoticeHours),
         max_days_ahead: value.maxDaysAhead === null || String(value.maxDaysAhead) === '' ? 90 : Number(value.maxDaysAhead),
         cancel_policy: value.cancelPolicy.trim() || null,
+        privacy_notice: value.privacyNotice.trim() || null,
         resources: joinNote(value.resources, {
           pause: this.pauseBookings(),
           from: this.closedFrom(),
@@ -369,9 +373,11 @@ export class SettingsPageComponent {
       minNoticeHours: settings.min_notice_hours ?? 0,
       maxDaysAhead: settings.max_days_ahead ?? 90,
       cancelPolicy: settings.cancel_policy ?? '',
+      privacyNotice: settings.privacy_notice ?? '',
       resources: packed.text,
       paymentUrl: settings.payment_url ?? '',
     });
+    this.privacyUrl.set(settings.slug ? `${location.origin}/${settings.slug}/privacidad` : null);
     this.fillHours(settings.hours);
   }
 

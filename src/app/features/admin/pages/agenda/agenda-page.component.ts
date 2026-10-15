@@ -1,5 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, DestroyRef, TemplateRef, computed, effect, inject, signal, viewChild } from '@angular/core';
+import { Confirm } from '@shared/components/confirm/confirm';
+import { Component, DestroyRef, TemplateRef, computed, effect, inject, signal, viewChild, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
@@ -82,10 +83,19 @@ const SLOTS = Array.from(
 })
 export class AgendaPageComponent {
   private readonly auth = inject(AuthService);
+  private readonly confirm = inject(Confirm);
   private readonly reviewsApi = inject(ReviewsService);
   private readonly route = inject(ActivatedRoute);
   private readonly booking = inject(BookingService);
   private openRequest = 0;
+
+  protected photoIndexes(count: number): number[] {
+    return Array.from({ length: count }, (_, index) => index);
+  }
+
+  protected referencePhoto(token: string, index: number): string {
+    return this.booking.referencePhotoUrl(token, index);
+  }
   private readonly toasts = inject(Toasts);
   protected readonly copy = inject(BusinessCopy);
   protected readonly petName = signal('');
@@ -115,7 +125,8 @@ export class AgendaPageComponent {
 
   protected readonly isStaff = this.auth.isStaff;
   protected readonly focus = signal<'missed' | 'deposit' | null>(null);
-  protected readonly currentView = signal<CalendarView>('month');
+  // En celular el mes solo muestra puntitos: abrir en el día.
+  protected readonly currentView = signal<CalendarView>(typeof window !== 'undefined' && window.innerWidth < 768 ? 'day' : 'month');
   protected readonly openTimes = signal<string[]>([]);
   protected readonly holdHours = signal(3);
   protected readonly depositRules = signal<{ account: string | null; amount: number | null; percent: number | null }>({
@@ -263,6 +274,15 @@ export class AgendaPageComponent {
     if (vista === 'day' || vista === 'week' || vista === 'month') {
       this.currentView.set(vista);
     }
+    // ?nueva=1 (botón "Nueva cita" de Inicio): abre el formulario en cuanto carga el equipo.
+    if (this.route.snapshot.queryParamMap.get('nueva')) {
+      const opener = effect(() => {
+        if (this.staff().length) {
+          untracked(() => this.openCreate());
+          opener.destroy();
+        }
+      });
+    }
     const dia = this.route.snapshot.queryParamMap.get('dia');
     if (dia && /^\d{4}-\d{2}-\d{2}$/.test(dia)) {
       this.cursor.set(new Date(`${dia}T12:00:00`));
@@ -374,6 +394,8 @@ export class AgendaPageComponent {
   }
 
   protected readonly clientNotice = signal<string | null>(null);
+  /** Tras cobrar: WhatsApp listo para pedir la opinión de la clienta. */
+  protected readonly reviewNotice = signal<{ name: string; href: string } | null>(null);
 
   protected pickFilterService(value: string | number | null): void {
     this.onService(typeof value === 'number' ? value : '');
@@ -718,7 +740,7 @@ export class AgendaPageComponent {
   }
 
   protected copyBooking(): void {
-    const url = this.bookingUrl();
+    const url = this.shareLink();
     if (!url) {
       return;
     }
@@ -728,9 +750,15 @@ export class AgendaPageComponent {
     });
   }
 
+  /** Enlace con vista previa (logo y nombre) para mandar por WhatsApp o redes. */
+  protected shareLink(): string {
+    const slug = this.auth.currentUser()?.slug;
+    return slug ? this.booking.shareUrl(slug) : '';
+  }
+
   protected whatsappHref(): string {
-    const url = this.bookingUrl();
-    return `https://wa.me/?text=${encodeURIComponent(`Reserva tu cita aquí: ${url}`)}`;
+    const text = `¡Hola! 👋 Ya puedes reservar tu cita en línea: eliges servicio, día y hora en segundos.\n\n${this.shareLink()}`;
+    return `https://wa.me/?text=${encodeURIComponent(text)}`;
   }
 
   protected dayKey(day: Date): string {
@@ -846,21 +874,31 @@ export class AgendaPageComponent {
       });
   }
 
-  protected repeat(appointment: Appointment, weeks: number): void {
+  protected async repeat(appointment: Appointment, weeks: number): Promise<void> {
     const start = parseTimestamp(appointment.starts_at);
-    const next = new Date(start);
-    next.setDate(next.getDate() + weeks * 7);
-    const slug = this.auth.currentUser()?.slug;
-    const phone = (appointment.client_phone ?? '').replace(/\D/g, '');
-    if (phone && slug) {
-      const when = next.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
-      const text = `Hola ${appointment.client_name}. Tu siguiente visita puede ser el ${when}. Agenda aquí: ${location.origin}/${slug}/book`;
-      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
-    }
     const time = appointment.starts_at.slice(11, 16);
-    const jobs = [1, 2, 3].map((step) => {
+    const dates = [1, 2, 3].map((step) => {
       const next = new Date(start);
       next.setDate(next.getDate() + weeks * 7 * step);
+      return next;
+    });
+    const label = (day: Date) => day.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' });
+    const list = dates.map(label).join(', ');
+    const ok = await this.confirm.ask({
+      title: `¿Repetir cada ${weeks} semanas?`,
+      message: `Se crearán 3 citas de ${appointment.service_name} para ${appointment.client_name} a las ${time}: ${list}.`,
+      confirm: 'Crear 3 citas',
+    });
+    if (!ok) {
+      return;
+    }
+    const phone = (appointment.client_phone ?? '').replace(/\D/g, '');
+    if (phone) {
+      // Se deja como enlace para tocar: abrirlo después de la confirmación lo bloquearía el navegador.
+      const text = `Hola ${appointment.client_name} 👋 Te apartamos tus próximas citas de ${appointment.service_name} a las ${time}:\n\n${dates.map((day) => `📅 ${label(day)}`).join('\n')}\n\nSi alguna fecha no te queda, avísanos por aquí y la movemos.`;
+      this.clientNotice.set(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`);
+    }
+    const jobs = dates.map((next) => {
       return this.appointmentsApi
         .createAdminAppointment({
           service_id: appointment.service_id,
@@ -870,13 +908,17 @@ export class AgendaPageComponent {
           client_phone: appointment.client_phone || '',
           client_email: appointment.client_email,
           notes: appointment.notes,
+          waive_deposit: true,
         })
         .pipe(catchError(() => of(null)));
     });
     forkJoin(jobs)
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => {
-        this.blockNotice.set('Citas repetidas');
+      .subscribe((rows) => {
+        const failed = rows.filter((row) => row === null).length;
+        this.blockNotice.set(
+          failed ? `Se crearon ${3 - failed} de 3 citas. ${failed} no se pudieron (horario ocupado o fuera de horario); revísalas en la agenda.` : 'Se crearon las 3 citas.',
+        );
         this.closeAppointment();
         this.loadAppointments(this.range(), this.staffId(), this.serviceId());
       });
@@ -1003,6 +1045,24 @@ export class AgendaPageComponent {
     return { top: `${top}%`, height: `${height}%` };
   }
 
+  /** Un color fijo por colaboradora (según su orden), para leer el día de un vistazo. */
+  protected staffColor(staffId: number): string {
+    const palette = ['#2563eb', '#db2777', '#059669', '#d97706', '#7c3aed', '#0891b2', '#dc2626', '#4d7c0f'];
+    const index = Math.max(0, this.staff().findIndex((member) => member.id === staffId));
+    return palette[index % palette.length];
+  }
+
+  protected staffTint(staffId: number): string {
+    return `color-mix(in srgb, ${this.staffColor(staffId)} 12%, white)`;
+  }
+
+  /** Estado legible dentro del bloque: completadas atenuadas, canceladas tachadas. */
+  protected tone(appointment: Appointment): string {
+    if (appointment.status === 'completed') return 'opacity-60';
+    if (appointment.status === 'cancelled' || appointment.status === 'no_show') return 'opacity-50 line-through';
+    return '';
+  }
+
   protected blockStyle(appointment: Appointment): { top: string; height: string } {
     const start = parseTimestamp(appointment.starts_at);
     const minutes = start.getHours() * 60 + start.getMinutes();
@@ -1120,6 +1180,48 @@ export class AgendaPageComponent {
     return fixed || null;
   }
 
+  /** Al elegir un nombre de la lista, llena teléfono y correo de la clienta. */
+  protected pickGuest(name: string): void {
+    const found = this.guests().find((row) => row.full_name.trim().toLowerCase() === name.trim().toLowerCase());
+    if (!found) {
+      return;
+    }
+    this.form.patchValue({ client_phone: found.phone });
+    this.matchClient(found.phone);
+  }
+
+  protected readonly payMethods = [
+    { value: 'efectivo', label: 'Efectivo' },
+    { value: 'transferencia', label: 'Transferencia' },
+    { value: 'tarjeta', label: 'Tarjeta' },
+    { value: 'paquete', label: 'Paquete' },
+  ];
+  protected readonly charging = signal<number | null>(null);
+  protected readonly chargeAmount = signal('');
+  protected readonly chargeMethod = signal('efectivo');
+
+  protected startCharge(appointment: Appointment): void {
+    this.charging.set(appointment.id);
+    this.chargeAmount.set(String(this.bill(appointment)?.total ?? appointment.quoted_price ?? ''));
+    this.chargeMethod.set('efectivo');
+  }
+
+  protected completeWithCharge(appointment: Appointment): void {
+    const raw = String(this.chargeAmount()).trim();
+    this.setStatus(appointment, 'completed', {
+      final_price: raw === '' || Number.isNaN(Number(raw)) ? null : Number(raw),
+      payment_method: this.chargeMethod(),
+    });
+    this.charging.set(null);
+    const phone = (appointment.client_phone ?? '').replace(/\D/g, '');
+    const slug = this.auth.currentUser()?.slug;
+    if (phone && slug && appointment.cancel_token) {
+      const link = `${location.origin}/${slug}/manage/${appointment.cancel_token}`;
+      const text = `¡Gracias por venir, ${appointment.client_name.split(' ')[0]}! 💛 ¿Nos ayudas con tu opinión? Toma 10 segundos:\n\n${link}`;
+      this.reviewNotice.set({ name: appointment.client_name.split(' ')[0], href: `https://wa.me/${phone.length === 10 ? '52' + phone : phone}?text=${encodeURIComponent(text)}` });
+    }
+  }
+
   protected matchClient(phone: string): void {
     const key = phone.replace(/\D/g, '');
     if (key.length < 7) {
@@ -1159,6 +1261,7 @@ export class AgendaPageComponent {
         client_phone: value.client_phone.trim(),
         client_email: value.client_email.trim() || null,
         quoted_price: String(value.quoted_price ?? '').trim() ? Number(value.quoted_price) : null,
+        waive_deposit: value.waive_deposit,
         notes: [this.copy.text().pet && this.petName().trim() ? `Mascota: ${this.petName().trim()}` : '', value.notes.trim()].filter(Boolean).join('\n') || null,
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -1267,13 +1370,65 @@ export class AgendaPageComponent {
       });
   }
 
-  protected setStatus(appointment: Appointment, status: AppointmentStatus): void {
-    if (this.pendingId() !== null) {
+  protected readonly moving = signal<number | null>(null);
+  protected readonly moveDate = signal('');
+  protected readonly moveTime = signal('');
+  protected readonly moveStaff = signal(0);
+  protected readonly moveError = signal<string | null>(null);
+
+  protected startMove(appointment: Appointment): void {
+    this.moving.set(appointment.id);
+    this.moveDate.set(appointment.starts_at.slice(0, 10));
+    this.moveTime.set(appointment.starts_at.slice(11, 16));
+    this.moveStaff.set(appointment.staff_id);
+    this.moveError.set(null);
+  }
+
+  protected saveMove(appointment: Appointment): void {
+    if (!this.moveDate() || !this.moveTime() || this.pendingId() !== null) {
+      this.moveError.set('Elige día y hora.');
       return;
     }
     this.pendingId.set(appointment.id);
     this.appointmentsApi
-      .updateStatus(appointment.id, status)
+      .move(appointment.id, `${this.moveDate()}T${this.moveTime()}:00`, this.moveStaff())
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (moved) => {
+          this.pendingId.set(null);
+          this.moving.set(null);
+          this.closeAppointment();
+          this.loadAppointments(this.range(), this.staffId(), this.serviceId());
+          this.toasts.show('Cita movida. Avísale a la clienta.');
+          this.clientNotice.set(this.clientWhatsapp(moved));
+        },
+        error: (error: unknown) => {
+          this.pendingId.set(null);
+          const detail = error instanceof HttpErrorResponse ? error.error?.detail : null;
+          this.moveError.set(typeof detail === 'string' ? detail : 'No pudimos mover la cita.');
+        },
+      });
+  }
+
+  protected async setStatus(
+    appointment: Appointment,
+    status: AppointmentStatus,
+    charge?: { final_price: number | null; payment_method: string | null },
+  ): Promise<void> {
+    if (this.pendingId() !== null) {
+      return;
+    }
+    const ask: Partial<Record<AppointmentStatus, { title: string; message: string; confirm: string }>> = {
+      cancelled: { title: '¿Cancelar esta cita?', message: `${appointment.client_name} · ${appointment.service_name}. El horario queda libre.`, confirm: 'Cancelar cita' },
+      no_show: { title: '¿Marcar que no llegó?', message: `${appointment.client_name} · ${appointment.service_name}. Cuenta en su historial de faltas.`, confirm: 'Sí, no llegó' },
+    };
+    const question = ask[status];
+    if (question && !(await this.confirm.ask({ ...question, cancel: 'Volver', danger: true }))) {
+      return;
+    }
+    this.pendingId.set(appointment.id);
+    this.appointmentsApi
+      .updateStatus(appointment.id, status, charge)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (updated) => {

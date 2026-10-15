@@ -34,18 +34,18 @@ function openSheet(overlay: Overlay, view: ViewContainerRef, anchor: HTMLElement
   selector: 'app-date-field',
   template: `
     <div class="relative">
-      <button type="button" class="flex h-10 w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-3 text-left text-sm disabled:opacity-50" [disabled]="disabled()" (click)="toggle($event)">
-        <span [class.text-stone-400]="!value()">{{ shown() }}</span>
-        <span class="text-stone-400" aria-hidden="true">▾</span>
+      <button type="button" class="flex h-10 w-full items-center justify-between rounded-xl border border-line bg-white px-3 text-left text-sm disabled:opacity-50" [disabled]="disabled()" (click)="toggle($event)">
+        <span [class.text-muted]="!value()">{{ shown() }}</span>
+        <span class="text-muted" aria-hidden="true">▾</span>
       </button>
     <ng-template #panel>
-      <div class="w-[280px] rounded-2xl border border-[#eceae6] bg-white p-3 shadow-lg" (click)="$event.stopPropagation()">
+      <div class="w-[280px] rounded-2xl border border-line bg-white p-3 shadow-lg" (click)="$event.stopPropagation()">
         <div class="mb-2 flex items-center justify-between">
-          <button type="button" class="h-8 w-8 rounded-full text-stone-500" (click)="shift(-1)" aria-label="Mes anterior">‹</button>
+          <button type="button" class="h-8 w-8 rounded-full text-muted" (click)="shift(-1)" aria-label="Mes anterior">‹</button>
           <p class="text-sm font-medium">{{ monthLabel() }}</p>
-          <button type="button" class="h-8 w-8 rounded-full text-stone-500" (click)="shift(1)" aria-label="Mes siguiente">›</button>
+          <button type="button" class="h-8 w-8 rounded-full text-muted" (click)="shift(1)" aria-label="Mes siguiente">›</button>
         </div>
-        <div class="grid grid-cols-7 text-center text-[11px] text-stone-400">
+        <div class="grid grid-cols-7 text-center text-[11px] text-muted">
           @for (label of labels; track label) { <span>{{ label }}</span> }
         </div>
         <div class="mt-1 grid grid-cols-7 gap-1 text-center">
@@ -53,7 +53,7 @@ function openSheet(overlay: Overlay, view: ViewContainerRef, anchor: HTMLElement
             <button
               type="button"
               class="flex h-9 flex-col items-center justify-center rounded-lg text-sm disabled:text-stone-300"
-              [class.bg-[#b76e79]]="value() === iso(day)"
+              [class.bg-accent]="value() === iso(day)"
               [class.text-white]="value() === iso(day)"
               [disabled]="blocked(day)"
               (click)="pick(iso(day))"
@@ -200,18 +200,18 @@ export class DateFieldComponent implements ControlValueAccessor {
   selector: 'app-time-field',
   template: `
     <div class="relative">
-      <button type="button" class="flex h-10 w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-3 text-left text-sm disabled:opacity-50" [disabled]="disabled() || locked()" (click)="toggle($event)">
-        <span [class.text-stone-400]="!shown()">{{ shown() || 'Elegir hora' }}</span>
-        <span class="text-stone-400" aria-hidden="true">▾</span>
+      <button type="button" class="flex h-10 w-full items-center justify-between rounded-xl border border-line bg-white px-3 text-left text-sm disabled:opacity-50" [disabled]="disabled() || locked()" (click)="toggle($event)">
+        <span [class.text-muted]="!shown()">{{ shown() || 'Elegir hora' }}</span>
+        <span class="text-muted" aria-hidden="true">▾</span>
       </button>
     <ng-template #panel>
-      <div class="max-h-64 overflow-auto rounded-2xl border border-[#eceae6] bg-white p-2 shadow-lg" (click)="$event.stopPropagation()">
+      <div class="max-h-64 overflow-auto rounded-2xl border border-line bg-white p-2 shadow-lg" (click)="$event.stopPropagation()">
         @if (choices().length === 0) {
-          <p class="px-2 py-3 text-sm text-stone-500">Sin horarios.</p>
+          <p class="px-2 py-3 text-sm text-muted">Sin horarios.</p>
         } @else {
           <div class="grid grid-cols-3 gap-1">
             @for (time of choices(); track time) {
-              <button type="button" class="rounded-full px-2 py-1.5 text-xs" [class.bg-[#b76e79]]="shown() === time" [class.text-white]="shown() === time" (click)="pick(time)">{{ time }}</button>
+              <button type="button" class="rounded-full px-2 py-1.5 text-xs" [class.bg-accent]="shown() === time" [class.text-white]="shown() === time" (click)="pick(time)">{{ time }}</button>
             }
           </div>
         }
@@ -304,14 +304,14 @@ export type PickOption = { value: string | number | null; label: string };
 @Component({
   selector: 'app-pick-field',
   template: `
-    <button type="button" class="flex w-full items-center justify-between gap-3 text-left text-sm" [class.h-10]="!bare()" [class.rounded-xl]="!bare()" [class.border]="!bare()" [class.border-gray-200]="!bare()" [class.bg-white]="!bare()" [class.px-3]="!bare()" (click)="toggle($event)">
-      <span class="truncate" [class.text-stone-400]="label() === placeholder()">{{ label() }}</span>
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" class="h-4 w-4 shrink-0 text-stone-400" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M5 7.5 10 12.5 15 7.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <button type="button" class="flex w-full items-center justify-between gap-3 text-left text-sm" [class.h-10]="!bare()" [class.rounded-xl]="!bare()" [class.border]="!bare()" [class.border-line]="!bare()" [class.bg-white]="!bare()" [class.px-3]="!bare()" (click)="toggle($event)">
+      <span class="truncate" [class.text-muted]="label() === placeholder()">{{ label() }}</span>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" class="h-4 w-4 shrink-0 text-muted" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M5 7.5 10 12.5 15 7.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
     <ng-template #panel>
-      <div class="pick-sheet max-h-64 overflow-auto rounded-2xl border border-[#eceae6] bg-white p-1.5 shadow-lg" style="width:100%" (click)="$event.stopPropagation()">
+      <div class="pick-sheet max-h-64 overflow-auto rounded-2xl border border-line bg-white p-1.5 shadow-lg" style="width:100%" (click)="$event.stopPropagation()">
         @for (option of options(); track option.label) {
-          <button type="button" class="block w-full rounded-xl px-3 py-2 text-left text-sm" [class.bg-[#f8eef0]]="same(option.value)" [class.font-medium]="same(option.value)" (click)="choose(option.value)">{{ option.label }}</button>
+          <button type="button" class="block w-full rounded-xl px-3 py-2 text-left text-sm" [class.bg-accent-soft]="same(option.value)" [class.font-medium]="same(option.value)" (click)="choose(option.value)">{{ option.label }}</button>
         }
       </div>
     </ng-template>

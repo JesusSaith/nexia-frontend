@@ -1,106 +1,142 @@
 @if (isLoading()) {
-  <div class="flex justify-center py-16">
-    <mat-spinner diameter="36" />
+  <div class="animate-pulse space-y-4" aria-label="Cargando">
+    <div class="h-14 w-64 max-w-full rounded-lg bg-line"></div>
+    <div class="grid grid-cols-3 gap-3">
+      <div class="h-20 rounded-2xl bg-line"></div>
+      <div class="h-20 rounded-2xl bg-line"></div>
+      <div class="h-20 rounded-2xl bg-line"></div>
+    </div>
+    <div class="h-48 rounded-2xl bg-line"></div>
   </div>
 } @else if (brand(); as shop) {
-  <article class="-mx-5 -my-7 min-h-full bg-[#FDF7F8] px-5 py-7 font-['Plus_Jakarta_Sans',sans-serif] text-[#1E1B1E] md:-mx-10 md:-my-9 md:px-10 md:py-9">
+  <article class="text-ink">
     @if (toast(); as message) {
-      <p class="mb-4 rounded-xl bg-white px-4 py-2 text-sm text-rose-700 shadow-sm" role="status">{{ message }}</p>
+      <p class="card mb-4 flex items-center gap-3 py-3! text-sm text-ink" role="status">
+        <mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">info</mat-icon>
+        {{ message }}
+      </p>
     }
-    <div class="flex flex-wrap items-start justify-between gap-4">
-      <div class="flex items-center gap-4">
+    <header class="page-head">
+      <div class="flex min-w-0 items-center gap-4">
         @if (logoPreview()) {
-          <img [src]="logoPreview()" [alt]="shop.name" class="h-14 w-14 rounded-xl object-cover" />
+          <img [src]="logoPreview()" [alt]="shop.name" class="h-14 w-14 shrink-0 rounded-xl border border-line bg-surface object-cover" />
         } @else {
-          <span class="brand-soft flex h-14 w-14 items-center justify-center rounded-xl text-lg font-semibold">
+          <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-line bg-surface text-lg font-semibold text-ink">
             {{ shop.name.slice(0, 1) }}
           </span>
         }
-        <div>
-          <h1>{{ shop.name }}</h1>
+        <div class="min-w-0">
+          <h1 class="truncate">{{ shop.name }}</h1>
           @if (shop.description) {
-            <p class="mt-1 max-w-xl text-sm text-slate-600">{{ shop.description }}</p>
+            <p class="max-w-xl">{{ shop.description }}</p>
           }
         </div>
       </div>
       @if (isOwner()) {
-        <a mat-stroked-button routerLink="/admin/settings">
+        <a class="btn btn-secondary" routerLink="/admin/settings">
           <mat-icon>settings</mat-icon>
           Configuración
         </a>
       }
-    </div>
-    <div class="mt-4 flex flex-wrap gap-2">
-      <span class="inline-flex items-center gap-1.5 rounded-full border border-rose-100 bg-white px-3 py-1 text-sm text-slate-600">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/></svg>
-        {{ todayCount() ?? '—' }} citas hoy
-      </span>
-      <span class="inline-flex items-center gap-1.5 rounded-full border border-rose-100 bg-white px-3 py-1 text-sm text-slate-600">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="8"/><path d="M12 8v5l3 2"/></svg>
-        Próxima: {{ nextLabel() }}
-      </span>
-      <span class="inline-flex items-center gap-1.5 rounded-full border border-rose-100 bg-white px-3 py-1 text-sm text-slate-600">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.2a4.5 4.5 0 0 1 4.5 4.3"/></svg>
-        {{ teamCount() ?? '—' }} en el equipo
-      </span>
-    </div>
-    <p class="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-[var(--border-subtle)] pt-4 text-sm text-slate-600">
-      @if (shop.phone) { <span>Tel. {{ shop.phone }}</span> }
-      @if (shop.email) { <span>{{ shop.email }}</span> }
-      @if (shop.address) { <span>{{ shop.address }}</span> }
-      @if (link(shop.instagram, 'instagram'); as url) {
-        <a [href]="url" target="_blank" rel="noopener">Instagram</a>
-      }
-      @if (link(shop.facebook, 'facebook'); as url) {
-        <a [href]="url" target="_blank" rel="noopener">Facebook</a>
-      }
-      @if (link(shop.website, 'web'); as url) {
-        <a [href]="url" target="_blank" rel="noopener">Sitio web</a>
-      }
-      @if (shop.slug && readyToShare()) {
-        <a [href]="bookingUrl()" target="_blank" rel="noopener">Reservas</a>
-      }
-    </p>
+    </header>
 
-    @if (readyToShare() && bookingUrl()) {
-      <section class="mt-6 rounded-2xl border p-6" style="border-color: color-mix(in srgb, var(--primary) 28%, white); background: color-mix(in srgb, var(--primary) 8%, white)">
-        <h2 class="text-base font-semibold">Tu enlace de reservas</h2>
-        <p class="mt-1 text-sm text-slate-600">Así entra quien quiere agendar contigo.</p>
-        <div class="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center">
-          <input readonly [value]="bookingUrl()" class="w-full rounded-xl border border-rose-100 bg-white px-3 py-2 text-sm text-[#1E1B1E]" />
-          <div class="flex shrink-0 gap-2">
-            <button type="button" class="inline-flex h-11 items-center gap-2 rounded-xl bg-[#1E1B1E] px-4 text-sm text-white" (click)="copyLink()">
-              @if (copied()) {
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4 text-emerald-300" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l5 5L20 7"/></svg>
-              } @else {
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V6a2 2 0 0 1 2-2h10"/></svg>
-              }
-              Copiar enlace
+    <!-- Indicadores -->
+    <div class="mb-4 grid grid-cols-3 gap-3">
+      <div class="card p-4!">
+        <p class="text-xs text-muted">Citas hoy</p>
+        <p class="nums mt-1 text-2xl font-semibold text-ink">{{ todayCount() ?? '—' }}</p>
+      </div>
+      <div class="card min-w-0 p-4!">
+        <p class="text-xs text-muted">Próxima</p>
+        <p class="nums mt-1 truncate text-2xl font-semibold text-ink">{{ nextLabel() }}</p>
+      </div>
+      <div class="card p-4!">
+        <p class="text-xs text-muted">En el equipo</p>
+        <p class="nums mt-1 text-2xl font-semibold text-ink">{{ teamCount() ?? '—' }}</p>
+      </div>
+    </div>
+
+    <div class="grid items-start gap-4 lg:grid-cols-3">
+      @if (readyToShare() && bookingUrl()) {
+        <section class="card lg:col-span-2">
+          <h2 class="card-title">Tu enlace de reservas</h2>
+          <p class="mt-1 text-sm text-muted">Así entra quien quiere agendar contigo.</p>
+          <input readonly [value]="shareUrl()" aria-label="Enlace de reservas" class="mt-4 h-10 w-full rounded-lg border border-line-strong bg-canvas px-3 text-sm text-ink outline-none focus:border-ink" />
+          <div class="mt-3 flex flex-wrap gap-2">
+            <button type="button" class="btn btn-primary" (click)="copyLink()">
+              <mat-icon>{{ copied() ? 'check' : 'content_copy' }}</mat-icon>
+              {{ copied() ? 'Copiado' : 'Copiar enlace' }}
             </button>
-            <a class="inline-flex h-11 items-center rounded-xl border bg-white px-4 text-sm" style="border-color: color-mix(in srgb, var(--primary) 35%, white); color: var(--primary)" [href]="whatsappHref()" target="_blank" rel="noopener">
+            <a class="btn btn-whatsapp" [href]="whatsappHref()" target="_blank" rel="noopener" (click)="markShared()">
               Enviar por WhatsApp
             </a>
+            <a class="btn btn-ghost" [href]="bookingUrl()" target="_blank" rel="noopener">
+              <mat-icon>open_in_new</mat-icon>
+              Ver página pública
+            </a>
           </div>
-        </div>
-        <img class="mt-4 h-28 w-28 rounded-xl bg-white p-1" [src]="'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + bookingUrl()" alt="QR para reservar" />
-        <a class="mt-4 inline-flex items-center gap-2 text-sm text-slate-600 underline-offset-2 hover:underline" [href]="bookingUrl()" target="_blank" rel="noopener">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.5"/></svg>
-          Ver página pública
-        </a>
-      </section>
-    }
+        </section>
 
-    @if (gaps().length > 0) {
-      <section class="mt-4 rounded-xl border p-4" style="border-color: color-mix(in srgb, var(--primary) 35%, white); background: color-mix(in srgb, var(--primary) 12%, white); color: var(--primary)">
-        <h2 class="text-sm font-semibold">{{ readyToShare() ? 'Completa tu perfil para dar más confianza a tus clientes' : 'Para compartir el enlace, falta esto' }}</h2>
-        <ul class="mt-2 list-disc pl-5 text-sm">
-          @for (item of gaps(); track item) {
-            <li>{{ item }}</li>
-          }
-        </ul>
-        <a [routerLink]="nextStep()" class="mt-3 inline-flex h-9 items-center rounded-lg bg-[#1E1B1E] px-3 text-sm text-white">Completar</a>
-      </section>
-    }
+        <section class="card">
+          <h2 class="card-title">Código QR</h2>
+          <p class="mt-1 text-sm text-muted">Imprímelo o ponlo en tu mostrador.</p>
+          <img class="mx-auto mt-4 h-36 w-36 rounded-lg border border-line bg-surface p-1 lg:mx-0" [src]="'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + bookingUrl()" alt="QR para reservar" />
+        </section>
+      }
+
+      @if (gaps().length > 0) {
+        <section class="card lg:col-span-2">
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <h2 class="card-title">{{ readyToShare() ? 'Completa tu perfil' : 'Antes de compartir' }}</h2>
+              <p class="mt-1 text-sm text-muted">{{ readyToShare() ? 'Completa tu perfil para dar más confianza a tus clientes' : 'Para compartir el enlace, falta esto' }}</p>
+            </div>
+            <span class="badge" [class.badge-info]="readyToShare()" [class.badge-warn]="!readyToShare()"><span class="nums">{{ gaps().length }}</span> pendiente{{ gaps().length === 1 ? '' : 's' }}</span>
+          </div>
+          <ul class="mt-2 divide-y divide-line">
+            @for (item of gaps(); track item) {
+              <li class="flex items-center gap-3 py-2.5 text-sm text-ink">
+                <mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-line-strong">radio_button_unchecked</mat-icon>
+                <span class="min-w-0 flex-1">{{ item }}</span>
+              </li>
+            }
+          </ul>
+          <a [routerLink]="nextStep()" class="btn btn-primary mt-3">
+            Completar
+            <mat-icon>chevron_right</mat-icon>
+          </a>
+        </section>
+      }
+
+      @if (shop.phone || shop.email || shop.address || link(shop.instagram, 'instagram') || link(shop.facebook, 'facebook') || link(shop.website, 'web') || (shop.slug && readyToShare())) {
+        <section class="card">
+          <h2 class="card-title">Contacto</h2>
+          <ul class="mt-2 divide-y divide-line text-sm">
+            @if (shop.phone) {
+              <li class="flex items-center gap-3 py-2.5"><mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">call</mat-icon><span class="nums min-w-0 truncate text-ink">{{ shop.phone }}</span></li>
+            }
+            @if (shop.email) {
+              <li class="flex items-center gap-3 py-2.5"><mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">mail</mat-icon><span class="min-w-0 truncate text-ink">{{ shop.email }}</span></li>
+            }
+            @if (shop.address) {
+              <li class="flex items-center gap-3 py-2.5"><mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">location_on</mat-icon><span class="min-w-0 text-ink">{{ shop.address }}</span></li>
+            }
+            @if (link(shop.instagram, 'instagram'); as url) {
+              <li class="py-2.5"><a class="flex items-center gap-3 font-medium text-ink-soft hover:text-ink" [href]="url" target="_blank" rel="noopener"><mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">photo_camera</mat-icon>Instagram</a></li>
+            }
+            @if (link(shop.facebook, 'facebook'); as url) {
+              <li class="py-2.5"><a class="flex items-center gap-3 font-medium text-ink-soft hover:text-ink" [href]="url" target="_blank" rel="noopener"><mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">thumb_up</mat-icon>Facebook</a></li>
+            }
+            @if (link(shop.website, 'web'); as url) {
+              <li class="py-2.5"><a class="flex items-center gap-3 font-medium text-ink-soft hover:text-ink" [href]="url" target="_blank" rel="noopener"><mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">language</mat-icon>Sitio web</a></li>
+            }
+            @if (shop.slug && readyToShare()) {
+              <li class="py-2.5"><a class="flex items-center gap-3 font-medium text-ink-soft hover:text-ink" [href]="bookingUrl()" target="_blank" rel="noopener"><mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">event_available</mat-icon>Reservas</a></li>
+            }
+          </ul>
+        </section>
+      }
+    </div>
   </article>
 
   <!-- La edición vive en /admin/settings. Este bloque era el mismo formulario. -->
@@ -138,7 +174,7 @@
           <mat-icon>add_photo_alternate</mat-icon>
         }
         <p class="text-sm font-medium">Arrastra tu logo aquí</p>
-        <p class="text-xs text-slate-500">o haz clic para elegirlo</p>
+        <p class="text-xs text-muted">o haz clic para elegirlo</p>
         <input #logoPicker class="hidden" type="file" accept="image/*" (change)="onLogo($event)" (click)="$event.stopPropagation()" />
       </div>
       @if (palette().length) {
@@ -147,7 +183,7 @@
           @for (color of palette(); track color) {
             <button
               type="button"
-              class="h-8 w-8 rounded-full border border-white shadow"
+              class="btn btn-secondary w-8"
               [style.background]="color"
               [attr.aria-label]="'Usar ' + color"
               (click)="useColor(color)"
@@ -182,7 +218,7 @@
         <p class="sm:col-span-2 text-sm text-emerald-700">Configuración guardada.</p>
       }
       <div>
-        <button mat-flat-button color="primary" type="submit" [disabled]="isSaving()">
+        <button class="btn btn-primary" type="submit" [disabled]="isSaving()">
           {{ isSaving() ? 'Guardando…' : 'Guardar' }}
         </button>
       </div>

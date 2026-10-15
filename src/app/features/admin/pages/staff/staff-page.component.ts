@@ -9,7 +9,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { forkJoin, of, switchMap } from 'rxjs';
+import { forkJoin, of, switchMap, tap } from 'rxjs';
 
 import { BusinessCopy } from '@core/business-copy';
 import { Toasts } from '@core/toasts';
@@ -89,6 +89,7 @@ export class StaffPageComponent {
   });
 
   private readonly formEvents = toSignal(this.form.events, { initialValue: undefined });
+  protected readonly activeCount = computed(() => this.staff().filter((member) => member.is_active).length);
   protected readonly activeServices = computed(() => this.services().filter((item) => item.is_active));
   protected readonly photoPreview = signal<string | null>(null);
   protected readonly photoPending = signal(false);
@@ -215,6 +216,7 @@ export class StaffPageComponent {
         const url = canvas.toDataURL('image/jpeg', 0.72);
         if (url.length > 180000) {
           this.formError.set('Esa foto es demasiado pesada.');
+          this.photoPreview.set(this.form.controls.avatar_url.value || null);
           this.photoPending.set(false);
           return;
         }
@@ -222,8 +224,15 @@ export class StaffPageComponent {
         this.formError.set(null);
         this.photoPending.set(false);
       };
+      image.onerror = fail;
       image.src = String(reader.result);
     };
+    const fail = () => {
+      this.photoPending.set(false);
+      this.photoPreview.set(this.form.controls.avatar_url.value || null);
+      this.formError.set('No pudimos leer esa foto. Prueba con otra (JPG o PNG).');
+    };
+    reader.onerror = fail;
     reader.readAsDataURL(file);
   }
 
@@ -275,6 +284,8 @@ export class StaffPageComponent {
     const request = current
       ? this.staffApi.updateStaff(current.id, payload)
       : this.staffApi.createStaff(payload).pipe(
+          // Si un paso posterior falla, el siguiente Guardar actualiza en vez de crear otra vez.
+          tap((created) => this.editing.set(created)),
           switchMap((created) => this.staffApi.updateStaff(created.id, payload)),
         );
 

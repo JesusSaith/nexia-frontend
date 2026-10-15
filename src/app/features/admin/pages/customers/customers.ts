@@ -1,6 +1,7 @@
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 
 import { BookingService, ClientCard } from '@core/services/booking.service';
@@ -14,11 +15,12 @@ interface GuestClient {
   visit_count: number;
   total_spent: number;
   cancel_count: number;
+  last_visit?: string | null;
 }
 
 @Component({
   selector: 'app-customers',
-  imports: [MatIconModule, FormsModule],
+  imports: [MatIconModule, FormsModule, RouterLink],
   templateUrl: './customers.html',
 })
 export class Customers {
@@ -53,6 +55,16 @@ export class Customers {
       .sort((a, b) => b.cancel_count - a.cancel_count || b.total_spent - a.total_spent)
       .slice(0, 10),
   );
+  /** Clientas con al menos una visita que no vuelven hace más de 45 días. */
+  protected readonly missing = computed(() => {
+    const limit = new Date();
+    limit.setDate(limit.getDate() - 45);
+    const cut = limit.toISOString().slice(0, 10);
+    return this.clients()
+      .filter((row) => row.last_visit && row.last_visit < cut)
+      .sort((a, b) => (a.last_visit ?? '').localeCompare(b.last_visit ?? ''))
+      .slice(0, 15);
+  });
   protected readonly loadError = signal<string | null>(null);
   protected readonly card = signal<ClientCard | null>(null);
   protected readonly notes = signal('');
@@ -116,4 +128,20 @@ export class Customers {
         this.saved.set(true);
       });
   }
+
+  protected digits(phone: string | null | undefined): string {
+    return (phone ?? '').replace(/\D/g, '');
+  }
+
+  protected daysAway(day: string | null | undefined): number {
+    return day ? Math.floor((Date.now() - new Date(`${day}T12:00:00`).getTime()) / 86_400_000) : 0;
+  }
+
+  protected missYou(row: GuestClient): string {
+    const phone = this.digits(row.phone);
+    const text = `¡Hola ${row.full_name.split(' ')[0]}! 👋 Hace tiempo que no te vemos y te extrañamos. ¿Te apartamos tu próxima cita? Dinos qué día te acomoda.`;
+    return `https://wa.me/${phone.length === 10 ? '52' + phone : phone}?text=${encodeURIComponent(text)}`;
+  }
 }
+
+

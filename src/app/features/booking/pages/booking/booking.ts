@@ -1,8 +1,14 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
+import {
+  AbstractControl,
+  FormControl,
+  FormGroup,
+  ReactiveFormsModule,
+  ValidationErrors,
+  Validators,
+} from '@angular/forms';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ActivatedRoute } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
@@ -10,7 +16,7 @@ import { catchError, map } from 'rxjs/operators';
 
 import { businessWords } from '@core/business-words';
 import { closedSpan, dateClosed, liveOffer, splitNote } from '@core/shop-note';
-import { Appointment } from '@core/models/appointment.model';
+import { Appointment, AvailabilitySlot } from '@core/models/appointment.model';
 import { BusinessBrand, PublicService, PublicStaff } from '@core/models/business.model';
 import { BookingService } from '@core/services/booking.service';
 import { Review } from '@core/models/review.model';
@@ -21,16 +27,21 @@ const STEPS = [
   { id: 1, label: 'Servicio' },
   { id: 2, label: 'Horario' },
   { id: 3, label: 'Datos' },
-  { id: 4, label: 'Confirmación' },
 ] as const;
 
 const FALLBACK_COLOR = '#E11D48';
+const CLIENT_KEY = 'nexia-booking-client';
+
+/** Teléfono con 10 a 15 dígitos, sin importar espacios, guiones o el +. */
+function phoneDigits(control: AbstractControl): ValidationErrors | null {
+  const digits = String(control.value ?? '').replace(/\D/g, '').length;
+  return !control.value || (digits >= 10 && digits <= 15) ? null : { phone: true };
+}
 
 @Component({
   selector: 'app-booking',
   imports: [
     ReactiveFormsModule,
-    MatButtonModule,
     MatProgressSpinnerModule,
     PickFieldComponent,
   ],
@@ -94,7 +105,26 @@ export class Booking {
   protected readonly staff = signal<PublicStaff[]>([]);
   protected readonly selectedService = signal<PublicService | null>(null);
   protected readonly selectedStaff = signal<PublicStaff | null>(null);
+  /** "Cualquiera disponible": el horario elegido define quién atiende. */
+  protected readonly anyStaff = signal(false);
   protected readonly extraIds = signal<number[]>([]);
+  protected readonly showOptional = signal(false);
+  protected readonly remembered = signal(false);
+  /** Primer horario libre de los próximos días con lugar, para reservar "lo antes posible" sin calendario. */
+  protected readonly soonest = signal<AvailabilitySlot[]>([]);
+  /** Aviso cuando el horario se ocupó mientras la clienta llenaba sus datos. */
+  protected readonly bumpNotice = signal<string | null>(null);
+  protected readonly manageCopied = signal(false);
+  /** Fotos de referencia para cotizar, ya comprimidas (data URL). */
+  protected readonly refPhotos = signal<string[]>([]);
+  protected readonly photoError = signal<string | null>(null);
+  /** Campo oculto: si llega con texto, lo llenó un bot. */
+  protected readonly trap = signal('');
+  /** El celular puede compartir imágenes directo a WhatsApp (Android y iPhone recientes). */
+  protected readonly canShareFiles = canShareImages();
+  private lastPackagePhone = '';
+  private dayHops = 0;
+  private pendingSoonest = false;
   protected readonly resource = signal<string | null>(null);
   protected readonly answers = signal('');
   protected readonly usePackage = signal(false);
@@ -104,8 +134,20 @@ export class Booking {
   protected readonly waitPhone = signal('');
   protected readonly waitSent = signal(false);
   protected readonly openDays = signal<string[]>([]);
-  protected readonly slots = signal<{ starts_at: string }[]>([]);
+  protected readonly slots = signal<AvailabilitySlot[]>([]);
   protected readonly selectedSlot = signal<string | null>(null);
+  protected readonly slotGroups = computed(() => {
+    const groups = [
+      { label: 'Mañana', slots: [] as AvailabilitySlot[] },
+      { label: 'Tarde', slots: [] as AvailabilitySlot[] },
+      { label: 'Noche', slots: [] as AvailabilitySlot[] },
+    ];
+    for (const slot of this.slots()) {
+      const hour = slotHour(slot.starts_at);
+      groups[hour < 12 ? 0 : hour < 18 ? 1 : 2].slots.push(slot);
+    }
+    return groups.filter((group) => group.slots.length > 0);
+  });
   protected readonly confirmation = signal<Appointment | null>(null);
   protected readonly reviewRating = signal(5);
   protected readonly reviewComment = signal('');
@@ -131,7 +173,7 @@ export class Booking {
     }),
     client_phone: new FormControl('', {
       nonNullable: true,
-      validators: [Validators.required, Validators.maxLength(32)],
+      validators: [Validators.required, Validators.maxLength(32), phoneDigits],
     }),
     client_email: new FormControl('', {
       nonNullable: true,
@@ -163,8 +205,55 @@ export class Booking {
     });
   });
   protected readonly canChooseSchedule = computed(
-    () => this.selectedService() !== null && this.selectedStaff() !== null,
+    () => this.selectedService() !== null && (this.selectedStaff() !== null || this.anyStaff()),
   );
+  protected readonly chosenServices = computed(() => {
+    const main = this.selectedService();
+    if (!main) {
+      return [];
+    }
+    const extras = this.services().filter((service) => this.extraIds().includes(service.id));
+    return [main, ...extras];
+  });
+  protected readonly totalMinutes = computed(() =>
+    this.chosenServices().reduce((total, service) => total + service.duration_minutes, 0),
+  );
+  /** Cuánto paga hoy y cuánto en la cita, para que no haya sorpresas antes de confirmar. */
+  protected readonly money = computed(() => {
+    const chosen = this.chosenServices();
+    if (!chosen.length) {
+      return null;
+    }
+    const variable = chosen.some((service) => service.variable_price);
+    const total = chosen.reduce((sum, service) => sum + (service.variable_price ? 0 : service.price), 0);
+    const deposit = this.depositAmount() ?? 0;
+    return { variable, total, deposit, later: Math.max(total - deposit, 0) };
+  });
+  protected readonly policy = computed(() => {
+    const text = this.brand()?.cancel_policy?.trim();
+    if (text) {
+      return text;
+    }
+    const hours = this.brand()?.cancel_hours;
+    return hours ? `Puedes cambiar o cancelar tu cita hasta ${hours} h antes desde el enlace que te damos al reservar.` : null;
+  });
+  protected readonly summary = computed(() => {
+    const chosen = this.chosenServices();
+    if (!chosen.length) {
+      return null;
+    }
+    const minutes = this.totalMinutes();
+    const variable = chosen.some((service) => service.variable_price);
+    const price = chosen.reduce((total, service) => total + (service.variable_price ? 0 : service.price), 0);
+    const slot = this.selectedSlot();
+    const who = this.selectedStaff()?.full_name ?? (this.anyStaff() ? 'quien esté disponible' : null);
+    return {
+      title: chosen.length > 1 ? `${chosen[0].name} + ${chosen.length - 1} más` : chosen[0].name,
+      detail: `${minutes} min · ${variable ? (price ? `desde ${this.formatPrice(price)}` : 'precio por cotizar') : this.formatPrice(price)}`,
+      who,
+      when: slot ? `${this.formatDate(slot)} · ${this.formatTime(slot)}` : null,
+    };
+  });
 
   protected readonly nameError = computed(() => {
     this.formEvents();
@@ -180,6 +269,7 @@ export class Booking {
     this.validationTick();
     return this.fieldError('client_phone', {
       required: 'Ingresa tu teléfono.',
+      phone: 'Escribe tu teléfono a 10 dígitos.',
       maxlength: 'El teléfono es demasiado largo.',
     });
   });
@@ -194,6 +284,7 @@ export class Booking {
   });
 
   constructor() {
+    this.restoreClient();
     this.loadCatalog();
   }
 
@@ -216,9 +307,26 @@ export class Booking {
   protected selectService(service: PublicService): void {
     this.selectedService.set(service);
     this.selectedSlot.set(null);
+    this.extraIds.update((ids) => ids.filter((id) => id !== service.id));
+    this.settleStaff();
+    // Sin extras que ofrecer ni colaboradora que elegir, no hay nada más que decidir aquí.
+    if (this.services().length === 1 && this.canChooseSchedule()) {
+      this.goToSchedule();
+    }
+  }
+
+  /** Quita a la colaboradora si ya no hace todo lo elegido y la elige sola cuando solo hay una. */
+  private settleStaff(): void {
+    const eligible = this.eligibleStaff();
     const current = this.selectedStaff();
-    if (current && !(current.service_ids ?? []).includes(service.id)) {
+    if (current && !eligible.some((member) => member.id === current.id)) {
       this.selectedStaff.set(null);
+    }
+    if (eligible.length === 1) {
+      this.selectedStaff.set(eligible[0]);
+    }
+    if (eligible.length < 2) {
+      this.anyStaff.set(false);
     }
   }
 
@@ -235,7 +343,16 @@ export class Booking {
 
   protected selectStaff(member: PublicStaff): void {
     this.selectedStaff.set(member);
+    this.anyStaff.set(false);
     this.selectedSlot.set(null);
+    this.goToSchedule();
+  }
+
+  protected chooseAnyStaff(): void {
+    this.selectedStaff.set(null);
+    this.anyStaff.set(true);
+    this.selectedSlot.set(null);
+    this.goToSchedule();
   }
 
   protected goToSchedule(): void {
@@ -243,8 +360,53 @@ export class Booking {
       return;
     }
     this.moveTo(2);
-    this.loadSlots();
-    this.loadOpenDays();
+    this.dayHops = 0;
+    this.bumpNotice.set(null);
+    this.soonest.set([]);
+    this.pendingSoonest = true;
+    if (this.date() < this.minDate) {
+      this.date.set(this.minDate);
+    }
+    this.loadOpenDays(true);
+  }
+
+  private loadSoonest(days: string[]): void {
+    const service = this.selectedService();
+    const picks = days.slice(0, 3);
+    if (!service || !picks.length) {
+      this.soonest.set([]);
+      return;
+    }
+    const staffId = this.selectedStaff()?.id ?? null;
+    forkJoin(
+      picks.map((day) =>
+        this.bookingApi.getAvailability(this.slug, service.id, staffId, day, this.extraIds(), this.resource()).pipe(
+          map((rows) => rows[0] ?? null),
+          catchError(() => of(null)),
+        ),
+      ),
+    )
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((rows) => this.soonest.set(rows.filter((row): row is AvailabilitySlot => row !== null)));
+  }
+
+  protected pickSoonest(slot: AvailabilitySlot): void {
+    this.date.set(slot.starts_at.slice(0, 10));
+    this.selectSlot(slot);
+  }
+
+  /** "Hoy", "Mañana" o "jue 16", para que los atajos se lean de un vistazo. */
+  protected dayLabel(value: string): string {
+    const iso = value.slice(0, 10);
+    if (iso === this.minDate) {
+      return 'Hoy';
+    }
+    const tomorrow = new Date(`${this.minDate}T12:00:00`);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    if (iso === this.dayIso(tomorrow)) {
+      return 'Mañana';
+    }
+    return new Intl.DateTimeFormat('es-MX', { weekday: 'short', day: 'numeric' }).format(new Date(`${iso}T12:00:00`));
   }
 
   protected onDate(value: string): void {
@@ -294,17 +456,22 @@ export class Booking {
 
   protected toggleExtra(id: number): void {
     this.extraIds.update((ids) => (ids.includes(id) ? ids.filter((item) => item !== id) : [...ids, id]));
-    this.selectedStaff.set(null);
     this.selectedSlot.set(null);
+    this.settleStaff();
   }
 
   protected lookPackage(phone: string): void {
     const trimmed = phone.trim();
-    if (trimmed.length < 8) {
+    if (trimmed.replace(/\D/g, '').length < 10) {
+      this.lastPackagePhone = '';
       this.packageLeft.set(null);
       this.usePackage.set(false);
       return;
     }
+    if (trimmed === this.lastPackagePhone) {
+      return;
+    }
+    this.lastPackagePhone = trimmed;
     this.bookingApi.packageLeft(this.slug, trimmed).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (row) => {
         this.packageLeft.set(row);
@@ -320,6 +487,7 @@ export class Booking {
     this.resource.set(typeof value === 'string' && value ? value : null);
     this.selectedSlot.set(null);
     this.loadSlots();
+    this.loadOpenDays(false);
   }
 
   protected resourcePicks(): { value: string; label: string }[] {
@@ -351,41 +519,81 @@ export class Booking {
     const cursor = new Date(`${this.date()}T12:00:00`);
     const next = new Date(cursor.getFullYear(), cursor.getMonth() + direction, 1);
     const iso = this.dayIso(next);
-    this.onDate(iso < this.minDate ? this.minDate : iso);
-    this.loadOpenDays();
-  }
-
-  private loadOpenDays(): void {
-    const service = this.selectedService();
-    const member = this.selectedStaff();
-    if (!service || !member) {
+    if (iso > this.maxDate()) {
       return;
     }
-    const days = this.monthDays().filter((day) => this.dayIso(day) >= this.minDate && day.getMonth() === this.dateMonth());
-    forkJoin(
-      days.map((day) =>
-        this.bookingApi.getAvailability(this.slug, service.id, member.id, this.dayIso(day)).pipe(
-          map((rows) => (rows.length > 0 ? this.dayIso(day) : '')),
-          catchError(() => of('')),
-        ),
-      ),
-    )
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((keys) => this.openDays.set(keys.filter((key) => key.length > 0)));
+    this.date.set(iso < this.minDate ? this.minDate : iso);
+    this.selectedSlot.set(null);
+    this.waitSent.set(false);
+    // Al cambiar de mes a mano se queda en ese mes, aunque esté lleno.
+    this.dayHops = 2;
+    this.loadOpenDays(true);
+  }
+
+  private daysRequest = 0;
+
+  /**
+   * Marca los días con horarios del mes visible. Con `landOnOpenDay`, si el día elegido está lleno
+   * salta al primero libre (y prueba el mes siguiente si este ya no tiene), luego carga sus horarios.
+   */
+  private loadOpenDays(landOnOpenDay: boolean): void {
+    const service = this.selectedService();
+    if (!service || !this.canChooseSchedule()) {
+      return;
+    }
+    const requestId = ++this.daysRequest;
+    if (landOnOpenDay) {
+      this.slotsLoading.set(true);
+      this.slotsError.set(null);
+    }
+    this.bookingApi
+      .getAvailableDays(this.slug, service.id, this.selectedStaff()?.id ?? null, this.date().slice(0, 7), this.extraIds(), this.resource())
+      .pipe(
+        catchError(() => of([] as string[])),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((days) => {
+        if (requestId !== this.daysRequest) {
+          return;
+        }
+        this.openDays.set(days);
+        if (this.pendingSoonest && (days.length || this.dayHops >= 2)) {
+          this.pendingSoonest = false;
+          this.loadSoonest(days);
+        }
+        if (!landOnOpenDay) {
+          return;
+        }
+        if (!days.includes(this.date())) {
+          if (days.length) {
+            this.date.set(days[0]);
+          } else if (this.dayHops < 2) {
+            const cursor = new Date(`${this.date()}T12:00:00`);
+            const next = this.dayIso(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1));
+            if (next <= this.maxDate()) {
+              this.dayHops += 1;
+              this.date.set(next);
+              this.loadOpenDays(true);
+              return;
+            }
+          }
+        }
+        this.loadSlots();
+      });
   }
 
   protected joinWait(): void {
     const service = this.selectedService();
-    const member = this.selectedStaff();
+    const memberId = this.selectedStaff()?.id ?? this.eligibleStaff()[0]?.id;
     const name = this.waitName().trim();
     const phone = this.waitPhone().trim();
-    if (!service || !member || name.length < 2 || phone.length < 8 || this.waitSent()) {
+    if (!service || !memberId || name.length < 2 || phone.length < 8 || this.waitSent()) {
       return;
     }
     this.bookingApi
       .joinWaitlist(this.slug, {
         service_id: service.id,
-        staff_id: member.id,
+        staff_id: memberId,
         day: this.date(),
         client_name: name,
         client_phone: phone,
@@ -394,8 +602,29 @@ export class Booking {
       .subscribe({ next: () => this.waitSent.set(true) });
   }
 
-  protected selectSlot(startsAt: string): void {
-    this.selectedSlot.set(startsAt);
+  private slotStaffId: number | null = null;
+
+  protected selectSlot(slot: AvailabilitySlot): void {
+    this.selectedSlot.set(slot.starts_at);
+    this.slotStaffId = slot.staff_id ?? null;
+    this.bumpNotice.set(null);
+    this.moveTo(3);
+  }
+
+  /** Le ganaron el horario (o ya no cumple la anticipación): de regreso a Horario con lo actualizado. */
+  private bounceToSchedule(detail: string | null): void {
+    this.selectedSlot.set(null);
+    this.slotStaffId = null;
+    this.bumpNotice.set(
+      detail && detail !== 'Ese horario ya no está disponible'
+        ? `${detail}. Elige otro horario; tus datos se quedan guardados.`
+        : 'Alguien tomó ese horario mientras llenabas tus datos. Elige otro; tus datos se quedan guardados.',
+    );
+    this.step.set(2);
+    scrollToTop();
+    this.pendingSoonest = true;
+    this.dayHops = 0;
+    this.loadOpenDays(true);
   }
 
   protected goToDetails(): void {
@@ -410,9 +639,10 @@ export class Booking {
       return;
     }
     this.step.set(id);
+    scrollToTop();
     if (id === 2) {
       this.loadSlots();
-      this.loadOpenDays();
+      this.loadOpenDays(false);
     }
   }
 
@@ -439,9 +669,9 @@ export class Booking {
 
   protected confirm(): void {
     const service = this.selectedService();
-    const member = this.selectedStaff();
+    const staffId = this.selectedStaff()?.id ?? this.slotStaffId;
     const startsAt = this.selectedSlot();
-    if (!service || !member || !startsAt || this.isSaving()) {
+    if (!service || !staffId || !startsAt || this.isSaving()) {
       return;
     }
 
@@ -466,7 +696,7 @@ export class Booking {
     this.bookingApi
       .createAppointment(this.slug, {
         service_id: service.id,
-        staff_id: member.id,
+        staff_id: staffId,
         starts_at: startsAt,
         client_name,
         client_phone,
@@ -476,6 +706,8 @@ export class Booking {
         resource_name: this.resource(),
         answers: this.answers().trim() || null,
         use_package: this.usePackage(),
+        reference_photos: this.refPhotos(),
+        website: this.trap() || null,
       })
       .pipe(
         takeUntilDestroyed(this.destroyRef),
@@ -485,10 +717,15 @@ export class Booking {
           this.isSaving.set(false);
           this.confirmation.set(appointment);
           this.moveTo(4);
-          this.tellDeposit(appointment, client_phone);
+          this.saveClient(client_name, client_phone, client_email);
         },
         error: (error: unknown) => {
           this.isSaving.set(false);
+          const detail = error instanceof HttpErrorResponse ? error.error?.detail : null;
+          if (error instanceof HttpErrorResponse && error.status === 409 && !/paquete/i.test(String(detail ?? ''))) {
+            this.bounceToSchedule(typeof detail === 'string' ? detail : null);
+            return;
+          }
           this.formError.set(readError(error, 'No pudimos registrar la cita.'));
         },
       });
@@ -560,8 +797,19 @@ export class Booking {
     this.reached.set(1);
     this.selectedService.set(null);
     this.selectedStaff.set(null);
+    this.anyStaff.set(false);
+    this.extraIds.set([]);
+    this.categoryFilter.set('');
     this.selectedSlot.set(null);
+    this.slotStaffId = null;
     this.slots.set([]);
+    this.openDays.set([]);
+    this.soonest.set([]);
+    this.bumpNotice.set(null);
+    this.manageCopied.set(false);
+    this.refPhotos.set([]);
+    this.photoError.set(null);
+    this.answers.set('');
     this.confirmation.set(null);
     this.proofSent.set(false);
     this.reviewRating.set(5);
@@ -571,7 +819,55 @@ export class Booking {
     this.reviewError.set(null);
     this.formError.set(null);
     this.clientForm.reset();
+    this.showOptional.set(false);
     this.date.set(this.minDate);
+    this.restoreClient();
+    scrollToTop();
+  }
+
+  /** Quien ya reservó en este navegador encuentra su nombre y teléfono llenos. */
+  private restoreClient(): void {
+    try {
+      const saved = JSON.parse(localStorage.getItem(CLIENT_KEY) ?? 'null') as
+        | { name?: string; phone?: string; email?: string }
+        | null;
+      if (!saved?.name || !saved.phone) {
+        return;
+      }
+      this.clientForm.patchValue({ client_name: saved.name, client_phone: saved.phone, client_email: saved.email ?? '' });
+      this.waitName.set(saved.name);
+      this.waitPhone.set(saved.phone);
+      this.remembered.set(true);
+      if (saved.email) {
+        this.showOptional.set(true);
+      }
+      this.lastPackagePhone = '';
+      this.lookPackage(saved.phone);
+    } catch {
+      // Sin almacenamiento disponible: el formulario simplemente queda vacío.
+    }
+  }
+
+  private saveClient(name: string, phone: string, email: string): void {
+    try {
+      localStorage.setItem(CLIENT_KEY, JSON.stringify({ name: name.trim(), phone: phone.trim(), email: email.trim() }));
+    } catch {
+      // Recordar los datos es una comodidad; si falla no afecta la cita.
+    }
+  }
+
+  protected forgetClient(): void {
+    try {
+      localStorage.removeItem(CLIENT_KEY);
+    } catch {
+      // Nada que borrar.
+    }
+    this.clientForm.patchValue({ client_name: '', client_phone: '', client_email: '' });
+    this.clientForm.markAsUntouched();
+    this.waitName.set('');
+    this.waitPhone.set('');
+    this.remembered.set(false);
+    this.lookPackage('');
   }
 
   private loadCatalog(): void {
@@ -605,9 +901,8 @@ export class Booking {
 
   private loadSlots(): void {
     const service = this.selectedService();
-    const member = this.selectedStaff();
     const date = this.date();
-    if (!service || !member || !date) {
+    if (!service || !this.canChooseSchedule() || !date) {
       return;
     }
 
@@ -623,7 +918,7 @@ export class Booking {
     this.slotsError.set(null);
 
     this.bookingApi
-      .getAvailability(this.slug, service.id, member.id, date, this.extraIds(), this.resource())
+      .getAvailability(this.slug, service.id, this.selectedStaff()?.id ?? null, date, this.extraIds(), this.resource())
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (slots) => {
@@ -653,21 +948,6 @@ export class Booking {
       return;
     }
     void navigator.clipboard.writeText(account).then(() => this.accountCopied.set(true));
-  }
-
-  private tellDeposit(appointment: Appointment, clientPhone: string): void {
-    if (appointment.status !== 'awaiting_deposit' || !appointment.deposit_amount || !appointment.cancel_token) {
-      return;
-    }
-    const phone = (this.brand()?.phone ?? '').replace(/\D/g, '');
-    if (!phone) {
-      return;
-    }
-    const link = `${location.origin}/${this.slug}/manage/${appointment.cancel_token}`;
-    const text = encodeURIComponent(
-      `Hola, aparté mi cita. El anticipo es $${appointment.deposit_amount} a la cuenta ${this.brand()?.deposit_account ?? ''}. Subo el comprobante aquí: ${link}`,
-    );
-    window.open(`https://wa.me/${phone}?text=${text}`, '_blank', 'noopener');
   }
 
   protected onProof(event: Event): void {
@@ -704,23 +984,175 @@ export class Booking {
     reader.readAsDataURL(file);
   }
 
+  protected async onRefPhotos(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const files = [...(input.files ?? [])].slice(0, 3 - this.refPhotos().length);
+    input.value = '';
+    this.photoError.set(null);
+    for (const file of files) {
+      const data = await shrinkImage(file);
+      if (data) {
+        this.refPhotos.update((photos) => [...photos, data].slice(0, 3));
+      } else {
+        this.photoError.set('No pudimos usar una de las fotos. Prueba con otra.');
+      }
+    }
+  }
+
+  protected removeRefPhoto(index: number): void {
+    this.refPhotos.update((photos) => photos.filter((_, position) => position !== index));
+  }
+
+  /** Mensaje para el negocio con todo lo necesario para atender (o cotizar) sin preguntar de nuevo. */
+  private whatsappText(appointment: Appointment, withPhotoLinks: boolean): string {
+    const brand = this.brand();
+    const quote = Boolean(this.selectedService()?.variable_price);
+    const visit = this.copy().visit.toLowerCase();
+    const service = [appointment.service_name || this.selectedService()?.name, appointment.extra_label].filter(Boolean).join(' + ');
+    const lines = [
+      quote
+        ? `¡Hola${brand?.name ? `, ${brand.name}` : ''}! 👋 Quiero *cotizar* un servicio. Ya aparté mi lugar en su página de reservas:`
+        : `¡Hola${brand?.name ? `, ${brand.name}` : ''}! 👋 Acabo de reservar en su página. Estos son los datos de mi ${visit}:`,
+      '',
+      `📋 *Servicio:* ${service}`,
+      `📅 *Día:* ${this.formatDate(appointment.starts_at)}`,
+      `🕐 *Hora:* ${this.formatTime(appointment.starts_at)}`,
+      `💁 *Con:* ${appointment.staff_name || this.selectedStaff()?.full_name || 'quien esté disponible'}`,
+      `👤 *A nombre de:* ${appointment.client_name}${appointment.client_phone ? ` (${appointment.client_phone})` : ''}`,
+    ];
+    if (appointment.notes) {
+      lines.push(`💬 *${quote ? 'Lo que necesito' : 'Nota'}:* ${appointment.notes}`);
+    }
+    if (appointment.answers) {
+      lines.push(`📝 *Respuestas:* ${appointment.answers}`);
+    }
+    const photos = this.refPhotos().length;
+    if (photos && withPhotoLinks && appointment.cancel_token) {
+      lines.push('', `📷 *Fotos de referencia* (toca para verlas):`);
+      for (let index = 0; index < photos; index += 1) {
+        lines.push(this.bookingApi.referencePhotoUrl(appointment.cancel_token, index));
+      }
+    } else if (photos) {
+      lines.push('', `📷 Les adjunto ${photos === 1 ? 'una foto' : `${photos} fotos`} de referencia.`);
+    }
+    if (appointment.status === 'awaiting_deposit') {
+      lines.push(
+        '',
+        appointment.deposit_amount
+          ? `💰 *Anticipo:* ${this.formatPrice(appointment.deposit_amount)} a la cuenta ${brand?.deposit_account ?? ''}. En cuanto transfiera les mando el comprobante por aquí.`
+          : '💰 Quedo pendiente de la cotización y del anticipo para confirmar.',
+      );
+    }
+    if (quote) {
+      lines.push('', '¿Me pueden decir el precio? ¡Gracias!');
+    }
+    const manage = this.manageLink(appointment);
+    if (manage) {
+      lines.push('', `🔗 Ver, cambiar o cancelar la ${visit}: ${manage}`);
+    }
+    return lines.join('\n');
+  }
+
   protected whatsappHref(appointment: Appointment): string | null {
     const phone = (this.brand()?.phone ?? '').replace(/\D/g, '');
     if (!phone) {
       return null;
     }
-    const manage =
-      appointment.cancel_token && this.slug
-        ? ` Puedes verla o cambiarla aquí: ${window.location.origin}/${this.slug}/manage/${appointment.cancel_token}`
-        : '';
-    const deposit =
-      appointment.status === 'awaiting_deposit' && this.brand()?.deposit_account
-        ? ` Enviaré el anticipo de ${appointment.deposit_amount} a ${this.brand()?.deposit_account}.`
-        : '';
-    const message = encodeURIComponent(
-      `¡Hola! Acabo de agendar una cita en ${this.brand()?.name ?? 'el negocio'}. Soy ${appointment.client_name}, para ${appointment.service_name || this.selectedService()?.name} el ${this.formatDate(appointment.starts_at)} a las ${this.formatTime(appointment.starts_at)}.${deposit}${manage}`,
-    );
-    return `https://wa.me/${phone}?text=${message}`;
+    return `https://wa.me/${phone}?text=${encodeURIComponent(this.whatsappText(appointment, true))}`;
+  }
+
+  /** Opción para celular: comparte las fotos como imágenes; la clienta elige el chat del negocio. */
+  protected async sharePhotos(appointment: Appointment): Promise<void> {
+    const files = this.refPhotos().map((data, index) => dataUrlToFile(data, `referencia-${index + 1}.jpg`));
+    try {
+      await navigator.share({ files, text: this.whatsappText(appointment, false) });
+    } catch {
+      // La clienta cerró el menú de compartir; el botón de WhatsApp con enlaces sigue disponible.
+    }
+  }
+
+  protected manageLink(appointment: Appointment): string | null {
+    return appointment.cancel_token && this.slug
+      ? `${window.location.origin}/${this.slug}/manage/${appointment.cancel_token}`
+      : null;
+  }
+
+  protected copyManage(link: string): void {
+    void navigator.clipboard.writeText(link).then(() => this.manageCopied.set(true));
+  }
+
+  /** Hasta cuándo se aparta el horario sin anticipo; después el backend lo libera. */
+  protected holdUntil(appointment: Appointment): string | null {
+    if (!appointment.created_at) {
+      return null;
+    }
+    const limit = new Date(appointment.created_at);
+    if (Number.isNaN(limit.getTime())) {
+      return null;
+    }
+    limit.setHours(limit.getHours() + (this.brand()?.deposit_hold_hours || 3));
+    const sameDay = this.dayIso(limit) === this.minDate;
+    return `${sameDay ? 'hoy' : this.dateFormat.format(limit)} a las ${this.timeFormat.format(limit)}`;
+  }
+
+  private calendarEvent(appointment: Appointment) {
+    const start = new Date(appointment.starts_at);
+    const end = new Date(start.getTime() + (this.totalMinutes() || 60) * 60_000);
+    const service = appointment.service_name || this.selectedService()?.name || 'Cita';
+    const manage = this.manageLink(appointment);
+    return {
+      start,
+      end,
+      title: `${service} · ${this.brand()?.name ?? ''}`.trim(),
+      location: this.brand()?.address ?? '',
+      details: [`Con ${appointment.staff_name || this.selectedStaff()?.full_name || ''}`, manage ? `Ver o cambiar: ${manage}` : '']
+        .filter(Boolean)
+        .join('\n'),
+    };
+  }
+
+  protected googleCalendarHref(appointment: Appointment): string {
+    const event = this.calendarEvent(appointment);
+    const params = new URLSearchParams({
+      action: 'TEMPLATE',
+      text: event.title,
+      dates: `${calendarStamp(event.start)}/${calendarStamp(event.end)}`,
+      details: event.details,
+      location: event.location,
+    });
+    return `https://calendar.google.com/calendar/render?${params.toString()}`;
+  }
+
+  /** Archivo .ics: lo abren el calendario del iPhone, Outlook y la mayoría de Android. */
+  protected downloadIcs(appointment: Appointment): void {
+    const event = this.calendarEvent(appointment);
+    const escape = (text: string) => text.replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/[,;]/g, (char) => `\\${char}`);
+    const lines = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//Nexia//Reservas//ES',
+      'BEGIN:VEVENT',
+      `UID:${appointment.cancel_token ?? appointment.id}@nexia`,
+      `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').slice(0, 15)}Z`,
+      `DTSTART:${calendarStamp(event.start)}`,
+      `DTEND:${calendarStamp(event.end)}`,
+      `SUMMARY:${escape(event.title)}`,
+      `LOCATION:${escape(event.location)}`,
+      `DESCRIPTION:${escape(event.details)}`,
+      'BEGIN:VALARM',
+      'TRIGGER:-PT2H',
+      'ACTION:DISPLAY',
+      `DESCRIPTION:${escape(event.title)}`,
+      'END:VALARM',
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ];
+    const url = URL.createObjectURL(new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'mi-cita.ics';
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   protected openWhatsapp(href: string): void {
@@ -728,7 +1160,8 @@ export class Booking {
   }
 
   protected businessWhatsapp(phone: string): string {
-    return `https://wa.me/${phone.replace(/\D/g, '')}`;
+    const text = `¡Hola${this.brand()?.name ? `, ${this.brand()!.name}` : ''}! 👋 Vi su página de reservas y tengo una pregunta:\n\n`;
+    return `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(text)}`;
   }
 
   protected instagramHandle(value: string): string {
@@ -741,6 +1174,7 @@ export class Booking {
   private moveTo(id: number): void {
     this.step.set(id);
     this.reached.update((current) => Math.max(current, id));
+    scrollToTop();
   }
 
   protected externalHref(value: string, host: string): string {
@@ -781,6 +1215,71 @@ function formatSlotTime(value: string, formatter: Intl.DateTimeFormat): string {
   }
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? value : formatter.format(parsed);
+}
+
+function slotHour(value: string): number {
+  const clock = value.match(/(?:T|^)(\d{2}):\d{2}/);
+  return clock ? Number(clock[1]) : new Date(value).getHours();
+}
+
+/** Reduce la foto hasta que pese menos de 180 KB (límite del backend), sin perder demasiado detalle. */
+function shrinkImage(file: File): Promise<string | null> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      for (const [side, quality] of [[1000, 0.75], [800, 0.7], [640, 0.6], [480, 0.55]] as const) {
+        const scale = Math.min(1, side / Math.max(image.width, image.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(image.width * scale));
+        canvas.height = Math.max(1, Math.round(image.height * scale));
+        canvas.getContext('2d')?.drawImage(image, 0, 0, canvas.width, canvas.height);
+        const data = canvas.toDataURL('image/jpeg', quality);
+        if (data.length <= 180000) {
+          resolve(data);
+          return;
+        }
+      }
+      resolve(null);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(null);
+    };
+    image.src = url;
+  });
+}
+
+function dataUrlToFile(data: string, name: string): File {
+  const [header, body] = data.split(',');
+  const type = header.match(/data:([^;]+)/)?.[1] ?? 'image/jpeg';
+  const bytes = Uint8Array.from(atob(body), (char) => char.charCodeAt(0));
+  return new File([bytes], name, { type });
+}
+
+function canShareImages(): boolean {
+  try {
+    return (
+      typeof navigator !== 'undefined' &&
+      typeof navigator.canShare === 'function' &&
+      navigator.canShare({ files: [new File([''], 'foto.jpg', { type: 'image/jpeg' })] })
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** Fecha local "flotante" (sin zona) para calendarios: 20261016T093000. */
+function calendarStamp(value: Date): string {
+  const pad = (part: number) => String(part).padStart(2, '0');
+  return `${value.getFullYear()}${pad(value.getMonth() + 1)}${pad(value.getDate())}T${pad(value.getHours())}${pad(value.getMinutes())}00`;
+}
+
+function scrollToTop(): void {
+  if (typeof window !== 'undefined') {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 }
 
 function readError(error: unknown, fallback: string): string {

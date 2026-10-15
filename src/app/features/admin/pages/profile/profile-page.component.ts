@@ -35,7 +35,7 @@ export class ProfilePageComponent {
       validators: [Validators.required, Validators.maxLength(255)],
     }),
     phone: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(32)] }),
-    avatar_url: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(2048)] }),
+    avatar_url: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(180000)] }),
     bio: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(2000)] }),
   });
 

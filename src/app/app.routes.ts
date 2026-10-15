@@ -39,6 +39,10 @@ export const routes: Routes = [
       ),
   },
   {
+    path: ':businessSlug/privacidad',
+    loadComponent: () => import('./features/public/pages/privacy/privacy.component').then((m) => m.PrivacyComponent),
+  },
+  {
     path: ':businessSlug/book',
     loadChildren: () => import('./features/booking/booking.routes').then((m) => m.bookingRoutes),
   },

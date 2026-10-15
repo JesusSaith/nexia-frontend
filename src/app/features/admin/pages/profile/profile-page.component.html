@@ -1,35 +1,39 @@
 <section class="mx-auto max-w-xl">
-  <header class="mb-4 flex items-center gap-2">
-    <mat-icon>account_circle</mat-icon>
-    <h1 class="text-xl font-medium">Mi perfil</h1>
+  <header class="page-head">
+    <div>
+      <h1>Mi perfil</h1>
+      <p>Tu foto, nombre y datos de contacto.</p>
+    </div>
   </header>
 
   @if (loadError(); as message) {
     <p role="alert" class="text-sm text-red-700">{{ message }}</p>
   } @else if (isLoading()) {
-    <div class="flex justify-center py-16">
-      <mat-spinner diameter="36" />
+    <div class="animate-pulse space-y-3" aria-label="Cargando">
+      <div class="h-14 rounded-2xl bg-line"></div>
+      <div class="h-14 rounded-2xl bg-line"></div>
+      <div class="h-14 rounded-2xl bg-line"></div>
     </div>
   } @else {
     <form class="flex flex-col gap-3" [formGroup]="form" (ngSubmit)="save()">
-      <p class="text-sm text-slate-600">{{ profile()?.role_title }}</p>
-      <label class="rounded-xl border border-[#e4dfda] bg-white px-3 py-2">
-        <span class="block text-xs text-slate-500">Nombre</span>
+      <p class="text-sm text-ink-soft">{{ profile()?.role_title }}</p>
+      <label class="rounded-xl border border-line bg-white px-3 py-2">
+        <span class="block text-xs text-muted">Nombre</span>
         <input class="w-full bg-transparent text-sm outline-none" formControlName="full_name" />
       </label>
       @if (nameError()) {
         <p class="text-sm text-red-700">{{ nameError() }}</p>
       }
-      <label class="rounded-xl border border-[#e4dfda] bg-white px-3 py-2">
-        <span class="block text-xs text-slate-500">Teléfono</span>
+      <label class="rounded-xl border border-line bg-white px-3 py-2">
+        <span class="block text-xs text-muted">Teléfono</span>
         <input class="w-full bg-transparent text-sm outline-none" type="tel" formControlName="phone" />
       </label>
-      <label class="rounded-xl border border-[#e4dfda] bg-white px-3 py-2">
-        <span class="block text-xs text-slate-500">Foto</span>
+      <label class="rounded-xl border border-line bg-white px-3 py-2">
+        <span class="block text-xs text-muted">Foto</span>
         <input class="w-full bg-transparent text-sm outline-none" formControlName="avatar_url" placeholder="https://" />
       </label>
-      <label class="rounded-xl border border-[#e4dfda] bg-white px-3 py-2">
-        <span class="block text-xs text-slate-500">Biografía</span>
+      <label class="rounded-xl border border-line bg-white px-3 py-2">
+        <span class="block text-xs text-muted">Biografía</span>
         <textarea class="w-full bg-transparent text-sm outline-none" rows="4" formControlName="bio"></textarea>
       </label>
       @if (formError(); as message) {
@@ -38,7 +42,7 @@
       @if (saved()) {
         <p class="text-sm text-emerald-700">Perfil guardado.</p>
       }
-      <button class="h-11 rounded-full bg-[#1E1B1E] text-sm font-medium text-white disabled:opacity-50" type="submit" [disabled]="isSaving()">
+      <button class="btn btn-primary disabled:opacity-50" type="submit" [disabled]="isSaving()">
         {{ isSaving() ? 'Guardando…' : 'Guardar' }}
       </button>
     </form>

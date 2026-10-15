@@ -86,3 +86,30 @@
   box-shadow: inset 0 0 0 2px var(--booking-primary);
   background: color-mix(in srgb, var(--booking-primary) 8%, white);
 }
+
+.booking-bar {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 20;
+  border-top: 1px solid #e7e5e4;
+  background: rgb(255 255 255 / 0.96);
+  backdrop-filter: blur(8px);
+  padding-bottom: env(safe-area-inset-bottom);
+  box-shadow: 0 -6px 20px rgb(0 0 0 / 0.06);
+}
+
+.more-info > summary {
+  list-style: none;
+}
+
+.more-info > summary::-webkit-details-marker {
+  display: none;
+}
+
+.trap-field {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}

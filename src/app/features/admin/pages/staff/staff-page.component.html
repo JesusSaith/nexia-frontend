@@ -1,11 +1,11 @@
 <section>
-  <header class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+  <header class="page-head">
     <div>
       <h1>Equipo</h1>
-      <p class="mt-1 text-sm text-slate-500">Quién atiende y qué servicios ofrece.</p>
+      <p>Quién atiende y qué servicios ofrece.</p>
     </div>
-    <button mat-flat-button color="primary" type="button" (click)="openCreate()">
-      <mat-icon>person_add</mat-icon>
+    <button class="btn btn-primary" type="button" (click)="openCreate()">
+      <mat-icon class="h-5! w-5! text-[20px]!">person_add</mat-icon>
       Agregar {{ copy.text().person.toLowerCase() }}
     </button>
   </header>
@@ -15,143 +15,176 @@
   }
 
   @if (isLoading()) {
-    <div class="flex justify-center py-16">
-      <mat-spinner diameter="36" />
+    <div class="animate-pulse space-y-4" aria-label="Cargando">
+      <div class="grid grid-cols-3 gap-3">
+        <div class="h-20 rounded-2xl bg-line"></div>
+        <div class="h-20 rounded-2xl bg-line"></div>
+        <div class="h-20 rounded-2xl bg-line"></div>
+      </div>
+      <div class="h-64 rounded-2xl bg-line"></div>
     </div>
   } @else if (staff().length === 0) {
-    <p class="py-10 text-center text-sm text-slate-600">No hay {{ copy.text().people.toLowerCase() }} en el equipo.</p>
+    <div class="empty">
+      <mat-icon>groups</mat-icon>
+      <p class="font-medium text-ink">Aún no hay nadie en tu equipo</p>
+      <p>Agrega a quien atiende, aunque seas solo tú, para poder recibir citas.</p>
+      <button type="button" class="btn btn-primary" (click)="openCreate()">Agregar {{ copy.text().person.toLowerCase() }}</button>
+    </div>
   } @else {
-    <div class="grid gap-3 sm:grid-cols-2">
-      @for (member of staff(); track member.id) {
-        <article class="rounded border border-slate-200 bg-white p-4">
-          <div class="flex gap-3">
+    <!-- Indicadores -->
+    <div class="mb-4 grid grid-cols-3 gap-3">
+      <div class="card p-4!">
+        <p class="text-xs text-muted">En el equipo</p>
+        <p class="nums mt-1 text-2xl font-semibold text-ink">{{ staff().length }}</p>
+      </div>
+      <div class="card p-4!">
+        <p class="text-xs text-muted">Activos</p>
+        <p class="nums mt-1 text-2xl font-semibold text-ink">{{ activeCount() }}</p>
+      </div>
+      <div class="card p-4!">
+        <p class="text-xs text-muted">Servicios activos</p>
+        <p class="nums mt-1 text-2xl font-semibold text-ink">{{ activeServices().length }}</p>
+      </div>
+    </div>
+
+    <section class="card">
+      <h2 class="card-title">Integrantes</h2>
+      <ul class="mt-2 divide-y divide-line">
+        @for (member of staff(); track member.id) {
+          <li class="flex items-start gap-3 py-4" [class.opacity-60]="!member.is_active">
             @if (member.avatar_url) {
-              <img [src]="member.avatar_url" [alt]="member.full_name" class="h-14 w-14 rounded-full object-cover" />
+              <img [src]="member.avatar_url" [alt]="member.full_name" class="h-10 w-10 shrink-0 rounded-full object-cover" />
             } @else {
-              <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-medium">
+              <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-canvas text-xs font-semibold text-ink-soft">
                 {{ initials(member.full_name) }}
               </span>
             }
             <div class="min-w-0 flex-1">
-              <div class="flex items-start justify-between gap-2">
-                <div>
-                  <h2 class="font-medium">{{ member.full_name }}</h2>
-                  <p class="text-sm text-slate-600">{{ member.role_title }}@if (member.commission_percent) { · {{ member.commission_percent }}% }</p>
-                </div>
+              <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <h3 class="truncate text-sm font-medium text-ink">{{ member.full_name }}</h3>
+                @if (member.is_active) {
+                  <span class="badge badge-ok">Activo</span>
+                } @else {
+                  <span class="badge badge-neutral">Inactivo</span>
+                }
                 <!-- FUTURE_PHASE_2_UNIFIED_PLATFORM: badge de cuenta de acceso -->
               </div>
+              <p class="truncate text-sm text-muted">{{ member.role_title }}@if (member.commission_percent) { · <span class="nums">{{ member.commission_percent }}%</span> comisión }</p>
               @if (member.bio) {
-                <p class="mt-2 line-clamp-2 text-sm text-slate-500">{{ member.bio }}</p>
+                <p class="mt-1 line-clamp-2 text-sm text-muted">{{ member.bio }}</p>
               }
+              <div class="mt-2 flex flex-wrap gap-1">
+                @for (serviceId of member.service_ids ?? []; track serviceId) {
+                  <span class="badge badge-neutral">{{ serviceName(serviceId) }}</span>
+                }
+                @if ((member.service_ids ?? []).length === 0) {
+                  <span class="badge badge-warn">Sin servicios asignados</span>
+                }
+              </div>
             </div>
-          </div>
-
-          <div class="mt-3 flex flex-wrap gap-1">
-            @for (serviceId of member.service_ids ?? []; track serviceId) {
-              <span class="rounded-full bg-rose-50 px-2 py-0.5 text-xs text-rose-800">
-                {{ serviceName(serviceId) }}
-              </span>
-            }
-            @if ((member.service_ids ?? []).length === 0) {
-              <span class="text-xs text-slate-500">Sin servicios asignados</span>
-            }
-          </div>
-
-          <div class="mt-3 flex items-center justify-between">
-            <span class="text-sm text-slate-600">{{ member.is_active ? 'Activo' : 'Inactivo' }}</span>
-            <div>
-              <button mat-icon-button type="button" aria-label="Editar" (click)="openEdit(member)">
+            <div class="flex shrink-0 items-center gap-1">
+              <button type="button" class="btn btn-ghost h-9! w-9! px-0!" aria-label="Editar" (click)="openEdit(member)">
                 <mat-icon>edit</mat-icon>
               </button>
               @if (pendingId() === member.id) {
-                <mat-spinner diameter="20" />
+                <span class="flex h-9 w-9 items-center justify-center">
+                  <mat-spinner diameter="20" />
+                </span>
               } @else {
                 <button
-                  mat-icon-button
                   type="button"
+                  class="btn btn-ghost h-9! w-9! px-0!"
                   (click)="toggleActive(member)"
                   [attr.aria-label]="member.is_active ? 'Desactivar' : 'Activar'"
                 >
-                  <mat-icon>{{ member.is_active ? 'toggle_on' : 'toggle_off' }}</mat-icon>
+                  <mat-icon [class.text-emerald-600]="member.is_active">{{ member.is_active ? 'toggle_on' : 'toggle_off' }}</mat-icon>
                 </button>
               }
             </div>
-          </div>
-        </article>
-      }
-    </div>
+          </li>
+        }
+      </ul>
+    </section>
   }
 </section>
 
 <ng-template #editor>
-  <form id="staff-form" class="flex max-h-[92vh] flex-col bg-white" [formGroup]="form" (ngSubmit)="save()">
-    <header class="flex items-center justify-between border-b border-[#eceae6] px-4 py-3">
-      <button type="button" class="flex h-9 w-9 items-center justify-center rounded-full hover:bg-stone-100" aria-label="Cerrar" (click)="closeForm()">
+  <form id="staff-form" class="flex max-h-[92vh] flex-col bg-surface" [formGroup]="form" (ngSubmit)="save()">
+    <header class="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
+      <button type="button" class="btn btn-ghost h-9! w-9! px-0!" aria-label="Cerrar" (click)="closeForm()">
         <mat-icon>close</mat-icon>
       </button>
-      <h2 class="text-lg font-semibold">{{ dialogTitle() }}</h2>
-      <button type="submit" class="rounded-full bg-[#1E1B1E] px-5 py-2 text-sm font-medium text-white disabled:opacity-50" [disabled]="isSaving() || photoPending()">
+      <h2 class="min-w-0 flex-1 truncate text-base font-semibold text-ink">{{ dialogTitle() }}</h2>
+      <button type="submit" class="btn btn-primary" [disabled]="isSaving() || photoPending()">
         {{ photoPending() ? 'Preparando foto…' : isSaving() ? 'Guardando…' : 'Guardar' }}
       </button>
     </header>
-    <div class="grid gap-6 overflow-y-auto p-5 lg:grid-cols-[minmax(0,1fr)_280px]">
-      <div class="flex flex-col gap-3">
-        <label class="text-sm">Nombre
-          <input formControlName="full_name" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2" />
+    <div class="grid gap-4 overflow-y-auto bg-canvas p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_280px]">
+      <section class="card flex flex-col gap-3">
+        <h3 class="card-title">Información</h3>
+        <label class="flex flex-col gap-1 text-sm text-ink-soft">Nombre
+          <input formControlName="full_name" class="h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" />
         </label>
         @if (nameError()) { <p class="text-sm text-red-700">{{ nameError() }}</p> }
-        <label class="text-sm">Puesto
-          <input formControlName="role_title" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2" />
+        <label class="flex flex-col gap-1 text-sm text-ink-soft">Puesto
+          <input formControlName="role_title" class="h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" />
         </label>
         @if (roleError()) { <p class="text-sm text-red-700">{{ roleError() }}</p> }
         <div class="grid gap-3 sm:grid-cols-2">
-          <label class="text-sm">Correo
-            <input type="email" formControlName="email" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2" />
+          <label class="flex flex-col gap-1 text-sm text-ink-soft">Correo
+            <input type="email" formControlName="email" class="h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" />
           </label>
-          <label class="text-sm">Teléfono
-            <input type="tel" formControlName="phone" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2" />
+          <label class="flex flex-col gap-1 text-sm text-ink-soft">Teléfono
+            <input type="tel" formControlName="phone" class="nums h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" />
           </label>
         </div>
         @if (emailError()) { <p class="text-sm text-red-700">{{ emailError() }}</p> }
-        <label class="text-sm">Comisión %
-          <input type="number" min="0" max="100" formControlName="commission_percent" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2" />
+        <label class="flex flex-col gap-1 text-sm text-ink-soft">Comisión %
+          <input type="number" min="0" max="100" formControlName="commission_percent" class="nums h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink sm:max-w-40" />
         </label>
-        <label class="text-sm">Notas
-          <textarea formControlName="bio" rows="3" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2"></textarea>
+        <label class="flex flex-col gap-1 text-sm text-ink-soft">Notas
+          <textarea formControlName="bio" rows="3" class="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-ink"></textarea>
         </label>
         @if (formError(); as message) { <p role="alert" class="text-sm text-red-700">{{ message }}</p> }
-      </div>
+      </section>
       <aside class="flex flex-col gap-4">
-        <div class="rounded-2xl border border-stone-200 p-4">
-          <p class="mb-2 text-sm font-medium">Foto</p>
-          @if (photoPreview(); as src) {
-            <img [src]="src" alt="" class="mb-3 h-28 w-28 rounded-2xl object-cover" />
-            <button type="button" class="text-sm text-rose-700" (click)="clearPhoto()">Quitar</button>
-          } @else {
-            <label class="flex h-28 cursor-pointer items-center justify-center rounded-2xl border border-dashed border-stone-300 text-sm text-stone-500">
-              +
-              <input type="file" accept="image/png,image/jpeg,image/webp" class="sr-only" (change)="onPhoto($event)" />
-            </label>
-          }
-          @if (photoPreview()) {
-            <label class="mt-2 block text-sm text-stone-500">
-              Cambiar
-              <input type="file" accept="image/png,image/jpeg,image/webp" class="mt-1 block text-xs" (change)="onPhoto($event)" />
-            </label>
-          }
-        </div>
-        <div class="rounded-2xl border border-stone-200 p-4">
-          <p class="mb-2 text-sm font-medium">Servicios</p>
-          @if (activeServices().length === 0) {
-            <p class="text-sm text-slate-600">No hay servicios activos.</p>
-          } @else {
-            @for (service of activeServices(); track service.id) {
-              <mat-checkbox class="block" [checked]="hasService(service.id)" (change)="toggleService(service.id, $event.checked)">
-                {{ service.name }}
-              </mat-checkbox>
+        <section class="card">
+          <h3 class="card-title">Foto</h3>
+          <div class="mt-3">
+            @if (photoPreview(); as src) {
+              <div class="flex items-center gap-3">
+                <img [src]="src" alt="" class="h-20 w-20 rounded-full object-cover" />
+                <div class="flex flex-col items-start gap-1">
+                  <label class="btn btn-secondary h-8! cursor-pointer px-3! text-xs">
+                    Cambiar
+                    <input type="file" accept="image/png,image/jpeg,image/webp" class="sr-only" (change)="onPhoto($event)" />
+                  </label>
+                  <button type="button" class="btn btn-ghost h-8! px-3! text-xs text-red-700" (click)="clearPhoto()">Quitar</button>
+                </div>
+              </div>
+            } @else {
+              <label class="flex h-28 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-line-strong text-sm text-muted hover:bg-canvas">
+                <mat-icon>add_a_photo</mat-icon>
+                Subir foto
+                <input type="file" accept="image/png,image/jpeg,image/webp" class="sr-only" (change)="onPhoto($event)" />
+              </label>
             }
+          </div>
+        </section>
+        <section class="card">
+          <h3 class="card-title">Servicios</h3>
+          @if (activeServices().length === 0) {
+            <p class="mt-2 text-sm text-muted">No hay servicios activos.</p>
+          } @else {
+            <div class="mt-2 divide-y divide-line">
+              @for (service of activeServices(); track service.id) {
+                <mat-checkbox class="block py-0.5 text-sm text-ink" [checked]="hasService(service.id)" (change)="toggleService(service.id, $event.checked)">
+                  {{ service.name }}
+                </mat-checkbox>
+              }
+            </div>
           }
-        </div>
+        </section>
       </aside>
     </div>
   </form>

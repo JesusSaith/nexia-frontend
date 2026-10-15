@@ -1,171 +1,240 @@
-<section class="-mx-5 -my-7 min-h-full bg-[#f4f3f1] px-5 py-6 font-['Plus_Jakarta_Sans',sans-serif] text-[#1E1B1E] md:-mx-10 md:-my-9 md:px-8 md:py-8">
+<section>
   @if (loadError(); as message) {
     <p role="alert" class="text-sm text-red-700">{{ message }}</p>
   } @else if (isLoading()) {
-    <div class="h-8 w-48 animate-pulse rounded-full bg-white"></div>
-    <div class="mt-6 h-72 animate-pulse rounded-2xl bg-white"></div>
+    <div class="animate-pulse space-y-4" aria-label="Cargando">
+      <div class="h-8 w-48 rounded-lg bg-line"></div>
+      <div class="h-10 w-72 max-w-full rounded-lg bg-line"></div>
+      <div class="h-72 rounded-2xl bg-line"></div>
+    </div>
   } @else if (summary(); as summary) {
-    <h1 class="text-[28px] font-semibold tracking-tight">Hola, {{ greetingName() }}</h1>
+    <header class="page-head">
+      <div>
+        <h1>Reportes</h1>
+        <p>Ingresos, gastos y comisiones, {{ greetingName() }}.</p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <button type="button" class="btn btn-secondary" (click)="downloadExcel(false)">
+          <mat-icon>download</mat-icon>
+          Excel
+        </button>
+        <button type="button" class="btn btn-ghost" (click)="downloadExcel(true)">Todo en Excel</button>
+        <button type="button" class="btn btn-ghost" (click)="downloadPdf()">PDF</button>
+      </div>
+    </header>
+
     @if (books(); as alert) {
       @if (alert.deposits_expired > 0) {
-        <p class="mt-4 rounded-2xl border border-[#f0d5d8] bg-[#f8eef0] px-4 py-3 text-sm">Se acabó el tiempo de {{ alert.deposits_expired }} anticipo{{ alert.deposits_expired === 1 ? '' : 's' }} y la cita sigue sin marcarse como pagada.</p>
+        <p class="card mb-4 flex items-center gap-3 py-3! text-sm text-ink" role="status">
+          <mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-amber-700">schedule</mat-icon>
+          <span>Se acabó el tiempo de {{ alert.deposits_expired }} anticipo{{ alert.deposits_expired === 1 ? '' : 's' }} y la cita sigue sin marcarse como pagada.</span>
+        </p>
       }
       @if (team().owed > 0) {
-        <button type="button" class="mt-4 block w-full rounded-2xl border border-[#f0d5d8] bg-[#f8eef0] px-4 py-3 text-left text-sm" (click)="view.set('commission')">Hay {{ money(team().owed) }} de comisión por pagar en este periodo.</button>
+        <button type="button" class="card mb-4 flex w-full items-center gap-3 py-3! text-left text-sm text-ink hover:border-line-strong" (click)="view.set('commission')">
+          <mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">payments</mat-icon>
+          <span class="min-w-0 flex-1">Hay <span class="nums font-medium">{{ money(team().owed) }}</span> de comisión por pagar en este periodo.</span>
+          <mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">chevron_right</mat-icon>
+        </button>
       }
     }
 
-    <div class="mt-5 flex flex-wrap items-center gap-2">
-      @for (tab of shownTabs(); track tab.id) {
-        <button type="button" class="inline-flex h-9 items-center rounded-full px-3.5 text-sm" [class]="view() === tab.id ? 'bg-[#b76e79] text-white' : 'border border-[#e4e1dc] bg-white'" (click)="view.set(tab.id)">{{ tab.label }}</button>
-      }
-      <button type="button" class="ml-auto inline-flex h-9 items-center rounded-full border border-[#e4e1dc] bg-white px-3.5 text-sm" (click)="downloadExcel(false)">Excel</button>
-      <button type="button" class="inline-flex h-9 items-center rounded-full border border-[#e4e1dc] bg-white px-3.5 text-sm" (click)="downloadExcel(true)">Todo en Excel</button>
-      <button type="button" class="inline-flex h-9 items-center rounded-full border border-[#e4e1dc] bg-white px-3.5 text-sm" (click)="downloadPdf()">PDF</button>
+    <!-- Secciones y periodo -->
+    <div class="mb-4 flex flex-wrap items-center gap-2">
+      <div class="max-w-full overflow-x-auto">
+        <div class="inline-flex rounded-lg border border-line-strong bg-surface p-0.5" role="tablist" aria-label="Reporte">
+          @for (tab of shownTabs(); track tab.id) {
+            <button
+              type="button"
+              role="tab"
+              class="h-9 whitespace-nowrap rounded-md px-3 text-sm font-medium transition-colors"
+              [class.bg-ink]="view() === tab.id"
+              [class.text-white]="view() === tab.id"
+              [class.text-ink-soft]="view() !== tab.id"
+              [attr.aria-selected]="view() === tab.id"
+              (click)="view.set(tab.id)"
+            >{{ tab.label }}</button>
+          }
+        </div>
+      </div>
+      <div class="inline-flex rounded-lg border border-line-strong bg-surface p-0.5 sm:ml-auto" role="tablist" aria-label="Periodo">
+        @for (item of periods; track item.id) {
+          <button
+            type="button"
+            role="tab"
+            class="h-9 rounded-md px-3 text-sm font-medium transition-colors"
+            [class.bg-ink]="period() === item.id"
+            [class.text-white]="period() === item.id"
+            [class.text-ink-soft]="period() !== item.id"
+            [attr.aria-selected]="period() === item.id"
+            (click)="period.set(item.id)"
+          >{{ item.label }}</button>
+        }
+      </div>
     </div>
 
-    <div class="mt-5 grid items-start gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)]">
+    @if (period() === 'range') {
+      <div class="mb-4 grid grid-cols-2 gap-2 sm:flex">
+        <label class="text-sm text-ink-soft">Desde
+          <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" type="date" [value]="customStart()" (change)="customStart.set($any($event.target).value)" aria-label="Desde" />
+        </label>
+        <label class="text-sm text-ink-soft">Hasta
+          <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" type="date" [value]="customEnd()" (change)="customEnd.set($any($event.target).value)" aria-label="Hasta" />
+        </label>
+      </div>
+    }
+
+    <div class="grid items-start gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)]">
       <div class="flex h-full min-w-0 flex-col gap-4">
-      <article class="flex flex-1 flex-col rounded-2xl border border-[#eceae6] bg-white p-5 shadow-[0_1px_2px_rgba(30,27,30,0.04)]">
-        <div class="flex items-center justify-between gap-3">
-          @if (view() === 'income') {
-            <button type="button" class="text-sm text-stone-500 underline-offset-2 hover:underline" (click)="pickerOpen.set(true)">{{ viewTitle() }}</button>
-          } @else {
-            <h2 class="text-sm text-stone-500">{{ viewTitle() }}</h2>
-          }
-          <div class="flex rounded-full border border-[#eceae6] p-0.5 text-xs">
-            <button type="button" class="rounded-full px-2.5 py-1" [class]="period() === 'day' ? 'bg-[#b76e79] text-white' : 'text-stone-500'" (click)="period.set('day')">Día</button>
-            <button type="button" class="rounded-full px-2.5 py-1" [class]="period() === 'week' ? 'bg-[#b76e79] text-white' : 'text-stone-500'" (click)="period.set('week')">Semana</button>
-            <button type="button" class="rounded-full px-2.5 py-1" [class]="period() === 'month' ? 'bg-[#b76e79] text-white' : 'text-stone-500'" (click)="period.set('month')">Mes</button>
-            <button type="button" class="rounded-full px-2.5 py-1" [class]="period() === 'range' ? 'bg-[#b76e79] text-white' : 'text-stone-500'" (click)="period.set('range')">Rango</button>
+        <article class="card flex flex-1 flex-col">
+          <div class="flex items-center justify-between gap-3">
+            @if (view() === 'income') {
+              <button type="button" class="card-title inline-flex items-center gap-1 hover:text-ink" (click)="pickerOpen.set(true)">
+                {{ viewTitle() }}
+                <mat-icon class="h-4! w-4! text-[16px]!">expand_more</mat-icon>
+              </button>
+            } @else {
+              <h2 class="card-title">{{ viewTitle() }}</h2>
+            }
           </div>
-        </div>
-        @if (period() === 'range') {
-          <div class="mt-3 flex flex-wrap gap-2">
-            <input class="rounded-xl border border-[#eceae6] px-3 py-2 text-sm" type="date" [value]="customStart()" (change)="customStart.set($any($event.target).value)" aria-label="Desde" />
-            <input class="rounded-xl border border-[#eceae6] px-3 py-2 text-sm" type="date" [value]="customEnd()" (change)="customEnd.set($any($event.target).value)" aria-label="Hasta" />
-          </div>
-        }
-        <p class="mt-2 text-4xl font-semibold tracking-tight">{{ headline() }}</p>
-        <p class="mt-1 text-sm text-stone-400">{{ chartCaption() }}</p>
-        @if (bars().length === 0) {
-          <p class="mt-6 text-sm text-stone-500">Nada en este periodo.</p>
-        } @else if (view() === 'expenses') {
-          <div class="mt-4 flex flex-1 flex-wrap items-center gap-6">
-            <div class="relative h-40 w-40 shrink-0" role="img" aria-label="Reparto de gastos">
-              <div class="h-full w-full rounded-full" [style.background]="pieGradient()"></div>
-              <div class="absolute inset-[28%] rounded-full bg-white"></div>
+          <p class="nums mt-2 text-3xl font-semibold tracking-tight text-ink">{{ headline() }}</p>
+          <p class="mt-1 text-sm text-muted">{{ chartCaption() }}</p>
+          @if (bars().length === 0) {
+            <p class="py-8 text-center text-sm text-muted">Nada en este periodo.</p>
+          } @else if (view() === 'expenses') {
+            <div class="mt-4 flex flex-1 flex-wrap items-center gap-6">
+              <div class="relative mx-auto h-36 w-36 shrink-0 sm:mx-0" role="img" aria-label="Reparto de gastos">
+                <div class="h-full w-full rounded-full" [style.background]="pieGradient()"></div>
+                <div class="absolute inset-[28%] rounded-full bg-surface"></div>
+              </div>
+              <ul class="min-w-0 flex-1 divide-y divide-line text-sm">
+                @for (slice of pieSlices(); track slice.label) {
+                  <li class="flex items-center gap-2 py-2">
+                    <span class="h-2.5 w-2.5 shrink-0 rounded-sm" [style.background]="slice.color"></span>
+                    <span class="min-w-0 flex-1 truncate text-ink-soft">{{ slice.label }}</span>
+                    <span class="nums shrink-0 text-right font-medium text-ink">{{ money(slice.amount) }}</span>
+                    <span class="nums w-10 shrink-0 text-right text-muted">{{ slice.share }}%</span>
+                  </li>
+                }
+              </ul>
             </div>
-            <ul class="flex min-w-0 flex-1 flex-col gap-2 text-sm">
-              @for (slice of pieSlices(); track slice.label) {
-                <li class="flex items-center gap-2">
-                  <span class="h-2.5 w-2.5 shrink-0 rounded-full" [style.background]="slice.color"></span>
-                  <span class="min-w-0 flex-1 truncate text-stone-600">{{ slice.label }}</span>
-                  <span class="shrink-0 font-medium">{{ money(slice.amount) }}</span>
-                  <span class="w-10 shrink-0 text-right text-stone-400">{{ slice.share }}%</span>
+          } @else if (view() === 'staff' || view() === 'commission') {
+            <ul class="mt-4 flex flex-1 flex-col justify-center gap-3">
+              @for (bar of bars(); track bar.label) {
+                <li>
+                  <div class="mb-1 flex justify-between gap-3 text-sm">
+                    <span class="min-w-0 truncate text-ink-soft">{{ bar.label }}</span>
+                    <span class="nums shrink-0 text-right font-medium text-ink">{{ money(bar.amount) }}</span>
+                  </div>
+                  <div class="h-1.5 overflow-hidden rounded-full bg-canvas">
+                    <div class="h-full rounded-full bg-ink" [style.width.%]="bar.height"></div>
+                  </div>
                 </li>
               }
             </ul>
+          } @else if (area(); as chart) {
+            <svg viewBox="0 0 640 210" class="mt-2 h-48 w-full sm:h-56" role="img" [attr.aria-label]="legend()">
+              @for (tick of chart.ticks; track tick.y) {
+                <line x1="58" x2="628" [attr.y1]="tick.y" [attr.y2]="tick.y" stroke="var(--color-line)" />
+                <text x="52" [attr.y]="tick.y + 4" text-anchor="end" fill="var(--color-muted)" font-size="11">{{ tick.label }}</text>
+              }
+              <path [attr.d]="chart.area" fill="var(--color-ink)" fill-opacity="0.06" />
+              <path [attr.d]="chart.line" fill="none" stroke="var(--color-ink)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+              @for (label of chart.labels; track label.x) {
+                <text [attr.x]="label.x" y="198" text-anchor="middle" fill="var(--color-muted)" font-size="11">{{ label.label }}</text>
+              }
+            </svg>
+            <p class="mt-1 flex items-center gap-2 text-xs text-muted">
+              <span class="inline-block h-0.5 w-5 bg-ink"></span>
+              {{ legend() }}
+            </p>
+          }
+        </article>
+        @if (view() === 'expenses' && books(); as row) {
+          <div class="grid grid-cols-2 gap-3">
+            <div class="card p-4!">
+              <p class="text-xs text-muted">Fijos</p>
+              <p class="nums mt-1 text-2xl font-semibold text-ink">{{ money(row.expense_fixed) }}</p>
+              <p class="mt-1 text-xs text-muted">Renta, luz y lo que se repite</p>
+            </div>
+            <div class="card p-4!">
+              <p class="text-xs text-muted">Variables</p>
+              <p class="nums mt-1 text-2xl font-semibold text-ink">{{ money(row.expense_variable) }}</p>
+              <p class="mt-1 text-xs text-muted"><span class="nums">{{ expenseShare() }}%</span> de los ingresos se va en gastos</p>
+            </div>
           </div>
-        } @else if (view() === 'staff' || view() === 'commission') {
-          <ul class="mt-4 flex flex-1 flex-col justify-center gap-3">
-            @for (bar of bars(); track bar.label) {
-              <li>
-                <div class="mb-1 flex justify-between gap-3 text-xs text-stone-500">
-                  <span class="min-w-0 truncate">{{ bar.label }}</span>
-                  <span class="shrink-0 font-medium text-[#1E1B1E]">{{ money(bar.amount) }}</span>
-                </div>
-                <div class="h-2 overflow-hidden rounded-full bg-[#f3f1ee]">
-                  <div class="h-full rounded-full" style="background: var(--primary)" [style.width.%]="bar.height"></div>
-                </div>
-              </li>
-            }
-          </ul>
-        } @else if (area(); as chart) {
-          <svg viewBox="0 0 640 210" class="mt-2 h-56 w-full" role="img" [attr.aria-label]="legend()">
-            @for (tick of chart.ticks; track tick.y) {
-              <line x1="58" x2="628" [attr.y1]="tick.y" [attr.y2]="tick.y" stroke="#eceae6" />
-              <text x="52" [attr.y]="tick.y + 4" text-anchor="end" fill="#a8a29e" font-size="11">{{ tick.label }}</text>
-            }
-            <path [attr.d]="chart.area" fill="var(--primary)" fill-opacity="0.16" />
-            <path [attr.d]="chart.line" fill="none" stroke="var(--primary)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
-            @for (label of chart.labels; track label.x) {
-              <text [attr.x]="label.x" y="198" text-anchor="middle" fill="#a8a29e" font-size="11">{{ label.label }}</text>
-            }
-          </svg>
-          <p class="mt-1 flex items-center gap-2 text-xs text-stone-500">
-            <span class="inline-block h-2 w-6 rounded-full bg-[#b76e79]"></span>
-            {{ legend() }}
-          </p>
         }
-      </article>
-      @if (view() === 'expenses' && books(); as row) {
-        <div class="grid gap-3 sm:grid-cols-2">
-          <article class="rounded-2xl border border-[#eceae6] bg-white p-4">
-            <p class="text-sm text-stone-500">Fijos</p>
-            <p class="mt-1 text-xl font-semibold">{{ money(row.expense_fixed) }}</p>
-            <p class="mt-1 text-xs text-stone-400">Renta, luz y lo que se repite</p>
-          </article>
-          <article class="rounded-2xl border border-[#eceae6] bg-white p-4">
-            <p class="text-sm text-stone-500">Variables</p>
-            <p class="mt-1 text-xl font-semibold">{{ money(row.expense_variable) }}</p>
-            <p class="mt-1 text-xs text-stone-400">{{ expenseShare() }}% de los ingresos se va en gastos</p>
-          </article>
-        </div>
-      }
       </div>
 
       <div class="flex h-full flex-col gap-4">
         @if (view() === 'income') {
-        @if (books(); as row) {
-          <article class="flex-1 rounded-2xl border border-[#eceae6] bg-white p-5">
-            <h2 class="text-base font-semibold">Meta</h2>
-            <p class="mt-2 text-sm text-stone-500">Ganancia <span class="mt-1 block text-lg font-semibold text-[#1E1B1E]">{{ money(row.profit) }}</span></p>
-            <div class="mt-3 flex gap-2">
-              <button type="button" class="h-8 rounded-full px-3 text-xs" [class]="goalMode() === 'money' ? 'bg-[#b76e79] text-white' : 'border'" (click)="setGoalMode('money')">Pesos</button>
-              <button type="button" class="h-8 rounded-full px-3 text-xs" [class]="goalMode() === 'percent' ? 'bg-[#b76e79] text-white' : 'border'" (click)="setGoalMode('percent')">Porcentaje</button>
-            </div>
-            <label class="mt-3 block text-sm text-stone-500">{{ goalMode() === 'percent' ? 'Quiero quedarme con %' : 'Quiero ganar' }}
-              <input class="mt-1 w-full rounded-xl border px-3 py-2 text-[#1E1B1E]" type="number" min="0" [value]="goal()" (change)="saveGoal($any($event.target).value)" />
-            </label>
-            @if (goal() > 0) {
-              <div class="mt-3 h-2 overflow-hidden rounded-full bg-[#f3f1ee]" role="meter" [attr.aria-valuenow]="goalProgress()" aria-valuemin="0" aria-valuemax="100" aria-label="Avance de la meta">
-                <div class="h-full rounded-full bg-[#b76e79]" [style.width.%]="goalProgress()"></div>
+          @if (books(); as row) {
+            <article class="card flex-1">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <h2 class="card-title">Meta</h2>
+                  <p class="mt-2 text-xs text-muted">Ganancia</p>
+                  <p class="nums mt-0.5 text-2xl font-semibold text-ink">{{ money(row.profit) }}</p>
+                </div>
+                <div class="inline-flex rounded-lg border border-line-strong bg-surface p-0.5" role="tablist" aria-label="Tipo de meta">
+                  <button type="button" role="tab" class="h-8 rounded-md px-2.5 text-xs font-medium transition-colors" [class.bg-ink]="goalMode() === 'money'" [class.text-white]="goalMode() === 'money'" [class.text-ink-soft]="goalMode() !== 'money'" [attr.aria-selected]="goalMode() === 'money'" (click)="setGoalMode('money')">Pesos</button>
+                  <button type="button" role="tab" class="h-8 rounded-md px-2.5 text-xs font-medium transition-colors" [class.bg-ink]="goalMode() === 'percent'" [class.text-white]="goalMode() === 'percent'" [class.text-ink-soft]="goalMode() !== 'percent'" [attr.aria-selected]="goalMode() === 'percent'" (click)="setGoalMode('percent')">Porcentaje</button>
+                </div>
               </div>
-              <p class="mt-1 text-xs text-stone-400">{{ goalProgress() }}% de la meta</p>
-            }
-            <p class="mt-2 text-sm">{{ gap() > 0 ? 'Faltan ' + money(gap()) + (goalMode() === 'percent' ? ' para el ' + goal() + '%.' : ' para la meta.') : 'La meta de este periodo ya está cubierta.' }}</p>
-          </article>
-        }
+              <label class="mt-4 block text-sm text-ink-soft">{{ goalMode() === 'percent' ? 'Quiero quedarme con %' : 'Quiero ganar' }}
+                <input class="nums mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" type="number" min="0" [value]="goal()" (change)="saveGoal($any($event.target).value)" />
+              </label>
+              @if (goal() > 0) {
+                <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-canvas" role="meter" [attr.aria-valuenow]="goalProgress()" aria-valuemin="0" aria-valuemax="100" aria-label="Avance de la meta">
+                  <div class="h-full rounded-full bg-ink transition-all" [style.width.%]="goalProgress()"></div>
+                </div>
+                <p class="nums mt-1 text-xs text-muted">{{ goalProgress() }}% de la meta</p>
+              }
+              <p class="mt-2 text-sm text-ink-soft">{{ gap() > 0 ? 'Faltan ' + money(gap()) + (goalMode() === 'percent' ? ' para el ' + goal() + '%.' : ' para la meta.') : 'La meta de este periodo ya está cubierta.' }}</p>
+              @if (methodRows(row.by_method); as methods) {
+                @if (methods.length) {
+                  <h3 class="card-title mt-5">Cómo te pagaron</h3>
+                  <ul class="mt-1 divide-y divide-line text-sm">
+                    @for (method of methods; track method.label) {
+                      <li class="flex items-center justify-between gap-3 py-2.5">
+                        <span class="text-ink-soft">{{ method.label }}</span>
+                        <span class="nums text-right font-medium text-ink">{{ money(method.amount) }}</span>
+                      </li>
+                    }
+                  </ul>
+                }
+              }
+            </article>
+          }
         }
         @if ((view() === 'staff' || view() === 'commission') && books(); as row) {
-          <article class="flex-1 rounded-2xl border border-[#eceae6] bg-white p-5">
-            <h2 class="text-base font-semibold">Detalle</h2>
+          <article class="card flex-1">
+            <h2 class="card-title">Detalle</h2>
             @if (row.staff.length === 0) {
-              <p class="py-8 text-sm text-stone-500">Sin {{ copy.text().people.toLowerCase() }} en este periodo.</p>
+              <p class="py-8 text-center text-sm text-muted">Sin {{ copy.text().people.toLowerCase() }} en este periodo.</p>
             } @else if (view() === 'staff') {
-              <ul class="mt-3 divide-y divide-[#f3f1ee] text-sm">
+              <ul class="mt-2 divide-y divide-line text-sm">
                 @for (person of shifts(); track person.staff_id) {
                   <li class="py-3">
-                    <p class="font-medium">{{ person.staff_name }}</p>
-                    <p class="text-stone-500">{{ person.visits }} citas · ticket {{ money(person.ticket) }} · {{ person.free_hours }} h libres</p>
-                    <p class="text-xs text-stone-400">{{ deltaText(person.incomeDelta) }}</p>
+                    <p class="font-medium text-ink">{{ person.staff_name }}</p>
+                    <p class="nums text-muted">{{ person.visits }} citas · ticket {{ money(person.ticket) }} · {{ person.free_hours }} h libres</p>
+                    <p class="text-xs text-muted">{{ deltaText(person.incomeDelta) }}</p>
                   </li>
                 }
               </ul>
             } @else {
-              <ul class="mt-3 divide-y divide-[#f3f1ee] text-sm">
+              <ul class="mt-2 divide-y divide-line text-sm">
                 @for (person of shifts(); track person.staff_id) {
                   <li class="flex items-start justify-between gap-3 py-3">
-                    <span>
-                      <span class="block font-medium">{{ person.staff_name }}</span>
-                      <span class="text-stone-500">{{ person.percent }}% · pagado {{ money(person.paid) }} · debe {{ money(owed(person.commission, person.paid)) }}</span>
+                    <div class="min-w-0">
+                      <p class="font-medium text-ink">{{ person.staff_name }}</p>
+                      <p class="nums text-muted">{{ person.percent }}% · pagado {{ money(person.paid) }} · debe {{ money(owed(person.commission, person.paid)) }}</p>
                       @if (person.hadCommission) {
-                        <span class="mt-0.5 block text-xs text-stone-400">{{ deltaText(person.commissionDelta) }}</span>
+                        <p class="mt-0.5 text-xs text-muted">{{ deltaText(person.commissionDelta) }}</p>
                       }
-                    </span>
+                    </div>
                     @if (person.commission > 0) {
-                      <button type="button" class="text-xs text-[#b76e79]" (click)="markPaid(person.staff_id, person.commission, person.paid <= 0)">{{ person.paid > 0 ? 'Quitar pago' : 'Marcar pagada' }}</button>
+                      <button type="button" class="btn shrink-0 h-8! px-3! text-xs" [class.btn-primary]="person.paid <= 0" [class.btn-secondary]="person.paid > 0" (click)="markPaid(person.staff_id, person.commission, person.paid <= 0)">{{ person.paid > 0 ? 'Quitar pago' : 'Marcar pagada' }}</button>
                     }
                   </li>
                 }
@@ -174,154 +243,189 @@
           </article>
         }
         @if (view() === 'expenses') {
-          <article class="flex-1 rounded-2xl border border-[#eceae6] bg-white p-5">
-            <h2 class="text-base font-semibold">Agregar gasto</h2>
+          <article class="card flex-1">
+            <h2 class="card-title">Agregar gasto</h2>
             <div class="mt-3 grid gap-2">
-              <input class="rounded-xl border px-3 py-2 text-sm" placeholder="Renta, luz, insumos…" [value]="expenseName()" (input)="expenseName.set($any($event.target).value)" />
-              <input class="rounded-xl border px-3 py-2 text-sm" type="number" min="0" placeholder="Monto" [value]="expenseAmount()" (input)="expenseAmount.set($any($event.target).value)" />
+              <input class="h-10 rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" placeholder="Renta, luz, insumos…" aria-label="Concepto" [value]="expenseName()" (input)="expenseName.set($any($event.target).value)" />
+              <input class="nums h-10 rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" type="number" min="0" placeholder="Monto" aria-label="Monto" [value]="expenseAmount()" (input)="expenseAmount.set($any($event.target).value)" />
               <app-pick-field [options]="kindPicks" [valueIn]="expenseKind()" (picked)="expenseKind.set($any($event))" />
               @if (expenseKind() === 'fixed') {
                 <app-pick-field [options]="cadencePicks" [valueIn]="expenseCadence()" (picked)="expenseCadence.set($any($event))" />
               }
-              <button type="button" class="h-10 rounded-full bg-[#1E1B1E] text-sm text-white" (click)="addExpense()">{{ editingExpense() ? 'Guardar' : 'Agregar gasto' }}</button>
+              <button type="button" class="btn btn-primary" (click)="addExpense()">{{ editingExpense() ? 'Guardar' : 'Agregar gasto' }}</button>
             </div>
-            <ul class="mt-3 flex flex-col gap-2 text-sm">
-              @for (item of books()?.expenses ?? []; track item.id) {
-                <li class="flex items-center justify-between gap-3">
-                  <span>{{ item.name }} · {{ item.kind === 'fixed' ? (item.cadence === 'week' ? 'Semanal' : item.cadence === 'day' ? 'Por día' : 'Mensual') : 'Variable' }} · {{ money(item.amount) }}</span>
-                  <span class="flex gap-2">
-                    <button type="button" class="text-xs text-[#b76e79]" (click)="editExpense(item)">Editar</button>
-                    <button type="button" class="text-xs text-stone-500" (click)="removeExpense(item.id)">Quitar</button>
-                  </span>
-                </li>
-              }
-            </ul>
+            @if ((books()?.expenses ?? []).length) {
+              <ul class="mt-4 divide-y divide-line text-sm">
+                @for (item of books()?.expenses ?? []; track item.id) {
+                  <li class="flex items-center gap-3 py-2.5">
+                    <div class="min-w-0 flex-1">
+                      <p class="truncate font-medium text-ink">{{ item.name }}</p>
+                      <p class="text-xs text-muted">{{ item.kind === 'fixed' ? (item.cadence === 'week' ? 'Semanal' : item.cadence === 'day' ? 'Por día' : 'Mensual') : 'Variable' }}</p>
+                    </div>
+                    <span class="nums shrink-0 text-right font-medium text-ink">{{ money(item.amount) }}</span>
+                    <span class="flex shrink-0">
+                      <button type="button" class="btn btn-ghost h-8! w-8! px-0!" aria-label="Editar" (click)="editExpense(item)"><mat-icon class="h-4! w-4! text-[16px]!">edit</mat-icon></button>
+                      <button type="button" class="btn btn-ghost h-8! w-8! px-0!" aria-label="Quitar" (click)="removeExpense(item.id)"><mat-icon class="h-4! w-4! text-[16px]!">delete</mat-icon></button>
+                    </span>
+                  </li>
+                }
+              </ul>
+            }
           </article>
         }
       </div>
     </div>
 
     @if (view() === 'income' && books(); as row) {
-      <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <article class="rounded-2xl border border-[#eceae6] bg-white p-4">
-          <p class="text-sm text-stone-500">Ticket promedio</p>
-          <p class="mt-1 text-xl font-semibold">{{ money(row.average_ticket) }}</p>
-          <p class="mt-1 text-xs text-stone-400">Promedio de cada cita completada. {{ row.completed_count }} en el periodo.</p>
-        </article>
-        <article class="rounded-2xl border border-[#eceae6] bg-white p-4">
-          <p class="text-sm text-stone-500">No se hicieron</p>
-          <p class="mt-1 text-xl font-semibold">{{ row.missed_count }}</p>
-          <p class="mt-1 text-xs text-stone-400">Canceladas o sin llegar. {{ money(row.missed_amount) }} que no entró.</p>
-          <a class="mt-2 inline-block text-xs text-[#b76e79]" [routerLink]="['/admin/agenda']" [queryParams]="agendaQuery('missed')">Ver en la agenda</a>
-        </article>
-        <article class="rounded-2xl border border-[#eceae6] bg-white p-4">
-          <p class="text-sm text-stone-500">Anticipos</p>
-          <p class="mt-1 text-xl font-semibold">{{ money(row.deposit_due) }}</p>
-          <p class="mt-1 text-xs text-stone-400">Por cobrar. {{ row.deposit_count }} pendientes y {{ row.proofs_pending }} comprobantes.</p>
-          <a class="mt-2 inline-block text-xs text-[#b76e79]" [routerLink]="['/admin/agenda']" [queryParams]="agendaQuery('deposit')">Ver en la agenda</a>
-        </article>
-        <article class="rounded-2xl border border-[#eceae6] bg-white p-4">
-          <p class="text-sm text-stone-500">Más pedido</p>
-          <p class="mt-1 text-xl font-semibold">{{ topService() }}</p>
-          <p class="mt-1 text-xs text-stone-400">El servicio con más citas. {{ row.top_count }} · {{ money(row.top_income) }}.</p>
-        </article>
+      <div class="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div class="card p-4!">
+          <p class="text-xs text-muted">Ticket promedio</p>
+          <p class="nums mt-1 text-2xl font-semibold text-ink">{{ money(row.average_ticket) }}</p>
+          <p class="mt-1 text-xs text-muted">Promedio de cada cita completada. <span class="nums">{{ row.completed_count }}</span> en el periodo.</p>
+        </div>
+        <div class="card p-4!">
+          <p class="text-xs text-muted">No se hicieron</p>
+          <p class="nums mt-1 text-2xl font-semibold text-ink">{{ row.missed_count }}</p>
+          <p class="mt-1 text-xs text-muted">Canceladas o sin llegar. <span class="nums">{{ money(row.missed_amount) }}</span> que no entró.</p>
+          <a class="mt-2 inline-flex items-center gap-0.5 text-xs font-medium text-ink-soft hover:text-ink" [routerLink]="['/admin/agenda']" [queryParams]="agendaQuery('missed')">Ver en la agenda <mat-icon class="h-4! w-4! text-[16px]!">chevron_right</mat-icon></a>
+        </div>
+        <div class="card p-4!">
+          <p class="text-xs text-muted">Anticipos</p>
+          <p class="nums mt-1 text-2xl font-semibold text-ink">{{ money(row.deposit_due) }}</p>
+          <p class="mt-1 text-xs text-muted">Por cobrar. <span class="nums">{{ row.deposit_count }}</span> pendientes y <span class="nums">{{ row.proofs_pending }}</span> comprobantes.</p>
+          <a class="mt-2 inline-flex items-center gap-0.5 text-xs font-medium text-ink-soft hover:text-ink" [routerLink]="['/admin/agenda']" [queryParams]="agendaQuery('deposit')">Ver en la agenda <mat-icon class="h-4! w-4! text-[16px]!">chevron_right</mat-icon></a>
+        </div>
+        <div class="card min-w-0 p-4!">
+          <p class="text-xs text-muted">Más pedido</p>
+          <p class="mt-1 truncate text-2xl font-semibold text-ink">{{ topService() }}</p>
+          <p class="mt-1 text-xs text-muted">El servicio con más citas. <span class="nums">{{ row.top_count }} · {{ money(row.top_income) }}</span>.</p>
+        </div>
       </div>
-      <div class="mt-4 grid gap-4 lg:grid-cols-2">
+      <div class="mt-4 grid items-start gap-4 lg:grid-cols-2">
         @if (closeout(); as day) {
-          <article class="rounded-2xl border border-[#eceae6] bg-white p-4">
-            <h2 class="text-sm font-semibold">Cierre de hoy</h2>
-            <p class="mt-1 text-xs text-stone-400">Lo cobrado hoy, aparte del periodo de arriba.</p>
-            <div class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <p class="text-sm text-stone-500">Entró <span class="mt-1 block text-xs font-normal text-stone-400">Citas completadas</span><span class="mt-1 block text-lg font-semibold text-[#1E1B1E]">{{ money(day.total) }}</span></p>
-              <p class="text-sm text-stone-500">Anticipos <span class="mt-1 block text-xs font-normal text-stone-400">Aún por cobrar</span><span class="mt-1 block text-lg font-semibold text-[#1E1B1E]">{{ money(day.deposit_due) }}</span></p>
-              <p class="text-sm text-stone-500">No llegaron <span class="mt-1 block text-xs font-normal text-stone-400">Sin presentarse</span><span class="mt-1 block text-lg font-semibold text-[#1E1B1E]">{{ day.no_shows?.length ? day.no_shows.join(', ') : 'Nadie' }}</span></p>
-              <p class="text-sm text-stone-500">Ganancia <span class="mt-1 block text-xs font-normal text-stone-400">Después de gastos</span><span class="mt-1 block text-lg font-semibold text-[#1E1B1E]">{{ money(day.profit) }}</span></p>
-            </div>
+          <article class="card">
+            <h2 class="card-title">Cierre de hoy</h2>
+            <p class="mt-1 text-sm text-muted">Lo cobrado hoy, aparte del periodo de arriba.</p>
+            <ul class="mt-2 divide-y divide-line text-sm">
+              <li class="flex items-center justify-between gap-3 py-2.5">
+                <div><p class="text-ink">Entró</p><p class="text-xs text-muted">Citas completadas</p></div>
+                <span class="nums text-right font-semibold text-ink">{{ money(day.total) }}</span>
+              </li>
+              <li class="flex items-center justify-between gap-3 py-2.5">
+                <div><p class="text-ink">Anticipos</p><p class="text-xs text-muted">Aún por cobrar</p></div>
+                <span class="nums text-right font-semibold text-ink">{{ money(day.deposit_due) }}</span>
+              </li>
+              <li class="flex items-center justify-between gap-3 py-2.5">
+                <div class="shrink-0"><p class="text-ink">No llegaron</p><p class="text-xs text-muted">Sin presentarse</p></div>
+                <span class="min-w-0 text-right font-medium text-ink">{{ day.no_shows?.length ? day.no_shows.join(', ') : 'Nadie' }}</span>
+              </li>
+              <li class="flex items-center justify-between gap-3 py-2.5">
+                <div><p class="text-ink">Ganancia</p><p class="text-xs text-muted">Después de gastos</p></div>
+                <span class="nums text-right font-semibold text-ink">{{ money(day.profit) }}</span>
+              </li>
+            </ul>
           </article>
         }
-        <article class="rounded-2xl border border-[#eceae6] bg-white p-4">
-          <h2 class="text-sm font-semibold">Resultado</h2>
-          <p class="mt-1 text-xs text-stone-400">Ingresos del periodo, menos gastos y comisiones.</p>
-          <div class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <p class="text-sm text-stone-500">Ingresos <span class="mt-1 block text-xs font-normal text-stone-400">Citas completadas</span><span class="mt-1 block text-lg font-semibold text-[#1E1B1E]">{{ money(row.total) }}</span></p>
-            <p class="text-sm text-stone-500">Gastos <span class="mt-1 block text-xs font-normal text-stone-400">Fijos y variables</span><span class="mt-1 block text-lg font-semibold text-[#1E1B1E]">− {{ money(row.expense_fixed + row.expense_variable) }}</span></p>
-            <p class="text-sm text-stone-500">Comisiones <span class="mt-1 block text-xs font-normal text-stone-400">Parte del equipo</span><span class="mt-1 block text-lg font-semibold text-[#1E1B1E]">− {{ money(row.commission_total) }}</span></p>
-            <p class="text-sm text-stone-500">Ganancia <span class="mt-1 block text-xs font-normal text-stone-400">Lo que queda</span><span class="mt-1 block text-lg font-semibold text-[#1E1B1E]">{{ money(row.profit) }}</span></p>
-          </div>
-          <p class="mt-3 text-sm text-stone-500">Margen {{ margin() }}% de los ingresos. {{ compareText() }}</p>
+        <article class="card">
+          <h2 class="card-title">Resultado</h2>
+          <p class="mt-1 text-sm text-muted">Ingresos del periodo, menos gastos y comisiones.</p>
+          <ul class="mt-2 divide-y divide-line text-sm">
+            <li class="flex items-center justify-between gap-3 py-2.5">
+              <div><p class="text-ink">Ingresos</p><p class="text-xs text-muted">Citas completadas</p></div>
+              <span class="nums text-right font-medium text-ink">{{ money(row.total) }}</span>
+            </li>
+            <li class="flex items-center justify-between gap-3 py-2.5">
+              <div><p class="text-ink">Gastos</p><p class="text-xs text-muted">Fijos y variables</p></div>
+              <span class="nums text-right font-medium text-ink-soft">− {{ money(row.expense_fixed + row.expense_variable) }}</span>
+            </li>
+            <li class="flex items-center justify-between gap-3 py-2.5">
+              <div><p class="text-ink">Comisiones</p><p class="text-xs text-muted">Parte del equipo</p></div>
+              <span class="nums text-right font-medium text-ink-soft">− {{ money(row.commission_total) }}</span>
+            </li>
+            <li class="flex items-center justify-between gap-3 py-2.5">
+              <div><p class="font-semibold text-ink">Ganancia</p><p class="text-xs text-muted">Lo que queda</p></div>
+              <span class="nums text-right text-base font-semibold text-ink">{{ money(row.profit) }}</span>
+            </li>
+          </ul>
+          <p class="mt-2 text-sm text-muted">Margen <span class="nums">{{ margin() }}%</span> de los ingresos. {{ compareText() }}</p>
         </article>
       </div>
     }
 
     @if ((view() === 'staff' || view() === 'commission') && books()) {
-      <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div class="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         @if (view() === 'staff') {
-          <article class="rounded-2xl border border-[#eceae6] bg-white p-4">
-            <p class="text-sm text-stone-500">Equipo</p>
-            <p class="mt-1 text-xl font-semibold">{{ team().count }}</p>
-            <p class="mt-1 text-xs text-stone-400">Colaboradores en este periodo</p>
-          </article>
-          <article class="rounded-2xl border border-[#eceae6] bg-white p-4">
-            <p class="text-sm text-stone-500">Citas</p>
-            <p class="mt-1 text-xl font-semibold">{{ team().visits }}</p>
-            <p class="mt-1 text-xs text-stone-400">Visitas atendidas por el equipo</p>
-          </article>
-          <article class="rounded-2xl border border-[#eceae6] bg-white p-4">
-            <p class="text-sm text-stone-500">Horas libres</p>
-            <p class="mt-1 text-xl font-semibold">{{ team().free }}</p>
-            <p class="mt-1 text-xs text-stone-400">Huecos sin cita en el periodo</p>
-          </article>
-          <article class="rounded-2xl border border-[#eceae6] bg-white p-4">
-            <p class="text-sm text-stone-500">Quién más vendió</p>
-            <p class="mt-1 text-xl font-semibold">{{ team().top }}</p>
-            <p class="mt-1 text-xs text-stone-400">El ingreso más alto del equipo</p>
-          </article>
+          <div class="card p-4!">
+            <p class="text-xs text-muted">Equipo</p>
+            <p class="nums mt-1 text-2xl font-semibold text-ink">{{ team().count }}</p>
+            <p class="mt-1 text-xs text-muted">Colaboradores en este periodo</p>
+          </div>
+          <div class="card p-4!">
+            <p class="text-xs text-muted">Citas</p>
+            <p class="nums mt-1 text-2xl font-semibold text-ink">{{ team().visits }}</p>
+            <p class="mt-1 text-xs text-muted">Visitas atendidas por el equipo</p>
+          </div>
+          <div class="card p-4!">
+            <p class="text-xs text-muted">Horas libres</p>
+            <p class="nums mt-1 text-2xl font-semibold text-ink">{{ team().free }}</p>
+            <p class="mt-1 text-xs text-muted">Huecos sin cita en el periodo</p>
+          </div>
+          <div class="card min-w-0 p-4!">
+            <p class="text-xs text-muted">Quién más vendió</p>
+            <p class="mt-1 truncate text-2xl font-semibold text-ink">{{ team().top }}</p>
+            <p class="mt-1 text-xs text-muted">El ingreso más alto del equipo</p>
+          </div>
         } @else {
-          <article class="rounded-2xl border border-[#eceae6] bg-white p-4">
-            <p class="text-sm text-stone-500">Comisión</p>
-            <p class="mt-1 text-xl font-semibold">{{ money(team().commission) }}</p>
-            <p class="mt-1 text-xs text-stone-400">Lo que corresponde al equipo</p>
-          </article>
-          <article class="rounded-2xl border border-[#eceae6] bg-white p-4">
-            <p class="text-sm text-stone-500">Pagado</p>
-            <p class="mt-1 text-xl font-semibold">{{ money(team().paid) }}</p>
-            <p class="mt-1 text-xs text-stone-400">Comisiones ya saldadas</p>
-          </article>
-          <article class="rounded-2xl border border-[#eceae6] bg-white p-4">
-            <p class="text-sm text-stone-500">Por pagar</p>
-            <p class="mt-1 text-xl font-semibold">{{ money(team().owed) }}</p>
-            <p class="mt-1 text-xs text-stone-400">Lo que el negocio aún debe</p>
-          </article>
-          <article class="rounded-2xl border border-[#eceae6] bg-white p-4">
-            <p class="text-sm text-stone-500">Mayor comisión</p>
-            <p class="mt-1 text-xl font-semibold">{{ team().topPay }}</p>
-            <p class="mt-1 text-xs text-stone-400">Quien acumula más en el periodo</p>
-          </article>
+          <div class="card p-4!">
+            <p class="text-xs text-muted">Comisión</p>
+            <p class="nums mt-1 text-2xl font-semibold text-ink">{{ money(team().commission) }}</p>
+            <p class="mt-1 text-xs text-muted">Lo que corresponde al equipo</p>
+          </div>
+          <div class="card p-4!">
+            <p class="text-xs text-muted">Pagado</p>
+            <p class="nums mt-1 text-2xl font-semibold text-ink">{{ money(team().paid) }}</p>
+            <p class="mt-1 text-xs text-muted">Comisiones ya saldadas</p>
+          </div>
+          <div class="card p-4!">
+            <p class="text-xs text-muted">Por pagar</p>
+            <p class="nums mt-1 text-2xl font-semibold" [class.text-red-700]="team().owed > 0" [class.text-ink]="!(team().owed > 0)">{{ money(team().owed) }}</p>
+            <p class="mt-1 text-xs text-muted">Lo que el negocio aún debe</p>
+          </div>
+          <div class="card min-w-0 p-4!">
+            <p class="text-xs text-muted">Mayor comisión</p>
+            <p class="mt-1 truncate text-2xl font-semibold text-ink">{{ team().topPay }}</p>
+            <p class="mt-1 text-xs text-muted">Quien acumula más en el periodo</p>
+          </div>
         }
       </div>
     }
 
     @if (pickerOpen()) {
-      <div class="fixed inset-0 z-40 flex items-start justify-center bg-[#1E1B1E]/30 px-4 pt-24" (click)="pickerOpen.set(false)">
-        <div class="w-full max-w-lg rounded-2xl bg-white p-4 shadow-xl" role="dialog" aria-label="Tipo de métrica" (click)="$event.stopPropagation()">
-          <div class="mb-3 flex items-center justify-between">
-            <h2 class="text-sm font-semibold">Tipo de métrica</h2>
-            <button type="button" class="text-sm text-stone-400" (click)="pickerOpen.set(false)" aria-label="Cerrar">✕</button>
+      <div class="fixed inset-0 z-40 flex items-start justify-center bg-ink/30 px-4 pt-24" (click)="pickerOpen.set(false)">
+        <div class="card w-full max-w-lg p-4! shadow-xl" role="dialog" aria-label="Tipo de métrica" (click)="$event.stopPropagation()">
+          <div class="mb-2 flex items-center justify-between">
+            <h2 class="card-title">Tipo de métrica</h2>
+            <button type="button" class="btn btn-ghost h-8! w-8! px-0!" (click)="pickerOpen.set(false)" aria-label="Cerrar"><mat-icon>close</mat-icon></button>
           </div>
-          <div class="flex flex-col gap-2">
+          <div class="divide-y divide-line">
             @for (item of metrics; track item.id) {
               <button
                 type="button"
-                class="flex items-center gap-3 rounded-xl border px-3 py-3 text-left"
-                [class]="metric() === item.id ? 'border-[#e7cfd3] bg-[#f8eef0]' : 'border-[#eceae6] bg-white'"
+                class="flex w-full items-center gap-3 rounded-lg px-2 py-3 text-left transition-colors hover:bg-canvas"
+                [class.bg-canvas]="metric() === item.id"
+                [attr.aria-pressed]="metric() === item.id"
                 (click)="pickMetric(item.id)"
               >
-                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f8eef0] text-xs font-semibold text-[#b76e79]">{{ item.badge.slice(0, 1) }}</span>
+                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-line bg-surface text-xs font-semibold text-ink-soft">{{ item.badge.slice(0, 1) }}</span>
                 <span class="min-w-0 flex-1">
-                  <span class="block text-sm font-medium">{{ item.title }} <span class="ml-1 text-[11px] font-normal text-stone-400">{{ item.badge }}</span></span>
-                  <span class="mt-0.5 block text-xs text-stone-500">{{ item.text }}</span>
+                  <span class="block text-sm font-medium text-ink">{{ item.title }} <span class="ml-1 text-xs font-normal text-muted">{{ item.badge }}</span></span>
+                  <span class="mt-0.5 block text-xs text-muted">{{ item.text }}</span>
                 </span>
-                <span class="text-stone-300">›</span>
+                @if (metric() === item.id) {
+                  <mat-icon class="h-5! w-5! text-[20px]! text-ink">check</mat-icon>
+                } @else {
+                  <mat-icon class="h-5! w-5! text-[20px]! text-muted">chevron_right</mat-icon>
+                }
               </button>
             }
           </div>

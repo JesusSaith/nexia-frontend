@@ -1,10 +1,10 @@
-<main class="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-4 py-10 font-['Plus_Jakarta_Sans',sans-serif] text-[#1E1B1E]">
+<main class="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-4 py-10 text-ink">
   @if (isLoading()) {
-    <p class="text-center text-sm text-slate-500">Cargando tu cita…</p>
+    <p class="text-center text-sm text-muted">Cargando tu cita…</p>
   } @else if (errorMessage(); as message) {
-    <p class="rounded-2xl border border-rose-100 bg-white p-6 text-center text-sm" role="alert">{{ message }}</p>
+    <p class="card text-center text-sm" role="alert">{{ message }}</p>
   } @else if (appointment(); as item) {
-    <section class="rounded-3xl border border-rose-100 bg-white p-6 shadow-sm" [style.--proof]="item.primary_color || '#1E1B1E'">
+    <section class="card shadow-sm" [style.--proof]="item.primary_color || '#1E1B1E'">
       <div class="flex items-center gap-3">
         @if (item.logo_url) {
           <img [src]="item.logo_url" [alt]="item.business_name" class="h-12 w-12 rounded-full object-cover" />
@@ -15,37 +15,58 @@
       @if (notice(); as message) {
         <p class="mt-4 rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700" role="status">{{ message }}</p>
       }
+      @if (item.status === 'completed') {
+        <div class="mt-4 rounded-2xl bg-rose-50 p-4">
+          @if (reviewState() === 'sent') {
+            <p class="text-sm font-medium">¡Gracias por tu opinión! </p>
+          } @else {
+            <p class="text-sm font-medium">¿Cómo te fue?</p>
+            <div class="mt-2 flex gap-1" role="radiogroup" aria-label="Calificación">
+              @for (star of stars; track star) {
+                <button type="button" class="text-2xl leading-none" [class.text-amber-400]="star <= rating()" [class.text-stone-300]="star > rating()" [attr.aria-label]="star + ' estrellas'" (click)="rating.set(star)">★</button>
+              }
+            </div>
+            <textarea class="mt-2 w-full resize-none rounded-xl border border-line bg-white px-3 py-2 text-sm outline-none" rows="2" maxlength="1000" placeholder="Cuéntanos en una frase" [value]="opinion()" (input)="opinion.set($any($event.target).value)"></textarea>
+            @if (reviewError(); as message) {
+              <p class="mt-1 text-xs text-red-700" role="alert">{{ message }}</p>
+            }
+            <button type="button" class="btn btn-primary mt-2 w-full disabled:opacity-50" [disabled]="reviewState() === 'sending'" (click)="sendReview(item)">
+              {{ reviewState() === 'sending' ? 'Enviando…' : 'Enviar opinión' }}
+            </button>
+          }
+        </div>
+      }
       @if (item.is_cancelled) {
         <p class="mt-4 text-sm font-medium text-rose-700">Cita cancelada</p>
       }
       <dl class="mt-5 space-y-2 text-sm">
         <div>
-          <dt class="text-slate-400">Servicio</dt>
+          <dt class="text-muted">Servicio</dt>
           <dd class="font-medium">{{ item.service_name }}</dd>
         </div>
         <div>
-          <dt class="text-slate-400">Fecha y hora</dt>
+          <dt class="text-muted">Fecha y hora</dt>
           <dd class="font-medium">{{ label(item.starts_at) }}</dd>
         </div>
         <div>
-          <dt class="text-slate-400">Con</dt>
+          <dt class="text-muted">Con</dt>
           <dd class="font-medium">{{ item.staff_name }}</dd>
         </div>
         @if (item.quoted_price != null) {
           <div>
-            <dt class="text-slate-400">Precio acordado</dt>
+            <dt class="text-muted">Precio acordado</dt>
             <dd class="font-medium">${{ item.quoted_price }}</dd>
           </div>
         } @else if (item.variable_price) {
           <div>
-            <dt class="text-slate-400">Precio</dt>
+            <dt class="text-muted">Precio</dt>
             <dd class="font-medium">El negocio te lo confirma en esta página</dd>
           </div>
         }
       </dl>
 
       @if (item.quoted_price != null && !item.price_accepted && !item.is_cancelled) {
-        <button type="button" class="mt-4 h-11 w-full rounded-2xl bg-[#1E1B1E] text-sm text-white" [disabled]="saving()" (click)="acceptPrice()">Sí, ese precio</button>
+        <button type="button" class="btn btn-primary mt-4 w-full" [disabled]="saving()" (click)="acceptPrice()">Sí, ese precio</button>
       }
       @if (item.price_accepted) {
         <p class="mt-4 text-sm text-emerald-700">Aceptaste este precio.</p>
@@ -58,7 +79,7 @@
         @if (item.payment_proof) {
           <p class="mt-2 text-sm text-emerald-700">Foto enviada. El negocio confirma la cita cuando la revise.</p>
         } @else {
-          <label class="mt-3 flex h-11 cursor-pointer items-center justify-center rounded-2xl bg-[#1E1B1E] text-sm text-white">
+          <label class="mt-3 flex h-11 cursor-pointer items-center justify-center rounded-2xl bg-ink text-sm text-white">
             Subir comprobante
             <input class="hidden" type="file" accept="image/png,image/jpeg,image/webp" (change)="onProof($event)" />
           </label>
@@ -68,11 +89,11 @@
         <p class="mt-4 text-sm text-rose-700">Ya no se puede cambiar esta cita.</p>
       }
       @if (item.status === 'awaiting_deposit' && item.payment_url) {
-        <a class="mt-4 flex h-11 items-center justify-center rounded-2xl bg-[#1E1B1E] text-sm text-white" [href]="item.payment_url" target="_blank" rel="noopener">Pagar anticipo</a>
-        <button type="button" class="mt-2 h-11 w-full rounded-2xl border border-slate-200 text-sm" [disabled]="saving()" (click)="markPaid()">Ya pagué</button>
+        <a class="btn btn-primary mt-4 justify-center" [href]="item.payment_url" target="_blank" rel="noopener">Pagar anticipo</a>
+        <button type="button" class="btn btn-secondary mt-2 w-full" [disabled]="saving()" (click)="markPaid()">Ya pagué</button>
       }
       @if (item.status === 'scheduled' && !item.is_past && !item.client_confirmed) {
-        <button type="button" class="mt-4 h-11 w-full rounded-2xl bg-[#1E1B1E] text-sm text-white" [disabled]="saving()" (click)="confirmVisit()">Sí voy</button>
+        <button type="button" class="btn btn-primary mt-4 w-full" [disabled]="saving()" (click)="confirmVisit()">Sí voy</button>
       }
       @if (item.client_confirmed) {
         <p class="mt-4 text-sm text-emerald-700">Confirmaste que vas.</p>
@@ -80,19 +101,19 @@
       @if (!item.is_cancelled && !item.is_past && !item.changes_locked) {
         <div class="mt-6 flex flex-col gap-2">
           @if (item.cancel_policy) {
-            <p class="text-sm text-slate-600">{{ item.cancel_policy }}</p>
+            <p class="text-sm text-ink-soft">{{ item.cancel_policy }}</p>
           }
-          <button type="button" class="h-11 rounded-2xl bg-[#1E1B1E] text-sm text-white" (click)="startChange()">
+          <button type="button" class="btn btn-primary" (click)="startChange()">
             Cambiar fecha u hora
           </button>
-          <button type="button" class="h-11 rounded-2xl border border-rose-200 text-sm text-rose-700" [disabled]="saving()" (click)="cancel()">
+          <button type="button" class="btn btn-secondary" [disabled]="saving()" (click)="cancel()">
             Cancelar cita
           </button>
         </div>
       }
 
       @if (changing()) {
-        <div class="mt-5 border-t border-rose-100 pt-4 text-left">
+        <div class="mt-5 border-t border-line pt-4 text-left">
           <label class="block text-sm">
             Nueva fecha
             <app-date-field class="mt-1 block" [valueIn]="date()" [fromToday]="true" (picked)="onDate($event)" />
@@ -109,10 +130,10 @@
                 {{ slotLabel(slot.starts_at) }}
               </button>
             } @empty {
-              <p class="text-sm text-slate-500">No hay horarios ese día.</p>
+              <p class="text-sm text-muted">No hay horarios ese día.</p>
             }
           </div>
-          <button type="button" class="mt-4 h-10 rounded-xl bg-[#1E1B1E] px-4 text-sm text-white disabled:opacity-50" [disabled]="!selectedSlot() || saving()" (click)="confirmChange()">
+          <button type="button" class="btn btn-primary mt-4 disabled:opacity-50" [disabled]="!selectedSlot() || saving()" (click)="confirmChange()">
             {{ saving() ? 'Guardando…' : 'Confirmar cambio' }}
           </button>
         </div>

@@ -7,6 +7,7 @@ import { Appointment, AppointmentCreate, AvailabilitySlot } from '../models/appo
 import { BusinessBrand, BusinessProfileUpdate, PublicService, PublicStaff } from '../models/business.model';
 
 export interface ManagedAppointment {
+  client_name?: string;
   business_name: string;
   business_slug: string;
   logo_url?: string | null;
@@ -29,6 +30,14 @@ export interface ManagedAppointment {
   price_accepted: boolean;
   cancel_policy?: string | null;
   payment_url?: string | null;
+}
+
+export interface PrivacyNotice {
+  name: string;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  privacy_notice: string | null;
 }
 
 export interface ClientCard {
@@ -72,24 +81,28 @@ export class BookingService {
   getAvailability(
     slug: string,
     serviceId: number,
-    staffId: number,
+    staffId: number | null,
     date: string,
     extra: number[] = [],
     resource: string | null = null,
   ): Observable<AvailabilitySlot[]> {
-    let params = new HttpParams()
-      .set('service_id', serviceId)
-      .set('staff_id', staffId)
-      .set('date', date);
-    if (extra.length) {
-      params = params.set('extra', extra.join(','));
-    }
-    if (resource) {
-      params = params.set('resource', resource);
-    }
+    const params = availabilityParams(serviceId, staffId, extra, resource).set('date', date);
     return this.http.get<AvailabilitySlot[]>(`${this.apiBaseUrl}/businesses/${slug}/availability`, {
       params,
     });
+  }
+
+  /** Días (YYYY-MM-DD) del mes con al menos un horario libre. Sin staffId busca con cualquiera. */
+  getAvailableDays(
+    slug: string,
+    serviceId: number,
+    staffId: number | null,
+    month: string,
+    extra: number[] = [],
+    resource: string | null = null,
+  ): Observable<string[]> {
+    const params = availabilityParams(serviceId, staffId, extra, resource).set('month', month);
+    return this.http.get<string[]>(`${this.apiBaseUrl}/businesses/${slug}/availability/days`, { params });
   }
 
   joinWaitlist(
@@ -153,7 +166,43 @@ export class BookingService {
     return this.http.post<ManagedAppointment>(`${this.apiBaseUrl}/public/appointments/${token}/paid`, {});
   }
 
+  /**
+   * Enlace para compartir la página de reservas. Pasa por el backend para que WhatsApp e Instagram
+   * muestren logo y nombre en la vista previa; luego redirige a /:slug/book.
+   */
+  shareUrl(slug: string): string {
+    return `${this.apiBaseUrl.replace(/\/api\/?$/, '')}/s/${slug}`;
+  }
+
+  getPrivacy(slug: string): Observable<PrivacyNotice> {
+    return this.http.get<PrivacyNotice>(`${this.apiBaseUrl}/businesses/${slug}/privacy`);
+  }
+
+  /** Enlace público de una foto de referencia; se puede abrir desde WhatsApp. */
+  referencePhotoUrl(token: string, index: number): string {
+    return `${this.apiBaseUrl}/public/appointments/${token}/photos/${index}`;
+  }
+
   createAppointment(slug: string, data: AppointmentCreate): Observable<Appointment> {
     return this.http.post<Appointment>(`${this.apiBaseUrl}/businesses/${slug}/appointments`, data);
   }
+}
+
+function availabilityParams(
+  serviceId: number,
+  staffId: number | null,
+  extra: number[],
+  resource: string | null,
+): HttpParams {
+  let params = new HttpParams().set('service_id', serviceId);
+  if (staffId !== null) {
+    params = params.set('staff_id', staffId);
+  }
+  if (extra.length) {
+    params = params.set('extra', extra.join(','));
+  }
+  if (resource) {
+    params = params.set('resource', resource);
+  }
+  return params;
 }

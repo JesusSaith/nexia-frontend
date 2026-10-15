@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
 
@@ -20,7 +21,7 @@ type DashView = 'income' | 'staff' | 'commission' | 'expenses';
 
 @Component({
   selector: 'app-dashboard-page',
-  imports: [PickFieldComponent, RouterLink],
+  imports: [PickFieldComponent, RouterLink, MatIconModule],
   templateUrl: './dashboard-page.component.html',
 })
 export class DashboardPageComponent {
@@ -68,6 +69,12 @@ export class DashboardPageComponent {
   ];
   protected readonly view = signal<DashView>('income');
   protected readonly period = signal<'day' | 'week' | 'month' | 'range'>('day');
+  protected readonly periods = [
+    { id: 'day', label: 'Día' },
+    { id: 'week', label: 'Semana' },
+    { id: 'month', label: 'Mes' },
+    { id: 'range', label: 'Rango' },
+  ] as const;
   protected readonly customStart = signal(iso(new Date()));
   protected readonly customEnd = signal(iso(new Date()));
   protected readonly metric = signal<'revenue' | 'count'>('revenue');
@@ -398,6 +405,19 @@ export class DashboardPageComponent {
     return Math.round(((row.expense_fixed + row.expense_variable) / row.total) * 100);
   }
 
+  protected methodRows(rows: Record<string, number> | undefined): { label: string; amount: number }[] {
+    const names: Record<string, string> = {
+      efectivo: 'Efectivo',
+      transferencia: 'Transferencia',
+      tarjeta: 'Tarjeta',
+      paquete: 'Paquete',
+      sin_registrar: 'Sin registrar',
+    };
+    return Object.entries(rows ?? {})
+      .map(([key, amount]) => ({ label: names[key] ?? key, amount }))
+      .sort((a, b) => b.amount - a.amount);
+  }
+
   protected money(amount: number): string {
     return this.currency.format(amount);
   }
@@ -640,10 +660,9 @@ function iso(date: Date): string {
 }
 
 function pieShade(index: number): string {
-  const mixes = [100, 72, 48, 28];
+  const mixes = [100, 70, 45, 25];
   const mix = mixes[index % mixes.length];
-  const toward = index % 2 === 0 ? 'white' : '#1c1917';
-  return `color-mix(in srgb, var(--primary) ${mix}%, ${toward})`;
+  return `color-mix(in srgb, var(--color-ink) ${mix}%, white)`;
 }
 
 function readError(error: unknown, fallback: string): string {

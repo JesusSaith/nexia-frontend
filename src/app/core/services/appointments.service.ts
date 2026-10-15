@@ -85,8 +85,17 @@ export class AppointmentsService {
     });
   }
 
-  updateStatus(id: number, status: AppointmentStatus): Observable<Appointment> {
-    return this.http.put<Appointment>(`${this.apiBaseUrl}/appointments/${id}/status`, { status });
+  /** Cambia día, hora o persona de una cita conservando su duración. */
+  move(id: number, startsAt: string, staffId: number): Observable<Appointment> {
+    return this.http.put<Appointment>(`${this.apiBaseUrl}/appointments/${id}/time`, { starts_at: startsAt, staff_id: staffId });
+  }
+
+  updateStatus(
+    id: number,
+    status: AppointmentStatus,
+    charge?: { final_price: number | null; payment_method: string | null },
+  ): Observable<Appointment> {
+    return this.http.put<Appointment>(`${this.apiBaseUrl}/appointments/${id}/status`, { status, ...charge });
   }
 
   clearProof(id: number): Observable<Appointment> {

@@ -77,6 +77,11 @@ export class BusinessPageComponent {
     const slug = this.brand()?.slug;
     return slug ? `${window.location.origin}/${slug}/book` : '';
   });
+  /** El que se copia y se manda: muestra logo y nombre al pegarlo en WhatsApp o Instagram. */
+  protected readonly shareUrl = computed(() => {
+    const slug = this.brand()?.slug;
+    return slug ? this.bookingApi.shareUrl(slug) : '';
+  });
 
   protected readonly gaps = computed(() => {
     const shop = this.brand();
@@ -161,8 +166,17 @@ export class BusinessPageComponent {
       .subscribe((rows) => this.serviceCount.set(rows.filter((row) => row.is_active).length));
   }
 
+  protected markShared(): void {
+    try {
+      localStorage.setItem('nexia-shared', '1');
+    } catch {
+      // Solo alimenta la lista de primer uso.
+    }
+  }
+
   protected copyLink(): void {
-    const url = this.bookingUrl();
+    this.markShared();
+    const url = this.shareUrl();
     if (!url) {
       return;
     }
@@ -174,7 +188,7 @@ export class BusinessPageComponent {
   }
 
   protected whatsappHref(): string {
-    const text = `¡Hola! Reserva tu cita con nosotros en línea aquí: ${this.bookingUrl()}`;
+    const text = `¡Hola! 👋 Ya puedes reservar tu cita con nosotros en línea: eliges servicio, día y hora en segundos.\n\n${this.shareUrl()}`;
     return `https://wa.me/?text=${encodeURIComponent(text)}`;
   }
 

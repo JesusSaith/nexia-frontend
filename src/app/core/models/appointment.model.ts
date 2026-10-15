@@ -4,6 +4,8 @@ export type AppointmentStatus = (typeof APPOINTMENT_STATUSES)[number];
 
 export interface AvailabilitySlot {
   starts_at: string;
+  /** Quién atiende ese horario; útil cuando se pidió "cualquiera". */
+  staff_id?: number | null;
 }
 
 export interface AppointmentCreate {
@@ -18,6 +20,10 @@ export interface AppointmentCreate {
   resource_name?: string | null;
   answers?: string | null;
   use_package?: boolean;
+  /** Fotos de referencia para cotizar (data URL, máx. 3). */
+  reference_photos?: string[];
+  /** Campo trampa contra bots; las personas lo dejan vacío. */
+  website?: string | null;
 }
 
 export interface Appointment {
@@ -42,6 +48,8 @@ export interface Appointment {
   resource_name?: string | null;
   extra_label?: string | null;
   answers?: string | null;
+  photo_count?: number;
+  payment_method?: string | null;
 }
 
 export interface AppointmentQuery {

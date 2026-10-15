@@ -44,6 +44,7 @@ export interface StockMove {
 
 export interface SalesReport {
   service_income: number;
+  by_method?: Record<string, number>;
   product_income: number;
   total: number;
   expense_fixed: number;

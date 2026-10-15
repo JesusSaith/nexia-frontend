@@ -1,175 +1,214 @@
-<section class="-mx-5 -my-7 min-h-full bg-[#FDF7F8] px-5 py-7 font-['Plus_Jakarta_Sans',sans-serif] text-[#1E1B1E] md:-mx-10 md:-my-9 md:px-10 md:py-9">
-  <div class="flex flex-wrap items-end justify-between gap-3">
+<section>
+  <header class="page-head">
     <div>
-      <h1 class="text-2xl font-semibold tracking-tight">Configuración del Negocio</h1>
-      <p class="mt-2 text-sm text-slate-600">Entra con el mismo correo en el celular y en la computadora. Las dos sesiones se quedan abiertas.</p>
+      <h1>Configuración</h1>
+      <p>Cómo se ve tu página, cómo se reserva y el anticipo.</p>
     </div>
-    <button type="button" class="text-sm text-slate-500 underline-offset-2 hover:underline" (click)="downloadBackup()">Descargar copia</button>
-  </div>
+    <button type="button" class="btn btn-secondary" (click)="downloadBackup()">
+      <mat-icon>download</mat-icon>
+      Descargar copia
+    </button>
+  </header>
 
   @if (errorMessage(); as message) {
-    <p class="mt-4 text-sm text-red-700" role="alert">{{ message }}</p>
+    <p class="mb-4 text-sm text-red-700" role="alert">{{ message }}</p>
   }
 
   @if (isLoading()) {
-    <div class="mt-6 h-64 animate-pulse rounded-2xl border border-rose-100 bg-white"></div>
+    <div class="h-64 animate-pulse rounded-2xl bg-line" aria-label="Cargando"></div>
   } @else {
-    <form class="mt-6 flex flex-col gap-4" [formGroup]="profileForm" (ngSubmit)="saveProfile()">
-      <section class="rounded-2xl border border-[#eceae6] bg-white p-5">
-        <h2 class="text-base font-semibold">Marca</h2>
-        <p class="mt-1 text-xs text-stone-500">{{ uploading() ? 'Subiendo…' : 'Haz clic en el logo para cambiarlo. El teléfono y la dirección se ven en la reserva.' }}</p>
+    <form class="flex flex-col gap-4" [formGroup]="profileForm" (ngSubmit)="saveProfile()">
+      <details class="settings-block card group" open>
+        <summary class="flex cursor-pointer list-none items-start justify-between gap-3 [&::-webkit-details-marker]:hidden">
+          <div class="min-w-0">
+            <h2 class="text-base font-semibold text-ink">Marca</h2>
+            <p class="mt-0.5 text-sm text-muted">Logo, fotos, descripción y promoción</p>
+          </div>
+          <mat-icon class="shrink-0 text-muted transition-transform group-open:rotate-180" aria-hidden="true">expand_more</mat-icon>
+        </summary>
+        <p class="mt-4 border-t border-line pt-4 text-sm text-muted">{{ uploading() ? 'Subiendo…' : 'Haz clic en el logo para cambiarlo. El teléfono y la dirección se ven en la reserva.' }}</p>
         <div class="mt-4 flex flex-col gap-4 sm:flex-row">
           <label class="relative shrink-0 cursor-pointer">
             <input type="file" accept="image/png,image/jpeg,image/webp" class="sr-only" (change)="onLogo($event)" />
             @if (logoSrc(); as src) {
-              <img [src]="src" alt="Logo" class="h-24 w-24 rounded-2xl border border-[#eceae6] bg-white object-contain" (error)="logoUrl.set(null)" />
+              <img [src]="src" alt="Logo" class="h-24 w-24 rounded-xl border border-line bg-surface object-contain" (error)="logoUrl.set(null)" />
             } @else {
-              <span class="flex h-24 w-24 items-center justify-center rounded-2xl bg-[#f4f3f1] text-stone-400">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-7 w-7" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 8h3l2-2h6l2 2h3v10H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+              <span class="flex h-24 w-24 items-center justify-center rounded-xl border border-dashed border-line-strong bg-canvas text-muted">
+                <mat-icon>photo_camera</mat-icon>
               </span>
             }
             <span class="sr-only">Cambiar logo</span>
           </label>
           <div class="grid flex-1 gap-3 sm:grid-cols-2">
-            <label class="rounded-xl border border-[#e4dfda] px-3 py-2">
-              <span class="block text-xs text-slate-500">Teléfono público</span>
-              <input class="w-full bg-transparent text-sm outline-none" formControlName="phone" />
+            <label class="block text-sm text-ink-soft">
+              <span>Teléfono público</span>
+              <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" formControlName="phone" />
             </label>
-            <label class="rounded-xl border border-[#e4dfda] px-3 py-2">
-              <span class="block text-xs text-slate-500">Dirección</span>
-              <input class="w-full bg-transparent text-sm outline-none" formControlName="address" />
+            <label class="block text-sm text-ink-soft">
+              <span>Dirección</span>
+              <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" formControlName="address" />
             </label>
-            <label class="rounded-xl border border-[#e4dfda] px-3 py-2">
-              <span class="block text-xs text-slate-500">Instagram</span>
-              <input class="w-full bg-transparent text-sm outline-none" formControlName="instagram" />
+            <label class="block text-sm text-ink-soft">
+              <span>Instagram</span>
+              <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" formControlName="instagram" />
             </label>
-            <label class="rounded-xl border border-[#e4dfda] px-3 py-2">
-              <span class="block text-xs text-slate-500">Facebook</span>
-              <input class="w-full bg-transparent text-sm outline-none" formControlName="facebook" />
+            <label class="block text-sm text-ink-soft">
+              <span>Facebook</span>
+              <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" formControlName="facebook" />
             </label>
-            <label class="rounded-xl border border-[#e4dfda] px-3 py-2 sm:col-span-2">
-              <span class="block text-xs text-slate-500">Qué hace tu negocio</span>
-              <input class="w-full bg-transparent text-sm outline-none" formControlName="description" placeholder="Cortes, color y peinados" />
+            <label class="block text-sm text-ink-soft sm:col-span-2">
+              <span>Qué hace tu negocio</span>
+              <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" formControlName="description" placeholder="Cortes, color y peinados" />
             </label>
           </div>
         </div>
         <div class="mt-4 grid gap-3 sm:grid-cols-2">
-          <label class="rounded-xl border border-[#e4dfda] px-3 py-2">
-            <span class="block text-xs text-slate-500">Promoción</span>
-            <input class="w-full bg-transparent text-sm outline-none" maxlength="80" placeholder="2x1 en color" [value]="promo()" (input)="promo.set($any($event.target).value)" />
+          <label class="block text-sm text-ink-soft">
+            <span>Promoción</span>
+            <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" maxlength="80" placeholder="2x1 en color" [value]="promo()" (input)="promo.set($any($event.target).value)" />
           </label>
-          <label class="rounded-xl border border-[#e4dfda] px-3 py-2">
-            <span class="block text-xs text-slate-500">Visible hasta</span>
-            <input class="w-full bg-transparent text-sm outline-none" type="date" [value]="promoUntil()" (change)="promoUntil.set($any($event.target).value)" />
+          <label class="block text-sm text-ink-soft">
+            <span>Visible hasta</span>
+            <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" type="date" [value]="promoUntil()" (change)="promoUntil.set($any($event.target).value)" />
           </label>
         </div>
         <div class="mt-4 flex flex-wrap items-center gap-3">
           @for (photo of photos(); track photo) {
-            <button type="button" class="relative" (click)="removePhoto($index)" aria-label="Quitar foto">
-              <img [src]="photo" alt="" class="h-16 w-16 rounded-xl object-cover" />
+            <button type="button" class="group/photo relative rounded-lg" (click)="removePhoto($index)" aria-label="Quitar foto">
+              <img [src]="photo" alt="" class="h-16 w-16 rounded-lg border border-line object-cover" />
+              <span class="absolute inset-0 flex items-center justify-center rounded-lg bg-ink/50 text-white opacity-0 transition-opacity group-hover/photo:opacity-100"><mat-icon>close</mat-icon></span>
             </button>
           }
           @if (photos().length < 3) {
-            <label class="flex h-16 w-16 cursor-pointer items-center justify-center rounded-xl border border-dashed border-[#e4dfda] text-xs text-stone-500">
+            <label class="flex h-16 w-16 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-line-strong text-xs text-muted hover:border-ink hover:text-ink">
+              <mat-icon class="h-5! w-5! text-[20px]!">add_photo_alternate</mat-icon>
               Foto
               <input type="file" accept="image/png,image/jpeg,image/webp" class="sr-only" (change)="addPhotos($event)" />
             </label>
           }
         </div>
-        <p class="mt-2 text-xs text-stone-500">Hasta 3 fotos del trabajo. El cliente las ve debajo del nombre, en la página de reservas. Toca una para quitarla.</p>
-      </section>
+        <p class="mt-2 text-sm text-muted">Hasta 3 fotos del trabajo. El cliente las ve debajo del nombre, en la página de reservas. Toca una para quitarla.</p>
+      </details>
 
-      <section class="rounded-2xl border border-[#eceae6] bg-white p-5">
-        <h2 class="text-base font-semibold">Cómo se reserva</h2>
-        <p class="mt-1 text-xs text-stone-500">Vacío en cancelar: el cliente puede cambiar la cita hasta que empiece. 0 minutos las deja seguidas.</p>
+      <details class="settings-block card group">
+        <summary class="flex cursor-pointer list-none items-start justify-between gap-3 [&::-webkit-details-marker]:hidden">
+          <div class="min-w-0">
+            <h2 class="text-base font-semibold text-ink">Cómo se reserva</h2>
+            <p class="mt-0.5 text-sm text-muted">Anticipación, días a futuro, tiempo entre citas y cancelaciones</p>
+          </div>
+          <mat-icon class="shrink-0 text-muted transition-transform group-open:rotate-180" aria-hidden="true">expand_more</mat-icon>
+        </summary>
+        <p class="mt-4 border-t border-line pt-4 text-sm text-muted">Vacío en cancelar: el cliente puede cambiar la cita hasta que empiece. 0 minutos las deja seguidas.</p>
         <div class="mt-4 grid gap-3 sm:grid-cols-2">
-          <label class="rounded-xl border border-[#e4dfda] px-3 py-2">
-            <span class="block text-xs text-slate-500">Horas para cancelar</span>
-            <input class="w-full bg-transparent text-sm outline-none" formControlName="cancelHours" type="number" min="0" max="168" placeholder="Sin límite" />
+          <label class="block text-sm text-ink-soft">
+            <span>Horas para cancelar</span>
+            <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" formControlName="cancelHours" type="number" min="0" max="168" placeholder="Sin límite" />
           </label>
-          <label class="rounded-xl border border-[#e4dfda] px-3 py-2">
-            <span class="block text-xs text-slate-500">Horas mínimas de anticipación</span>
-            <input class="w-full bg-transparent text-sm outline-none" formControlName="minNoticeHours" type="number" min="0" max="168" />
+          <label class="block text-sm text-ink-soft">
+            <span>Horas mínimas de anticipación</span>
+            <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" formControlName="minNoticeHours" type="number" min="0" max="168" />
           </label>
-          <label class="rounded-xl border border-[#e4dfda] px-3 py-2">
-            <span class="block text-xs text-slate-500">Días hacia adelante</span>
-            <input class="w-full bg-transparent text-sm outline-none" formControlName="maxDaysAhead" type="number" min="1" max="365" />
+          <label class="block text-sm text-ink-soft">
+            <span>Días hacia adelante</span>
+            <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" formControlName="maxDaysAhead" type="number" min="1" max="365" />
           </label>
-          <label class="rounded-xl border border-[#e4dfda] px-3 py-2">
-            <span class="block text-xs text-slate-500">Minutos entre citas</span>
-            <input class="w-full bg-transparent text-sm outline-none" formControlName="bufferMinutes" type="number" min="0" max="120" />
+          <label class="block text-sm text-ink-soft">
+            <span>Minutos libres entre citas (para limpiar o preparar)</span>
+            <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" formControlName="bufferMinutes" type="number" min="0" max="120" />
           </label>
           <div class="sm:col-span-2">
-            <span class="mb-1 block text-xs text-slate-500">Tipo de negocio</span>
+            <span class="mb-1 block text-sm text-ink-soft">Tipo de negocio</span>
             <app-pick-field formControlName="staffLabel" [options]="rolePicks" placeholder="Elegir" />
           </div>
-          <label class="rounded-xl border border-[#e4dfda] px-3 py-2 sm:col-span-2">
-            <span class="block text-xs text-slate-500">Recursos (sala, cancha, equipo)</span>
-            <input class="w-full bg-transparent text-sm outline-none" formControlName="resources" placeholder="Sala 1, Sala 2" />
+          <label class="block text-sm text-ink-soft sm:col-span-2">
+            <span>Recursos (sala, cancha, equipo)</span>
+            <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" formControlName="resources" placeholder="Sala 1, Sala 2" />
           </label>
-          <label class="rounded-xl border border-[#e4dfda] px-3 py-2 sm:col-span-2">
-            <span class="block text-xs text-slate-500">Texto al cancelar</span>
-            <textarea class="w-full bg-transparent text-sm outline-none" rows="2" formControlName="cancelPolicy" placeholder="Puedes cancelar hasta 24 horas antes."></textarea>
+          <label class="block text-sm text-ink-soft sm:col-span-2">
+            <span>Texto al cancelar</span>
+            <textarea class="mt-1 block w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-ink" rows="2" formControlName="cancelPolicy" placeholder="Puedes cancelar hasta 24 horas antes."></textarea>
+          </label>
+          <label class="block text-sm text-ink-soft sm:col-span-2">
+            <span>Aviso de privacidad</span>
+            <textarea class="mt-1 block w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-ink" rows="4" formControlName="privacyNotice" placeholder="Pega aquí tu aviso de privacidad."></textarea>
+            <span class="mt-1 block text-xs text-muted">
+              Se muestra en tu página de reservas. Si lo dejas vacío usamos un aviso genérico con lo que la página recaba; te conviene revisarlo con tu asesor.
+              @if (privacyUrl(); as url) {
+                <a class="font-medium text-ink-soft underline hover:text-ink" [href]="url" target="_blank" rel="noopener">Ver cómo se ve</a>
+              }
+            </span>
           </label>
         </div>
-      </section>
+      </details>
 
-      <section class="rounded-2xl border border-[#eceae6] bg-white p-5">
-        <h2 class="text-base font-semibold">Cuando no hay citas</h2>
-        <p class="mt-1 text-xs text-stone-500">El enlace sigue en Perfil. Aquí decides si la página pública acepta reservas.</p>
-        <button type="button" class="mt-4 flex items-center gap-3 text-sm" (click)="pauseBookings.set(!pauseBookings())">
-          <span class="relative h-6 w-10 rounded-full transition-colors" [class]="pauseBookings() ? 'bg-[#1E1B1E]' : 'bg-stone-300'">
-            <span class="absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform" [class]="pauseBookings() ? 'left-4' : 'left-0.5'"></span>
+      <details class="settings-block card group">
+        <summary class="flex cursor-pointer list-none items-start justify-between gap-3 [&::-webkit-details-marker]:hidden">
+          <div class="min-w-0">
+            <h2 class="text-base font-semibold text-ink">Cuando no hay citas</h2>
+            <p class="mt-0.5 text-sm text-muted">Pausar reservas o cerrar por vacaciones</p>
+          </div>
+          <mat-icon class="shrink-0 text-muted transition-transform group-open:rotate-180" aria-hidden="true">expand_more</mat-icon>
+        </summary>
+        <p class="mt-4 border-t border-line pt-4 text-sm text-muted">El enlace sigue en Perfil. Aquí decides si la página pública acepta reservas.</p>
+        <button type="button" role="switch" [attr.aria-checked]="pauseBookings()" class="mt-4 flex items-center gap-3 text-sm text-ink" (click)="pauseBookings.set(!pauseBookings())">
+          <span class="relative h-6 w-10 rounded-full transition-colors" [class]="pauseBookings() ? 'bg-ink' : 'bg-line-strong'">
+            <span class="absolute top-0.5 h-5 w-5 rounded-full bg-surface transition-transform" [class]="pauseBookings() ? 'left-4' : 'left-0.5'"></span>
           </span>
           No tomar citas por ahora
         </button>
         <div class="mt-4 grid gap-3 sm:grid-cols-2">
-          <label class="rounded-xl border border-[#e4dfda] px-3 py-2">
-            <span class="block text-xs text-slate-500">Cerramos desde</span>
-            <input class="w-full bg-transparent text-sm outline-none" type="date" [value]="closedFrom()" (change)="closedFrom.set($any($event.target).value)" />
+          <label class="block text-sm text-ink-soft">
+            <span>Cerramos desde</span>
+            <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" type="date" [value]="closedFrom()" (change)="closedFrom.set($any($event.target).value)" />
           </label>
-          <label class="rounded-xl border border-[#e4dfda] px-3 py-2">
-            <span class="block text-xs text-slate-500">Hasta</span>
-            <input class="w-full bg-transparent text-sm outline-none" type="date" [value]="closedTo()" (change)="closedTo.set($any($event.target).value)" />
+          <label class="block text-sm text-ink-soft">
+            <span>Hasta</span>
+            <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" type="date" [value]="closedTo()" (change)="closedTo.set($any($event.target).value)" />
           </label>
         </div>
-      </section>
+      </details>
 
-      <section class="rounded-2xl border border-[#eceae6] bg-white p-5">
-        <h2 class="text-base font-semibold">Anticipo</h2>
-        <p class="mt-1 text-xs text-stone-500">El monto vale para precio fijo. El porcentaje, para precio acordado. Si no llega a tiempo, el horario se libera.</p>
+      <details class="settings-block card group">
+        <summary class="flex cursor-pointer list-none items-start justify-between gap-3 [&::-webkit-details-marker]:hidden">
+          <div class="min-w-0">
+            <h2 class="text-base font-semibold text-ink">Anticipo</h2>
+            <p class="mt-0.5 text-sm text-muted">Cuánto se paga para apartar y a qué cuenta</p>
+          </div>
+          <mat-icon class="shrink-0 text-muted transition-transform group-open:rotate-180" aria-hidden="true">expand_more</mat-icon>
+        </summary>
+        <p class="mt-4 border-t border-line pt-4 text-sm text-muted">El monto vale para precio fijo. El porcentaje, para precio acordado. Si no llega a tiempo, el horario se libera.</p>
         <div class="mt-4 grid gap-3 sm:grid-cols-2">
-          <label class="rounded-xl border border-[#e4dfda] px-3 py-2">
-            <span class="block text-xs text-slate-500">Monto</span>
-            <input class="w-full bg-transparent text-sm outline-none" formControlName="depositAmount" type="number" min="0" placeholder="Sin anticipo" />
+          <label class="block text-sm text-ink-soft">
+            <span>Monto</span>
+            <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" formControlName="depositAmount" type="number" min="0" placeholder="Sin anticipo" />
           </label>
-          <label class="rounded-xl border border-[#e4dfda] px-3 py-2">
-            <span class="block text-xs text-slate-500">Porcentaje del precio acordado</span>
-            <input class="w-full bg-transparent text-sm outline-none" formControlName="depositPercent" type="number" min="1" max="100" placeholder="Ej. 50" />
+          <label class="block text-sm text-ink-soft">
+            <span>Porcentaje del precio acordado</span>
+            <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" formControlName="depositPercent" type="number" min="1" max="100" placeholder="Ej. 50" />
           </label>
-          <label class="rounded-xl border border-[#e4dfda] px-3 py-2">
-            <span class="block text-xs text-slate-500">Cuenta o clave</span>
-            <input class="w-full bg-transparent text-sm outline-none" formControlName="depositAccount" placeholder="CLABE o referencia" />
+          <label class="block text-sm text-ink-soft">
+            <span>Cuenta o clave</span>
+            <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" formControlName="depositAccount" placeholder="CLABE o referencia" />
           </label>
-          <label class="rounded-xl border border-[#e4dfda] px-3 py-2">
-            <span class="block text-xs text-slate-500">Horas para recibirlo</span>
-            <input class="w-full bg-transparent text-sm outline-none" formControlName="depositHoldHours" type="number" min="1" max="72" />
+          <label class="block text-sm text-ink-soft">
+            <span>Horas para recibirlo</span>
+            <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" formControlName="depositHoldHours" type="number" min="1" max="72" />
           </label>
-          <label class="rounded-xl border border-[#e4dfda] px-3 py-2 sm:col-span-2">
-            <span class="block text-xs text-slate-500">Enlace de pago</span>
-            <input class="w-full bg-transparent text-sm outline-none" formControlName="paymentUrl" placeholder="https://" />
+          <label class="block text-sm text-ink-soft sm:col-span-2">
+            <span>Enlace de pago</span>
+            <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" formControlName="paymentUrl" placeholder="https://" />
           </label>
         </div>
-      </section>
+      </details>
 
-      <button type="submit" class="h-11 self-start rounded-full bg-[#1E1B1E] px-5 text-sm font-medium text-white disabled:opacity-50" [disabled]="savingProfile()">
+      <button type="submit" class="btn btn-primary sticky bottom-20 z-10 w-full sm:w-auto sm:self-start md:bottom-4" [disabled]="savingProfile()">
         {{ savingProfile() ? 'Guardando…' : 'Guardar' }}
       </button>
     </form>
 
     <!-- El horario del equipo vive en /admin/schedules. Este formulario era la apertura general del local. -->
     @if (false) {
-    <form class="mt-4 rounded-2xl border border-rose-100 bg-white p-6 shadow-sm" [formGroup]="hoursForm" (ngSubmit)="saveHours()">
+    <form class="mt-4 card shadow-sm" [formGroup]="hoursForm" (ngSubmit)="saveHours()">
       <h2 class="inline-flex items-center gap-2 text-base font-semibold">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="8"/><path d="M12 8v5l3 2"/></svg>
         Horario de apertura
@@ -192,7 +231,7 @@
           </div>
         }
       </div>
-      <button type="submit" class="mt-6 h-10 rounded-xl bg-[#1E1B1E] px-4 text-sm text-white hover:bg-black disabled:opacity-50" [disabled]="savingHours()">
+      <button type="submit" class="btn btn-primary mt-6 disabled:opacity-50" [disabled]="savingHours()">
         {{ savingHours() ? 'Guardando…' : 'Guardar Horarios' }}
       </button>
     </form>

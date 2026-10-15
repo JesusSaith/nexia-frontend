@@ -34,14 +34,14 @@ const ROLE_LABELS: Record<UserRole, string> = {
 };
 
 const MANAGER_LINKS: readonly AdminNavLink[] = [
-  { label: 'Perfil', path: '/admin/negocio', exact: true, icon: 'storefront' },
-  { label: 'Home', path: '/admin/home', exact: true, icon: 'home' },
-  { label: 'Dashboard', path: '/admin/dashboard', exact: true, icon: 'space_dashboard' },
+  { label: 'Inicio', path: '/admin/home', exact: true, icon: 'home' },
   { label: 'Agenda', path: '/admin/agenda', exact: true, icon: 'calendar_month' },
+  { label: 'Clientes', path: '/admin/clientes', exact: false, icon: 'person' },
+  { label: 'Reportes', path: '/admin/dashboard', exact: true, icon: 'space_dashboard' },
   { label: 'Servicios', path: '/admin/services', exact: false, icon: 'category' },
   { label: 'Equipo', path: '/admin/staff', exact: false, icon: 'groups' },
   { label: 'Horarios', path: '/admin/schedules', exact: false, icon: 'schedule' },
-  { label: 'Clientes', path: '/admin/clientes', exact: false, icon: 'person' },
+  { label: 'Mi negocio', path: '/admin/negocio', exact: true, icon: 'storefront' },
   // FUTURE_PHASE_INVENTORY: { label: 'Inventario', path: '/admin/caja', exact: true, icon: 'inventory_2' },
   { label: 'Configuración', path: '/admin/settings', exact: true, icon: 'tune' },
 ];

@@ -15,6 +15,7 @@ export interface BusinessBrand {
   deposit_percent?: number | null;
   deposit_account?: string | null;
   deposit_hold_hours?: number | null;
+  cancel_hours?: number | null;
   staff_label?: string;
   min_notice_hours?: number;
   max_days_ahead?: number;

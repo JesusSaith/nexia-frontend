@@ -9,14 +9,14 @@ import { ShopProduct, ShopService, StockMove } from '@core/services/shop.service
   selector: 'app-caja-page',
   template: `
     <h1 class="text-2xl font-semibold">Inventario</h1>
-    <p class="mt-1 text-sm text-slate-500">Entradas de mercancía y salidas, que son las ventas.</p>
+    <p class="mt-1 text-sm text-muted">Entradas de mercancía y salidas, que son las ventas.</p>
     <form class="mt-4 grid gap-2 sm:grid-cols-3" (submit)="add($event)">
       <input name="name" class="rounded-xl border px-3 py-2 text-sm" placeholder="Producto" />
       <input name="price" class="rounded-xl border px-3 py-2 text-sm" type="number" min="0" placeholder="Precio de venta" />
       <input name="qty" class="rounded-xl border px-3 py-2 text-sm" type="number" min="0" placeholder="Cantidad que entra" />
       <input name="cost" class="rounded-xl border px-3 py-2 text-sm" type="number" min="0" placeholder="Costo de compra" />
       <label class="flex items-center gap-2 text-sm"><input name="iva" type="checkbox" /> Lleva IVA 16%</label>
-      <button type="submit" class="h-10 rounded-full bg-[#1E1B1E] text-sm text-white">Agregar producto</button>
+      <button type="submit" class="h-10 rounded-full bg-ink text-sm text-white">Agregar producto</button>
     </form>
     @if (error(); as message) { <p class="mt-2 text-sm text-red-700">{{ message }}</p> }
     <ul class="mt-4 flex flex-col gap-3">
@@ -24,17 +24,17 @@ import { ShopProduct, ShopService, StockMove } from '@core/services/shop.service
         <li class="rounded-2xl border p-3 text-sm">
           <p class="font-medium">{{ item.name }} · quedan {{ item.stock }}</p>
           <form class="mt-2 flex flex-wrap items-center gap-2" (submit)="enter(item, $event)">
-            <span class="text-xs text-stone-500">Compra</span>
+            <span class="text-xs text-muted">Compra</span>
             <input name="qty" class="w-16 rounded-xl border px-2 py-1" type="number" min="1" value="1" />
             <input name="cost" class="w-28 rounded-xl border px-2 py-1" type="number" min="0" placeholder="Costo" />
             <label class="flex items-center gap-1"><input name="iva" type="checkbox" /> IVA 16%</label>
             <button type="submit" class="rounded-full border px-3 py-1">Registrar compra</button>
           </form>
           <form class="mt-2 flex flex-wrap items-center gap-2" (submit)="sell(item, $event)">
-            <span class="text-xs text-stone-500">Venta</span>
+            <span class="text-xs text-muted">Venta</span>
             <input name="qty" class="w-16 rounded-xl border px-2 py-1" type="number" min="1" value="1" />
             <input name="price" class="w-28 rounded-xl border px-2 py-1" type="number" min="0" [value]="item.price" />
-            <button type="submit" class="rounded-full bg-[#1E1B1E] px-3 py-1 text-white">Registrar venta</button>
+            <button type="submit" class="rounded-full bg-ink px-3 py-1 text-white">Registrar venta</button>
           </form>
         </li>
       }

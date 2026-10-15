@@ -72,6 +72,18 @@ describe('BookingService', () => {
     http.expectOne('http://api.test/api/businesses/negocio/staff').flush([staffItem]);
   });
 
+  it('asks availability with any staff and the open days of a month', () => {
+    service.getAvailability('negocio', 2, null, '2026-10-06', [3]).subscribe();
+    http
+      .expectOne('http://api.test/api/businesses/negocio/availability?service_id=2&extra=3&date=2026-10-06')
+      .flush([{ starts_at: '2026-10-06T10:00:00', staff_id: 4 }]);
+
+    service.getAvailableDays('negocio', 2, 4, '2026-10').subscribe((days) => expect(days).toEqual(['2026-10-06']));
+    http
+      .expectOne('http://api.test/api/businesses/negocio/availability/days?service_id=2&staff_id=4&month=2026-10')
+      .flush(['2026-10-06']);
+  });
+
   it('requests availability and creates an appointment', () => {
     service.getAvailability('negocio', 2, 4, '2026-10-06').subscribe((items) => {
       expect(items).toEqual([slot]);

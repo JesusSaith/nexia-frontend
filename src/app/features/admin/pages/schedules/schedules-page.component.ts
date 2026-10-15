@@ -165,7 +165,7 @@ export class SchedulesPageComponent {
     }
     this.days.update((items) =>
       items.map((day) =>
-        day.day_of_week >= 1 && day.day_of_week <= 4
+        day.day_of_week >= 1 && day.day_of_week <= 5
           ? {
               ...day,
               start_time: monday.start_time,
@@ -283,7 +283,7 @@ export class SchedulesPageComponent {
           if (current !== this.requestId) {
             return;
           }
-          this.days.set(defaultWeek());
+          this.days.set([]);
           this.isLoadingSchedule.set(false);
           this.loadError.set(readError(error, 'No pudimos cargar el horario.'));
         },

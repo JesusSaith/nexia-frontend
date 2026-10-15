@@ -34,6 +34,7 @@ export interface BusinessSettings {
   cancel_policy: string | null;
   resources: string | null;
   payment_url: string | null;
+  privacy_notice?: string | null;
   hours: BusinessHour[];
 }
 
@@ -54,6 +55,7 @@ export interface ProfileUpdate {
   cancel_policy?: string | null;
   resources?: string | null;
   payment_url?: string | null;
+  privacy_notice?: string | null;
 }
 
 @Injectable({ providedIn: 'root' })

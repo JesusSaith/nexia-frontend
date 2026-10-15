@@ -2,181 +2,219 @@
   @if (loadError(); as message) {
     <p role="alert" class="text-sm text-red-700">{{ message }}</p>
   } @else if (isLoading()) {
-    <div class="flex justify-center py-16">
-      <mat-spinner diameter="36" />
+    <div class="animate-pulse space-y-4" aria-label="Cargando">
+      <div class="h-8 w-48 rounded-lg bg-line"></div>
+      <div class="grid gap-3 sm:grid-cols-3">
+        <div class="h-20 rounded-2xl bg-line"></div>
+        <div class="h-20 rounded-2xl bg-line"></div>
+        <div class="h-20 rounded-2xl bg-line"></div>
+      </div>
+      <div class="h-64 rounded-2xl bg-line"></div>
     </div>
   } @else {
-    <header class="mb-6">
-      <h1>Home</h1>
-      <p class="mt-1 text-sm text-slate-500">Las citas de hoy y los avisos del negocio.</p>
-    </header>
-    <div class="grid items-stretch gap-4 lg:grid-cols-2">
-    <div class="flex flex-col gap-4">
-        @if (readyReminders().length > 0) {
-          <section class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-[#e7f8ef] px-4 py-3">
-            <p class="text-sm font-medium text-[#0b3d2e]">
-              {{ readyReminders().length }} recordatorio{{ readyReminders().length === 1 ? '' : 's' }} de mañana listo{{ readyReminders().length === 1 ? '' : 's' }}
-              @if (remindersSent()) { · ya abiertos hoy }
-            </p>
-            <button type="button" class="h-9 rounded-full bg-[#25D366] px-4 text-sm font-medium text-white" (click)="sendReminders()">
-              Enviar por WhatsApp
-            </button>
-          </section>
-        }
-        <section class="flex h-full flex-col rounded-2xl border border-[#eceae6] bg-white p-5">
-          <h2 class="text-sm font-semibold">Citas de hoy</h2>
-          @if (todayVisits().length === 0) {
-            <p class="mt-3 text-sm text-slate-500">No hay citas programadas hoy.</p>
-          } @else {
-            <ul class="mt-3 divide-y divide-[#f3f0ec]">
-              @for (item of todayVisits(); track item.id) {
-                <li class="py-3 first:pt-0 last:pb-0">
-                  <p class="text-sm font-medium">{{ item.client_name }}</p>
-                  <p class="mt-1 text-xs text-slate-500">{{ item.service_name }} · {{ slotLabel(item.starts_at) }} · {{ item.staff_name }}</p>
-                  @if (item.client_phone) {
-                    <a class="mt-1 inline-block text-xs font-medium text-[#128C7E]" [href]="remind(item, 'hoy')" target="_blank" rel="noopener">Recordar por WhatsApp</a>
-                  }
-                </li>
-              }
-            </ul>
-          }
-        </section>
-        <!-- FUTURE_PHASE_REVIEWS: Comentarios, estrellas y fotos de los clientes. -->
+    <header class="page-head">
+    <div>
+        <h1>Inicio</h1>
+        <p class="first-letter:uppercase">{{ todayLabel }}</p>
       </div>
+      <a routerLink="/admin/agenda" [queryParams]="{ nueva: 1 }" class="btn btn-primary">
+        <mat-icon class="h-5! w-5! text-[20px]!">add</mat-icon>
+        Nueva cita
+      </a>
+    </header>
 
-      <aside class="flex">
-        <section class="flex h-full w-full flex-col rounded-2xl border border-[#eceae6] bg-white p-5">
-          <h2 class="text-sm font-semibold">Avisos</h2>
-          @if (notices().length === 0) {
-            <p class="mt-3 text-sm text-slate-500">No hay avisos.</p>
-          } @else {
-            <ul class="mt-5 flex max-h-80 flex-col gap-8 overflow-y-auto pb-2">
-              @for (notice of pagedNotices(); track notice.id) {
-                <li>
-                  <p class="text-xs text-slate-400">{{ noticeWhen(notice.created_at) }}</p>
-                  <p class="mt-1.5 text-sm leading-6">{{ noticeText(notice.message) }}</p>
-                  <div class="mt-2 flex flex-wrap gap-3">
-                    @if (noticeCita(notice.message); as citaId) {
-                      <a class="text-xs font-medium text-[var(--primary)]" [routerLink]="['/admin/agenda']" [queryParams]="{ cita: citaId }">Ver cita</a>
-                    }
-                    @for (phone of noticePhones(notice.message); track phone) {
-                      <a class="text-xs font-medium text-[#128C7E]" [href]="waitWhatsapp(notice.message, phone)" target="_blank" rel="noopener">WhatsApp</a>
-                    }
-                  </div>
-                </li>
-              }
-            </ul>
-            @if (noticePages() > 1) {
-              <div class="mt-3 flex items-center justify-between text-xs">
-                <button type="button" class="text-slate-500 disabled:opacity-40" [disabled]="noticePage() === 0" (click)="noticePage.update((page) => page - 1)">Anterior</button>
-                <span class="text-slate-400">{{ noticePage() + 1 }} / {{ noticePages() }}</span>
-                <button type="button" class="text-slate-500 disabled:opacity-40" [disabled]="noticePage() + 1 >= noticePages()" (click)="noticePage.update((page) => page + 1)">Siguiente</button>
-              </div>
+    <!-- Indicadores del día -->
+    <div class="mb-4 grid grid-cols-3 gap-3">
+      <a routerLink="/admin/agenda" class="card p-4! hover:border-line-strong">
+        <p class="text-xs text-muted">Citas hoy</p>
+        <p class="nums mt-1 text-2xl font-semibold text-ink">{{ dayBrief().visits }}</p>
+      </a>
+      <div class="card p-4!">
+        <p class="text-xs text-muted">Sin confirmar</p>
+        <p class="nums mt-1 text-2xl font-semibold" [class.text-amber-700]="dayBrief().unconfirmed" [class.text-ink]="!dayBrief().unconfirmed">{{ dayBrief().unconfirmed }}</p>
+      </div>
+      <a routerLink="/admin/agenda" class="card p-4! hover:border-line-strong">
+        <p class="text-xs text-muted">Anticipos pendientes</p>
+        <p class="nums mt-1 text-2xl font-semibold" [class.text-red-700]="dayBrief().deposits" [class.text-ink]="!dayBrief().deposits">{{ dayBrief().deposits }}</p>
+      </a>
+    </div>
+
+    @if (!setupHidden() && setupLeft() > 0) {
+      <section class="card mb-4">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <h2 class="text-sm font-semibold text-ink">Pon tu negocio en marcha</h2>
+            <p class="mt-0.5 text-sm text-muted">{{ setup().length - setupLeft() }} de {{ setup().length }} pasos completos</p>
+          </div>
+          <button type="button" class="btn btn-ghost h-8! px-2! text-xs" (click)="hideSetup()">Ocultar</button>
+        </div>
+        <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-canvas">
+          <div class="h-full rounded-full bg-ink transition-all" [style.width.%]="((setup().length - setupLeft()) / setup().length) * 100"></div>
+        </div>
+        <ul class="mt-3 divide-y divide-line">
+          @for (step of setup(); track step.label) {
+            <li>
+              <a class="flex items-center gap-3 py-2.5 text-sm" [routerLink]="step.path">
+                <mat-icon class="h-5! w-5! text-[20px]!" [class.text-emerald-600]="step.done" [class.text-line-strong]="!step.done">
+                  {{ step.done ? 'check_circle' : 'radio_button_unchecked' }}
+                </mat-icon>
+                <span [class.text-muted]="step.done" [class.line-through]="step.done">{{ step.label }}</span>
+                @if (!step.done) {
+                  <mat-icon class="ml-auto h-5! w-5! text-[20px]! text-muted">chevron_right</mat-icon>
+                }
+              </a>
+            </li>
+          }
+        </ul>
+      </section>
+    }
+
+    @if (readyReminders().length > 0) {
+      <section class="card mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <mat-icon class="text-emerald-600">notifications_active</mat-icon>
+          <div>
+            @if (pendingReminders().length) {
+              <p class="text-sm font-medium text-ink">{{ pendingReminders().length }} recordatorio{{ pendingReminders().length === 1 ? '' : 's' }} de mañana por enviar</p>
+              <p class="text-sm text-muted">Se abre WhatsApp con el mensaje listo. Envíalo y vuelve por el siguiente.</p>
+            } @else {
+              <p class="text-sm font-medium text-ink">Recordatorios de mañana enviados</p>
+              <p class="text-sm text-muted">Todas las clientas fueron recordadas o ya confirmaron.</p>
             }
-          }
-        </section>
-        <!-- FUTURE_PHASE_RECOMMENDATIONS: Huecos de mañana. Ofrecer un hueco libre a un cliente. -->
-      </aside>
+          </div>
+        </div>
+        @if (pendingReminders()[0]; as next) {
+          <button type="button" class="btn btn-whatsapp" (click)="sendNextReminder()">
+            Recordar a {{ next.client_name.split(' ')[0] }} · <span class="nums">{{ slotLabel(next.starts_at) }}</span>
+          </button>
+        }
+      </section>
+    }
 
-      @if (todayVisits().length === 0 && tomorrow().length === 0 && upcoming().length === 0 && notices().length === 0 && (stats()?.top_services.length ?? 0) === 0) {
-        <section class="rounded-2xl border border-[#eceae6] bg-white p-5 lg:col-span-2">
-          <h2 class="text-sm font-semibold">Empieza por aquí</h2>
-          <p class="mt-1 text-sm text-slate-500">Cuando tengas servicios y citas, aquí verás el día, la agenda y los paquetes.</p>
-          <div class="mt-4 grid gap-3 sm:grid-cols-3">
-            <a routerLink="/admin/services" class="rounded-2xl border border-[#eceae6] px-4 py-3 text-sm font-medium">1. Crea un servicio</a>
-            <a routerLink="/admin/staff" class="rounded-2xl border border-[#eceae6] px-4 py-3 text-sm font-medium">2. Agrega a tu equipo</a>
-            <a routerLink="/admin/agenda" class="rounded-2xl border border-[#eceae6] px-4 py-3 text-sm font-medium">3. Abre la agenda</a>
-          </div>
-        </section>
-      } @else {
-      <div class="grid items-stretch gap-4 sm:grid-cols-2 lg:col-span-2 xl:grid-cols-4">
-        <section class="flex h-full flex-col rounded-2xl border border-[#eceae6] bg-white p-5">
-          <h2 class="mb-3 text-sm font-semibold">Mañana</h2>
-          @if (tomorrow().length === 0) {
-            <p class="text-sm text-slate-500">No hay citas mañana.</p>
-          } @else {
-            <ul class="flex flex-col gap-3">
-              @for (item of tomorrow(); track item.id) {
-                <li class="text-sm">
-                  <p class="font-medium">{{ item.client_name }}</p>
-                  <p class="text-xs text-slate-500">{{ item.service_name }} · {{ slotLabel(item.starts_at) }} · {{ item.staff_name }}</p>
-                  @if (item.client_phone) {
-                    <a class="mt-1 inline-block text-xs font-medium text-[#128C7E]" [href]="remind(item)" target="_blank" rel="noopener">Recordar por WhatsApp</a>
-                  }
-                </li>
-              }
-            </ul>
-          }
-        </section>
-        <section class="flex h-full flex-col rounded-2xl border border-[#eceae6] bg-white p-5">
-          <div class="mb-3 flex items-center justify-between gap-3">
-            <h2 class="text-sm font-semibold">Próximos servicios</h2>
-            <a routerLink="/admin/agenda" class="shrink-0 whitespace-nowrap text-xs font-medium text-[var(--primary)]">Ver agenda</a>
-          </div>
-          @if (upcoming().length === 0) {
-            <p class="text-sm text-slate-500">No hay citas próximas del equipo.</p>
-          } @else {
-            <ul class="flex flex-col gap-3">
-              @for (item of upcoming(); track item.id) {
-                <li class="flex items-center gap-3">
-                  <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold">
-                    {{ initial(item.staff_name) }}
-                  </span>
-                  <div class="min-w-0">
-                    <p class="truncate text-sm font-medium">{{ item.staff_name }}</p>
-                    <p class="truncate text-xs text-slate-500">{{ item.service_name }} · {{ slotLabel(item.starts_at) }}</p>
-                  </div>
-                </li>
-              }
-            </ul>
-          }
-        </section>
-        <section class="flex h-full flex-col rounded-2xl border border-[#eceae6] bg-white p-5">
-          <h2 class="mb-3 text-sm font-semibold">Paquetes</h2>
-          <div class="grid gap-2">
-            <label class="rounded-xl border border-[#e4dfda] px-3 py-2">
-              <span class="block text-xs text-slate-500">Cliente</span>
-              <input class="w-full bg-transparent text-sm outline-none" [value]="packageName()" (input)="packageName.set($any($event.target).value)" />
-            </label>
-            <label class="rounded-xl border border-[#e4dfda] px-3 py-2">
-              <span class="block text-xs text-slate-500">Teléfono</span>
-              <input class="w-full bg-transparent text-sm outline-none" [value]="packagePhone()" (input)="packagePhone.set($any($event.target).value)" />
-            </label>
-            <label class="rounded-xl border border-[#e4dfda] px-3 py-2">
-              <span class="block text-xs text-slate-500">Visitas</span>
-              <input class="w-full bg-transparent text-sm outline-none" type="number" min="1" [value]="packageVisits()" (input)="packageVisits.set(+$any($event.target).value)" />
-            </label>
-            <button type="button" class="h-9 rounded-full bg-[#1E1B1E] text-sm text-white" (click)="savePackage()">Agregar paquete</button>
-          </div>
-          <ul class="mt-3 flex flex-col gap-2">
-            @for (pack of packages(); track pack.id) {
-              <li class="text-sm">{{ pack.client_name }} · {{ pack.remaining }} de {{ pack.total }}</li>
+    <div class="grid items-start gap-4 lg:grid-cols-3">
+      <section class="card lg:col-span-2">
+        <div class="flex items-center justify-between">
+          <h2 class="card-title">Citas de hoy</h2>
+          <a routerLink="/admin/agenda" class="text-sm font-medium text-ink-soft hover:text-ink">Ver agenda</a>
+        </div>
+        @if (todayVisits().length === 0) {
+          <p class="py-8 text-center text-sm text-muted">No hay citas hoy.</p>
+        } @else {
+          <ul class="mt-2 divide-y divide-line">
+            @for (item of todayVisits(); track item.id) {
+              <li class="flex items-center gap-4 py-3">
+                <span class="nums w-14 shrink-0 text-sm font-semibold text-ink">{{ slotLabel(item.starts_at) }}</span>
+                <div class="min-w-0 flex-1">
+                  <p class="truncate text-sm font-medium text-ink">{{ item.client_name }}</p>
+                  <p class="truncate text-sm text-muted">{{ item.service_name }} · {{ item.staff_name }}</p>
+                </div>
+                @if (item.client_confirmed) {
+                  <span class="badge badge-ok">Confirmó</span>
+                } @else {
+                  <span class="badge badge-warn">Sin confirmar</span>
+                }
+              </li>
             }
           </ul>
-        </section>
-        <section class="flex h-full flex-col rounded-2xl border border-[#eceae6] bg-white p-5">
-          <h2 class="mb-3 text-sm font-semibold">Servicios más solicitados</h2>
-          @if ((stats()?.top_services.length ?? 0) === 0) {
-            <p class="text-sm text-slate-500">Todavía no hay servicios con citas este mes.</p>
-          } @else {
-            <ol class="flex flex-col gap-3">
-              @for (service of stats()!.top_services; track service.service_name; let index = $index) {
-                <li class="flex items-center gap-3">
-                  <span class="w-4 text-xs text-slate-400">{{ index + 1 }}</span>
-                  <div class="min-w-0 flex-1">
-                    <p class="truncate text-sm font-medium">{{ service.service_name }}</p>
-                    <p class="text-xs text-slate-500">
-                      {{ service.total_appointments }}
-                      {{ service.total_appointments === 1 ? 'cita' : 'citas' }}
-                    </p>
-                  </div>
-                </li>
-              }
-            </ol>
+        }
+      </section>
+
+      <section class="card">
+        <h2 class="card-title">Mañana</h2>
+        @if (tomorrow().length === 0) {
+          <p class="py-8 text-center text-sm text-muted">No hay citas mañana.</p>
+        } @else {
+          <ul class="mt-2 divide-y divide-line">
+            @for (item of tomorrow(); track item.id) {
+              <li class="py-3">
+                <div class="flex items-center gap-3">
+                  <span class="nums w-12 shrink-0 text-sm font-semibold text-ink">{{ slotLabel(item.starts_at) }}</span>
+                  <p class="min-w-0 flex-1 truncate text-sm font-medium text-ink">{{ item.client_name }}</p>
+                  @if (item.client_confirmed) {
+                    <span class="badge badge-ok">Confirmó</span>
+                  } @else if (reminded().includes(item.id)) {
+                    <span class="badge badge-neutral">Recordado</span>
+                  }
+                </div>
+                <p class="ml-15 truncate text-sm text-muted">{{ item.service_name }}</p>
+                @if (!item.client_confirmed && item.client_phone) {
+                  <a class="ml-15 mt-1 inline-block text-sm font-medium text-emerald-700 hover:underline" [href]="remind(item)" target="_blank" rel="noopener" (click)="markReminded(item)">
+                    {{ reminded().includes(item.id) ? 'Enviar otra vez' : 'Recordar por WhatsApp' }}
+                  </a>
+                }
+              </li>
+            }
+          </ul>
+        }
+      </section>
+
+      <section class="card lg:col-span-2">
+        <h2 class="card-title">Avisos</h2>
+        @if (notices().length === 0) {
+          <p class="py-8 text-center text-sm text-muted">Sin avisos nuevos.</p>
+        } @else {
+          <ul class="mt-2 max-h-96 divide-y divide-line overflow-y-auto">
+            @for (notice of pagedNotices(); track notice.id) {
+              <li class="py-3">
+                <p class="text-sm text-ink">{{ noticeText(notice.message) }}</p>
+                <div class="mt-1 flex flex-wrap items-center gap-3 text-sm">
+                  <span class="nums text-muted">{{ noticeWhen(notice.created_at) }}</span>
+                  @if (noticeCita(notice.message); as citaId) {
+                    <a class="font-medium text-ink-soft hover:text-ink" [routerLink]="['/admin/agenda']" [queryParams]="{ cita: citaId }">Ver cita</a>
+                  }
+                  @for (phone of noticePhones(notice.message); track phone) {
+                    <a class="font-medium text-emerald-700 hover:underline" [href]="waitWhatsapp(notice.message, phone)" target="_blank" rel="noopener">WhatsApp</a>
+                  }
+                </div>
+              </li>
+            }
+          </ul>
+          @if (noticePages() > 1) {
+            <div class="mt-3 flex items-center justify-between">
+              <button type="button" class="btn btn-ghost h-8!" [disabled]="noticePage() === 0" (click)="noticePage.update((page) => page - 1)">Anterior</button>
+              <span class="nums text-sm text-muted">{{ noticePage() + 1 }} / {{ noticePages() }}</span>
+              <button type="button" class="btn btn-ghost h-8!" [disabled]="noticePage() + 1 >= noticePages()" (click)="noticePage.update((page) => page + 1)">Siguiente</button>
+            </div>
           }
-        </section>
-      </div>
-      }
+        }
+      </section>
+
+      <section class="card">
+        <h2 class="card-title">Más pedidos este mes</h2>
+        @if ((stats()?.top_services.length ?? 0) === 0) {
+          <p class="py-8 text-center text-sm text-muted">Aún sin datos este mes.</p>
+        } @else {
+          <ol class="mt-2 divide-y divide-line">
+            @for (service of stats()!.top_services; track service.service_name; let index = $index) {
+              <li class="flex items-center gap-3 py-2.5">
+                <span class="nums w-4 text-sm text-muted">{{ index + 1 }}</span>
+                <p class="min-w-0 flex-1 truncate text-sm font-medium text-ink">{{ service.service_name }}</p>
+                <span class="nums text-sm text-muted">{{ service.total_appointments }}</span>
+              </li>
+            }
+          </ol>
+        }
+      </section>
+
+      <section class="card lg:col-span-3">
+        <h2 class="card-title">Paquetes</h2>
+        <div class="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_8rem_auto]">
+          <input class="h-10 rounded-lg border border-line-strong px-3 text-sm outline-none focus:border-ink" placeholder="Clienta" [value]="packageName()" (input)="packageName.set($any($event.target).value)" />
+          <input class="h-10 rounded-lg border border-line-strong px-3 text-sm outline-none focus:border-ink" type="tel" placeholder="Teléfono" [value]="packagePhone()" (input)="packagePhone.set($any($event.target).value)" />
+          <input class="h-10 rounded-lg border border-line-strong px-3 text-sm outline-none focus:border-ink" type="number" min="1" placeholder="Visitas" [value]="packageVisits()" (input)="packageVisits.set(+$any($event.target).value)" />
+          <button type="button" class="btn btn-secondary" (click)="savePackage()">Agregar</button>
+        </div>
+        @if (packages().length) {
+          <ul class="mt-3 divide-y divide-line">
+            @for (pack of packages(); track pack.id) {
+              <li class="flex items-center justify-between py-2.5 text-sm">
+                <span class="text-ink">{{ pack.client_name }}</span>
+                <span class="nums text-muted">{{ pack.remaining }} de {{ pack.total }} visitas</span>
+              </li>
+            }
+          </ul>
+        }
+      </section>
     </div>
   }
 </section>

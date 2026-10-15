@@ -355,8 +355,15 @@ export class ServicesPageComponent {
         this.form.controls.image_url.setValue(url, { emitEvent: false });
         this.photoPending.set(false);
       };
+      image.onerror = fail;
       image.src = String(reader.result);
     };
+    const fail = () => {
+      this.photoPending.set(false);
+      this.photoPreview.set(this.form.controls.image_url.value);
+      this.formError.set('No pudimos leer esa foto. Prueba con otra (JPG o PNG).');
+    };
+    reader.onerror = fail;
     reader.readAsDataURL(file);
   }
 

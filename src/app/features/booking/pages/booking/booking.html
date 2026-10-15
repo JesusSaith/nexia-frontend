@@ -1,5 +1,5 @@
-<main class="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8">
-  <header class="flex flex-col gap-3 overflow-hidden rounded-3xl border bg-white" style="border-color: color-mix(in srgb, var(--booking-primary, var(--primary)) 28%, white)">
+<main class="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8" [class.pb-40]="summary() && !confirmation()">
+  <header class="flex flex-col gap-3 overflow-hidden rounded-2xl border bg-white" style="border-color: color-mix(in srgb, var(--booking-primary, var(--primary)) 28%, white)">
     <div class="flex items-center gap-4 px-5 py-5" style="background: color-mix(in srgb, var(--booking-primary, var(--primary)) 12%, white)">
       @if (brand()?.logo_url && !logoFailed()) {
         <img [src]="brand()!.logo_url" [alt]="brand()?.name || ''" class="h-16 w-16 rounded-2xl bg-white object-contain p-1" (error)="logoFailed.set(true)" />
@@ -12,36 +12,43 @@
         <p class="text-xs font-medium uppercase tracking-wide" style="color: var(--booking-primary, var(--primary))">Reservas</p>
         <h1 class="text-2xl font-semibold">{{ brand()?.name || 'Reservar ' + copy().visit.toLowerCase() }}</h1>
         @if (brand()?.description) {
-          <p class="text-sm text-slate-600">{{ brand()?.description }}</p>
+          <p class="text-sm text-ink-soft">{{ brand()?.description }}</p>
         }
         @if (brand()?.address) {
-          <p class="text-sm text-slate-600">{{ brand()?.address }}</p>
+          <p class="text-sm text-ink-soft">{{ brand()?.address }}</p>
         }
       </div>
     </div>
     @if (offer(); as text) {
       <p class="mx-5 rounded-2xl px-4 py-2 text-sm text-white" style="background: var(--booking-primary, var(--primary))">{{ text }}</p>
     }
-    @if (gallery().length) {
-      <div class="flex gap-2 px-5">
-        @for (photo of gallery(); track photo) {
-          <img [src]="photo" alt="Trabajo del negocio" class="h-28 w-28 rounded-2xl object-cover" />
-        }
-      </div>
-    }
     @if (closedLabel(); as label) {
       <p class="px-5 text-sm" style="color: var(--booking-primary, var(--primary))">Cerramos del {{ label }}.</p>
     }
-    @if (opinions().length) {
-      <section class="flex flex-col gap-2">
-        <h2 class="text-sm font-medium">Opiniones</h2>
-        @for (review of opinions(); track review.id) {
-          <p class="text-sm text-slate-600">{{ review.client_name }}: {{ review.comment }}</p>
-          @if (review.reply) {
-            <p class="text-sm">Respuesta del negocio: {{ review.reply }}</p>
-          }
+    @if (gallery().length || opinions().length) {
+      <!-- Plegado para que en celular los servicios queden a la vista desde el inicio. -->
+      <details class="more-info px-5">
+        <summary class="cursor-pointer text-sm font-medium" style="color: var(--booking-primary, var(--primary))">
+          Ver {{ gallery().length ? 'fotos' : '' }}{{ gallery().length && opinions().length ? ' y ' : '' }}{{ opinions().length ? 'opiniones (' + opinions().length + ')' : '' }}
+        </summary>
+        @if (gallery().length) {
+          <div class="mt-3 flex gap-2 overflow-x-auto">
+            @for (photo of gallery(); track photo) {
+              <img [src]="photo" alt="Trabajo del negocio" class="h-28 w-28 shrink-0 rounded-2xl object-cover" />
+            }
+          </div>
         }
-      </section>
+        @if (opinions().length) {
+          <section class="mt-3 flex flex-col gap-2">
+            @for (review of opinions(); track review.id) {
+              <p class="text-sm text-ink-soft"><span class="font-medium text-ink">{{ review.client_name }}:</span> {{ review.comment }}</p>
+              @if (review.reply) {
+                <p class="text-sm">Respuesta del negocio: {{ review.reply }}</p>
+              }
+            }
+          </section>
+        }
+      </details>
     }
     <div class="flex flex-wrap items-center gap-4 px-5 pb-4 text-sm">
       @if (brand()?.phone) {
@@ -118,7 +125,7 @@
           </div>
         }
         @if (shopNote().pause || services().length === 0) {
-          <p class="text-sm text-slate-600">{{ shopNote().pause ? 'Por ahora no estamos tomando citas.' : 'Estamos preparando las reservas.' }}</p>
+          <p class="text-sm text-ink-soft">{{ shopNote().pause ? 'Por ahora no estamos tomando citas.' : 'Estamos preparando las reservas.' }}</p>
           @if (brand()?.phone; as phone) {
             <a class="mt-3 inline-flex h-10 items-center rounded-full px-4 text-sm text-white" style="background: var(--booking-primary, var(--primary))" [href]="businessWhatsapp(phone)" target="_blank" rel="noopener">Escribir por WhatsApp</a>
           }
@@ -136,14 +143,14 @@
                 }
                 <span class="min-w-0">
                   @if (service.category) {
-                    <span class="block text-xs text-slate-400">{{ service.category }}</span>
+                    <span class="block text-xs text-muted">{{ service.category }}</span>
                   }
                   <span class="block font-medium">{{ service.name }}</span>
-                  <span class="mt-1 block text-sm text-slate-600">
+                  <span class="mt-1 block text-sm text-ink-soft">
                     {{ service.duration_minutes }} min · {{ service.variable_price ? 'Precio según lo que pidas' : formatPrice(service.price) }}
                   </span>
                   @if (service.description) {
-                    <span class="mt-1 block text-sm text-slate-500">{{ service.description }}</span>
+                    <span class="mt-1 block text-sm text-muted">{{ service.description }}</span>
                   }
                 </span>
               </button>
@@ -152,7 +159,7 @@
           @if (selectedService() && services().length > 1) {
             <div class="mt-5">
               <p class="text-sm font-medium">¿Sumas otro servicio?</p>
-              <p class="mb-3 text-sm text-slate-500">Queda en la misma {{ copy().visit.toLowerCase() }}, con el mismo {{ copy().person.toLowerCase() }}.</p>
+              <p class="mb-3 text-sm text-muted">Queda en la misma {{ copy().visit.toLowerCase() }}, con el mismo {{ copy().person.toLowerCase() }}.</p>
               <div class="grid gap-2 sm:grid-cols-2">
                 @for (service of services(); track service.id) {
                   @if (service.id !== selectedService()?.id) {
@@ -167,7 +174,7 @@
                       }
                       <span class="min-w-0 flex-1">
                         <span class="block truncate text-sm font-medium">{{ service.name }}</span>
-                        <span class="block text-xs text-slate-500">
+                        <span class="block text-xs text-muted">
                           {{ service.duration_minutes }} min
                           @if (!service.variable_price) {
                             · {{ formatPrice(service.price) }}
@@ -191,11 +198,25 @@
       <div>
         <h2 class="mb-3 text-base font-medium">{{ brand()?.staff_label || 'Colaborador' }}</h2>
         @if (!selectedService()) {
-          <p class="text-sm text-slate-600">Elige un servicio para ver quién lo realiza.</p>
+          <p class="text-sm text-ink-soft">Elige un servicio para ver quién lo realiza.</p>
         } @else if (eligibleStaff().length === 0) {
-          <p class="text-sm text-slate-600">Nadie tiene asignado este servicio.</p>
+          <p class="text-sm text-ink-soft">Nadie tiene asignado este servicio.</p>
         } @else {
           <div class="grid gap-3 sm:grid-cols-2">
+            @if (eligibleStaff().length > 1) {
+              <button
+                type="button"
+                class="choice-card flex items-center gap-3 p-4 text-left"
+                [class.choice-selected]="anyStaff()"
+                (click)="chooseAnyStaff()"
+              >
+                <span class="brand-fill flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-lg" aria-hidden="true">★</span>
+                <span>
+                  <span class="block font-medium">Cualquiera disponible</span>
+                  <span class="mt-1 block text-sm text-ink-soft">Te mostramos más horarios</span>
+                </span>
+              </button>
+            }
             @for (member of eligibleStaff(); track member.id) {
               <button
                 type="button"
@@ -206,15 +227,15 @@
                 @if (member.avatar_url) {
                   <img [src]="member.avatar_url" [alt]="member.full_name" class="h-12 w-12 rounded-full object-cover" />
                 } @else {
-                  <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-medium">
+                  <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-canvas text-sm font-medium">
                     {{ initials(member.full_name) }}
                   </span>
                 }
                 <span>
                   <span class="block font-medium">{{ member.full_name }}</span>
-                  <span class="mt-1 block text-sm text-slate-600">{{ member.role_title }}</span>
+                  <span class="mt-1 block text-sm text-ink-soft">{{ member.role_title }}</span>
                   @if (member.bio) {
-                    <span class="mt-1 line-clamp-2 block text-sm text-slate-500">{{ member.bio }}</span>
+                    <span class="mt-1 line-clamp-2 block text-sm text-muted">{{ member.bio }}</span>
                   }
                 </span>
               </button>
@@ -222,25 +243,31 @@
           </div>
         }
       </div>
-
-      <div class="flex justify-end">
-        <button
-          type="button"
-          class="brand-fill h-10 rounded px-4 text-sm disabled:opacity-50"
-          [disabled]="!canChooseSchedule()"
-          (click)="goToSchedule()"
-        >
-          Continuar
-        </button>
-      </div>
     </section>
   } @else if (step() === 2) {
     <section class="flex flex-col gap-4">
+      @if (bumpNotice(); as notice) {
+        <p role="alert" class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">{{ notice }}</p>
+      }
+      @if (soonest().length) {
+        <div>
+          <h2 class="mb-2 text-base font-medium">Lo más pronto</h2>
+          <div class="grid grid-cols-3 gap-2">
+            @for (slot of soonest(); track slot.starts_at) {
+              <button type="button" class="choice-card flex flex-col items-center px-2 py-3 text-center" (click)="pickSoonest(slot)">
+                <span class="text-xs capitalize text-muted">{{ dayLabel(slot.starts_at) }}</span>
+                <span class="text-base font-semibold">{{ formatTime(slot.starts_at) }}</span>
+              </button>
+            }
+          </div>
+          <p class="mt-4 text-sm text-muted">O elige otro día:</p>
+        </div>
+      }
       <div class="flex items-center justify-between">
         <div>
           <p class="text-base font-medium capitalize">{{ monthLabel() }}</p>
           @if (themeLabel()) {
-            <p class="text-sm text-slate-500">{{ themeLabel() }}</p>
+            <p class="text-sm text-muted">{{ themeLabel() }}</p>
           }
         </div>
         <div class="flex gap-2">
@@ -248,7 +275,7 @@
           <button type="button" class="rounded-full border px-3 py-1 text-sm" (click)="shiftMonth(1)">›</button>
         </div>
       </div>
-      <div class="grid grid-cols-7 text-center text-xs text-slate-400">
+      <div class="grid grid-cols-7 text-center text-xs text-muted">
         @for (label of ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']; track label) {
           <div>{{ label }}</div>
         }
@@ -259,6 +286,8 @@
             type="button"
             class="flex h-10 flex-col items-center justify-center rounded-lg text-sm"
             [class.text-slate-300]="day.getMonth() !== dateMonth() || dayIso(day) < minDate || dayIso(day) > maxDate()"
+            [class.text-muted]="!openDays().includes(dayIso(day))"
+            [class.font-medium]="openDays().includes(dayIso(day))"
             [class.brand-solid]="dayIso(day) === date()"
             [disabled]="day.getMonth() !== dateMonth() || dayIso(day) < minDate || dayIso(day) > maxDate()"
             (click)="pickMonthDay(day)"
@@ -284,84 +313,87 @@
           <mat-spinner diameter="32" />
         </div>
       } @else if (slots().length === 0) {
-        <p class="text-sm text-slate-600">Ese día no tiene horarios libres. Déjanos tus datos y te avisamos.</p>
+        <p class="text-sm text-ink-soft">Ese día no tiene horarios libres. Déjanos tus datos y te avisamos.</p>
         @if (waitSent()) {
           <p class="text-sm text-emerald-700">Listo. Te avisamos si se libera un horario.</p>
         } @else {
           <div class="flex flex-col gap-2 sm:max-w-sm">
-            <label class="rounded-xl border border-[#e4dfda] bg-white px-3 py-2">
-              <span class="block text-xs text-slate-500">Nombre</span>
+            <label class="rounded-xl border border-line bg-white px-3 py-2">
+              <span class="block text-xs text-muted">Nombre</span>
               <input class="w-full bg-transparent text-sm outline-none" [value]="waitName()" (input)="waitName.set($any($event.target).value)" />
             </label>
-            <label class="rounded-xl border border-[#e4dfda] bg-white px-3 py-2">
-              <span class="block text-xs text-slate-500">Teléfono</span>
+            <label class="rounded-xl border border-line bg-white px-3 py-2">
+              <span class="block text-xs text-muted">Teléfono</span>
               <input class="w-full bg-transparent text-sm outline-none" [value]="waitPhone()" (input)="waitPhone.set($any($event.target).value)" />
             </label>
             <button type="button" class="brand-solid rounded-full px-4 py-2 text-sm" (click)="joinWait()">Avisarme</button>
           </div>
         }
       } @else {
-        <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          @for (slot of slots(); track slot.starts_at) {
-            <button
-              type="button"
-              class="rounded-full border px-3 py-2 text-sm"
-              [class.border-slate-200]="selectedSlot() !== slot.starts_at"
-              [class.bg-white]="selectedSlot() !== slot.starts_at"
-              [class.brand-solid]="selectedSlot() === slot.starts_at"
-              [class.border-transparent]="selectedSlot() === slot.starts_at"
-              [attr.aria-pressed]="selectedSlot() === slot.starts_at"
-              (click)="selectSlot(slot.starts_at)"
-            >
-              {{ formatTime(slot.starts_at) }}
-            </button>
-          }
-        </div>
-        @if (selectedSlot(); as chosen) {
-          <p class="text-sm font-medium" style="color: var(--booking-primary)">Horario elegido: {{ formatTime(chosen) }}</p>
+        <p class="text-sm font-medium capitalize">{{ formatDate(date() + 'T12:00:00') }}</p>
+        @for (group of slotGroups(); track group.label) {
+          <div>
+            <p class="mb-2 text-xs font-medium uppercase tracking-wide text-muted">{{ group.label }}</p>
+            <div class="grid grid-cols-3 gap-2 sm:grid-cols-5">
+              @for (slot of group.slots; track slot.starts_at) {
+                <button
+                  type="button"
+                  class="rounded-full border px-3 py-2 text-sm"
+                  [class.border-line]="selectedSlot() !== slot.starts_at"
+                  [class.bg-white]="selectedSlot() !== slot.starts_at"
+                  [class.brand-solid]="selectedSlot() === slot.starts_at"
+                  [class.border-transparent]="selectedSlot() === slot.starts_at"
+                  [attr.aria-pressed]="selectedSlot() === slot.starts_at"
+                  (click)="selectSlot(slot)"
+                >
+                  {{ formatTime(slot.starts_at) }}
+                </button>
+              }
+            </div>
+          </div>
         }
       }
-
-      <div class="flex justify-between">
-        <button mat-button type="button" (click)="back()">Atrás</button>
-        <button
-          type="button"
-          class="brand-fill h-10 rounded px-4 text-sm disabled:opacity-50"
-          [disabled]="!selectedSlot()"
-          (click)="goToDetails()"
-        >
-          Continuar
-        </button>
-      </div>
     </section>
   } @else if (step() === 3) {
-    <form class="flex flex-col gap-3" [formGroup]="clientForm" (ngSubmit)="confirm()">
-      <label class="rounded-xl border border-[#e4dfda] bg-white px-3 py-2">
-        <span class="block text-xs text-slate-500">Nombre del {{ copy().client.toLowerCase() }}</span>
+    <form id="booking-form" class="flex flex-col gap-3" [formGroup]="clientForm" (ngSubmit)="confirm()">
+      <!-- Campo trampa contra bots: invisible para las personas, no lo llenes. -->
+      <label class="trap-field" aria-hidden="true">
+        Sitio web
+        <input type="text" name="website" tabindex="-1" autocomplete="off" [value]="trap()" (input)="trap.set($any($event.target).value)" />
+      </label>
+      @if (remembered()) {
+        <p class="flex items-center justify-between gap-3 text-sm text-ink-soft">
+          <span>Hola de nuevo, {{ clientForm.controls.client_name.value.split(' ')[0] }}. Ya llenamos tus datos.</span>
+          <button type="button" class="shrink-0 text-xs underline" (click)="forgetClient()">No soy yo</button>
+        </p>
+      }
+      <label class="rounded-xl border border-line bg-white px-3 py-2">
+        <span class="block text-xs text-muted">Teléfono (WhatsApp)</span>
+        <input
+          class="w-full bg-transparent text-sm outline-none"
+          type="tel"
+          inputmode="tel"
+          placeholder="10 dígitos"
+          formControlName="client_phone"
+          autocomplete="tel"
+          (input)="lookPackage($any($event.target).value)"
+        />
+      </label>
+      @if (phoneError(); as message) {
+        <p class="text-sm text-red-700">{{ message }}</p>
+      }
+      <label class="rounded-xl border border-line bg-white px-3 py-2">
+        <span class="block text-xs text-muted">Tu nombre</span>
         <input class="w-full bg-transparent text-sm outline-none" formControlName="client_name" autocomplete="name" />
       </label>
       @if (nameError(); as message) {
         <p class="text-sm text-red-700">{{ message }}</p>
       }
-      <label class="rounded-xl border border-[#e4dfda] bg-white px-3 py-2">
-        <span class="block text-xs text-slate-500">Teléfono</span>
-        <input class="w-full bg-transparent text-sm outline-none" type="tel" formControlName="client_phone" autocomplete="tel" (change)="lookPackage($any($event.target).value)" />
-      </label>
-      @if (phoneError(); as message) {
-        <p class="text-sm text-red-700">{{ message }}</p>
-      }
       @if (copy().pet) {
-        <label class="rounded-xl border border-[#e4dfda] bg-white px-3 py-2">
-          <span class="block text-xs text-slate-500">Mascota</span>
+        <label class="rounded-xl border border-line bg-white px-3 py-2">
+          <span class="block text-xs text-muted">Mascota</span>
           <input class="w-full bg-transparent text-sm outline-none" [value]="petName()" (input)="petName.set($any($event.target).value)" />
         </label>
-      }
-      <label class="rounded-xl border border-[#e4dfda] bg-white px-3 py-2">
-        <span class="block text-xs text-slate-500">Correo (opcional)</span>
-        <input class="w-full bg-transparent text-sm outline-none" type="email" formControlName="client_email" autocomplete="email" />
-      </label>
-      @if (emailError(); as message) {
-        <p class="text-sm text-red-700">{{ message }}</p>
       }
       @if (packageLeft(); as pack) {
         <label class="flex items-center gap-2 text-sm">
@@ -370,45 +402,133 @@
         </label>
       }
       @if (selectedService()?.questions) {
-        <label class="rounded-xl border border-[#e4dfda] bg-white px-3 py-2">
-          <span class="block whitespace-pre-line text-xs text-slate-500">{{ selectedService()!.questions }}</span>
+        <label class="rounded-xl border border-line bg-white px-3 py-2">
+          <span class="block whitespace-pre-line text-xs text-muted">{{ selectedService()!.questions }}</span>
           <textarea class="mt-1 w-full resize-none bg-transparent text-sm outline-none" rows="3" placeholder="Tus respuestas" [value]="answers()" (input)="answers.set($any($event.target).value)"></textarea>
         </label>
       }
-      <label class="rounded-xl border border-[#e4dfda] bg-white px-3 py-2">
-        <span class="block text-xs text-slate-500">{{ selectedService()?.variable_price ? 'Qué necesitas' : 'Notas' }}</span>
-        <textarea class="w-full resize-none bg-transparent text-sm outline-none" rows="2" formControlName="notes"></textarea>
-      </label>
+      @if (selectedService()?.variable_price) {
+        <label class="rounded-xl border border-line bg-white px-3 py-2">
+          <span class="block text-xs text-muted">Qué necesitas</span>
+          <textarea class="w-full resize-none bg-transparent text-sm outline-none" rows="2" placeholder="Ej. uñas largas, diseño francés con piedritas" formControlName="notes"></textarea>
+        </label>
+        <!-- Fotos para cotizar: se guardan con la cita y van como enlace en el WhatsApp al negocio. -->
+        <div class="rounded-xl border border-dashed border-line-strong bg-white px-3 py-3">
+          <p class="text-xs text-muted">Fotos de referencia (opcional, hasta 3). Ayudan a que te coticen más rápido.</p>
+          <div class="mt-2 flex flex-wrap gap-2">
+            @for (photo of refPhotos(); track $index) {
+              <div class="relative">
+                <img [src]="photo" alt="Foto de referencia {{ $index + 1 }}" class="h-20 w-20 rounded-xl object-cover" />
+                <button
+                  type="button"
+                  class="btn btn-primary w-6 justify-center"
+                  [attr.aria-label]="'Quitar foto ' + ($index + 1)"
+                  (click)="removeRefPhoto($index)"
+                >✕</button>
+              </div>
+            }
+            @if (refPhotos().length < 3) {
+              <label class="flex h-20 w-20 cursor-pointer flex-col items-center justify-center rounded-xl bg-canvas text-xs text-muted">
+                <span class="text-xl leading-none" aria-hidden="true">+</span>
+                Agregar foto
+                <input class="hidden" type="file" accept="image/*" multiple (change)="onRefPhotos($event)" />
+              </label>
+            }
+          </div>
+          @if (photoError(); as message) {
+            <p class="mt-2 text-sm text-red-700" role="alert">{{ message }}</p>
+          }
+        </div>
+      }
+      @if (showOptional()) {
+        <label class="rounded-xl border border-line bg-white px-3 py-2">
+          <span class="block text-xs text-muted">Correo (opcional)</span>
+          <input class="w-full bg-transparent text-sm outline-none" type="email" formControlName="client_email" autocomplete="email" />
+        </label>
+        @if (emailError(); as message) {
+          <p class="text-sm text-red-700">{{ message }}</p>
+        }
+        @if (!selectedService()?.variable_price) {
+          <label class="rounded-xl border border-line bg-white px-3 py-2">
+            <span class="block text-xs text-muted">Nota para el negocio (opcional)</span>
+            <textarea class="w-full resize-none bg-transparent text-sm outline-none" rows="2" formControlName="notes"></textarea>
+          </label>
+        }
+      } @else {
+        <button type="button" class="self-start text-sm underline underline-offset-2" style="color: var(--booking-primary)" (click)="showOptional.set(true)">
+          + Agregar correo o nota
+        </button>
+      }
 
       @if (formError(); as message) {
         <p role="alert" class="mb-3 text-sm text-red-700">{{ message }}</p>
       }
 
-      @if (selectedService()?.variable_price && brand()?.deposit_percent) {
-        <p class="mb-4 rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-sm">
-          El anticipo es el {{ brand()?.deposit_percent }}% del precio acordado. Te lo indicamos cuando el negocio lo defina.
-        </p>
-      } @else if (depositAmount(); as amount) {
-        <p class="mb-4 rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-sm">
-          Para apartar este horario transfiere ${{ amount }} a {{ brand()?.deposit_account }}. Ese anticipo se descuenta del total: en la cita pagas lo que falte.
-        </p>
+      @if (money(); as cash) {
+        <!-- Desglose antes de confirmar: cuánto hoy, cuánto en la cita y qué pasa si cancela. -->
+        <section class="rounded-xl border border-line bg-white px-4 py-3 text-sm" aria-label="Resumen de pago">
+          @if (usePackage()) {
+            <p class="font-medium">Esta {{ copy().visit.toLowerCase() }} se descuenta de tu paquete.</p>
+          } @else if (cash.variable) {
+            <div class="flex justify-between gap-3">
+              <span class="text-ink-soft">Precio</span>
+              <span class="font-medium">{{ cash.total ? 'Desde ' + formatPrice(cash.total) : 'Lo acuerdas con el negocio' }}</span>
+            </div>
+            @if (brand()?.deposit_percent && brand()?.deposit_account) {
+              <p class="mt-2 text-ink-soft">
+                Anticipo: {{ brand()?.deposit_percent }}% del precio acordado. Te lo indicamos cuando el negocio lo defina; no pagas nada ahora.
+              </p>
+            }
+          } @else if (cash.deposit) {
+            <div class="flex justify-between gap-3">
+              <span>Pagas hoy (anticipo)</span>
+              <span class="font-semibold" style="color: var(--booking-primary)">{{ formatPrice(cash.deposit) }}</span>
+            </div>
+            <div class="mt-1 flex justify-between gap-3 text-ink-soft">
+              <span>En la {{ copy().visit.toLowerCase() }}</span>
+              <span>{{ formatPrice(cash.later) }}</span>
+            </div>
+            <div class="mt-2 flex justify-between gap-3 border-t border-line pt-2">
+              <span class="font-medium">Total</span>
+              <span class="font-medium">{{ formatPrice(cash.total) }}</span>
+            </div>
+            <p class="mt-2 text-xs text-muted">
+              Transfieres a {{ brand()?.deposit_account }} después de reservar. Te apartamos el horario {{ brand()?.deposit_hold_hours || 3 }} h mientras llega.
+            </p>
+          } @else {
+            <div class="flex justify-between gap-3">
+              <span>Pagas en la {{ copy().visit.toLowerCase() }}</span>
+              <span class="font-semibold">{{ formatPrice(cash.total) }}</span>
+            </div>
+            <p class="mt-1 text-xs text-muted">No pagas nada ahora.</p>
+          }
+          @if (policy(); as text) {
+            <p class="mt-3 whitespace-pre-line border-t border-line pt-2 text-xs text-muted">
+              <span class="font-medium text-ink-soft">Cancelaciones:</span> {{ text }}
+            </p>
+          }
+        </section>
       }
-      <div class="flex justify-between">
-        <button mat-button type="button" (click)="back()" [disabled]="isSaving()">Atrás</button>
-        <button type="submit" class="brand-fill h-10 rounded px-4 text-sm disabled:opacity-50" [disabled]="isSaving()">
-          {{ isSaving() ? 'Reservando…' : (holdsDeposit() ? 'Apartar horario' : 'Confirmar ' + copy().visit.toLowerCase()) }}
-        </button>
-      </div>
+      <p class="text-xs text-muted">
+        Al {{ holdsDeposit() ? 'apartar tu horario' : 'confirmar' }} aceptas el
+        <a class="underline underline-offset-2" [href]="'/' + slug + '/privacidad'" target="_blank" rel="noopener">aviso de privacidad</a>
+        de {{ brand()?.name || 'el negocio' }}: usamos tus datos solo para tu cita.
+      </p>
     </form>
   } @else if (confirmation(); as appointment) {
-    <section class="nx-success mx-auto flex w-full max-w-md flex-col items-center rounded-3xl border border-rose-100 bg-white px-6 py-10 text-center shadow-sm">
+    <section class="nx-success mx-auto flex w-full max-w-md flex-col items-center card px-6 py-10 text-center shadow-sm">
       <span class="flex h-16 w-16 items-center justify-center rounded-full bg-rose-50 text-rose-500">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-8 w-8" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M5 12.5l5 5L20 7"/></svg>
       </span>
-      <h2 class="mt-5 text-2xl font-semibold text-[#1E1B1E]">{{ appointment.status === 'awaiting_deposit' ? 'Tu horario está apartado' : '¡Tu ' + copy().visit.toLowerCase() + ' está reservada!' }}</h2>
-      <p class="mt-2 text-sm text-slate-500">
+      <h2 class="mt-5 text-2xl font-semibold text-ink">{{ appointment.status === 'awaiting_deposit' ? 'Tu horario está apartado' : '¡Tu ' + copy().visit.toLowerCase() + ' está reservada!' }}</h2>
+      <p class="mt-2 text-sm text-muted">
         {{ appointment.status === 'awaiting_deposit' ? 'Transfiere el anticipo. La cita se confirma cuando llegue el depósito.' : 'Tu lugar está asegurado en nuestro sistema.' }}
       </p>
+      @if (appointment.status === 'awaiting_deposit' && appointment.deposit_amount && holdUntil(appointment); as limit) {
+        <p class="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          Te guardamos el horario hasta <strong>{{ limit }}</strong>. Si no llega el anticipo, se libera para alguien más.
+        </p>
+      }
       @if (appointment.status === 'awaiting_deposit' && appointment.deposit_amount) {
         <ol class="mt-4 w-full space-y-2 text-left text-sm">
           <li class="rounded-xl bg-rose-50 px-3 py-2">
@@ -420,7 +540,7 @@
         @if (proofSent()) {
           <p class="mt-3 text-sm text-emerald-700">Foto enviada. El negocio la ve en la agenda y ahí acepta la cita.</p>
         } @else {
-          <label class="mt-4 flex h-11 w-full cursor-pointer items-center justify-center rounded-full bg-[#1E1B1E] text-sm text-white">
+          <label class="mt-4 flex h-11 w-full cursor-pointer items-center justify-center rounded-full bg-ink text-sm text-white">
             Subir comprobante
             <input class="hidden" type="file" accept="image/png,image/jpeg,image/webp" (change)="onProof($event)" />
           </label>
@@ -434,28 +554,98 @@
       }
       <dl class="mt-6 w-full space-y-2 text-sm">
         <div>
-          <dt class="text-slate-400">Servicio</dt>
+          <dt class="text-muted">Servicio</dt>
           <dd class="font-medium">{{ appointment.service_name || selectedService()?.name }}</dd>
         </div>
         <div>
-          <dt class="text-slate-400">Día y hora</dt>
+          <dt class="text-muted">Día y hora</dt>
           <dd class="font-medium">{{ formatDate(appointment.starts_at) }} · {{ formatTime(appointment.starts_at) }}</dd>
         </div>
         <div>
-          <dt class="text-slate-400">Con</dt>
+          <dt class="text-muted">Con</dt>
           <dd class="font-medium">{{ appointment.staff_name || selectedStaff()?.full_name }}</dd>
         </div>
       </dl>
+      <div class="mt-6 grid w-full grid-cols-2 gap-2">
+        <a
+          class="btn btn-secondary justify-center"
+          [href]="googleCalendarHref(appointment)"
+          target="_blank"
+          rel="noopener"
+        >Google Calendar</a>
+        <button type="button" class="btn btn-secondary" (click)="downloadIcs(appointment)">
+          iPhone / Outlook
+        </button>
+      </div>
+      <p class="mt-1 text-xs text-muted">Agrégala a tu calendario para que te avise.</p>
+      @if (manageLink(appointment); as link) {
+        <div class="mt-5 w-full rounded-2xl bg-canvas px-4 py-3 text-left text-sm">
+          <p class="font-medium">¿Necesitas cambiarla o cancelarla?</p>
+          <p class="mt-1 text-muted">Guarda este enlace; ahí ves tu {{ copy().visit.toLowerCase() }}, la cambias o la cancelas.</p>
+          <div class="mt-2 flex items-center gap-3">
+            <a class="font-medium underline" style="color: var(--booking-primary)" [href]="link">Ver mi {{ copy().visit.toLowerCase() }}</a>
+            <button type="button" class="text-xs underline" (click)="copyManage(link)">{{ manageCopied() ? 'Enlace copiado' : 'Copiar enlace' }}</button>
+          </div>
+        </div>
+      }
       <!-- FUTURE_PHASE_2_UNIFIED_PLATFORM: reseñas y estrellas se omiten en la fase 1 para no mostrar un perfil vacío. -->
       @if (whatsappHref(appointment); as href) {
-        <button type="button" class="mt-8 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#25D366] text-sm font-medium text-white" (click)="openWhatsapp(href)">
+        <button type="button" class="btn btn-whatsapp mt-8 w-full justify-center" (click)="openWhatsapp(href)">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-5 w-5" fill="currentColor"><path d="M12 3a9 9 0 0 0-7.8 13.5L3 21l4.7-1.2A9 9 0 1 0 12 3zm4.8 12.6c-.2.6-1.2 1.1-1.7 1.1-.4 0-.9.2-3-.8-2.5-1.2-4.1-3.8-4.2-4-.1-.2-1-1.3-1-2.5s.6-1.8.9-2c.2-.2.5-.3.7-.3h.5c.2 0 .4 0 .6.5.2.6.8 2 .8 2.1.1.1 0 .3-.1.4l-.4.5c-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.4 2.4 1.5.3.1.5.1.6-.1l.5-.6c.1-.2.3-.2.5-.1.2.1 1.4.7 1.6.8.2.1.4.2.4.3.1.3 0 .9-.2 1.2z"/></svg>
-          Confirmar por WhatsApp
+          {{ selectedService()?.variable_price ? 'Pedir cotización por WhatsApp' : 'Confirmar por WhatsApp' }}
         </button>
+        <p class="mt-1 text-xs text-muted">
+          Te abrimos WhatsApp con el mensaje listo{{ refPhotos().length ? ' y el enlace a tus fotos' : '' }}; solo toca enviar.
+        </p>
       }
-      <button type="button" class="mt-3 h-10 text-sm text-slate-500 underline-offset-2 hover:underline" (click)="restart()">
+      @if (refPhotos().length && canShareFiles) {
+        <button
+          type="button"
+          class="btn btn-secondary mt-3 w-full justify-center"
+          (click)="sharePhotos(appointment)"
+        >
+          Enviar las fotos como imagen
+        </button>
+        <p class="mt-1 text-xs text-muted">Se abre el menú de compartir: elige WhatsApp y el chat de {{ brand()?.name || 'el negocio' }}.</p>
+      }
+      <button type="button" class="mt-3 h-10 text-sm text-muted underline-offset-2 hover:underline" (click)="restart()">
         Volver al inicio
       </button>
     </section>
   }
 </main>
+
+@if (summary(); as info) {
+  @if (!confirmation() && !isLoading() && !loadError()) {
+    <!-- Resumen fijo: la clienta siempre ve qué está reservando y tiene el botón a la mano. -->
+    <div class="booking-bar" role="region" aria-label="Resumen de tu reserva">
+      <div class="mx-auto flex w-full max-w-3xl items-center gap-3 px-4 py-3">
+        <div class="min-w-0 flex-1 text-sm">
+          <p class="truncate font-medium">{{ info.title }}</p>
+          <p class="truncate text-muted">
+            {{ info.detail }}@if (info.who) { · con {{ info.who }}}
+          </p>
+          @if (info.when) {
+            <p class="truncate font-medium capitalize" style="color: var(--booking-primary)">{{ info.when }}</p>
+          }
+        </div>
+        @if (step() > 1) {
+          <button type="button" class="h-11 shrink-0 px-2 text-sm text-ink-soft" [disabled]="isSaving()" (click)="back()">Atrás</button>
+        }
+        @if (step() === 1) {
+          <button type="button" class="brand-fill h-11 shrink-0 rounded-full px-5 text-sm font-medium disabled:opacity-50" [disabled]="!canChooseSchedule()" (click)="goToSchedule()">
+            {{ canChooseSchedule() ? 'Elegir horario' : 'Elige quién te atiende' }}
+          </button>
+        } @else if (step() === 2) {
+          <button type="button" class="brand-fill h-11 shrink-0 rounded-full px-5 text-sm font-medium disabled:opacity-50" [disabled]="!selectedSlot()" (click)="goToDetails()">
+            {{ selectedSlot() ? 'Continuar' : 'Elige una hora' }}
+          </button>
+        } @else {
+          <button type="submit" form="booking-form" class="brand-fill h-11 shrink-0 rounded-full px-5 text-sm font-medium disabled:opacity-50" [disabled]="isSaving()">
+            {{ isSaving() ? 'Reservando…' : (holdsDeposit() ? 'Apartar horario' : 'Confirmar ' + copy().visit.toLowerCase()) }}
+          </button>
+        }
+      </div>
+    </div>
+  }
+}

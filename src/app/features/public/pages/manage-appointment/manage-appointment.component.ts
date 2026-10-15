@@ -4,6 +4,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 
 import { AvailabilitySlot } from '@core/models/appointment.model';
+import { ReviewsService } from '@core/services/reviews.service';
 import { BookingService, ManagedAppointment } from '@core/services/booking.service';
 import { DateFieldComponent } from '@shared/components/when-field/when-field';
 
@@ -30,6 +31,33 @@ export class ManageAppointmentComponent {
   protected readonly slug = this.route.snapshot.paramMap.get('businessSlug') ?? '';
 
   protected readonly appointment = signal<ManagedAppointment | null>(null);
+  private readonly reviewsApi = inject(ReviewsService);
+  protected readonly stars = [1, 2, 3, 4, 5];
+  protected readonly rating = signal(5);
+  protected readonly opinion = signal('');
+  protected readonly reviewState = signal<'idle' | 'sending' | 'sent'>('idle');
+  protected readonly reviewError = signal<string | null>(null);
+
+  /** Después de la cita, la clienta deja su opinión desde el mismo enlace que ya tiene. */
+  protected sendReview(item: ManagedAppointment): void {
+    const comment = this.opinion().trim();
+    if (!comment) {
+      this.reviewError.set('Cuéntanos en una frase cómo te fue.');
+      return;
+    }
+    this.reviewState.set('sending');
+    this.reviewError.set(null);
+    this.reviewsApi
+      .createPublicReview(item.business_slug, { client_name: item.client_name || 'Clienta', rating: this.rating(), comment, photo_url: null })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => this.reviewState.set('sent'),
+        error: () => {
+          this.reviewState.set('idle');
+          this.reviewError.set('No pudimos enviar tu opinión. Intenta de nuevo.');
+        },
+      });
+  }
   protected readonly isLoading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly notice = signal<string | null>(null);
