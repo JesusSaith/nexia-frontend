@@ -4,6 +4,21 @@ import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../config/api-base-url';
 
+/** Un paso de "qué te falta" (ver app/core/readiness.py en el backend). */
+export interface ReadinessStep {
+  key: string;
+  label: string;
+  done: boolean;
+  path: string;
+  /** arranque: sin esto no se puede reservar · perfil: da confianza · aviso: algo está mal configurado. */
+  group: 'arranque' | 'perfil' | 'aviso';
+}
+
+export interface Readiness {
+  can_book: boolean;
+  steps: ReadinessStep[];
+}
+
 export interface BusinessHour {
   id?: number;
   day_of_week: number;
@@ -16,6 +31,10 @@ export interface BusinessSettings {
   id: number;
   name: string;
   slug: string;
+  description?: string | null;
+  business_kind?: string | null;
+  primary_color?: string | null;
+  canvas_color?: string | null;
   logo_url: string | null;
   phone: string;
   email: string;
@@ -39,10 +58,20 @@ export interface BusinessSettings {
   loyalty_percent?: number | null;
   /** JSON: [{"code":"BIENVENIDA","percent":10,"first_visit":true}] */
   coupons?: string | null;
+  /** Zona IANA; "hoy" y "ahora" de la agenda se calculan con ella. */
+  timezone: string;
+  /** Tipos de aviso que le llegan por correo a la dueña. */
+  email_alerts: string[];
   hours: BusinessHour[];
 }
 
 export interface ProfileUpdate {
+  name?: string;
+  description?: string | null;
+  business_kind?: string | null;
+  logo_url?: string | null;
+  primary_color?: string | null;
+  canvas_color?: string | null;
   phone: string;
   address: string | null;
   instagram: string | null;
@@ -63,6 +92,8 @@ export interface ProfileUpdate {
   loyalty_every?: number | null;
   loyalty_percent?: number | null;
   coupons?: string | null;
+  timezone?: string | null;
+  email_alerts?: string[];
 }
 
 @Injectable({ providedIn: 'root' })
@@ -85,6 +116,15 @@ export class SettingsService {
 
   clearDemo(): Observable<void> {
     return this.http.delete<void>(`${this.apiBaseUrl}/settings/demo`);
+  }
+
+  getReadiness(): Observable<Readiness> {
+    return this.http.get<Readiness>(`${this.apiBaseUrl}/settings/readiness`);
+  }
+
+  /** Marca "Comparte tu enlace" como hecho, en el negocio y no en este navegador. */
+  markShared(): Observable<void> {
+    return this.http.post<void>(`${this.apiBaseUrl}/settings/readiness/shared`, {});
   }
 
   updateProfile(data: ProfileUpdate): Observable<BusinessSettings> {

@@ -13,6 +13,8 @@ export const adminRoutes: Routes = [
       {
         path: 'settings',
         canActivate: [managers],
+        // Pregunta antes de salir si quedaron cambios sin guardar.
+        canDeactivate: [(page: { canLeave(): boolean | Promise<boolean> }) => page.canLeave()],
         loadComponent: () =>
           import('./pages/settings/settings-page.component').then((m) => m.SettingsPageComponent),
       },

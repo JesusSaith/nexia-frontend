@@ -1,296 +1,462 @@
-<section>
+<section class="pb-24">
   <header class="page-head">
     <div>
       <h1>Configuración</h1>
-      <p>Cómo se ve tu página, cómo se reserva y el anticipo.</p>
+      <p>Lo que ven tus clientas y las reglas para reservar.</p>
     </div>
-    <button type="button" class="btn btn-secondary" (click)="downloadBackup()">
-      <mat-icon>download</mat-icon>
-      Descargar copia
-    </button>
+    @if (bookingUrl(); as url) {
+      <a class="btn btn-secondary" [href]="url" target="_blank" rel="noopener">
+        <mat-icon>open_in_new</mat-icon>
+        Ver mi página
+      </a>
+    }
   </header>
 
   @if (errorMessage(); as message) {
-    <p class="mb-4 text-sm text-red-700" role="alert">{{ message }}</p>
+    <p class="badge-bad mb-4 flex items-start gap-2 rounded-xl px-3 py-2.5 text-sm" role="alert">
+      <mat-icon class="h-5! w-5! shrink-0 text-[20px]!">error</mat-icon>
+      {{ message }}
+    </p>
   }
 
   @if (isLoading()) {
-    <div class="h-64 animate-pulse rounded-2xl bg-line" aria-label="Cargando"></div>
+    <div class="space-y-3" aria-label="Cargando">
+      <div class="h-20 animate-pulse rounded-2xl bg-line"></div>
+      <div class="h-64 animate-pulse rounded-2xl bg-line"></div>
+    </div>
   } @else {
-    <form class="flex flex-col gap-4" [formGroup]="profileForm" (ngSubmit)="saveProfile()">
-      <details class="settings-block card group" open>
-        <summary class="flex cursor-pointer list-none items-start justify-between gap-3 [&::-webkit-details-marker]:hidden">
-          <div class="min-w-0">
-            <h2 class="text-base font-semibold text-ink">Marca</h2>
-            <p class="mt-0.5 text-sm text-muted">Logo, fotos, descripción y promoción</p>
-          </div>
-          <mat-icon class="shrink-0 text-muted transition-transform group-open:rotate-180" aria-hidden="true">expand_more</mat-icon>
-        </summary>
-        <p class="mt-4 border-t border-line pt-4 text-sm text-muted">{{ uploading() ? 'Subiendo…' : 'Haz clic en el logo para cambiarlo. El teléfono y la dirección se ven en la reserva.' }}</p>
-        <div class="mt-4 flex flex-col gap-4 sm:flex-row">
-          <label class="relative shrink-0 cursor-pointer">
-            <input type="file" accept="image/png,image/jpeg,image/webp" class="sr-only" (change)="onLogo($event)" />
-            @if (logoSrc(); as src) {
-              <img [src]="src" alt="Logo" class="h-24 w-24 rounded-xl border border-line bg-surface object-contain" (error)="logoUrl.set(null)" />
-            } @else {
-              <span class="flex h-24 w-24 items-center justify-center rounded-xl border border-dashed border-line-strong bg-canvas text-muted">
-                <mat-icon>photo_camera</mat-icon>
-              </span>
-            }
-            <span class="sr-only">Cambiar logo</span>
-          </label>
-          <div class="grid flex-1 gap-3 sm:grid-cols-2">
-            <label class="block text-sm text-ink-soft">
-              <span>Teléfono público</span>
-              <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" formControlName="phone" />
-            </label>
-            <label class="block text-sm text-ink-soft">
-              <span>Dirección</span>
-              <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" formControlName="address" />
-            </label>
-            <label class="block text-sm text-ink-soft">
-              <span>Instagram</span>
-              <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" formControlName="instagram" />
-            </label>
-            <label class="block text-sm text-ink-soft">
-              <span>Facebook</span>
-              <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" formControlName="facebook" />
-            </label>
-            <label class="block text-sm text-ink-soft sm:col-span-2">
-              <span>Qué hace tu negocio</span>
-              <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" formControlName="description" placeholder="Cortes, color y peinados" />
-            </label>
-          </div>
-        </div>
-        <div class="mt-4 grid gap-3 sm:grid-cols-2">
-          <label class="block text-sm text-ink-soft">
-            <span>Promoción</span>
-            <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" maxlength="80" placeholder="2x1 en color" [value]="promo()" (input)="promo.set($any($event.target).value)" />
-          </label>
-          <label class="block text-sm text-ink-soft">
-            <span>Visible hasta</span>
-            <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" type="date" [value]="promoUntil()" (change)="promoUntil.set($any($event.target).value)" />
-          </label>
-        </div>
-        <div class="mt-4 flex flex-wrap items-center gap-3">
-          @for (photo of photos(); track photo) {
-            <button type="button" class="group/photo relative rounded-lg" (click)="removePhoto($index)" aria-label="Quitar foto">
-              <img [src]="photo" alt="" class="h-16 w-16 rounded-lg border border-line object-cover" />
-              <span class="absolute inset-0 flex items-center justify-center rounded-lg bg-ink/50 text-white opacity-0 transition-opacity group-hover/photo:opacity-100"><mat-icon>close</mat-icon></span>
-            </button>
-          }
-          @if (photos().length < 3) {
-            <label class="flex h-16 w-16 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-line-strong text-xs text-muted hover:border-ink hover:text-ink">
-              <mat-icon class="h-5! w-5! text-[20px]!">add_photo_alternate</mat-icon>
-              Foto
-              <input type="file" accept="image/png,image/jpeg,image/webp" class="sr-only" (change)="addPhotos($event)" />
-            </label>
-          }
-        </div>
-        <p class="mt-2 text-sm text-muted">Hasta 3 fotos del trabajo. El cliente las ve debajo del nombre, en la página de reservas. Toca una para quitarla.</p>
-      </details>
-
-      <details class="settings-block card group">
-        <summary class="flex cursor-pointer list-none items-start justify-between gap-3 [&::-webkit-details-marker]:hidden">
-          <div class="min-w-0">
-            <h2 class="text-base font-semibold text-ink">Cómo se reserva</h2>
-            <p class="mt-0.5 text-sm text-muted">Anticipación, días a futuro, tiempo entre citas y cancelaciones</p>
-          </div>
-          <mat-icon class="shrink-0 text-muted transition-transform group-open:rotate-180" aria-hidden="true">expand_more</mat-icon>
-        </summary>
-        <p class="mt-4 border-t border-line pt-4 text-sm text-muted">Vacío en cancelar: el cliente puede cambiar la cita hasta que empiece. 0 minutos las deja seguidas.</p>
-        <div class="mt-4 grid gap-3 sm:grid-cols-2">
-          <label class="block text-sm text-ink-soft">
-            <span>Horas para cancelar</span>
-            <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" formControlName="cancelHours" type="number" min="0" max="168" placeholder="Sin límite" />
-          </label>
-          <label class="block text-sm text-ink-soft">
-            <span>Horas mínimas de anticipación</span>
-            <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" formControlName="minNoticeHours" type="number" min="0" max="168" />
-          </label>
-          <label class="block text-sm text-ink-soft">
-            <span>Días hacia adelante</span>
-            <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" formControlName="maxDaysAhead" type="number" min="1" max="365" />
-          </label>
-          <label class="block text-sm text-ink-soft">
-            <span>Minutos libres entre citas (para limpiar o preparar)</span>
-            <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" formControlName="bufferMinutes" type="number" min="0" max="120" />
-          </label>
-          <div class="sm:col-span-2">
-            <span class="mb-1 block text-sm text-ink-soft">Tipo de negocio</span>
-            <app-pick-field formControlName="staffLabel" [options]="rolePicks" placeholder="Elegir" />
-          </div>
-          <label class="block text-sm text-ink-soft sm:col-span-2">
-            <span>Recursos (sala, cancha, equipo)</span>
-            <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" formControlName="resources" placeholder="Sala 1, Sala 2" />
-          </label>
-          <label class="block text-sm text-ink-soft sm:col-span-2">
-            <span>Texto al cancelar</span>
-            <textarea class="mt-1 block w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-ink" rows="2" formControlName="cancelPolicy" placeholder="Puedes cancelar hasta 24 horas antes."></textarea>
-          </label>
-          <label class="block text-sm text-ink-soft sm:col-span-2">
-            <span>Aviso de privacidad</span>
-            <textarea class="mt-1 block w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-ink" rows="4" formControlName="privacyNotice" placeholder="Pega aquí tu aviso de privacidad."></textarea>
-            <span class="mt-1 block text-xs text-muted">
-              Se muestra en tu página de reservas. Si lo dejas vacío usamos un aviso genérico con lo que la página recaba; te conviene revisarlo con tu asesor.
-              @if (privacyUrl(); as url) {
-                <a class="font-medium text-ink-soft underline hover:text-ink" [href]="url" target="_blank" rel="noopener">Ver cómo se ve</a>
-              }
-            </span>
-          </label>
-        </div>
-      </details>
-
-      <details class="settings-block card group">
-        <summary class="flex cursor-pointer list-none items-start justify-between gap-3 [&::-webkit-details-marker]:hidden">
-          <div class="min-w-0">
-            <h2 class="text-base font-semibold text-ink">Cuando no hay citas</h2>
-            <p class="mt-0.5 text-sm text-muted">Pausar reservas o cerrar por vacaciones</p>
-          </div>
-          <mat-icon class="shrink-0 text-muted transition-transform group-open:rotate-180" aria-hidden="true">expand_more</mat-icon>
-        </summary>
-        <p class="mt-4 border-t border-line pt-4 text-sm text-muted">El enlace sigue en Perfil. Aquí decides si la página pública acepta reservas.</p>
-        <button type="button" role="switch" [attr.aria-checked]="pauseBookings()" class="mt-4 flex items-center gap-3 text-sm text-ink" (click)="pauseBookings.set(!pauseBookings())">
-          <span class="relative h-6 w-10 rounded-full transition-colors" [class]="pauseBookings() ? 'bg-ink' : 'bg-line-strong'">
-            <span class="absolute top-0.5 h-5 w-5 rounded-full bg-surface transition-transform" [class]="pauseBookings() ? 'left-4' : 'left-0.5'"></span>
-          </span>
-          No tomar citas por ahora
+    <!-- Lo más importante primero: si la página está tomando citas o no. -->
+    @let state = status();
+    <div class="card mb-5 flex flex-wrap items-center gap-4" [class.card-tint]="state.tone !== 'ok'">
+      <span class="stat-icon" [class.stat-ok]="state.tone === 'ok'" [class.stat-warn]="state.tone === 'warn'" [class.stat-info]="state.tone === 'info'">
+        <mat-icon>{{ state.icon }}</mat-icon>
+      </span>
+      <div class="min-w-0 flex-1">
+        <p class="text-sm font-semibold text-ink">{{ state.title }}</p>
+        <p class="text-sm text-muted">{{ state.detail }}</p>
+      </div>
+      <label class="flex items-center gap-3 text-sm font-medium text-ink">
+        Recibir reservas
+        <button type="button" role="switch" class="switch" [attr.aria-checked]="!pauseBookings()" (click)="togglePause()" aria-label="Recibir reservas en línea">
+          <span></span>
         </button>
-        <div class="mt-4 grid gap-3 sm:grid-cols-2">
-          <label class="block text-sm text-ink-soft">
-            <span>Cerramos desde</span>
-            <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" type="date" [value]="closedFrom()" (change)="closedFrom.set($any($event.target).value)" />
-          </label>
-          <label class="block text-sm text-ink-soft">
-            <span>Hasta</span>
-            <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" type="date" [value]="closedTo()" (change)="closedTo.set($any($event.target).value)" />
-          </label>
-        </div>
-      </details>
+      </label>
+    </div>
 
-      <details class="settings-block card group">
-        <summary class="flex cursor-pointer list-none items-start justify-between gap-3 [&::-webkit-details-marker]:hidden">
-          <div class="min-w-0">
-            <h2 class="text-base font-semibold text-ink">Anticipo</h2>
-            <p class="mt-0.5 text-sm text-muted">Cuánto se paga para apartar y a qué cuenta</p>
-          </div>
-          <mat-icon class="shrink-0 text-muted transition-transform group-open:rotate-180" aria-hidden="true">expand_more</mat-icon>
-        </summary>
-        <p class="mt-4 border-t border-line pt-4 text-sm text-muted">El monto vale para precio fijo. El porcentaje, para precio acordado. Si no llega a tiempo, el horario se libera.</p>
-        <div class="mt-4 grid gap-3 sm:grid-cols-2">
-          <label class="block text-sm text-ink-soft">
-            <span>Monto</span>
-            <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" formControlName="depositAmount" type="number" min="0" placeholder="Sin anticipo" />
-          </label>
-          <label class="block text-sm text-ink-soft">
-            <span>Porcentaje del precio acordado</span>
-            <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" formControlName="depositPercent" type="number" min="1" max="100" placeholder="Ej. 50" />
-          </label>
-          <label class="block text-sm text-ink-soft">
-            <span>Cuenta o clave</span>
-            <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" formControlName="depositAccount" placeholder="CLABE o referencia" />
-          </label>
-          <label class="block text-sm text-ink-soft">
-            <span>Horas para recibirlo</span>
-            <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" formControlName="depositHoldHours" type="number" min="1" max="72" />
-          </label>
-          <label class="block text-sm text-ink-soft sm:col-span-2">
-            <span>Enlace de pago</span>
-            <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" formControlName="paymentUrl" placeholder="https://" />
-          </label>
-        </div>
-      </details>
-
-      <details class="settings-block card group">
-        <summary class="flex cursor-pointer list-none items-start justify-between gap-3 [&::-webkit-details-marker]:hidden">
-          <div class="min-w-0">
-            <h2 class="text-base font-semibold text-ink">Promociones</h2>
-            <p class="mt-0.5 text-sm text-muted">Descuento a clientas frecuentes y cupones</p>
-          </div>
-          <mat-icon class="shrink-0 text-muted transition-transform group-open:rotate-180" aria-hidden="true">expand_more</mat-icon>
-        </summary>
-        <p class="mt-4 border-t border-line pt-4 text-sm text-muted">Los descuentos se aplican solos al reservar en tu página. Deja vacía la lealtad para no usarla.</p>
-        <div class="mt-4 grid gap-3 sm:grid-cols-2">
-          <label class="block text-sm text-ink-soft">
-            <span>Cada cuántas visitas</span>
-            <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" type="number" min="2" max="50" placeholder="Ej. 5" [value]="loyaltyEvery() ?? ''" (input)="loyaltyEvery.set(toNumber($any($event.target).value))" />
-          </label>
-          <label class="block text-sm text-ink-soft">
-            <span>Porcentaje de descuento</span>
-            <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" type="number" min="1" max="100" placeholder="Ej. 20" [value]="loyaltyPercent() ?? ''" (input)="loyaltyPercent.set(toNumber($any($event.target).value))" />
-          </label>
-        </div>
-        @if (loyaltyEvery() && loyaltyPercent()) {
-          <p class="mt-2 text-sm text-muted nums">La visita {{ loyaltyEvery() }}, {{ (loyaltyEvery() ?? 0) * 2 }}, {{ (loyaltyEvery() ?? 0) * 3 }}… lleva {{ loyaltyPercent() }}% de descuento.</p>
-        }
-        <div class="mt-5 flex items-center justify-between gap-3">
-          <p class="card-title">Cupones</p>
-          <button type="button" class="btn btn-secondary" (click)="addCoupon()">
-            <mat-icon>add</mat-icon>
-            Agregar cupón
+    <div class="grid items-start gap-6 lg:grid-cols-[13rem_minmax(0,1fr)]">
+      <!-- Índice: en escritorio salta a cada sección; en celular las secciones se abren y cierran. -->
+      <nav class="sticky top-6 hidden flex-col gap-0.5 lg:flex" aria-label="Secciones de configuración">
+        @for (section of sections; track section.id) {
+          <button type="button" class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-ink-soft transition-colors hover:bg-surface hover:text-ink" [class.bg-surface]="isOpen(section.id)" [class.text-ink]="isOpen(section.id)" [class.font-medium]="isOpen(section.id)" (click)="goTo(section.id)">
+            <mat-icon class="h-[18px]! w-[18px]! shrink-0 text-[18px]! text-muted">{{ section.icon }}</mat-icon>
+            <span class="flex-1 truncate">{{ section.label }}</span>
+            @if (sectionHasError(section.id)) {
+              <span class="h-2 w-2 rounded-full bg-[var(--nx-bad-fg)]" aria-label="Tiene errores"></span>
+            } @else if (section.id === 'anticipo' && depositWarning()) {
+              <span class="h-2 w-2 rounded-full bg-[var(--nx-warn-fg)]" aria-label="Falta un dato"></span>
+            }
           </button>
-        </div>
-        @if (coupons().length === 0) {
-          <p class="mt-2 text-sm text-muted">Sin cupones. Ejemplo: BIENVENIDA con 10% solo en la primera visita.</p>
         }
-        <div class="mt-3 flex flex-col gap-2">
-          @for (coupon of coupons(); track $index) {
-            <div class="grid items-end gap-3 rounded-lg border border-line p-3 sm:grid-cols-[1fr_7rem_auto_auto]">
-              <label class="block text-sm text-ink-soft">
-                <span>Código</span>
-                <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm uppercase text-ink outline-none focus:border-ink" maxlength="40" placeholder="BIENVENIDA" [value]="coupon.code" (input)="editCoupon($index, { code: $any($event.target).value })" />
+      </nav>
+
+      <form id="settings-form" class="flex min-w-0 flex-col gap-3" [formGroup]="form" (ngSubmit)="save()" novalidate>
+        <ng-template #head let-id>
+          @let section = sectionInfo(id);
+          <summary class="flex cursor-pointer list-none items-center gap-3 rounded-[calc(var(--radius-2xl)-1px)] p-4 transition-colors hover:bg-canvas/60 group-open:rounded-b-none group-open:border-b group-open:border-line sm:p-5 [&::-webkit-details-marker]:hidden">
+            <span class="sec-icon"><mat-icon>{{ section.icon }}</mat-icon></span>
+            <div class="min-w-0 flex-1">
+              <h2 class="text-base font-semibold text-ink">{{ section.label }}</h2>
+              <p class="mt-0.5 truncate text-sm text-muted">{{ summaries()[section.id] }}</p>
+            </div>
+            @if (sectionHasError(section.id)) {
+              <span class="badge badge-bad shrink-0">Revisar</span>
+            } @else if (section.id === 'anticipo' && depositWarning()) {
+              <span class="badge badge-warn shrink-0">Falta un dato</span>
+            }
+            <mat-icon class="shrink-0 text-muted transition-transform group-open:rotate-180" aria-hidden="true">expand_more</mat-icon>
+          </summary>
+        </ng-template>
+
+        <ng-template #chips let-field="field" let-unit="unit" let-max="max">
+          <div class="flex flex-wrap items-center gap-2">
+            @for (option of presetOptions(field); track option.label) {
+              <button type="button" class="chip" [class.chip-on]="isPreset(field, option.value)" (click)="setPreset(field, option.value)">{{ option.label }}</button>
+            }
+            <span class="flex items-center gap-1.5 text-sm text-muted">
+              <input class="input nums h-8! w-20" type="number" min="0" [attr.max]="max" [value]="customValue(field)" (change)="setCustom(field, $any($event.target).value)" [class.border-accent]="isCustom(field)" aria-label="Otro valor" placeholder="Otro" />
+              {{ unit }}
+            </span>
+          </div>
+        </ng-template>
+
+        <!-- 1. Tu negocio -->
+        <details id="sec-negocio" class="card group scroll-mt-6 p-0!" [open]="isOpen('negocio')" (toggle)="onToggle('negocio', $event)">
+          <ng-container *ngTemplateOutlet="head; context: { $implicit: 'negocio' }" />
+          <div class="grid gap-4 p-4 sm:grid-cols-2 sm:p-5">
+            <label class="block">
+              <span class="label">Nombre del negocio</span>
+              <input class="input" formControlName="name" autocomplete="organization" />
+              @if (form.controls.name.invalid && form.controls.name.touched) {
+                <span class="field-error mt-1 block">Escribe el nombre del negocio.</span>
+              }
+            </label>
+            <div>
+              <span class="label">Tipo de negocio</span>
+              <app-pick-field formControlName="businessKind" [options]="kindPicks" placeholder="Elegir" />
+              <span class="field-hint mt-1 block">Cambia cómo se llama a tu equipo en la página.</span>
+            </div>
+            <label class="block sm:col-span-2">
+              <span class="label">Qué hace tu negocio</span>
+              <textarea class="input" rows="2" formControlName="description" maxlength="500" placeholder="Cortes, color y peinados para toda la familia."></textarea>
+              <span class="field-hint mt-1 block text-right nums">{{ form.controls.description.value.length }}/500</span>
+            </label>
+            <label class="block">
+              <span class="label">WhatsApp del negocio</span>
+              <input class="input nums" type="tel" inputmode="numeric" maxlength="16" formControlName="phone" placeholder="10 dígitos" (input)="onPhoneInput()" />
+              @if (form.controls.phone.invalid && form.controls.phone.touched) {
+                <span class="field-error mt-1 block">El teléfono debe tener 10 dígitos.</span>
+              } @else {
+                <span class="field-hint mt-1 block">Aquí te escriben tus clientas al reservar.</span>
+              }
+            </label>
+            <label class="block">
+              <span class="label">Dirección</span>
+              <input class="input" formControlName="address" autocomplete="street-address" placeholder="Calle, número y colonia" />
+            </label>
+            <label class="block">
+              <span class="label">Instagram</span>
+              <input class="input" formControlName="instagram" placeholder="@tunegocio" />
+            </label>
+            <label class="block">
+              <span class="label">Facebook</span>
+              <input class="input" formControlName="facebook" placeholder="facebook.com/tunegocio" />
+            </label>
+          </div>
+        </details>
+
+        <!-- 2. Apariencia -->
+        <details id="sec-apariencia" class="card group scroll-mt-6 p-0!" [open]="isOpen('apariencia')" (toggle)="onToggle('apariencia', $event)">
+          <ng-container *ngTemplateOutlet="head; context: { $implicit: 'apariencia' }" />
+          <div class="flex flex-col gap-5 p-4 sm:p-5">
+            <div class="flex flex-wrap items-center gap-4">
+              <label class="relative shrink-0 cursor-pointer" title="Cambiar logo">
+                <input type="file" accept="image/png,image/jpeg,image/webp" class="sr-only" (change)="onLogo($event)" />
+                @if (logoSrc(); as src) {
+                  <img [src]="src" alt="Logo" class="h-20 w-20 rounded-xl border border-line bg-white object-contain" (error)="logoUrl.set(null)" />
+                } @else {
+                  <span class="flex h-20 w-20 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-line-strong bg-canvas text-xs text-muted">
+                    <mat-icon>add_photo_alternate</mat-icon>
+                    Logo
+                  </span>
+                }
+                <span class="sr-only">Cambiar logo</span>
               </label>
-              <label class="block text-sm text-ink-soft">
-                <span>%</span>
-                <input class="nums mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" type="number" min="1" max="100" [value]="coupon.percent" (input)="editCoupon($index, { percent: toNumber($any($event.target).value) ?? 0 })" />
+              <div class="min-w-0 flex-1 text-sm">
+                <p class="font-medium text-ink">{{ uploading() ? 'Leyendo imagen…' : 'Logo' }}</p>
+                <p class="text-muted">Toca el cuadro para elegir una imagen. Se ve arriba de tu página de reservas.</p>
+                @if (logoUrl()) {
+                  <button type="button" class="mt-1 text-sm font-medium text-ink-soft hover:text-ink" (click)="removeLogo()">Quitar logo</button>
+                }
+              </div>
+            </div>
+
+            <div>
+              <span class="label">Color de tu marca</span>
+              <div class="flex flex-wrap items-center gap-3">
+                <input type="color" class="h-10 w-14 cursor-pointer rounded-lg border border-line-strong bg-surface p-1" formControlName="primaryColor" aria-label="Elegir color" />
+                <input class="input nums w-28 uppercase" formControlName="primaryColor" maxlength="7" aria-label="Código del color" />
+                @if (suggestedColor(); as suggested) {
+                  <button type="button" class="chip gap-2" (click)="useSuggestedColor()">
+                    <span class="h-4 w-4 rounded-full border border-line" [style.background]="suggested"></span>
+                    Usar el color del logo
+                  </button>
+                }
+              </div>
+              <!-- Vista previa: así se ven los botones y etiquetas en la página de reservas. -->
+              <div class="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-canvas p-3">
+                <span class="text-xs text-muted">Vista previa</span>
+                <span class="btn h-9! text-white" [style.background]="form.controls.primaryColor.value">Reservar cita</span>
+                <span class="chip chip-on">Corte de cabello</span>
+                <span class="badge" [style.background]="form.controls.primaryColor.value + '1a'" [style.color]="form.controls.primaryColor.value">Disponible</span>
+              </div>
+            </div>
+
+            <div>
+              <span class="label">Fotos de tu trabajo</span>
+              <div class="flex flex-wrap items-center gap-3">
+                @for (photo of photos(); track photo) {
+                  <button type="button" class="group/photo relative rounded-lg" (click)="removePhoto($index)" aria-label="Quitar foto">
+                    <img [src]="photo" alt="" class="h-20 w-20 rounded-lg border border-line object-cover" />
+                    <span class="absolute inset-0 flex items-center justify-center rounded-lg bg-black/50 text-white opacity-0 transition-opacity group-hover/photo:opacity-100"><mat-icon>close</mat-icon></span>
+                  </button>
+                }
+                @if (photos().length < 3) {
+                  <label class="flex h-20 w-20 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-line-strong text-xs text-muted hover:border-accent hover:text-accent">
+                    <mat-icon class="h-5! w-5! text-[20px]!">add_photo_alternate</mat-icon>
+                    Agregar
+                    <input type="file" accept="image/png,image/jpeg,image/webp" class="sr-only" multiple (change)="addPhotos($event)" />
+                  </label>
+                }
+              </div>
+              <span class="field-hint mt-1 block">Hasta 3. Se ven debajo del nombre en tu página. Toca una para quitarla.</span>
+            </div>
+          </div>
+        </details>
+
+        <!-- 3. Reglas de reserva -->
+        <details id="sec-reservas" class="card group scroll-mt-6 p-0!" [open]="isOpen('reservas')" (toggle)="onToggle('reservas', $event)">
+          <ng-container *ngTemplateOutlet="head; context: { $implicit: 'reservas' }" />
+          <div class="flex flex-col gap-5 p-4 sm:p-5">
+            <div>
+              <span class="label">¿Con cuánta anticipación pueden reservar?</span>
+              <ng-container *ngTemplateOutlet="chips; context: { field: 'minNoticeHours', unit: 'horas', max: 168 }" />
+              <span class="field-hint mt-1 block">Si es 2 h, a las 10:00 ya no se puede reservar antes de las 12:00.</span>
+            </div>
+            <div>
+              <span class="label">¿Hasta cuándo pueden reservar?</span>
+              <ng-container *ngTemplateOutlet="chips; context: { field: 'maxDaysAhead', unit: 'días', max: 365 }" />
+            </div>
+            <div>
+              <span class="label">Tiempo libre entre citas</span>
+              <ng-container *ngTemplateOutlet="chips; context: { field: 'bufferMinutes', unit: 'min', max: 120 }" />
+              <span class="field-hint mt-1 block">Para limpiar o preparar entre una clienta y la siguiente.</span>
+            </div>
+            <div>
+              <span class="label">¿Hasta cuándo pueden cancelar o cambiar?</span>
+              <ng-container *ngTemplateOutlet="chips; context: { field: 'cancelHours', unit: 'h antes', max: 168 }" />
+            </div>
+            <label class="block">
+              <span class="label">Mensaje sobre cancelaciones</span>
+              <textarea class="input" rows="2" formControlName="cancelPolicy" placeholder="Si no puedes venir, avísanos con 24 horas para darle tu lugar a alguien más."></textarea>
+              <span class="field-hint mt-1 block">Lo ven tus clientas al reservar y al cancelar.</span>
+            </label>
+            <div class="grid gap-4 sm:grid-cols-2">
+              <div>
+                <span class="label">Zona horaria</span>
+                <app-pick-field formControlName="timezone" [options]="timezonePicks()" placeholder="Elegir" />
+                <span class="field-hint mt-1 block">Con ella se sabe qué horarios ya pasaron.</span>
+              </div>
+              <label class="block">
+                <span class="label">Salas o equipos (opcional)</span>
+                <input class="input" formControlName="resources" placeholder="Sala 1, Sala 2" />
+                <span class="field-hint mt-1 block">Sepáralos con comas. La clienta elige uno al reservar.</span>
               </label>
-              <label class="flex h-10 items-center gap-2 text-sm text-ink-soft">
-                <input type="checkbox" [checked]="coupon.first_visit" (change)="editCoupon($index, { first_visit: $any($event.target).checked })" />
-                Solo primera visita
+            </div>
+          </div>
+        </details>
+
+        <!-- 4. Anticipo y pagos -->
+        <details id="sec-anticipo" class="card group scroll-mt-6 p-0!" [open]="isOpen('anticipo')" (toggle)="onToggle('anticipo', $event)">
+          <ng-container *ngTemplateOutlet="head; context: { $implicit: 'anticipo' }" />
+          <div class="flex flex-col gap-4 p-4 sm:p-5">
+            @if (depositWarning(); as warning) {
+              <p class="badge-warn flex items-start gap-2 rounded-xl px-3 py-2.5 text-sm" role="status">
+                <mat-icon class="h-5! w-5! shrink-0 text-[20px]!">warning</mat-icon>
+                {{ warning }}
+              </p>
+            }
+            <div class="grid gap-4 sm:grid-cols-2">
+              <label class="block">
+                <span class="label">Monto fijo</span>
+                <input class="input nums" type="number" min="0" formControlName="depositAmount" placeholder="Sin anticipo" />
+                <span class="field-hint mt-1 block">Para servicios con precio fijo. Cada servicio puede tener el suyo.</span>
               </label>
-              <button type="button" class="btn btn-ghost" [attr.aria-label]="'Quitar cupón ' + (coupon.code || $index + 1)" (click)="removeCoupon($index)">
-                <mat-icon>delete</mat-icon>
+              <label class="block">
+                <span class="label">Porcentaje en precio por cotizar</span>
+                <input class="input nums" type="number" min="1" max="100" formControlName="depositPercent" placeholder="Ej. 50" />
+                <span class="field-hint mt-1 block">Para servicios con precio variable: se calcula cuando aceptan tu cotización.</span>
+              </label>
+              <label class="block sm:col-span-2">
+                <span class="label">Cuenta o CLABE para recibirlo</span>
+                <input class="input nums" formControlName="depositAccount" placeholder="CLABE, número de tarjeta o referencia" [class.input-invalid]="depositWarning()" />
+              </label>
+            </div>
+            <div>
+              <span class="label">Tiempo para pagarlo</span>
+              <ng-container *ngTemplateOutlet="chips; context: { field: 'depositHoldHours', unit: 'horas', max: 72 }" />
+              <span class="field-hint mt-1 block">Si no llega en ese tiempo, el horario se libera solo.</span>
+            </div>
+            <label class="block">
+              <span class="label">Enlace de pago (opcional)</span>
+              <input class="input" formControlName="paymentUrl" placeholder="https://" inputmode="url" />
+              @if (form.controls.paymentUrl.invalid && form.controls.paymentUrl.touched) {
+                <span class="field-error mt-1 block">El enlace debe empezar con https://</span>
+              } @else {
+                <span class="field-hint mt-1 block">Mercado Pago, Clip u otro. Aparece como botón para pagar.</span>
+              }
+            </label>
+          </div>
+        </details>
+
+        <!-- 5. Promociones -->
+        <details id="sec-promociones" class="card group scroll-mt-6 p-0!" [open]="isOpen('promociones')" (toggle)="onToggle('promociones', $event)">
+          <ng-container *ngTemplateOutlet="head; context: { $implicit: 'promociones' }" />
+          <div class="flex flex-col gap-5 p-4 sm:p-5">
+            <div class="grid gap-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+              <label class="block">
+                <span class="label">Anuncio en tu página</span>
+                <input class="input" maxlength="80" placeholder="2x1 en color todo octubre" [value]="promo()" (input)="promo.set($any($event.target).value)" />
+                <span class="field-hint mt-1 block">Aparece arriba de tu página de reservas.</span>
+              </label>
+              <label class="block">
+                <span class="label">Visible hasta</span>
+                <input class="input" type="date" [value]="promoUntil()" [disabled]="!promo().trim()" (change)="promoUntil.set($any($event.target).value)" />
+              </label>
+            </div>
+
+            <div class="rounded-xl border border-line p-4">
+              <p class="text-sm font-semibold text-ink">Premio por visitas</p>
+              <p class="field-hint">Cada cierto número de visitas cobradas, la siguiente lleva descuento. Déjalo vacío para no usarlo.</p>
+              <div class="mt-3 flex flex-wrap items-center gap-2 text-sm text-ink-soft">
+                Cada
+                <input class="input nums w-20" type="number" min="2" max="50" placeholder="5" [value]="loyaltyEvery() ?? ''" (input)="loyaltyEvery.set(toNumber($any($event.target).value))" aria-label="Cada cuántas visitas" />
+                visitas,
+                <input class="input nums w-20" type="number" min="1" max="100" placeholder="20" [value]="loyaltyPercent() ?? ''" (input)="loyaltyPercent.set(toNumber($any($event.target).value))" aria-label="Porcentaje de descuento" />
+                % de descuento
+              </div>
+              @if (loyaltyEvery() && loyaltyPercent()) {
+                <p class="badge-info mt-3 rounded-lg px-3 py-2 text-sm nums">La visita {{ loyaltyEvery() }}, {{ (loyaltyEvery() ?? 0) * 2 }}, {{ (loyaltyEvery() ?? 0) * 3 }}… lleva {{ loyaltyPercent() }}% de descuento.</p>
+              }
+            </div>
+
+            <div>
+              <div class="flex items-center justify-between gap-3">
+                <div>
+                  <p class="text-sm font-semibold text-ink">Cupones</p>
+                  <p class="field-hint">La clienta escribe el código al reservar. Si aplican varios descuentos, gana el mayor.</p>
+                </div>
+                <button type="button" class="btn btn-secondary shrink-0" (click)="addCoupon()">
+                  <mat-icon>add</mat-icon>
+                  Agregar
+                </button>
+              </div>
+              @if (coupons().length === 0) {
+                <p class="mt-3 rounded-xl border border-dashed border-line-strong px-4 py-5 text-center text-sm text-muted">Sin cupones. Ejemplo: BIENVENIDA con 10% solo en la primera visita.</p>
+              }
+              <div class="mt-3 flex flex-col gap-2">
+                @for (coupon of coupons(); track $index) {
+                  <div class="grid items-end gap-3 rounded-xl border border-line bg-canvas p-3 sm:grid-cols-[1fr_6rem_auto_auto]">
+                    <label class="block">
+                      <span class="label">Código</span>
+                      <input class="input uppercase" maxlength="40" placeholder="BIENVENIDA" [value]="coupon.code" (input)="editCoupon($index, { code: $any($event.target).value })" />
+                    </label>
+                    <label class="block">
+                      <span class="label">%</span>
+                      <input class="input nums" type="number" min="1" max="100" [value]="coupon.percent" (input)="editCoupon($index, { percent: toNumber($any($event.target).value) ?? 0 })" />
+                    </label>
+                    <label class="flex h-10 items-center gap-2 text-sm text-ink-soft">
+                      <input type="checkbox" [checked]="coupon.first_visit" (change)="editCoupon($index, { first_visit: $any($event.target).checked })" />
+                      Solo primera visita
+                    </label>
+                    <button type="button" class="btn btn-ghost" [attr.aria-label]="'Quitar cupón ' + (coupon.code || $index + 1)" (click)="removeCoupon($index)">
+                      <mat-icon>delete</mat-icon>
+                    </button>
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <!-- 6. Pausa y vacaciones -->
+        <details id="sec-pausa" class="card group scroll-mt-6 p-0!" [open]="isOpen('pausa')" (toggle)="onToggle('pausa', $event)">
+          <ng-container *ngTemplateOutlet="head; context: { $implicit: 'pausa' }" />
+          <div class="flex flex-col gap-4 p-4 sm:p-5">
+            <div class="flex items-center justify-between gap-4 rounded-xl border border-line p-4">
+              <div>
+                <p class="text-sm font-semibold text-ink">No tomar citas por ahora</p>
+                <p class="field-hint">Tu página sigue visible, pero no deja reservar hasta que lo vuelvas a activar.</p>
+              </div>
+              <button type="button" role="switch" class="switch" [attr.aria-checked]="pauseBookings()" (click)="togglePause()" aria-label="No tomar citas por ahora"><span></span></button>
+            </div>
+            <div>
+              <p class="text-sm font-semibold text-ink">Cierre por vacaciones</p>
+              <p class="field-hint">Esos días no se pueden reservar. Antes y después todo sigue igual.</p>
+              <div class="mt-3 grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+                <label class="block">
+                  <span class="label">Desde</span>
+                  <input class="input" type="date" [class.input-invalid]="closureError()" [value]="closedFrom()" (change)="closedFrom.set($any($event.target).value)" />
+                </label>
+                <label class="block">
+                  <span class="label">Hasta</span>
+                  <input class="input" type="date" [class.input-invalid]="closureError()" [attr.min]="closedFrom() || null" [value]="closedTo()" (change)="closedTo.set($any($event.target).value)" />
+                </label>
+                @if (closedFrom() || closedTo()) {
+                  <button type="button" class="btn btn-ghost" (click)="closedFrom.set(''); closedTo.set('')">Quitar fechas</button>
+                }
+              </div>
+              @if (closureError(); as message) {
+                <span class="field-error mt-1 block">{{ message }}</span>
+              }
+            </div>
+            <p class="field-hint flex items-center gap-1.5"><mat-icon class="h-4! w-4! text-[16px]!">info</mat-icon>Las citas que ya están agendadas no se cancelan.</p>
+          </div>
+        </details>
+
+        <!-- 7. Avisos por correo -->
+        <details id="sec-avisos" class="card group scroll-mt-6 p-0!" [open]="isOpen('avisos')" (toggle)="onToggle('avisos', $event)">
+          <ng-container *ngTemplateOutlet="head; context: { $implicit: 'avisos' }" />
+          <div class="flex flex-col gap-4 p-4 sm:p-5">
+            <p class="text-sm text-ink-soft">
+              Te llegan a <strong class="font-medium text-ink">{{ accountEmail() }}</strong> aunque no tengas el panel abierto. En Inicio siempre los ves todos.
+            </p>
+            <ul class="divide-y divide-line rounded-xl border border-line">
+              @for (option of alertOptions; track option.value) {
+                <li class="flex items-center justify-between gap-4 px-4 py-3">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium text-ink">{{ option.label }}</p>
+                    <p class="field-hint">{{ option.hint }}</p>
+                  </div>
+                  <button type="button" role="switch" class="switch" [attr.aria-checked]="emailAlerts().has(option.value)" [attr.aria-label]="option.label" (click)="toggleAlert(option.value)"><span></span></button>
+                </li>
+              }
+            </ul>
+          </div>
+        </details>
+
+        <!-- 8. Privacidad y datos -->
+        <details id="sec-privacidad" class="card group scroll-mt-6 p-0!" [open]="isOpen('privacidad')" (toggle)="onToggle('privacidad', $event)">
+          <ng-container *ngTemplateOutlet="head; context: { $implicit: 'privacidad' }" />
+          <div class="flex flex-col gap-5 p-4 sm:p-5">
+            <label class="block">
+              <span class="label">Aviso de privacidad</span>
+              <textarea class="input" rows="5" formControlName="privacyNotice" placeholder="Pega aquí tu aviso de privacidad."></textarea>
+              <span class="field-hint mt-1 block">
+                Si lo dejas vacío usamos uno genérico con lo que tu página recaba. Te conviene revisarlo con tu asesor.
+                @if (privacyUrl(); as url) {
+                  <a class="font-medium text-accent hover:underline" [href]="url" target="_blank" rel="noopener">Ver cómo se ve</a>
+                }
+              </span>
+            </label>
+            <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line p-4">
+              <div>
+                <p class="text-sm font-semibold text-ink">Copia de tu información</p>
+                <p class="field-hint">Descarga un archivo con los datos de tu negocio para guardarlo por tu cuenta.</p>
+              </div>
+              <button type="button" class="btn btn-secondary" (click)="downloadBackup()">
+                <mat-icon>download</mat-icon>
+                Descargar copia
               </button>
             </div>
-          }
-        </div>
-        <p class="mt-2 text-sm text-muted">La clienta escribe el código al reservar; no distingue mayúsculas. El descuento mayor gana, no se suman.</p>
-      </details>
-
-      <button type="submit" class="btn btn-primary sticky bottom-20 z-10 w-full sm:w-auto sm:self-start md:bottom-4" [disabled]="savingProfile()">
-        {{ savingProfile() ? 'Guardando…' : 'Guardar' }}
-      </button>
-    </form>
-
-    <!-- El horario del equipo vive en /admin/schedules. Este formulario era la apertura general del local. -->
-    @if (false) {
-    <form class="mt-4 card shadow-sm" [formGroup]="hoursForm" (ngSubmit)="saveHours()">
-      <h2 class="inline-flex items-center gap-2 text-base font-semibold">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="8"/><path d="M12 8v5l3 2"/></svg>
-        Horario de apertura
-      </h2>
-      <div class="mt-4 flex flex-col gap-3" formArrayName="days">
-        @for (day of days; track day; let index = $index) {
-          <div class="grid items-center gap-3 rounded-xl px-2 py-2 sm:grid-cols-[8rem_auto_1fr]" [formGroupName]="index" [class.opacity-40]="!isOpen(index)">
-            <span class="text-sm font-medium">{{ day }}</span>
-            <label class="inline-flex items-center gap-2 text-sm">
-              <input type="checkbox" formControlName="is_open" class="peer sr-only" />
-              <span class="relative h-6 w-10 rounded-full bg-gray-200 transition-colors peer-checked:bg-rose-400 after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-transform peer-checked:after:translate-x-4"></span>
-              {{ isOpen(index) ? 'Abierto' : 'Cerrado' }}
-            </label>
-            @if (isOpen(index)) {
-              <span class="flex gap-2">
-                <app-time-field class="min-w-28" formControlName="open_time" />
-                <app-time-field class="min-w-28" formControlName="close_time" />
-              </span>
-            }
           </div>
-        }
+        </details>
+      </form>
+    </div>
+
+    <!-- Solo aparece cuando hay algo por guardar. bottom-20 en celular para no tapar la navegación inferior. -->
+    @if (changeCount() > 0) {
+      <div class="fixed inset-x-3 bottom-20 z-30 md:bottom-6 md:left-[calc(15rem+1.5rem)] md:right-6" role="region" aria-label="Cambios sin guardar">
+        <div class="mx-auto flex max-w-3xl flex-wrap items-center gap-3 rounded-2xl border border-line bg-[var(--nx-rail-bg)] px-4 py-3 text-[var(--nx-rail-ink)] shadow-[0_18px_50px_rgba(30,27,30,0.25)]">
+          <mat-icon class="shrink-0 text-[var(--nx-rail-soft)]">edit_note</mat-icon>
+          <p class="min-w-0 flex-1 text-sm">
+            <span class="font-semibold nums">{{ changeCount() }}</span> cambio{{ changeCount() === 1 ? '' : 's' }} sin guardar
+          </p>
+          <button type="button" class="btn h-9! text-[var(--nx-rail-soft)] hover:bg-[var(--nx-rail-hover)]" [disabled]="saving()" (click)="discard()">Descartar</button>
+          <button type="submit" form="settings-form" class="btn h-9! text-white" style="background: var(--primary)" [disabled]="saving()">
+            {{ saving() ? 'Guardando…' : 'Guardar cambios' }}
+          </button>
+        </div>
       </div>
-      <button type="submit" class="btn btn-primary mt-6 disabled:opacity-50" [disabled]="savingHours()">
-        {{ savingHours() ? 'Guardando…' : 'Guardar Horarios' }}
-      </button>
-    </form>
     }
   }
 </section>

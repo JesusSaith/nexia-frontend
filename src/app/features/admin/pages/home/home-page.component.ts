@@ -9,7 +9,7 @@ import { catchError, map, switchMap } from 'rxjs/operators';
 
 import { Appointment, AvailabilitySlot } from '@core/models/appointment.model';
 import { SchedulesService } from '@core/services/schedules.service';
-import { SettingsService } from '@core/services/settings.service';
+import { ReadinessStep, SettingsService } from '@core/services/settings.service';
 import { Confirm } from '@shared/components/confirm/confirm';
 import { DashboardStats } from '@core/models/dashboard.model';
 import { Review } from '@core/models/review.model';
@@ -79,9 +79,11 @@ export class HomePageComponent {
     });
   }
   /** Pasos para dejar el negocio listo; desaparece al completarlos o al ocultarla. */
-  protected readonly setup = signal<{ label: string; done: boolean; path: string }[]>([]);
+  protected readonly setup = signal<ReadinessStep[]>([]);
   protected readonly setupHidden = signal(readFlag('nexia-setup-hidden'));
   protected readonly setupLeft = computed(() => this.setup().filter((step) => !step.done).length);
+  /** Un aviso (p. ej. falta la CLABE) se muestra aunque la lista se haya ocultado. */
+  protected readonly setupWarnings = computed(() => this.setup().some((step) => step.group === 'aviso'));
 
   protected hideSetup(): void {
     this.setupHidden.set(true);
@@ -92,31 +94,15 @@ export class HomePageComponent {
     }
   }
 
+  /** La misma lista que Mi negocio: lo que impide reservar y lo que está mal configurado. */
   private loadSetup(): void {
-    forkJoin({
-      brand: this.bookingApi.getMyBrand().pipe(catchError(() => of(null))),
-      services: this.servicesApi.getServices().pipe(catchError(() => of([]))),
-      staff: this.staffApi.getStaff().pipe(catchError(() => of([]))),
-    })
-      .pipe(
-        switchMap(({ brand, services, staff }) => {
-          const active = staff.filter((member) => member.is_active);
-          const hours = active.length
-            ? forkJoin(active.map((member) => this.schedulesApi.getStaffSchedule(member.id).pipe(catchError(() => of([])))))
-            : of([]);
-          return hours.pipe(map((rows) => ({ brand, services, active, hours: rows })));
-        }),
-        takeUntilDestroyed(this.destroyRef),
-      )
-      .subscribe(({ brand, services, active, hours }) =>
-        this.setup.set([
-          { label: 'Sube tu logo', done: Boolean(brand?.logo_url), path: '/admin/settings' },
-          { label: 'Agrega tus servicios', done: services.some((row) => row.is_active), path: '/admin/services' },
-          { label: 'Agrega a tu equipo', done: active.length > 0, path: '/admin/staff' },
-          { label: 'Pon los horarios de trabajo', done: hours.some((days) => days.some((day) => day.is_active)), path: '/admin/schedules' },
-          { label: 'Comparte tu enlace de reservas', done: readFlag('nexia-shared'), path: '/admin/negocio' },
-        ]),
-      );
+    this.settingsApi
+      .getReadiness()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (ready) => this.setup.set(ready.steps.filter((step) => step.group !== 'perfil')),
+        error: () => this.setup.set([]),
+      });
   }
   private readonly packagesApi = inject(PackagesService);
   private readonly destroyRef = inject(DestroyRef);
@@ -394,6 +380,11 @@ export class HomePageComponent {
       `¡Hola! 👋 Te escribimos porque estabas en lista de espera: se liberó un horario${time ? ` a las ${time}` : ''}. Si lo quieres, apártalo aquí antes de que alguien más lo tome:${link}`,
     );
     return `https://wa.me/${phone}?text=${text}`;
+  }
+
+  /** Solo la hora ("11:00 a.m."), para listas que ya dicen de qué día son. */
+  protected timeLabel(value: string): string {
+    return this.timeFormat.format(parseLocal(value));
   }
 
   protected slotLabel(value: string): string {

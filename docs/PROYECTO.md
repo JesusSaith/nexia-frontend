@@ -78,7 +78,7 @@ En celular hay una barra inferior con **Inicio · Agenda · Clientes · Más**.
 | **Equipo** | Colaboradoras, servicios que realiza cada una, comisión y foto. |
 | **Horarios** | Turno por día, descanso y horas fijas. Incluye "Copiar lunes" al resto de la semana, sábado incluido. |
 | **Mi negocio** | Enlace para compartir (con vista previa), código QR y estado de preparación del negocio. |
-| **Configuración** | En secciones plegables: Marca (logo, fotos, promoción), Cómo se reserva (anticipación, días a futuro, tiempo entre citas, cancelaciones), Cierre o pausa, Anticipo y Aviso de privacidad. |
+| **Configuración** | Arriba, si la página está tomando citas (con interruptor) y "Ver mi página". Siete secciones con resumen visible aunque estén cerradas: Tu negocio, Apariencia (logo, color de marca con vista previa, fotos), Reglas de reserva (opciones rápidas), Anticipo y pagos (avisa si falta la CLABE), Promociones, Pausa y vacaciones, Privacidad y datos. Todo se guarda junto, en una sola petición; la barra de guardar solo aparece con cambios y avisa antes de salir sin guardar. |
 
 ### Ciclo de una cita
 ```
@@ -116,10 +116,19 @@ Reserva (clienta o dueña)
 - **Arranque seguro:** con `ENVIRONMENT=production`, la API no arranca si `JWT_SECRET` es el de ejemplo, si `COOKIE_SECURE` es falso, si la base es SQLite o si `FRONTEND_URL` no usa `https`.
 - **Contra citas falsas:**
   - campo trampa (*honeypot*);
-  - máximo 6 intentos por IP cada 10 minutos (en memoria);
+  - máximo 6 intentos por **negocio + IP** cada 10 minutos (en memoria);
   - máximo 3 citas próximas por teléfono.
+- **Pausa y vacaciones:** la API también los respeta (disponibilidad, reservas y cambios de cita de la clienta) con `app/core/shop_note.py`; antes solo los aplicaba la página de reservas. Las citas que crea la dueña no se bloquean.
+- **Contra registros en masa:** `/auth/register` usa el mismo límite de 6 intentos por IP cada 10 minutos (`app/core/throttle.py`).
+- **IP real:** el primer valor de `X-Forwarded-For` lo puede inventar cualquiera, así que la IP se lee contando desde la derecha `TRUSTED_PROXY_HOPS` saltos (0 en local; 2 detrás de Vercel → Render).
+- **Cookie de sesión:** respeta `COOKIE_SECURE` y `COOKIE_SAMESITE` del `.env` al iniciar sesión, al registrarse y al cerrar sesión.
 - **CORS:** en producción solo se acepta el dominio de `FRONTEND_URL`; en desarrollo, cualquier puerto de `localhost`.
+- **Registro:** pide aceptar los términos (`/terminos`) y el aviso de privacidad de Nexia (`/privacidad`) y guarda cuándo se aceptaron (`users.terms_accepted_at`). Los slugs que chocarían con rutas de la app (`admin`, `auth`, `terminos`…) reciben el sufijo `-negocio`.
 - **Privacidad:** aviso por negocio, borrado de fotos y datos de la clienta solo en su propio dispositivo.
+- **Recuperar contraseña:** desde el login («¿Olvidaste tu contraseña?»). El enlace (`/auth/restablecer?token=…`) vence en 1 hora y sirve una sola vez, porque lleva una huella de la contraseña actual. La respuesta es igual exista o no la cuenta, y al cambiarla llega un aviso por correo.
+- **Avisos por correo a la dueña** (`app/core/alerts.py`): los mismos avisos de Inicio (cita nueva, cancelación, cambio, comprobante, anticipo vencido, lista de espera, confirmación) más un resumen de las citas de mañana a las 8 p. m. hora del negocio. Ella elige cuáles en Configuración → Avisos por correo. El correo sale solo si el commit se confirma, y en un hilo aparte para no hacer esperar a la clienta. El resumen lo revisa un ciclo cada 10 minutos dentro de la API (en el plan gratis de Render, si la API está dormida, sale cuando despierta).
+- **Qué le falta al negocio** (`app/core/readiness.py`, `GET /api/settings/readiness`): una sola lista para Inicio y Mi negocio. "Comparte tu enlace" se guarda en el negocio (`link_shared`), ya no en el navegador. Los avisos (falta la CLABE, página en pausa) aparecen en Inicio aunque se haya ocultado la lista.
+- **Correos:** con Resend (`app/core/mailer.py`, textos en `app/core/emails.py`): bienvenida al registrarse, enlace para recuperar y aviso de contraseña cambiada. Sin `RESEND_API_KEY` no se envían; se escriben en el log del backend, con el enlace, para probar en local.
 - **Monitoreo opcional:** si se define `SENTRY_DSN` en el `.env` (requiere instalar `sentry-sdk`), los errores llegan a Sentry.
 
 ---
@@ -130,6 +139,8 @@ El sistema de diseño está en `src/styles.css`. Usa **siempre** estos nombres y
 
 - **Colores:** `bg-canvas`, `bg-surface`, `border-line`, `border-line-strong`, `text-ink`, `text-ink-soft`, `text-muted`, `accent`.
 - **Componentes:** `.page-head` (encabezado de página), `.card` y `.card-title`, `.btn` con sus variantes `btn-primary`, `btn-secondary`, `btn-ghost`, `btn-danger` y `btn-whatsapp`, `.badge-ok`, `-warn`, `-bad`, `-info` y `-neutral`, `.empty` (pantalla vacía) y `.nums` (números alineados).
+- **Panel:** menú lateral oscuro fijo en escritorio (`.nx-rail`, tokens `--nx-rail-*`), que en celular se abre como cajón desde "Más". El lienzo (`--bg-app`) tiene más tono que las tarjetas, y `.card` lleva una sombra suave (`--nx-card-shadow`).
+- **Tarjetas de número:** `.stat` con `.stat-icon` y un color (`stat-accent`, `-ok`, `-warn`, `-bad`, `-info`), más `.stat-value` y `.stat-label`.
 - **Confirmaciones:** el servicio `Confirm` (`src/app/shared/components/confirm/`). No usar `window.confirm`.
 - **Tipografía:** Plus Jakarta Sans. **Íconos:** Material Symbols (`<mat-icon>`). Sin emojis en la interfaz; en los mensajes de WhatsApp sí se usan.
 
@@ -151,7 +162,9 @@ npx ng test --watch=false
 ```
 
 - Las variables de entorno están explicadas en `nexia-backend/.env.example`.
+- **El puerto del frontend puede ser cualquiera.** Los enlaces que arma el backend (correos y `/s/:negocio`) usan la dirección desde la que se abrió la app (`app/core/origins.py`): en local, cualquier `localhost`; en producción, solo `FRONTEND_URL`.
 - Las columnas nuevas de la base se agregan solas al arrancar (`app/db/init_db.py`). No hay herramienta de migraciones.
+- **Zona horaria:** las citas se guardan como hora local del negocio, sin zona. Para "ahora" y "hoy" usa siempre `local_now(business)` / `local_today(business)` de `app/core/clock.py`, nunca `datetime.now()` ni `date.today()`: el servidor corre en UTC. La zona se toma del navegador al registrarse y se cambia en Configuración → Cómo se reserva.
 
 ---
 
@@ -165,7 +178,9 @@ npx ng test --watch=false
 
 - **Todos los negocios usan la misma instalación**; cada uno se registra en `/auth`.
 - Ya están listos `render.yaml`, el endpoint `/api/health`, la compatibilidad con PostgreSQL y `vercel.json`, que apunta a `https://nexia-api.onrender.com`. Los pasos están en `nexia-backend/DEPLOY.md`.
-- **Pendiente antes de las demos:** que el límite contra citas falsas cuente por **negocio + IP** y lea la IP que reenvía Vercel; si no, todas las clientas podrían compartir el mismo límite. También falta ajustar `render.yaml` para usar Neon como base.
+- **Pendiente antes de las demos:** confirmar en los logs de Render que `X-Forwarded-For` llega como `clienta, vercel` (si llega con otro número de saltos, ajustar `TRUSTED_PROXY_HOPS`). También falta ajustar `render.yaml` para usar Neon como base.
+- **Riesgo que queda:** quien llame directo a `nexia-api.onrender.com` (sin pasar por Vercel) todavía puede inventar la IP. Cerrarlo del todo pide un proxy propio que agregue un encabezado secreto, o poner Cloudflare delante.
+- **Correo en producción:** crear cuenta en Resend, verificar el dominio y poner `RESEND_API_KEY` y `MAIL_FROM` (p. ej. `Nexia <hola@tudominio.mx>`) en Render. Sin dominio verificado, Resend solo entrega a tu propio correo.
 - **Respaldos:** programar `scripts/backup_db.py` cada día y guardar las copias fuera del servidor.
 
 ---
@@ -173,9 +188,10 @@ npx ng test --watch=false
 ## 8. Pendientes y planes futuros
 
 **Corto plazo**
+- **Antes de abrir a negocios reales:** llenar razón social, domicilio, correo y ciudad en `src/app/features/legal/legal-info.ts` y pedir a un abogado que revise `/terminos` y `/privacidad`.
 - Revisar en el navegador Equipo, Horarios, Configuración, Mi negocio y la ficha de la cita, y ajustar los selectores de hora.
 - Una sola opinión por cita.
-- Limpiar el código muerto: formularios con `@if (false…)`, la sección de huecos de Inicio y el código de reseñas sin usar en la página de reservas.
+- Limpiar el código muerto: formularios con `@if (false…)` (el de Configuración ya se quitó), la sección de huecos de Inicio y el código de reseñas sin usar en la página de reservas.
 - Pasar el límite de intentos a Redis si algún día hay varios servidores.
 
 **Según lo que pidan los primeros negocios** (ya hechos: notas por visita, propinas, venta de productos al cobrar, cupones, lealtad, cumpleaños, PWA y modo oscuro)
