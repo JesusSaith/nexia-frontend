@@ -27,7 +27,7 @@
   </mat-sidenav>
 
   <mat-sidenav-content>
-    <header class="border-b border-[var(--border-subtle)] bg-white">
+    <header class="border-b border-[var(--border-subtle)] bg-surface">
       <div class="mx-auto flex h-16 max-w-7xl items-center gap-2 px-3 md:grid md:grid-cols-[1fr_auto_1fr] md:gap-4 md:px-8">
         <div class="flex shrink-0 items-center gap-1">
           @if (isHandset()) {
@@ -43,7 +43,21 @@
           }
           <span class="truncate text-base font-semibold md:text-xl">{{ brandName() || businessName() }}</span>
         </div>
-        <div class="justify-self-end">
+        <div class="flex items-center gap-1 justify-self-end">
+          <button mat-icon-button type="button" [matMenuTriggerFor]="themeMenu" [attr.aria-label]="'Tema: ' + (isDark() ? 'oscuro' : 'claro')" title="Tema">
+            <mat-icon>{{ isDark() ? 'dark_mode' : 'light_mode' }}</mat-icon>
+          </button>
+          <mat-menu #themeMenu="matMenu">
+            @for (option of themeOptions; track option.value) {
+              <button mat-menu-item type="button" (click)="setThemeMode(option.value)" [attr.aria-checked]="themeMode() === option.value" role="menuitemradio">
+                <mat-icon>{{ option.icon }}</mat-icon>
+                <span>{{ option.label }}</span>
+                @if (themeMode() === option.value) {
+                  <mat-icon class="ml-2 !mr-0">check</mat-icon>
+                }
+              </button>
+            }
+          </mat-menu>
           <button class="btn btn-ghost" type="button" [matMenuTriggerFor]="userMenu">
             <mat-icon>account_circle</mat-icon>
             <span class="ml-1 hidden sm:inline">{{ currentUser()?.fullName }}</span>
@@ -81,14 +95,14 @@
     </header>
 
     @if (logoutError(); as message) {
-      <p role="alert" class="bg-red-50 px-4 py-2 text-sm text-red-700">{{ message }}</p>
+      <p role="alert" class="badge-bad px-4 py-2 text-sm">{{ message }}</p>
     }
 
     <main class="admin-main mx-auto w-full max-w-7xl px-3 pb-24 pt-5 md:px-10 md:py-9">
       <router-outlet />
     </main>
     <!-- Celular: lo más usado a un toque; el resto sigue en el menú. -->
-    <nav class="fixed inset-x-0 bottom-0 z-30 flex border-t border-line bg-white pb-[env(safe-area-inset-bottom)] md:hidden" aria-label="Accesos rápidos">
+    <nav class="fixed inset-x-0 bottom-0 z-30 flex border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] md:hidden" aria-label="Accesos rápidos">
       @for (link of links().slice(0, 3); track link.path) {
         <a class="flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] text-muted" [routerLink]="link.path" routerLinkActive="!text-[var(--primary)] font-semibold" [routerLinkActiveOptions]="{ exact: link.exact }">
           <mat-icon>{{ link.icon }}</mat-icon>
@@ -105,7 +119,7 @@
     </nav>
     @if (toasts.message(); as saved) {
       <div class="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">
-        <div class="nexia-toast pointer-events-auto flex items-center gap-3 rounded-full border bg-white py-2 pl-2 pr-3 shadow-[0_18px_50px_rgba(30,27,30,0.16)]" style="border-color: color-mix(in srgb, var(--primary) 30%, white)">
+        <div class="nexia-toast pointer-events-auto flex items-center gap-3 rounded-full border bg-surface py-2 pl-2 pr-3 shadow-[0_18px_50px_rgba(30,27,30,0.16)]" style="border-color: color-mix(in srgb, var(--primary) 30%, var(--color-surface))">
           <span class="flex h-9 w-9 items-center justify-center rounded-full text-white" style="background: var(--primary)">
             <mat-icon class="!h-5 !w-5 !text-[20px]">check</mat-icon>
           </span>
@@ -119,8 +133,8 @@
     @if (toast(); as message) {
       <div class="pointer-events-none fixed inset-x-0 top-20 z-50 flex justify-center px-4">
         <div
-          class="nexia-toast pointer-events-auto flex w-full max-w-xl items-center gap-2 rounded-2xl border bg-white px-3 py-3 shadow-[0_18px_50px_rgba(30,27,30,0.18)] sm:gap-3 sm:px-5 sm:py-4"
-          style="border-color: color-mix(in srgb, var(--primary) 30%, white)"
+          class="nexia-toast pointer-events-auto flex w-full max-w-xl items-center gap-2 rounded-2xl border bg-surface px-3 py-3 shadow-[0_18px_50px_rgba(30,27,30,0.18)] sm:gap-3 sm:px-5 sm:py-4"
+          style="border-color: color-mix(in srgb, var(--primary) 30%, var(--color-surface))"
         >
           <a class="flex min-w-0 flex-1 items-center gap-3" routerLink="/admin/home">
             <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-accent text-white sm:h-12 sm:w-12">
@@ -130,7 +144,7 @@
               <span class="block text-xs font-semibold uppercase tracking-wide text-accent">Nuevo aviso</span>
               <span class="mt-1 block text-base font-medium leading-snug text-ink">{{ message }}</span>
             </span>
-            <span class="shrink-0 rounded-full bg-ink px-3 py-1.5 text-xs text-white sm:px-4 sm:py-2 sm:text-sm">Ver</span>
+            <span class="shrink-0 rounded-full bg-ink px-3 py-1.5 text-xs text-surface sm:px-4 sm:py-2 sm:text-sm">Ver</span>
           </a>
           <button type="button" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink hover:bg-canvas" aria-label="Cerrar aviso" (click)="closeToast($event)">
             <mat-icon>close</mat-icon>

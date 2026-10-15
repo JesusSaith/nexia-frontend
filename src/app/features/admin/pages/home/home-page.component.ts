@@ -9,6 +9,8 @@ import { catchError, map, switchMap } from 'rxjs/operators';
 
 import { Appointment, AvailabilitySlot } from '@core/models/appointment.model';
 import { SchedulesService } from '@core/services/schedules.service';
+import { SettingsService } from '@core/services/settings.service';
+import { Confirm } from '@shared/components/confirm/confirm';
 import { DashboardStats } from '@core/models/dashboard.model';
 import { Review } from '@core/models/review.model';
 import { AppointmentsService } from '@core/services/appointments.service';
@@ -34,6 +36,48 @@ export class HomePageComponent {
   private readonly staffApi = inject(StaffService);
   private readonly servicesApi = inject(ServicesService);
   private readonly schedulesApi = inject(SchedulesService);
+  private readonly settingsApi = inject(SettingsService);
+  private readonly confirm = inject(Confirm);
+  protected readonly demoLoaded = signal(false);
+  protected readonly demoBusy = signal(false);
+
+  /** Lo que hay que resolver hoy, cada cosa con su acción. */
+  protected readonly todos = computed(() => {
+    const today = inputDate(new Date());
+    const rows: { id: number; title: string; detail: string; action: string; tone: string }[] = [];
+    for (const item of this.booked()) {
+      if (item.starts_at.slice(0, 10) < today) {
+        continue;
+      }
+      const when = `${item.client_name} · ${item.service_name} · ${this.slotLabel(item.starts_at)}`;
+      if (item.status === 'awaiting_deposit' && item.payment_proof) {
+        rows.push({ id: item.id, title: 'Revisar comprobante', detail: when, action: 'Revisar', tone: 'badge-info' });
+      } else if (item.status === 'awaiting_deposit') {
+        rows.push({ id: item.id, title: 'Falta el anticipo', detail: when, action: 'Ver', tone: 'badge-warn' });
+      } else if (item.status === 'scheduled' && !item.client_confirmed && item.starts_at.slice(0, 10) === today) {
+        rows.push({ id: item.id, title: 'Sin confirmar hoy', detail: when, action: 'Ver', tone: 'badge-neutral' });
+      }
+    }
+    return rows.slice(0, 8);
+  });
+
+  protected async toggleDemo(): Promise<void> {
+    const loaded = this.demoLoaded();
+    const ok = await this.confirm.ask(
+      loaded
+        ? { title: '¿Quitar los datos de ejemplo?', message: 'Se borran los servicios, el equipo, las clientas y las citas de ejemplo. Lo que tú creaste se queda.', confirm: 'Quitar', danger: true }
+        : { title: '¿Llenar con datos de ejemplo?', message: 'Agrega servicios de tu giro, dos colaboradoras con horario, clientas y citas para que veas todo funcionando. Los quitas con un botón.', confirm: 'Llenar' },
+    );
+    if (!ok) {
+      return;
+    }
+    this.demoBusy.set(true);
+    const request = loaded ? this.settingsApi.clearDemo().pipe(map(() => null)) : this.settingsApi.loadDemo().pipe(map(() => null));
+    request.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => location.reload(),
+      error: () => this.demoBusy.set(false),
+    });
+  }
   /** Pasos para dejar el negocio listo; desaparece al completarlos o al ocultarla. */
   protected readonly setup = signal<{ label: string; done: boolean; path: string }[]>([]);
   protected readonly setupHidden = signal(readFlag('nexia-setup-hidden'));
@@ -101,7 +145,13 @@ export class HomePageComponent {
   });
   protected readonly noticePages = computed(() => Math.max(1, Math.ceil(this.notices().length / 10)));
   protected readonly openings = signal<{ staff: string; slots: AvailabilitySlot[] }[]>([]);
-  protected readonly clients = signal<{ id: number; full_name: string; phone: string }[]>([]);
+  // birthday lo agrega el backend en GET /api/clients; se tipa opcional aquí sin tocar booking.service.ts.
+  protected readonly clients = signal<{ id: number; full_name: string; phone: string; birthday?: string | null }[]>([]);
+  protected readonly birthdays = computed(() => {
+    const now = new Date();
+    const today = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    return this.clients().filter((client) => client.birthday?.slice(5, 10) === today);
+  });
   protected readonly offerId = signal<number | null>(null);
   protected readonly clientPicks = computed(() => this.clients().map((client) => ({ value: client.id, label: client.full_name })));
   protected readonly tomorrow = computed(() => {
@@ -138,6 +188,7 @@ export class HomePageComponent {
   protected readonly stars = [1, 2, 3, 4, 5];
 
   constructor() {
+    this.settingsApi.demoStatus().pipe(catchError(() => of({ loaded: false }))).subscribe((row) => this.demoLoaded.set(row.loaded));
     if (!this.setupHidden()) {
       this.loadSetup();
     }
@@ -249,6 +300,15 @@ export class HomePageComponent {
           .pipe(takeUntilDestroyed(this.destroyRef))
           .subscribe((rows) => this.openings.set(rows.filter((row) => row.slots.length > 0)));
       });
+  }
+
+  protected birthdayWhatsapp(client: { full_name: string; phone: string }): string {
+    const phone = client.phone.replace(/\D/g, '');
+    const shop = this.auth.currentUser()?.businessName ?? '';
+    const text = encodeURIComponent(
+      `¡Feliz cumpleaños, ${client.full_name.split(' ')[0]}! 🎉 Todo el equipo${shop ? ` de ${shop}` : ''} te desea un día increíble. ¡Te esperamos pronto para consentirte!`,
+    );
+    return `https://wa.me/${phone}?text=${text}`;
   }
 
   protected offer(slot: string, staff: string): void {

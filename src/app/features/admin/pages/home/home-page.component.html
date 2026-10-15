@@ -23,6 +23,13 @@
       </a>
     </header>
 
+    @if (demoLoaded()) {
+      <section class="card mb-4 flex flex-wrap items-center justify-between gap-3 py-3!">
+        <p class="flex items-center gap-2 text-sm text-ink"><mat-icon class="text-muted">science</mat-icon>Estás viendo datos de ejemplo.</p>
+        <button type="button" class="btn btn-secondary h-9!" [disabled]="demoBusy()" (click)="toggleDemo()">Quitar datos de ejemplo</button>
+      </section>
+    }
+
     <!-- Indicadores del día -->
     <div class="mb-4 grid grid-cols-3 gap-3">
       <a routerLink="/admin/agenda" class="card p-4! hover:border-line-strong">
@@ -46,7 +53,12 @@
             <h2 class="text-sm font-semibold text-ink">Pon tu negocio en marcha</h2>
             <p class="mt-0.5 text-sm text-muted">{{ setup().length - setupLeft() }} de {{ setup().length }} pasos completos</p>
           </div>
-          <button type="button" class="btn btn-ghost h-8! px-2! text-xs" (click)="hideSetup()">Ocultar</button>
+          <div class="flex gap-1">
+            @if (!demoLoaded()) {
+              <button type="button" class="btn btn-secondary h-8! px-3! text-xs" [disabled]="demoBusy()" (click)="toggleDemo()">Llenar con ejemplo</button>
+            }
+            <button type="button" class="btn btn-ghost h-8! px-2! text-xs" (click)="hideSetup()">Ocultar</button>
+          </div>
         </div>
         <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-canvas">
           <div class="h-full rounded-full bg-ink transition-all" [style.width.%]="((setup().length - setupLeft()) / setup().length) * 100"></div>
@@ -88,6 +100,37 @@
             Recordar a {{ next.client_name.split(' ')[0] }} · <span class="nums">{{ slotLabel(next.starts_at) }}</span>
           </button>
         }
+      </section>
+    }
+
+    @if (birthdays().length) {
+      <section class="card mb-4">
+        <h2 class="card-title flex items-center gap-1.5"><mat-icon class="h-4! w-4! text-[16px]!">cake</mat-icon>Cumpleaños de hoy</h2>
+        <ul class="mt-2 divide-y divide-line">
+          @for (client of birthdays(); track client.id) {
+            <li class="flex items-center gap-3 py-2.5">
+              <span class="min-w-0 flex-1 truncate text-sm font-medium text-ink">{{ client.full_name }}</span>
+              @if (client.phone) {
+                <a class="btn btn-whatsapp h-8! px-3!" [href]="birthdayWhatsapp(client)" target="_blank" rel="noopener">Felicitar</a>
+              }
+            </li>
+          }
+        </ul>
+      </section>
+    }
+
+    @if (todos().length) {
+      <section class="card mb-4">
+        <h2 class="card-title">Pendientes</h2>
+        <ul class="mt-2 divide-y divide-line">
+          @for (todo of todos(); track todo.id) {
+            <li class="flex items-center gap-3 py-2.5">
+              <span class="badge {{ todo.tone }} shrink-0">{{ todo.title }}</span>
+              <span class="min-w-0 flex-1 truncate text-sm text-ink-soft">{{ todo.detail }}</span>
+              <a class="btn btn-secondary h-8! px-3!" routerLink="/admin/agenda" [queryParams]="{ cita: todo.id }">{{ todo.action }}</a>
+            </li>
+          }
+        </ul>
       </section>
     }
 

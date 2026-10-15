@@ -31,6 +31,20 @@ const STEPS = [
 
 const FALLBACK_COLOR = '#E11D48';
 const CLIENT_KEY = 'nexia-booking-client';
+/** Citas reservadas desde este dispositivo: [{ token, slug, starts_at }]. */
+const MINE_KEY = 'nexia-my-appointments';
+
+interface SavedVisit {
+  token: string;
+  slug: string;
+  starts_at: string;
+}
+
+interface UpcomingVisit extends SavedVisit {
+  service_name: string;
+  staff_name: string;
+  status: string;
+}
 
 /** Teléfono con 10 a 15 dígitos, sin importar espacios, guiones o el +. */
 function phoneDigits(control: AbstractControl): ValidationErrors | null {
@@ -100,6 +114,25 @@ export class Booking {
   protected readonly petName = signal('');
   protected readonly copy = computed(() => businessWords(this.brand()?.staff_label));
   protected readonly opinions = signal<Review[]>([]);
+  /** Promedio general de las reseñas públicas del negocio (no hay calificación por colaboradora). */
+  protected readonly rating = computed(() => {
+    const rows = this.opinions().filter((review) => review.rating >= 1 && review.rating <= 5);
+    if (!rows.length) {
+      return null;
+    }
+    const average = rows.reduce((sum, review) => sum + review.rating, 0) / rows.length;
+    return { average, label: average.toFixed(1), count: rows.length, filled: Math.round(average) };
+  });
+  /** Próximas citas reservadas desde este dispositivo para este negocio. */
+  protected readonly upcoming = signal<UpcomingVisit[]>([]);
+  protected readonly couponOpen = signal(false);
+  protected readonly coupon = signal('');
+  /** Porcentaje del cupón según el backend (informativo; el descuento final se decide al reservar). */
+  protected readonly couponPercent = signal<number | null>(null);
+  protected readonly couponChecked = signal('');
+  protected readonly couponError = signal<string | null>(null);
+  protected readonly loyaltyPercent = signal<number | null>(null);
+  private lastLoyaltyPhone = '';
   protected readonly services = signal<PublicService[]>([]);
   protected readonly categoryFilter = signal('');
   protected readonly staff = signal<PublicStaff[]>([]);
@@ -227,7 +260,24 @@ export class Booking {
     const variable = chosen.some((service) => service.variable_price);
     const total = chosen.reduce((sum, service) => sum + (service.variable_price ? 0 : service.price), 0);
     const deposit = this.depositAmount() ?? 0;
-    return { variable, total, deposit, later: Math.max(total - deposit, 0) };
+    const discount = this.discount();
+    const off = discount && !variable ? Math.round(total * discount.percent) / 100 : 0;
+    const final = total - off;
+    return { variable, total, deposit, later: Math.max(final - deposit, 0), discount, off, final };
+  });
+  /** Mayor descuento que aplicaría (cupón o clienta frecuente); no se suman. */
+  protected readonly discount = computed(() => {
+    if (this.usePackage()) {
+      return null;
+    }
+    const couponOff = this.couponChecked() && this.couponChecked() === this.coupon().trim().toUpperCase() ? this.couponPercent() ?? 0 : 0;
+    const loyaltyOff = this.loyaltyPercent() ?? 0;
+    if (!couponOff && !loyaltyOff) {
+      return null;
+    }
+    return couponOff >= loyaltyOff
+      ? { percent: couponOff, label: `Cupón ${this.couponChecked()}` }
+      : { percent: loyaltyOff, label: 'Clienta frecuente' };
   });
   protected readonly policy = computed(() => {
     const text = this.brand()?.cancel_policy?.trim();
@@ -286,6 +336,7 @@ export class Booking {
   constructor() {
     this.restoreClient();
     this.loadCatalog();
+    this.loadMine();
   }
 
   protected formatPrice(price: number): string {
@@ -461,6 +512,7 @@ export class Booking {
   }
 
   protected lookPackage(phone: string): void {
+    this.lookLoyalty(phone);
     const trimmed = phone.trim();
     if (trimmed.replace(/\D/g, '').length < 10) {
       this.lastPackagePhone = '';
@@ -481,6 +533,81 @@ export class Booking {
       },
       error: () => this.packageLeft.set(null),
     });
+  }
+
+  /** Aviso de descuento por clienta frecuente en cuanto el teléfono está completo. */
+  private lookLoyalty(phone: string): void {
+    const trimmed = phone.trim();
+    if (trimmed.replace(/\D/g, '').length < 10) {
+      this.lastLoyaltyPhone = '';
+      this.loyaltyPercent.set(null);
+      return;
+    }
+    if (trimmed === this.lastLoyaltyPhone) {
+      return;
+    }
+    this.lastLoyaltyPhone = trimmed;
+    const coupon = this.couponChecked();
+    if (!this.brand()?.loyalty_every || !this.brand()?.loyalty_percent) {
+      this.loyaltyPercent.set(null);
+      if (coupon) {
+        this.checkCoupon();
+      }
+      return;
+    }
+    this.bookingApi
+      .getLoyalty(this.slug, trimmed, coupon || null)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (row) => {
+          this.loyaltyPercent.set(row.percent ?? null);
+          if (coupon) {
+            this.couponPercent.set(row.coupon_percent ?? null);
+            this.couponError.set(row.coupon_percent ? null : 'Ese cupón no es válido');
+          }
+        },
+        error: () => this.loyaltyPercent.set(null),
+      });
+  }
+
+  protected onCoupon(value: string): void {
+    this.coupon.set(value);
+    this.couponError.set(null);
+    if (value.trim().toUpperCase() !== this.couponChecked()) {
+      this.couponChecked.set('');
+      this.couponPercent.set(null);
+    }
+  }
+
+  /** Revisa el cupón solo para mostrar el descuento; el backend lo vuelve a validar al reservar. */
+  protected checkCoupon(): void {
+    const code = this.coupon().trim().toUpperCase();
+    if (!code) {
+      this.couponChecked.set('');
+      this.couponPercent.set(null);
+      this.couponError.set(null);
+      return;
+    }
+    const phone = this.clientForm.controls.client_phone.value.trim();
+    this.bookingApi
+      .getLoyalty(this.slug, phone, code)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (row) => {
+          this.couponChecked.set(code);
+          this.couponPercent.set(row.coupon_percent ?? null);
+          this.couponError.set(row.coupon_percent ? null : 'Ese cupón no es válido');
+        },
+        error: () => this.couponError.set('No pudimos revisar el cupón. Igual se aplica al confirmar si es válido.'),
+      });
+  }
+
+  protected stars(filled: number): boolean[] {
+    return [1, 2, 3, 4, 5].map((value) => value <= filled);
+  }
+
+  protected manageHref(token: string): string {
+    return `/${this.slug}/manage/${token}`;
   }
 
   protected pickResource(value: string | number | null): void {
@@ -708,6 +835,7 @@ export class Booking {
         use_package: this.usePackage(),
         reference_photos: this.refPhotos(),
         website: this.trap() || null,
+        coupon: this.coupon().trim() || null,
       })
       .pipe(
         takeUntilDestroyed(this.destroyRef),
@@ -718,6 +846,7 @@ export class Booking {
           this.confirmation.set(appointment);
           this.moveTo(4);
           this.saveClient(client_name, client_phone, client_email);
+          this.rememberVisit(appointment);
         },
         error: (error: unknown) => {
           this.isSaving.set(false);
@@ -810,6 +939,13 @@ export class Booking {
     this.refPhotos.set([]);
     this.photoError.set(null);
     this.answers.set('');
+    this.coupon.set('');
+    this.couponOpen.set(false);
+    this.couponChecked.set('');
+    this.couponPercent.set(null);
+    this.couponError.set(null);
+    this.lastLoyaltyPhone = '';
+    this.loyaltyPercent.set(null);
     this.confirmation.set(null);
     this.proofSent.set(false);
     this.reviewRating.set(5);
@@ -822,7 +958,91 @@ export class Booking {
     this.showOptional.set(false);
     this.date.set(this.minDate);
     this.restoreClient();
+    this.loadMine();
     scrollToTop();
+  }
+
+  private readMine(): SavedVisit[] {
+    try {
+      const rows = JSON.parse(localStorage.getItem(MINE_KEY) ?? '[]') as unknown;
+      return Array.isArray(rows)
+        ? rows.filter(
+            (row): row is SavedVisit =>
+              typeof row?.token === 'string' && typeof row?.slug === 'string' && typeof row?.starts_at === 'string',
+          )
+        : [];
+    } catch {
+      return [];
+    }
+  }
+
+  private writeMine(rows: SavedVisit[]): void {
+    try {
+      localStorage.setItem(MINE_KEY, JSON.stringify(rows.slice(-20)));
+    } catch {
+      // Sin almacenamiento: la clienta conserva el enlace que le damos al reservar.
+    }
+  }
+
+  private rememberVisit(appointment: Appointment): void {
+    const token = appointment.cancel_token;
+    if (!token || !this.slug) {
+      return;
+    }
+    const rows = this.readMine().filter((row) => row.token !== token);
+    this.writeMine([...rows, { token, slug: this.slug, starts_at: appointment.starts_at }]);
+  }
+
+  /** Muestra las citas futuras guardadas en este dispositivo; descarta canceladas o pasadas. */
+  private loadMine(): void {
+    const now = Date.now();
+    const all = this.readMine();
+    const keep = all.filter((row) => new Date(row.starts_at).getTime() > now);
+    if (keep.length !== all.length) {
+      this.writeMine(keep);
+    }
+    const mine = keep.filter((row) => row.slug === this.slug);
+    if (!mine.length) {
+      this.upcoming.set([]);
+      return;
+    }
+    forkJoin(
+      mine.map((row) =>
+        this.bookingApi.getManagedAppointment(row.token).pipe(
+          map((detail) => ({ row, detail })),
+          catchError((error: unknown) => of({ row, detail: null, gone: error instanceof HttpErrorResponse && error.status === 404 })),
+        ),
+      ),
+    )
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((results) => {
+        const visible: UpcomingVisit[] = [];
+        const drop = new Set<string>();
+        for (const result of results) {
+          const detail = result.detail;
+          if (!detail) {
+            if ('gone' in result && result.gone) {
+              drop.add(result.row.token);
+            }
+            continue;
+          }
+          if (detail.is_cancelled || detail.is_past || detail.status === 'cancelled' || detail.status === 'no_show') {
+            drop.add(result.row.token);
+            continue;
+          }
+          visible.push({
+            ...result.row,
+            starts_at: detail.starts_at,
+            service_name: detail.service_name,
+            staff_name: detail.staff_name,
+            status: detail.status,
+          });
+        }
+        if (drop.size) {
+          this.writeMine(this.readMine().filter((row) => !drop.has(row.token)));
+        }
+        this.upcoming.set(visible.sort((a, b) => a.starts_at.localeCompare(b.starts_at)));
+      });
   }
 
   /** Quien ya reservó en este navegador encuentra su nombre y teléfono llenos. */
@@ -890,6 +1110,9 @@ export class Booking {
           this.services.set(services);
           this.staff.set(staff);
           this.isLoading.set(false);
+          // El teléfono recordado se revisó antes de conocer la lealtad del negocio.
+          this.lastLoyaltyPhone = '';
+          this.lookLoyalty(this.clientForm.controls.client_phone.value);
           this.reviewsApi.getPublicReviews(this.slug).pipe(catchError(() => of([] as Review[]))).subscribe((rows) => this.opinions.set(rows));
         },
         error: (error: unknown) => {

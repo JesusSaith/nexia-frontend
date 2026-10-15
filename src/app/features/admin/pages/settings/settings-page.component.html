@@ -201,6 +201,62 @@
         </div>
       </details>
 
+      <details class="settings-block card group">
+        <summary class="flex cursor-pointer list-none items-start justify-between gap-3 [&::-webkit-details-marker]:hidden">
+          <div class="min-w-0">
+            <h2 class="text-base font-semibold text-ink">Promociones</h2>
+            <p class="mt-0.5 text-sm text-muted">Descuento a clientas frecuentes y cupones</p>
+          </div>
+          <mat-icon class="shrink-0 text-muted transition-transform group-open:rotate-180" aria-hidden="true">expand_more</mat-icon>
+        </summary>
+        <p class="mt-4 border-t border-line pt-4 text-sm text-muted">Los descuentos se aplican solos al reservar en tu página. Deja vacía la lealtad para no usarla.</p>
+        <div class="mt-4 grid gap-3 sm:grid-cols-2">
+          <label class="block text-sm text-ink-soft">
+            <span>Cada cuántas visitas</span>
+            <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" type="number" min="2" max="50" placeholder="Ej. 5" [value]="loyaltyEvery() ?? ''" (input)="loyaltyEvery.set(toNumber($any($event.target).value))" />
+          </label>
+          <label class="block text-sm text-ink-soft">
+            <span>Porcentaje de descuento</span>
+            <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" type="number" min="1" max="100" placeholder="Ej. 20" [value]="loyaltyPercent() ?? ''" (input)="loyaltyPercent.set(toNumber($any($event.target).value))" />
+          </label>
+        </div>
+        @if (loyaltyEvery() && loyaltyPercent()) {
+          <p class="mt-2 text-sm text-muted nums">La visita {{ loyaltyEvery() }}, {{ (loyaltyEvery() ?? 0) * 2 }}, {{ (loyaltyEvery() ?? 0) * 3 }}… lleva {{ loyaltyPercent() }}% de descuento.</p>
+        }
+        <div class="mt-5 flex items-center justify-between gap-3">
+          <p class="card-title">Cupones</p>
+          <button type="button" class="btn btn-secondary" (click)="addCoupon()">
+            <mat-icon>add</mat-icon>
+            Agregar cupón
+          </button>
+        </div>
+        @if (coupons().length === 0) {
+          <p class="mt-2 text-sm text-muted">Sin cupones. Ejemplo: BIENVENIDA con 10% solo en la primera visita.</p>
+        }
+        <div class="mt-3 flex flex-col gap-2">
+          @for (coupon of coupons(); track $index) {
+            <div class="grid items-end gap-3 rounded-lg border border-line p-3 sm:grid-cols-[1fr_7rem_auto_auto]">
+              <label class="block text-sm text-ink-soft">
+                <span>Código</span>
+                <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm uppercase text-ink outline-none focus:border-ink" maxlength="40" placeholder="BIENVENIDA" [value]="coupon.code" (input)="editCoupon($index, { code: $any($event.target).value })" />
+              </label>
+              <label class="block text-sm text-ink-soft">
+                <span>%</span>
+                <input class="nums mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" type="number" min="1" max="100" [value]="coupon.percent" (input)="editCoupon($index, { percent: toNumber($any($event.target).value) ?? 0 })" />
+              </label>
+              <label class="flex h-10 items-center gap-2 text-sm text-ink-soft">
+                <input type="checkbox" [checked]="coupon.first_visit" (change)="editCoupon($index, { first_visit: $any($event.target).checked })" />
+                Solo primera visita
+              </label>
+              <button type="button" class="btn btn-ghost" [attr.aria-label]="'Quitar cupón ' + (coupon.code || $index + 1)" (click)="removeCoupon($index)">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </div>
+          }
+        </div>
+        <p class="mt-2 text-sm text-muted">La clienta escribe el código al reservar; no distingue mayúsculas. El descuento mayor gana, no se suman.</p>
+      </details>
+
       <button type="submit" class="btn btn-primary sticky bottom-20 z-10 w-full sm:w-auto sm:self-start md:bottom-4" [disabled]="savingProfile()">
         {{ savingProfile() ? 'Guardando…' : 'Guardar' }}
       </button>

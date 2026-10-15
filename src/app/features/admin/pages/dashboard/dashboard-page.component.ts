@@ -238,7 +238,7 @@ export class DashboardPageComponent {
     if (points.length === 0) {
       return null;
     }
-    const max = Math.max(1, ...points.map((point) => point.amount)) * 1.15;
+    const max = Math.max(this.metric() === 'count' ? 4 : 100, ...points.map((point) => point.amount)) * 1.15;
     const left = 58;
     const top = 12;
     const plotW = 570;

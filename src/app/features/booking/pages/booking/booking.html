@@ -114,6 +114,27 @@
     </div>
   } @else if (step() === 1) {
     <section class="flex flex-col gap-6">
+      @if (upcoming().length) {
+        <section class="card" aria-label="Tus próximas citas">
+          <h2 class="card-title">Tus próximas citas</h2>
+          <ul class="mt-2 divide-y divide-line">
+            @for (visit of upcoming(); track visit.token) {
+              <li class="flex items-center gap-3 py-3">
+                <div class="min-w-0 flex-1 text-sm">
+                  <p class="truncate font-medium text-ink">{{ visit.service_name }}</p>
+                  <p class="truncate capitalize text-muted">
+                    <span class="nums">{{ formatDate(visit.starts_at) }} · {{ formatTime(visit.starts_at) }}</span> · {{ visit.staff_name }}
+                  </p>
+                  @if (visit.status === 'awaiting_deposit') {
+                    <span class="badge badge-warn mt-1">Falta el anticipo</span>
+                  }
+                </div>
+                <a class="btn btn-secondary shrink-0" [href]="manageHref(visit.token)">Ver o cambiar</a>
+              </li>
+            }
+          </ul>
+        </section>
+      }
       <div>
         <h2 class="mb-3 text-base font-medium">Servicio</h2>
         @if (categories().length) {
@@ -196,7 +217,22 @@
       </div>
 
       <div>
-        <h2 class="mb-3 text-base font-medium">{{ brand()?.staff_label || 'Colaborador' }}</h2>
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 class="text-base font-medium">{{ brand()?.staff_label || 'Colaborador' }}</h2>
+          @if (rating(); as score) {
+            <p class="flex items-center gap-1.5 text-sm text-ink-soft" [attr.aria-label]="'Calificación del negocio ' + score.label + ' de 5, ' + score.count + ' opiniones'">
+              <span class="flex" aria-hidden="true">
+                @for (on of stars(score.filled); track $index) {
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" class="h-4 w-4" [attr.fill]="on ? 'var(--booking-primary)' : 'var(--color-line-strong)'">
+                    <path d="M10 1.7l2.5 5.2 5.7.8-4.1 4 1 5.6L10 14.6l-5.1 2.7 1-5.6-4.1-4 5.7-.8z"/>
+                  </svg>
+                }
+              </span>
+              <span class="nums font-medium text-ink">{{ score.label }}</span>
+              <span class="nums text-muted">({{ score.count }} {{ score.count === 1 ? 'opinión' : 'opiniones' }})</span>
+            </p>
+          }
+        </div>
         @if (!selectedService()) {
           <p class="text-sm text-ink-soft">Elige un servicio para ver quién lo realiza.</p>
         } @else if (eligibleStaff().length === 0) {
@@ -220,22 +256,24 @@
             @for (member of eligibleStaff(); track member.id) {
               <button
                 type="button"
-                class="choice-card flex gap-3 p-4 text-left"
+                class="choice-card flex items-start gap-4 p-4 text-left"
                 [class.choice-selected]="selectedStaff()?.id === member.id"
                 (click)="selectStaff(member)"
               >
                 @if (member.avatar_url) {
-                  <img [src]="member.avatar_url" [alt]="member.full_name" class="h-12 w-12 rounded-full object-cover" />
+                  <img [src]="member.avatar_url" [alt]="member.full_name" class="h-20 w-20 shrink-0 rounded-2xl object-cover" />
                 } @else {
-                  <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-canvas text-sm font-medium">
+                  <span class="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-canvas text-lg font-medium text-ink-soft">
                     {{ initials(member.full_name) }}
                   </span>
                 }
-                <span>
+                <span class="min-w-0">
                   <span class="block font-medium">{{ member.full_name }}</span>
-                  <span class="mt-1 block text-sm text-ink-soft">{{ member.role_title }}</span>
+                  @if (member.role_title) {
+                    <span class="mt-0.5 block text-sm text-ink-soft">{{ member.role_title }}</span>
+                  }
                   @if (member.bio) {
-                    <span class="mt-1 line-clamp-2 block text-sm text-muted">{{ member.bio }}</span>
+                    <span class="mt-1 line-clamp-3 block text-sm text-muted">{{ member.bio }}</span>
                   }
                 </span>
               </button>
@@ -382,6 +420,11 @@
       @if (phoneError(); as message) {
         <p class="text-sm text-red-700">{{ message }}</p>
       }
+      @if (loyaltyPercent() && !usePackage()) {
+        <p class="text-sm text-ink-soft" role="status">
+          Esta {{ copy().visit.toLowerCase() }} tiene <span class="nums font-medium" style="color: var(--booking-primary)">{{ loyaltyPercent() }}%</span> de descuento por ser clienta frecuente.
+        </p>
+      }
       <label class="rounded-xl border border-line bg-white px-3 py-2">
         <span class="block text-xs text-muted">Tu nombre</span>
         <input class="w-full bg-transparent text-sm outline-none" formControlName="client_name" autocomplete="name" />
@@ -460,6 +503,33 @@
         </button>
       }
 
+      @if (couponOpen() || coupon()) {
+        <div class="flex items-stretch gap-2">
+          <label class="min-w-0 flex-1 rounded-xl border border-line bg-white px-3 py-2">
+            <span class="block text-xs text-muted">¿Tienes un cupón?</span>
+            <input
+              class="w-full bg-transparent text-sm uppercase outline-none"
+              maxlength="40"
+              autocomplete="off"
+              placeholder="Código"
+              [value]="coupon()"
+              (input)="onCoupon($any($event.target).value)"
+              (keydown.enter)="$event.preventDefault(); checkCoupon()"
+            />
+          </label>
+          <button type="button" class="btn btn-secondary h-auto! shrink-0" [disabled]="!coupon().trim()" (click)="checkCoupon()">Aplicar</button>
+        </div>
+        @if (couponError(); as message) {
+          <p class="text-sm text-red-700" role="alert">{{ message }}</p>
+        } @else if (couponChecked() && couponPercent()) {
+          <p class="text-sm text-ink-soft" role="status">Cupón {{ couponChecked() }}: <span class="nums">{{ couponPercent() }}%</span> de descuento.</p>
+        }
+      } @else {
+        <button type="button" class="self-start text-sm underline underline-offset-2" style="color: var(--booking-primary)" (click)="couponOpen.set(true)">
+          ¿Tienes un cupón?
+        </button>
+      }
+
       @if (formError(); as message) {
         <p role="alert" class="mb-3 text-sm text-red-700">{{ message }}</p>
       }
@@ -474,6 +544,9 @@
               <span class="text-ink-soft">Precio</span>
               <span class="font-medium">{{ cash.total ? 'Desde ' + formatPrice(cash.total) : 'Lo acuerdas con el negocio' }}</span>
             </div>
+            @if (cash.discount; as off) {
+              <p class="mt-1 text-ink-soft">{{ off.label }}: <span class="nums">{{ off.percent }}%</span> de descuento sobre el precio acordado.</p>
+            }
             @if (brand()?.deposit_percent && brand()?.deposit_account) {
               <p class="mt-2 text-ink-soft">
                 Anticipo: {{ brand()?.deposit_percent }}% del precio acordado. Te lo indicamos cuando el negocio lo defina; no pagas nada ahora.
@@ -488,17 +561,38 @@
               <span>En la {{ copy().visit.toLowerCase() }}</span>
               <span>{{ formatPrice(cash.later) }}</span>
             </div>
+            @if (cash.discount; as off) {
+              <div class="mt-1 flex justify-between gap-3 text-ink-soft">
+                <span>{{ off.label }} (<span class="nums">{{ off.percent }}%</span>)</span>
+                <span class="nums">−{{ formatPrice(cash.off) }}</span>
+              </div>
+            }
             <div class="mt-2 flex justify-between gap-3 border-t border-line pt-2">
               <span class="font-medium">Total</span>
-              <span class="font-medium">{{ formatPrice(cash.total) }}</span>
+              <span class="nums font-medium">
+                @if (cash.off) {
+                  <span class="mr-1 text-muted line-through">{{ formatPrice(cash.total) }}</span>
+                }
+                {{ formatPrice(cash.final) }}
+              </span>
             </div>
             <p class="mt-2 text-xs text-muted">
               Transfieres a {{ brand()?.deposit_account }} después de reservar. Te apartamos el horario {{ brand()?.deposit_hold_hours || 3 }} h mientras llega.
             </p>
           } @else {
-            <div class="flex justify-between gap-3">
+            @if (cash.discount; as off) {
+              <div class="flex justify-between gap-3 text-ink-soft">
+                <span>Precio</span>
+                <span class="nums">{{ formatPrice(cash.total) }}</span>
+              </div>
+              <div class="mt-1 flex justify-between gap-3 text-ink-soft">
+                <span>{{ off.label }} (<span class="nums">{{ off.percent }}%</span>)</span>
+                <span class="nums">−{{ formatPrice(cash.off) }}</span>
+              </div>
+            }
+            <div class="flex justify-between gap-3" [class.mt-2]="cash.discount" [class.border-t]="cash.discount" [class.border-line]="cash.discount" [class.pt-2]="cash.discount">
               <span>Pagas en la {{ copy().visit.toLowerCase() }}</span>
-              <span class="font-semibold">{{ formatPrice(cash.total) }}</span>
+              <span class="nums font-semibold">{{ formatPrice(cash.final) }}</span>
             </div>
             <p class="mt-1 text-xs text-muted">No pagas nada ahora.</p>
           }

@@ -36,6 +36,32 @@
       </div>
     </div>
 
+    @if (birthdays().length) {
+      <section class="card mb-4" aria-label="Cumpleaños de hoy">
+        <div class="flex items-center gap-3 text-sm">
+          <mat-icon class="h-5! w-5! text-[20px]! text-ink-soft">cake</mat-icon>
+          <span class="min-w-0 flex-1">
+            <span class="block font-medium text-ink">Cumpleaños de hoy (<span class="nums">{{ birthdays().length }}</span>)</span>
+            <span class="block text-muted">Mándales una felicitación por WhatsApp.</span>
+          </span>
+        </div>
+        <ul class="mt-3 divide-y divide-line">
+          @for (row of birthdays(); track row.id) {
+            <li class="flex items-center gap-3 py-3">
+              <button type="button" class="flex min-w-0 flex-1 items-center gap-3 text-left" (click)="open(row.id)">
+                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-canvas text-xs font-semibold text-ink-soft">{{ initials(row.full_name) }}</span>
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate text-sm font-medium text-ink">{{ row.full_name }}</span>
+                  <span class="nums block truncate text-sm text-muted">{{ row.phone }}</span>
+                </span>
+              </button>
+              <a class="btn btn-whatsapp shrink-0" [href]="birthdayWish(row)" target="_blank" rel="noopener">Felicitar</a>
+            </li>
+          }
+        </ul>
+      </section>
+    }
+
     @if (missing().length) {
       <details class="card mb-4">
         <summary class="flex cursor-pointer items-center gap-3 text-sm">
@@ -176,6 +202,29 @@
         </a>
       </div>
     }
+
+    @if (lastVisit(); as visit) {
+      <button type="button" class="btn btn-secondary w-full" (click)="repeatLast()">
+        <mat-icon>replay</mat-icon>
+        Repetir la última cita
+      </button>
+      <p class="-mt-3 truncate text-xs text-muted">{{ visit.service_name }} con {{ visit.staff_name }}</p>
+    }
+
+    <label class="flex flex-col gap-1 text-sm text-ink-soft">
+      Cumpleaños (opcional)
+      <input
+        class="h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink"
+        type="date"
+        [value]="person.birthday ?? ''"
+        (change)="saveBirthday($any($event.target).value)"
+      />
+      @if (birthdayError(); as message) {
+        <span class="text-sm text-red-700" role="alert">{{ message }}</span>
+      } @else if (birthdaySaved()) {
+        <span class="text-xs text-emerald-700">Cumpleaños guardado.</span>
+      }
+    </label>
 
     <div class="grid grid-cols-2 gap-3">
       <div class="card p-4!">

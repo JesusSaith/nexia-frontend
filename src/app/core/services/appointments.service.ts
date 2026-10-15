@@ -20,6 +20,14 @@ export interface TimeBlock {
   rule_id?: number | null;
 }
 
+/** Datos opcionales al completar una cita (lo cobrado, cómo, propina y nota privada). */
+export interface StatusCharge {
+  final_price?: number | null;
+  payment_method?: string | null;
+  tip?: number | null;
+  visit_note?: string | null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AppointmentsService {
   private readonly http = inject(HttpClient);
@@ -93,9 +101,14 @@ export class AppointmentsService {
   updateStatus(
     id: number,
     status: AppointmentStatus,
-    charge?: { final_price: number | null; payment_method: string | null },
+    charge?: StatusCharge,
   ): Observable<Appointment> {
     return this.http.put<Appointment>(`${this.apiBaseUrl}/appointments/${id}/status`, { status, ...charge });
+  }
+
+  /** Nota privada de la última visita completada de la misma clienta. */
+  lastNote(id: number): Observable<{ note: string | null; date: string | null }> {
+    return this.http.get<{ note: string | null; date: string | null }>(`${this.apiBaseUrl}/appointments/${id}/last-note`);
   }
 
   clearProof(id: number): Observable<Appointment> {

@@ -1,4 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { NgTemplateOutlet } from '@angular/common';
 import { Confirm } from '@shared/components/confirm/confirm';
 import { Component, DestroyRef, TemplateRef, computed, effect, inject, signal, viewChild, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -22,7 +23,8 @@ import { Service } from '@core/models/service.model';
 import { Staff } from '@core/models/staff.model';
 import { DateFieldComponent, PickFieldComponent, TimeFieldComponent } from '@shared/components/when-field/when-field';
 import { AgendaService } from '@core/services/agenda.service';
-import { AppointmentsService, TimeBlock } from '@core/services/appointments.service';
+import { AppointmentsService, StatusCharge, TimeBlock } from '@core/services/appointments.service';
+import { ShopProduct, ShopService } from '@core/services/shop.service';
 import { AuthService } from '@core/services/auth.service';
 import { BookingService } from '@core/services/booking.service';
 import { ReviewsService } from '@core/services/reviews.service';
@@ -66,6 +68,7 @@ const SLOTS = Array.from(
 @Component({
   selector: 'app-agenda-page',
   imports: [
+    NgTemplateOutlet,
     FormsModule,
     ReactiveFormsModule,
     MatButtonModule,
@@ -87,7 +90,12 @@ export class AgendaPageComponent {
   private readonly reviewsApi = inject(ReviewsService);
   private readonly route = inject(ActivatedRoute);
   private readonly booking = inject(BookingService);
+  private readonly shopApi = inject(ShopService);
   private openRequest = 0;
+  /** ?cita=ID abre la ficha una sola vez (no en cada recarga). */
+  private citaOpened = false;
+  /** Teléfono que llega por ?tel= para prellenar la nueva cita en cuanto carguen las clientas. */
+  private pendingTel: string | null = null;
 
   protected photoIndexes(count: number): number[] {
     return Array.from({ length: count }, (_, index) => index);
@@ -228,11 +236,11 @@ export class AgendaPageComponent {
       .map((member) => ({ value: member.id, label: member.full_name })),
   ]);
   protected readonly filterServices = computed(() => [
-    { value: '', label: 'Todos' },
+    { value: '', label: 'Todos los servicios' },
     ...this.activeServices().map((item) => ({ value: item.id, label: item.name })),
   ]);
   protected readonly filterStaff = computed(() => [
-    { value: '', label: 'Todos' },
+    { value: '', label: 'Todo el equipo' },
     ...this.staff()
       .filter((member) => member.is_active)
       .map((member) => ({ value: member.id, label: member.full_name })),
@@ -278,7 +286,10 @@ export class AgendaPageComponent {
     if (this.route.snapshot.queryParamMap.get('nueva')) {
       const opener = effect(() => {
         if (this.staff().length) {
-          untracked(() => this.openCreate());
+          untracked(() => {
+            this.openCreate();
+            this.prefillFromUrl();
+          });
           opener.destroy();
         }
       });
@@ -815,6 +826,13 @@ export class AgendaPageComponent {
     return STATUS_LABELS[status];
   }
 
+  protected statusBadge(appointment: Appointment): string {
+    if (appointment.status === 'completed') return 'badge badge-ok';
+    if (appointment.status === 'awaiting_deposit') return 'badge badge-warn';
+    if (appointment.status === 'cancelled' || appointment.status === 'no_show') return 'badge badge-bad';
+    return appointment.client_confirmed ? 'badge badge-info' : 'badge badge-neutral';
+  }
+
   protected statusClass(status: AppointmentStatus): string {
     if (status === 'completed') {
       return 'bg-emerald-100 text-emerald-900';
@@ -846,31 +864,65 @@ export class AgendaPageComponent {
       });
   }
 
-  protected tellPrice(appointment: Appointment): void {
-    const phone = (appointment.client_phone ?? '').replace(/\D/g, '');
+  /** Enlace de WhatsApp con el precio acordado; se muestra como <a> para que el navegador no lo bloquee. */
+  protected priceHref(appointment: Appointment): string | null {
+    const phone = waPhone(appointment.client_phone);
     if (!phone || appointment.quoted_price == null) {
-      return;
+      return null;
     }
     const slug = this.auth.currentUser()?.slug ?? '';
-    const link = appointment.cancel_token && slug ? ` ${location.origin}/${slug}/manage/${appointment.cancel_token}` : '';
-    const deposit = appointment.deposit_amount ? ` El anticipo es $${appointment.deposit_amount}.` : '';
-    const text = encodeURIComponent(
-      `Hola ${appointment.client_name}, el precio de ${appointment.service_name} quedó en $${appointment.quoted_price}.${deposit}${link}`,
-    );
-    window.open(`https://wa.me/${phone}?text=${text}`, '_blank', 'noopener');
+    const link = appointment.cancel_token && slug ? `\n\nAquí puedes ver tu cita: ${location.origin}/${slug}/manage/${appointment.cancel_token}` : '';
+    const day = parseTimestamp(appointment.starts_at).toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
+    const deposit = appointment.deposit_amount
+      ? `\nPara apartar tu lugar el anticipo es de ${this.pesos(appointment.deposit_amount)}; el resto lo pagas en la cita.`
+      : '';
+    const text =
+      `Hola ${appointment.client_name.split(' ')[0]}, ya revisamos tu cita de ${appointment.service_name}.\n\n` +
+      `Día: ${day}\nHora: ${this.formatTime(appointment.starts_at)}\nPrecio: ${this.pesos(appointment.quoted_price)}${deposit}${link}`;
+    return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
   }
+
+  /** Enlace directo al chat de la clienta. */
+  protected chatHref(appointment: Appointment): string | null {
+    const phone = waPhone(appointment.client_phone);
+    if (!phone) {
+      return null;
+    }
+    const text = `Hola ${appointment.client_name.split(' ')[0]}, te escribimos por tu cita de ${appointment.service_name} el ${appointment.starts_at.slice(0, 10)} a las ${this.formatTime(appointment.starts_at)}.`;
+    return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+  }
+
+  /** Precio variable o sin precio acordado: hay que cotizar. */
+  protected needsQuote(appointment: Appointment): boolean {
+    const service = this.services().find((item) => item.id === appointment.service_id);
+    return !!service?.variable_price || appointment.quoted_price == null;
+  }
+
+  protected readonly quoteFocus = signal(false);
+  protected readonly quoteHref = signal<string | null>(null);
+  protected readonly quoteSaving = signal(false);
 
   protected saveQuote(appointment: Appointment, value: string): void {
     const amount = Number(value);
-    if (!value.trim() || Number.isNaN(amount)) {
+    if (!String(value).trim() || Number.isNaN(amount) || this.quoteSaving()) {
       return;
     }
+    this.quoteSaving.set(true);
     this.appointmentsApi
       .quote(appointment.id, amount)
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((saved) => {
-        this.selected.update((current) => (current ? { ...current, appointment: saved } : current));
-        this.tellPrice(saved);
+      .subscribe({
+        next: (saved) => {
+          this.quoteSaving.set(false);
+          this.patchLocal(saved);
+          this.quoteHref.set(this.priceHref(saved));
+          this.toasts.show('Precio guardado.');
+          this.refreshQuietly();
+        },
+        error: (error: unknown) => {
+          this.quoteSaving.set(false);
+          this.loadError.set(readError(error, 'No pudimos guardar el precio.'));
+        },
       });
   }
 
@@ -1109,7 +1161,12 @@ export class AgendaPageComponent {
     this.known.set(null);
     this.freshPhone.set(false);
     if (this.guests().length === 0) {
-      this.booking.getClients().pipe(takeUntilDestroyed(this.destroyRef)).subscribe((rows) => this.guests.set(rows));
+      this.booking.getClients().pipe(takeUntilDestroyed(this.destroyRef)).subscribe((rows) => {
+        this.guests.set(rows);
+        if (this.pendingTel) {
+          this.applyTel(this.pendingTel);
+        }
+      });
     }
     if (this.isStaff()) {
       this.form.controls.staff_id.disable();
@@ -1124,6 +1181,36 @@ export class AgendaPageComponent {
 
   protected openCreate(): void {
     this.openCreateAt(this.cursor(), 9 * 60, this.staffId() ?? undefined);
+  }
+
+  /** Desde Clientes ("repetir última cita"): ?tel=, ?servicio= y ?con= prellenan el formulario. */
+  private prefillFromUrl(): void {
+    const params = this.route.snapshot.queryParamMap;
+    const serviceId = Number(params.get('servicio'));
+    if (serviceId && this.activeServices().some((item) => item.id === serviceId)) {
+      this.form.controls.service_id.setValue(serviceId);
+    }
+    const staffId = Number(params.get('con'));
+    if (!this.isStaff() && staffId && this.staff().some((member) => member.id === staffId && member.is_active)) {
+      this.form.controls.staff_id.setValue(staffId);
+    }
+    const tel = params.get('tel')?.trim();
+    if (tel) {
+      this.form.controls.client_phone.setValue(tel);
+      this.pendingTel = tel;
+      if (this.guests().length) {
+        this.applyTel(tel);
+      }
+    }
+  }
+
+  private applyTel(tel: string): void {
+    this.pendingTel = null;
+    this.matchClient(tel);
+    const person = this.known();
+    if (person && !this.form.controls.client_name.value.trim()) {
+      this.form.controls.client_name.setValue(person.full_name);
+    }
   }
 
   protected pesos(amount: number): string {
@@ -1199,19 +1286,100 @@ export class AgendaPageComponent {
   protected readonly charging = signal<number | null>(null);
   protected readonly chargeAmount = signal('');
   protected readonly chargeMethod = signal('efectivo');
+  protected readonly chargeTip = signal('');
+  protected readonly chargeNote = signal('');
+  /** Productos activos con existencia, para venderlos junto con el servicio. */
+  protected readonly products = signal<ShopProduct[]>([]);
+  protected readonly cart = signal<{ id: number; name: string; price: number; qty: number; stock: number }[]>([]);
+  protected readonly productPick = signal<number | null>(null);
+  protected readonly productsTotal = computed(() =>
+    Math.round(this.cart().reduce((sum, row) => sum + row.price * row.qty, 0) * 100) / 100,
+  );
+  protected readonly serviceCharge = computed(() => toAmount(this.chargeAmount()) ?? 0);
+  protected readonly tipAmount = computed(() => toAmount(this.chargeTip()) ?? 0);
+  private productsLoaded = false;
 
   protected startCharge(appointment: Appointment): void {
     this.charging.set(appointment.id);
-    this.chargeAmount.set(String(this.bill(appointment)?.total ?? appointment.quoted_price ?? ''));
+    this.moving.set(null);
+    this.chargeAmount.set(String(this.bill(appointment)?.total ?? appointment.quoted_price ?? this.services().find((item) => item.id === appointment.service_id)?.price ?? ''));
     this.chargeMethod.set('efectivo');
+    this.chargeTip.set('');
+    this.chargeNote.set('');
+    this.cart.set([]);
+    this.productPick.set(null);
+    if (!this.productsLoaded) {
+      this.productsLoaded = true;
+      this.shopApi
+        .products()
+        .pipe(catchError(() => of([] as ShopProduct[])), takeUntilDestroyed(this.destroyRef))
+        .subscribe((rows) => this.products.set(rows.filter((row) => row.stock > 0)));
+    }
+    setTimeout(() => document.getElementById('charge-panel')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+  }
+
+  protected addProduct(): void {
+    const id = this.productPick();
+    const product = this.products().find((row) => row.id === id);
+    if (!product) {
+      return;
+    }
+    this.cart.update((rows) => {
+      const found = rows.find((row) => row.id === product.id);
+      if (found) {
+        return rows.map((row) => (row.id === product.id ? { ...row, qty: Math.min(row.stock, row.qty + 1) } : row));
+      }
+      return [...rows, { id: product.id, name: product.name, price: product.price, qty: 1, stock: product.stock }];
+    });
+    this.productPick.set(null);
+  }
+
+  protected setProductQty(id: number, value: string): void {
+    const qty = Math.floor(Number(value));
+    this.cart.update((rows) =>
+      rows.map((row) => (row.id === id ? { ...row, qty: Number.isNaN(qty) ? 1 : Math.min(row.stock, Math.max(1, qty)) } : row)),
+    );
+  }
+
+  protected removeProduct(id: number): void {
+    this.cart.update((rows) => rows.filter((row) => row.id !== id));
+  }
+
+  private sellCart(rows: { id: number; name: string; price: number; qty: number }[]): void {
+    if (!rows.length) {
+      return;
+    }
+    forkJoin(
+      rows.map((row) =>
+        this.shopApi.sell(row.id, row.qty, row.price).pipe(
+          map(() => null),
+          catchError(() => of(row.name)),
+        ),
+      ),
+    )
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((failed) => {
+        const missing = failed.filter((name): name is string => !!name);
+        this.toasts.show(missing.length ? `No se pudo registrar la venta de: ${missing.join(', ')}.` : 'Venta de productos registrada.');
+        this.productsLoaded = false;
+      });
   }
 
   protected completeWithCharge(appointment: Appointment): void {
-    const raw = String(this.chargeAmount()).trim();
-    this.setStatus(appointment, 'completed', {
-      final_price: raw === '' || Number.isNaN(Number(raw)) ? null : Number(raw),
-      payment_method: this.chargeMethod(),
-    });
+    const tip = toAmount(this.chargeTip());
+    const note = this.chargeNote().trim();
+    const sold = this.cart();
+    void this.setStatus(
+      appointment,
+      'completed',
+      {
+        final_price: toAmount(this.chargeAmount()),
+        payment_method: this.chargeMethod(),
+        tip: tip && tip > 0 ? tip : null,
+        visit_note: note || null,
+      },
+      () => this.sellCart(sold),
+    );
     this.charging.set(null);
     const phone = (appointment.client_phone ?? '').replace(/\D/g, '');
     const slug = this.auth.currentUser()?.slug;
@@ -1288,9 +1456,35 @@ export class AgendaPageComponent {
     const room = window.innerHeight - margin * 2;
     const want = Math.min(560, room);
     const y = Math.max(margin, Math.min(event.clientY, window.innerHeight - want - margin));
+    this.showAppointment({ appointment, x, y, maxHeight: window.innerHeight - y - margin, history: [] });
+  }
+
+  protected readonly lastNote = signal<{ note: string; date: string | null } | null>(null);
+
+  /** Abre la ficha y limpia lo de la cita anterior (cobro, cambio, cotización). */
+  private showAppointment(pop: SelectedAppointment, focusQuote = false): void {
     this.freed.set([]);
-    this.selected.set({ appointment, x, y, maxHeight: window.innerHeight - y - margin, history: [] });
-    this.loadHistory(appointment);
+    this.charging.set(null);
+    this.moving.set(null);
+    this.quoteHref.set(null);
+    this.lastNote.set(null);
+    this.quoteFocus.set(focusQuote);
+    this.selected.set(pop);
+    this.loadHistory(pop.appointment);
+    const id = pop.appointment.id;
+    if (pop.appointment.client_phone) {
+      this.appointmentsApi
+        .lastNote(id)
+        .pipe(catchError(() => of({ note: null, date: null })), takeUntilDestroyed(this.destroyRef))
+        .subscribe((row) => {
+          if (row.note && this.selected()?.appointment.id === id) {
+            this.lastNote.set({ note: row.note, date: row.date });
+          }
+        });
+    }
+    if (focusQuote) {
+      setTimeout(() => document.getElementById('quote-price')?.focus(), 80);
+    }
   }
 
   private loadHistory(appointment: Appointment): void {
@@ -1397,8 +1591,9 @@ export class AgendaPageComponent {
         next: (moved) => {
           this.pendingId.set(null);
           this.moving.set(null);
+          this.patchLocal(moved);
           this.closeAppointment();
-          this.loadAppointments(this.range(), this.staffId(), this.serviceId());
+          this.refreshQuietly();
           this.toasts.show('Cita movida. Avísale a la clienta.');
           this.clientNotice.set(this.clientWhatsapp(moved));
         },
@@ -1413,18 +1608,30 @@ export class AgendaPageComponent {
   protected async setStatus(
     appointment: Appointment,
     status: AppointmentStatus,
-    charge?: { final_price: number | null; payment_method: string | null },
+    charge?: StatusCharge,
+    after?: (updated: Appointment) => void,
   ): Promise<void> {
     if (this.pendingId() !== null) {
       return;
     }
-    const ask: Partial<Record<AppointmentStatus, { title: string; message: string; confirm: string }>> = {
-      cancelled: { title: '¿Cancelar esta cita?', message: `${appointment.client_name} · ${appointment.service_name}. El horario queda libre.`, confirm: 'Cancelar cita' },
-      no_show: { title: '¿Marcar que no llegó?', message: `${appointment.client_name} · ${appointment.service_name}. Cuenta en su historial de faltas.`, confirm: 'Sí, no llegó' },
-    };
-    const question = ask[status];
-    if (question && !(await this.confirm.ask({ ...question, cancel: 'Volver', danger: true }))) {
+    // Cancelar no pregunta: se puede deshacer durante 5 s. "No llegó" sí confirma (cuenta como falta).
+    if (
+      status === 'no_show' &&
+      !(await this.confirm.ask({
+        title: '¿Marcar que no llegó?',
+        message: `${appointment.client_name} · ${appointment.service_name}. Cuenta en su historial de faltas.`,
+        confirm: 'Sí, no llegó',
+        cancel: 'Volver',
+        danger: true,
+      }))
+    ) {
       return;
+    }
+    const previous = appointment.status;
+    // Cambio al instante en la agenda; si el servidor falla, se regresa.
+    this.patchLocal({ ...appointment, status });
+    if (status === 'cancelled') {
+      this.offerUndo(appointment, previous);
     }
     this.pendingId.set(appointment.id);
     this.appointmentsApi
@@ -1433,20 +1640,79 @@ export class AgendaPageComponent {
       .subscribe({
         next: (updated) => {
           const next = { ...appointment, ...updated, status: updated.status ?? status };
-          this.appointments.update((items) => items.map((item) => (item.id === appointment.id ? next : item)));
-          this.selected.update((current) =>
-            current?.appointment.id === appointment.id ? { ...current, appointment: next } : current,
-          );
+          this.patchLocal(next);
           this.pendingId.set(null);
           if (status === 'cancelled' || status === 'no_show') {
             this.offerFreed(appointment);
           }
+          after?.(next);
+          this.refreshQuietly();
         },
         error: (error: unknown) => {
           this.pendingId.set(null);
+          this.patchLocal(appointment);
+          if (this.undo()?.appointment.id === appointment.id) {
+            this.dismissUndo();
+          }
           this.loadError.set(readError(error, 'No pudimos actualizar la cita.'));
         },
       });
+  }
+
+  /** Aviso "Cita cancelada · Deshacer" durante 5 segundos. */
+  protected readonly undo = signal<{ appointment: Appointment; previous: AppointmentStatus } | null>(null);
+  private undoTimer: ReturnType<typeof setTimeout> | null = null;
+
+  private offerUndo(appointment: Appointment, previous: AppointmentStatus): void {
+    this.dismissUndo();
+    this.undo.set({ appointment, previous });
+    this.undoTimer = setTimeout(() => this.undo.set(null), 5000);
+  }
+
+  protected dismissUndo(): void {
+    if (this.undoTimer) {
+      clearTimeout(this.undoTimer);
+      this.undoTimer = null;
+    }
+    this.undo.set(null);
+  }
+
+  protected undoCancel(): void {
+    const row = this.undo();
+    if (!row) {
+      return;
+    }
+    this.dismissUndo();
+    const restored = { ...row.appointment, status: row.previous };
+    this.patchLocal(restored);
+    this.freed.set([]);
+    this.appointmentsApi
+      .updateStatus(row.appointment.id, row.previous)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (updated) => {
+          this.patchLocal({ ...restored, ...updated });
+          this.toasts.show('Se recuperó la cita.');
+          this.refreshQuietly();
+        },
+        error: (error: unknown) => {
+          this.patchLocal({ ...row.appointment, status: 'cancelled' });
+          this.loadError.set(readError(error, 'No pudimos deshacer la cancelación.'));
+        },
+      });
+  }
+
+  /** Reemplaza la cita en la lista local (y en la ficha abierta) sin esperar a recargar. */
+  private patchLocal(next: Appointment): void {
+    this.appointments.update((items) => items.map((item) => (item.id === next.id ? { ...item, ...next } : item)));
+    this.selected.update((current) =>
+      current?.appointment.id === next.id ? { ...current, appointment: { ...current.appointment, ...next } } : current,
+    );
+  }
+
+  /** Recarga en segundo plano, sin spinner ni reabrir fichas. */
+  private refreshQuietly(): void {
+    this.loadAppointments(this.range(), this.staffId(), this.serviceId(), true);
   }
 
   private offerFreed(appointment: Appointment): void {
@@ -1559,9 +1825,9 @@ export class AgendaPageComponent {
           this.isLoading.set(false);
           const cita = Number(this.route.snapshot.queryParamMap.get('cita'));
           const found = items.find((item) => item.id === cita);
-          if (!quiet && found) {
-            this.selected.set({ appointment: found, x: 24, y: 88, maxHeight: 560, history: [] });
-            this.loadHistory(found);
+          if (!quiet && found && !this.citaOpened) {
+            this.citaOpened = true;
+            this.showAppointment({ appointment: found, x: 24, y: 88, maxHeight: 560, history: [] }, this.needsQuote(found));
           }
         },
         error: (error: unknown) => {
@@ -1714,6 +1980,21 @@ function monthTheme(month: number): { title: string; mark: string; wash: string;
     return { title: 'San Valentín', mark: '♥', wash: '#fff1f2', ink: '#9f1239' };
   }
   return null;
+}
+
+/** Teléfono para wa.me: solo dígitos; a 10 dígitos (México) se le antepone 52. */
+function waPhone(value: string | null | undefined): string {
+  const digits = (value ?? '').replace(/\D/g, '');
+  return digits.length === 10 ? `52${digits}` : digits;
+}
+
+function toAmount(value: string | number | null | undefined): number | null {
+  const raw = String(value ?? '').trim();
+  if (!raw) {
+    return null;
+  }
+  const amount = Number(raw);
+  return Number.isNaN(amount) || amount < 0 ? null : amount;
 }
 
 function readError(error: unknown, fallback: string): string {

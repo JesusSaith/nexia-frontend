@@ -25,6 +25,16 @@ interface AdminNavLink {
   icon: string;
 }
 
+type ThemeMode = 'light' | 'dark' | 'system';
+
+const THEME_KEY = 'nexia-theme';
+
+const THEME_OPTIONS: readonly { value: ThemeMode; label: string; icon: string }[] = [
+  { value: 'light', label: 'Claro', icon: 'light_mode' },
+  { value: 'dark', label: 'Oscuro', icon: 'dark_mode' },
+  { value: 'system', label: 'Sistema', icon: 'contrast' },
+];
+
 const ROLE_LABELS: Record<UserRole, string> = {
   owner: 'Propietario',
   admin: 'Administrador',
@@ -92,7 +102,7 @@ export class AdminLayoutComponent {
   protected readonly toasts = inject(Toasts);
   private readonly router = inject(Router);
   private readonly noticesApi = inject(DashboardService);
-  private seenNotice = Number(sessionStorage.getItem('nexia-seen-notice') || 0);
+  private seenNotice = Number(readSeen() || 0);
   private toastedNotice = this.seenNotice;
   private toastTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly destroyRef = inject(DestroyRef);
@@ -126,6 +136,14 @@ export class AdminLayoutComponent {
   protected readonly unread = signal(0);
   protected readonly toast = signal<string | null>(null);
   protected readonly isHandset = this.handset;
+  protected readonly themeOptions = THEME_OPTIONS;
+  protected readonly themeMode = signal<ThemeMode>(readThemeMode());
+  private readonly systemDark = signal(
+    typeof matchMedia === 'function' && matchMedia('(prefers-color-scheme: dark)').matches,
+  );
+  protected readonly isDark = computed(() =>
+    this.themeMode() === 'system' ? this.systemDark() : this.themeMode() === 'dark',
+  );
 
   protected readonly businessName = computed(
     () => this.currentUser()?.businessName ?? 'Tu negocio',
@@ -134,6 +152,15 @@ export class AdminLayoutComponent {
   constructor() {
     this.destroyRef.onDestroy(() => applyTheme('#E11D48', null));
     effect(() => applyTheme(this.brandColor(), this.canvasColor()));
+    // Modo claro/oscuro solo dentro del panel: al salir (p. ej. a /:slug/book) se vuelve a claro.
+    effect(() => applyMode(this.themeMode(), this.isDark()));
+    this.destroyRef.onDestroy(() => applyMode('light', false));
+    const media = typeof matchMedia === 'function' ? matchMedia('(prefers-color-scheme: dark)') : null;
+    if (media) {
+      const onChange = (event: MediaQueryListEvent) => this.systemDark.set(event.matches);
+      media.addEventListener?.('change', onChange);
+      this.destroyRef.onDestroy(() => media.removeEventListener?.('change', onChange));
+    }
     if (!this.authService.isSuperAdmin()) {
       this.bookingApi
         .getMyBrand()
@@ -161,7 +188,7 @@ export class AdminLayoutComponent {
         .subscribe(() => {
           if (this.router.url.startsWith('/admin/home')) {
             this.seenNotice = Math.max(this.seenNotice, this.toastedNotice);
-            sessionStorage.setItem('nexia-seen-notice', String(this.seenNotice));
+            saveSeen(this.seenNotice);
             this.unread.set(0);
           }
         });
@@ -174,12 +201,18 @@ export class AdminLayoutComponent {
   });
 
   private applyNotices(rows: { id: number; message: string }[]): void {
+    // Primera vez en este navegador: lo anterior cuenta como visto (sin aviso emergente de algo viejo).
+    if (!this.seenNotice && rows.length) {
+      this.seenNotice = this.toastedNotice = rows.reduce((top, row) => Math.max(top, row.id), 0);
+      saveSeen(this.seenNotice);
+      return;
+    }
     const fresh = rows.filter((row) => row.id > this.seenNotice);
     if (this.router.url.startsWith('/admin/home')) {
       const max = rows.reduce((top, row) => Math.max(top, row.id), this.seenNotice);
       this.seenNotice = max;
       this.toastedNotice = max;
-      sessionStorage.setItem('nexia-seen-notice', String(max));
+      saveSeen(max);
       this.unread.set(0);
       return;
     }
@@ -203,6 +236,15 @@ export class AdminLayoutComponent {
       this.toastTimer = null;
     }
     this.toast.set(null);
+  }
+
+  protected setThemeMode(mode: ThemeMode): void {
+    this.themeMode.set(mode);
+    try {
+      localStorage.setItem(THEME_KEY, mode);
+    } catch {
+      // Sin almacenamiento la preferencia dura solo esta visita.
+    }
   }
 
   protected toggleSidebar(): void {
@@ -264,5 +306,37 @@ function applyTheme(primary: string, canvas: string | null): void {
     root.style.setProperty('--bg-app', canvas);
   } else {
     root.style.removeProperty('--bg-app');
+  }
+}
+
+function readThemeMode(): ThemeMode {
+  try {
+    const saved = localStorage.getItem(THEME_KEY);
+    return saved === 'light' || saved === 'dark' || saved === 'system' ? saved : 'system';
+  } catch {
+    return 'system';
+  }
+}
+
+// Mismo criterio que el script inline de index.html (evita parpadeo al cargar).
+function applyMode(mode: ThemeMode, dark: boolean): void {
+  document.documentElement.dataset['theme'] = mode;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#131211' : '#f6f5f3');
+}
+
+// En localStorage para que sobreviva al cerrar la app; sessionStorage se borraba en cada visita.
+function readSeen(): string | null {
+  try {
+    return localStorage.getItem('nexia-seen-notice');
+  } catch {
+    return null;
+  }
+}
+
+function saveSeen(id: number): void {
+  try {
+    localStorage.setItem('nexia-seen-notice', String(id));
+  } catch {
+    // Sin almacenamiento solo se repite el aviso.
   }
 }

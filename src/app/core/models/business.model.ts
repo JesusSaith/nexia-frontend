@@ -22,6 +22,16 @@ export interface BusinessBrand {
   cancel_policy?: string | null;
   resources?: string | null;
   payment_url?: string | null;
+  /** Lealtad: cada N visitas cobradas, la siguiente lleva X% de descuento. */
+  loyalty_every?: number | null;
+  loyalty_percent?: number | null;
+}
+
+/** Cupón de descuento guardado como JSON en `coupons` del negocio. */
+export interface BusinessCoupon {
+  code: string;
+  percent: number;
+  first_visit: boolean;
 }
 
 export interface BusinessProfileUpdate {

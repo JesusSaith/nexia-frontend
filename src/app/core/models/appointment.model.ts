@@ -24,6 +24,7 @@ export interface AppointmentCreate {
   reference_photos?: string[];
   /** Campo trampa contra bots; las personas lo dejan vacío. */
   website?: string | null;
+  coupon?: string | null;
 }
 
 export interface Appointment {
@@ -50,6 +51,9 @@ export interface Appointment {
   answers?: string | null;
   photo_count?: number;
   payment_method?: string | null;
+  tip?: number | null;
+  visit_note?: string | null;
+  discount_percent?: number | null;
 }
 
 export interface AppointmentQuery {

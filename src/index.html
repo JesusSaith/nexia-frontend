@@ -6,6 +6,27 @@
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <meta name="theme-color" content="#f6f5f3" />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Nexia" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <script>
+      // Aplica el tema antes de pintar para evitar parpadeo. El oscuro solo vive en el panel;
+      // el resto (reservas públicas, login…) queda en claro. Misma lógica que admin-layout.ts.
+      (function () {
+        var path = location.pathname;
+        var panel = path.indexOf('/admin') === 0 || path.indexOf('/super-admin') === 0;
+        var pref = 'system';
+        try {
+          var saved = localStorage.getItem('nexia-theme');
+          if (saved === 'light' || saved === 'dark' || saved === 'system') pref = saved;
+        } catch (e) {}
+        document.documentElement.dataset.theme = panel ? pref : 'light';
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

@@ -1,7 +1,7 @@
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 
 import { BookingService, ClientCard } from '@core/services/booking.service';
@@ -12,6 +12,7 @@ interface GuestClient {
   phone: string;
   email: string | null;
   notes: string | null;
+  birthday?: string | null;
   visit_count: number;
   total_spent: number;
   cancel_count: number;
@@ -26,6 +27,7 @@ interface GuestClient {
 export class Customers {
   private readonly bookingApi = inject(BookingService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly router = inject(Router);
   private readonly money = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
   private readonly when = new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
@@ -65,10 +67,29 @@ export class Customers {
       .sort((a, b) => (a.last_visit ?? '').localeCompare(b.last_visit ?? ''))
       .slice(0, 15);
   });
+  /** Clientas que cumplen años hoy (el 29 de febrero se festeja el 28 en años no bisiestos). */
+  protected readonly birthdays = computed(() => {
+    const now = new Date();
+    const today = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const leap = new Date(now.getFullYear(), 1, 29).getMonth() === 1;
+    return this.clients().filter((row) => {
+      const day = row.birthday?.slice(5, 10);
+      return day === today || (!leap && day === '02-29' && today === '02-28');
+    });
+  });
   protected readonly loadError = signal<string | null>(null);
   protected readonly card = signal<ClientCard | null>(null);
   protected readonly notes = signal('');
   protected readonly saved = signal(false);
+  protected readonly birthdaySaved = signal(false);
+  protected readonly birthdayError = signal<string | null>(null);
+  /** Visita más reciente que ya ocurrió (si no hay, la última registrada) para repetirla. */
+  protected readonly lastVisit = computed(() => {
+    const visits = [...(this.card()?.visits ?? [])].sort((a, b) => b.starts_at.localeCompare(a.starts_at));
+    const now = Date.now();
+    const past = visits.filter((visit) => new Date(visit.starts_at).getTime() <= now);
+    return past.find((visit) => visit.status !== 'cancelled') ?? past[0] ?? visits[0] ?? null;
+  });
 
   constructor() {
     this.bookingApi
@@ -82,6 +103,8 @@ export class Customers {
 
   protected open(id: number): void {
     this.saved.set(false);
+    this.birthdaySaved.set(false);
+    this.birthdayError.set(null);
     this.bookingApi
       .getClient(id)
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -127,6 +150,49 @@ export class Customers {
         this.card.set(next);
         this.saved.set(true);
       });
+  }
+
+  protected saveBirthday(value: string): void {
+    const card = this.card();
+    const birthday = /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+    if (!card || (value && !birthday) || (card.birthday ?? null) === birthday) {
+      return;
+    }
+    this.birthdaySaved.set(false);
+    this.birthdayError.set(null);
+    this.bookingApi
+      .saveClientBirthday(card.id, birthday)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (next) => {
+          this.card.set(next);
+          this.birthdaySaved.set(true);
+          this.clients.update((rows) => rows.map((row) => (row.id === next.id ? { ...row, birthday: next.birthday ?? null } : row)));
+        },
+        error: () => this.birthdayError.set('No pudimos guardar el cumpleaños.'),
+      });
+  }
+
+  protected repeatLast(): void {
+    const card = this.card();
+    const visit = this.lastVisit();
+    if (!card || !visit) {
+      return;
+    }
+    const queryParams: Record<string, string | number> = { nueva: 1, tel: card.phone };
+    if (visit.service_id) {
+      queryParams['servicio'] = visit.service_id;
+    }
+    if (visit.staff_id) {
+      queryParams['con'] = visit.staff_id;
+    }
+    void this.router.navigate(['/admin/agenda'], { queryParams });
+  }
+
+  protected birthdayWish(row: GuestClient): string {
+    const phone = this.digits(row.phone);
+    const text = `¡Feliz cumpleaños, ${row.full_name.split(' ')[0]}! 🎂🎉 De parte de todo el equipo te deseamos un día increíble. ¡Te esperamos pronto para consentirte! 💖`;
+    return `https://wa.me/${phone.length === 10 ? '52' + phone : phone}?text=${encodeURIComponent(text)}`;
   }
 
   protected digits(phone: string | null | undefined): string {

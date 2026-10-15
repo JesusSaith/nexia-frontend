@@ -11,6 +11,7 @@ import { PickFieldComponent, TimeFieldComponent } from '@shared/components/when-
 import { BusinessCopy } from '@core/business-copy';
 import { Toasts } from '@core/toasts';
 import { API_BASE_URL } from '@core/config/api-base-url';
+import { BusinessCoupon } from '@core/models/business.model';
 import { BookingService } from '@core/services/booking.service';
 import { BusinessHour, BusinessSettings, SettingsService } from '@core/services/settings.service';
 import { joinNote, splitNote } from '@core/shop-note';
@@ -96,6 +97,10 @@ export class SettingsPageComponent {
   protected readonly photos = signal<string[]>([]);
   protected readonly promo = signal('');
   protected readonly promoUntil = signal('');
+  /** Promociones: lealtad (cada N visitas, X%) y cupones que se guardan como JSON. */
+  protected readonly loyaltyEvery = signal<number | null>(null);
+  protected readonly loyaltyPercent = signal<number | null>(null);
+  protected readonly coupons = signal<BusinessCoupon[]>([]);
 
   protected readonly hoursForm = new FormGroup({
     days: new FormArray(
@@ -222,11 +227,53 @@ export class SettingsPageComponent {
     img.src = preview;
   }
 
+  protected addCoupon(): void {
+    this.coupons.update((rows) => [...rows, { code: '', percent: 10, first_visit: false }]);
+  }
+
+  protected removeCoupon(index: number): void {
+    this.coupons.update((rows) => rows.filter((_, position) => position !== index));
+  }
+
+  protected editCoupon(index: number, patch: Partial<BusinessCoupon>): void {
+    this.coupons.update((rows) => rows.map((row, position) => (position === index ? { ...row, ...patch } : row)));
+  }
+
+  protected toNumber(value: string): number | null {
+    return value.trim() === '' || Number.isNaN(Number(value)) ? null : Math.round(Number(value));
+  }
+
+  /** Lealtad solo cuenta con los dos datos; el backend pide al menos 2 visitas. */
+  private loyaltyValues(): { every: number | null; percent: number | null } {
+    const every = this.loyaltyEvery();
+    const percent = this.loyaltyPercent();
+    if (!every || !percent || every < 2) {
+      return { every: null, percent: null };
+    }
+    return { every: Math.min(every, 50), percent: Math.min(Math.max(percent, 1), 100) };
+  }
+
+  private couponsJson(): string | null {
+    const seen = new Set<string>();
+    const rows: BusinessCoupon[] = [];
+    for (const row of this.coupons()) {
+      const code = row.code.trim().toUpperCase().replace(/\s+/g, '').slice(0, 40);
+      const percent = Math.min(Math.max(Math.round(Number(row.percent) || 0), 1), 100);
+      if (!code || seen.has(code)) {
+        continue;
+      }
+      seen.add(code);
+      rows.push({ code, percent, first_visit: Boolean(row.first_visit) });
+    }
+    return rows.length ? JSON.stringify(rows) : null;
+  }
+
   protected saveProfile(): void {
     if (this.savingProfile()) {
       return;
     }
     const value = this.profileForm.getRawValue();
+    const loyalty = this.loyaltyValues();
     this.savingProfile.set(true);
     this.notice.set(null);
     this.errorMessage.set(null);
@@ -256,6 +303,9 @@ export class SettingsPageComponent {
           until: this.promo().trim() ? this.promoUntil() : '',
         }) || null,
         payment_url: value.paymentUrl.trim() || null,
+        loyalty_every: loyalty.every,
+        loyalty_percent: loyalty.percent,
+        coupons: this.couponsJson(),
       })
       .pipe(
         switchMap((settings) =>
@@ -356,6 +406,9 @@ export class SettingsPageComponent {
     this.photos.set(packed.note.photos);
     this.promo.set(packed.note.promo);
     this.promoUntil.set(packed.note.until);
+    this.loyaltyEvery.set(settings.loyalty_every ?? null);
+    this.loyaltyPercent.set(settings.loyalty_percent ?? null);
+    this.coupons.set(parseCoupons(settings.coupons));
     const description = this.profileForm.controls.description.value;
     this.profileForm.setValue({
       phone: settings.phone ?? '',
@@ -391,6 +444,24 @@ export class SettingsPageComponent {
         close_time: row.close_time.slice(0, 5),
       });
     }
+  }
+}
+
+function parseCoupons(raw: string | null | undefined): BusinessCoupon[] {
+  try {
+    const rows = JSON.parse(raw || '[]') as unknown;
+    if (!Array.isArray(rows)) {
+      return [];
+    }
+    return rows
+      .filter((row): row is Record<string, unknown> => typeof row === 'object' && row !== null)
+      .map((row) => ({
+        code: String(row['code'] ?? ''),
+        percent: Number(row['percent']) || 0,
+        first_visit: Boolean(row['first_visit']),
+      }));
+  } catch {
+    return [];
   }
 }
 

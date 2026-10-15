@@ -46,11 +46,32 @@ export interface ClientCard {
   phone: string;
   email: string | null;
   notes: string | null;
+  birthday?: string | null;
   internal_notes: string | null;
   visit_count: number;
   no_show_count: number;
   total_spent: number;
-  visits: { starts_at: string; service_name: string; staff_name: string; price: number; status: string }[];
+  visits: {
+    starts_at: string;
+    service_id?: number | null;
+    service_name: string;
+    staff_id?: number | null;
+    staff_name: string;
+    price: number;
+    status: string;
+  }[];
+}
+
+export interface ClientRow {
+  id: number;
+  full_name: string;
+  phone: string;
+  email: string | null;
+  notes: string | null;
+  birthday?: string | null;
+  visit_count: number;
+  total_spent: number;
+  cancel_count: number;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -122,9 +143,28 @@ export class BookingService {
     });
   }
 
-  getClients(): Observable<{ id: number; full_name: string; phone: string; email: string | null; notes: string | null; visit_count: number; total_spent: number; cancel_count: number }[]> {
-    return this.http.get<{ id: number; full_name: string; phone: string; email: string | null; notes: string | null; visit_count: number; total_spent: number; cancel_count: number }[]>(
-      `${this.apiBaseUrl}/clients`,
+  /** Guarda (o borra con null) el cumpleaños AAAA-MM-DD sin tocar las notas internas. */
+  saveClientBirthday(id: number, birthday: string | null): Observable<ClientCard> {
+    return this.http.patch<ClientCard>(`${this.apiBaseUrl}/clients/${id}`, { birthday });
+  }
+
+  getClients(): Observable<ClientRow[]> {
+    return this.http.get<ClientRow[]>(`${this.apiBaseUrl}/clients`);
+  }
+
+  /** Descuento por clienta frecuente que tendría la próxima visita con ese teléfono. */
+  getLoyalty(
+    slug: string,
+    phone: string,
+    coupon: string | null = null,
+  ): Observable<{ percent: number | null; visits: number; coupon_percent?: number | null }> {
+    let params = new HttpParams().set('phone', phone);
+    if (coupon) {
+      params = params.set('coupon', coupon);
+    }
+    return this.http.get<{ percent: number | null; visits: number; coupon_percent?: number | null }>(
+      `${this.apiBaseUrl}/businesses/${slug}/loyalty`,
+      { params },
     );
   }
 

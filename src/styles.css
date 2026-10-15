@@ -11,7 +11,7 @@
   --color-ink-soft: #4a4542;
   --color-muted: #7a736d;
   --color-accent: var(--primary);
-  --color-accent-soft: color-mix(in srgb, var(--primary) 10%, white);
+  --color-accent-soft: color-mix(in srgb, var(--primary) 10%, var(--color-surface));
   /* Esquinas más sobrias: dos radios de verdad (controles y tarjetas). */
   --radius-lg: 0.5rem;
   --radius-xl: 0.625rem;
@@ -34,17 +34,102 @@
   --text-muted: #78716c;
   --nx-shadow: none;
   --mat-sys-primary: var(--primary);
+  /* Valores que cambian con el modo oscuro (ver bloque "Modo oscuro" abajo). */
+  --nx-scheme: light;
+  --nx-body-bg: var(--bg-app);
+  --nx-primary-hover: #000;
+  --nx-white-surface: #fff;
+  --nx-ok-bg: #ecfdf3;
+  --nx-ok-fg: #067647;
+  --nx-warn-bg: #fffaeb;
+  --nx-warn-fg: #b54708;
+  --nx-bad-bg: #fef3f2;
+  --nx-bad-fg: #b42318;
+  --nx-info-bg: #eff8ff;
+  --nx-info-fg: #175cd3;
+}
+
+/*
+ * Modo oscuro.
+ * Tailwind v4 genera bg-canvas, text-ink… como var(--color-*), así que basta con redefinir los tokens.
+ * Decisión: el oscuro solo aplica al panel (/admin y /super-admin). Fuera del panel (reservas
+ * públicas /:slug/book, gestionar cita, login) el script de index.html y el layout del panel
+ * fijan data-theme="light", con lo que ninguna de estas reglas aplica y esas páginas quedan en claro.
+ * Dentro del panel: data-theme="dark" fuerza oscuro; "system" (o sin atributo) sigue al sistema.
+ */
+:root[data-theme='dark'] {
+  --color-canvas: #131211;
+  --color-surface: #1c1a19;
+  --color-line: #2e2b29;
+  --color-line-strong: #423d39;
+  --color-ink: #f3f1ee;
+  --color-ink-soft: #cfc9c3;
+  --color-muted: #9a928b;
+  --color-accent-soft: color-mix(in srgb, var(--primary) 20%, #1c1a19);
+  --bg-app: #131211;
+  --surface-card: #1c1a19;
+  --border-subtle: #2e2b29;
+  --ink: #f3f1ee;
+  --text-main: #ece8e4;
+  --text-muted: #9a928b;
+  --nx-scheme: dark;
+  /* El lienzo personalizado del negocio (--bg-app inline) es claro: en oscuro se ignora. */
+  --nx-body-bg: #131211;
+  --nx-primary-hover: #fff;
+  --nx-white-surface: #1c1a19;
+  --nx-ok-bg: rgb(16 185 129 / 0.14);
+  --nx-ok-fg: #6ee7b7;
+  --nx-warn-bg: rgb(245 158 11 / 0.14);
+  --nx-warn-fg: #fcd34d;
+  --nx-bad-bg: rgb(239 68 68 / 0.15);
+  --nx-bad-fg: #fca5a5;
+  --nx-info-bg: rgb(59 130 246 / 0.15);
+  --nx-info-fg: #93c5fd;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --color-canvas: #131211;
+    --color-surface: #1c1a19;
+    --color-line: #2e2b29;
+    --color-line-strong: #423d39;
+    --color-ink: #f3f1ee;
+    --color-ink-soft: #cfc9c3;
+    --color-muted: #9a928b;
+    --color-accent-soft: color-mix(in srgb, var(--primary) 20%, #1c1a19);
+    --bg-app: #131211;
+    --surface-card: #1c1a19;
+    --border-subtle: #2e2b29;
+    --ink: #f3f1ee;
+    --text-main: #ece8e4;
+    --text-muted: #9a928b;
+    --nx-scheme: dark;
+    --nx-body-bg: #131211;
+    --nx-primary-hover: #fff;
+    --nx-white-surface: #1c1a19;
+    --nx-ok-bg: rgb(16 185 129 / 0.14);
+    --nx-ok-fg: #6ee7b7;
+    --nx-warn-bg: rgb(245 158 11 / 0.14);
+    --nx-warn-fg: #fcd34d;
+    --nx-bad-bg: rgb(239 68 68 / 0.15);
+    --nx-bad-fg: #fca5a5;
+    --nx-info-bg: rgb(59 130 246 / 0.15);
+    --nx-info-fg: #93c5fd;
+  }
 }
 
 body {
   margin: 0;
-  background: var(--bg-app);
+  background: var(--nx-body-bg);
   color: var(--text-main);
+  /* Controles nativos y variables light-dark() de Material siguen el modo. */
+  color-scheme: var(--nx-scheme);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
 
 @layer base {
+  *, ::before, ::after { border-color: var(--color-line); }
   /* Títulos y descripción iguales en todas las páginas del panel. */
   .admin-main h1 { font-size: 1.5rem; line-height: 2rem; font-weight: 600; letter-spacing: -0.015em; color: var(--color-ink); }
   .admin-main h1 + p { margin-top: 0.125rem; font-size: 0.875rem; color: var(--color-muted); }
@@ -65,8 +150,8 @@ body {
 
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; height: 2.5rem; padding: 0 1rem; border-radius: var(--radius-lg); font-size: 0.875rem; font-weight: 500; border: 1px solid transparent; transition: background-color .15s, border-color .15s; white-space: nowrap; }
 .btn:disabled { opacity: .5; pointer-events: none; }
-.btn-primary { background: var(--color-ink); color: #fff; }
-.btn-primary:hover { background: #000; }
+.btn-primary { background: var(--color-ink); color: var(--color-surface); }
+.btn-primary:hover { background: var(--nx-primary-hover); }
 .btn-secondary { background: var(--color-surface); color: var(--color-ink); border-color: var(--color-line-strong); }
 .btn-secondary:hover { background: var(--color-canvas); }
 .btn-ghost { color: var(--color-ink-soft); }
@@ -75,10 +160,10 @@ body {
 .btn-whatsapp { background: #1f9d55; color: #fff; }
 
 .badge { display: inline-flex; align-items: center; gap: 0.25rem; height: 1.375rem; padding: 0 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 500; }
-.badge-ok { background: #ecfdf3; color: #067647; }
-.badge-warn { background: #fffaeb; color: #b54708; }
-.badge-bad { background: #fef3f2; color: #b42318; }
-.badge-info { background: #eff8ff; color: #175cd3; }
+.badge-ok { background: var(--nx-ok-bg); color: var(--nx-ok-fg); }
+.badge-warn { background: var(--nx-warn-bg); color: var(--nx-warn-fg); }
+.badge-bad { background: var(--nx-bad-bg); color: var(--nx-bad-fg); }
+.badge-info { background: var(--nx-info-bg); color: var(--nx-info-fg); }
 .btn .mat-icon { width: 20px; height: 20px; font-size: 20px; }
 .empty { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; padding: 3rem 1rem; text-align: center; border: 1px dashed var(--color-line-strong); border-radius: var(--radius-2xl); background: var(--color-surface); }
 .empty .mat-icon { width: 32px; height: 32px; font-size: 32px; color: var(--color-muted); }
@@ -95,7 +180,33 @@ body {
 
 .mat-sidenav-content,
 .mat-toolbar {
-  background: var(--bg-app);
+  background: var(--nx-body-bg);
+}
+
+/* Fondos blancos fijos dentro del panel: en claro siguen siendo #fff, en oscuro pasan a superficie.
+ * Se cambia --color-white solo en el elemento con bg-white (y se restaura en sus hijos para que
+ * text-white siga siendo blanco); así los hover:bg-* de Tailwind siguen funcionando. */
+.mat-sidenav-container .bg-white * {
+  --color-white: #fff;
+}
+.mat-sidenav-container .bg-white {
+  --color-white: var(--nx-white-surface);
+}
+
+.mat-sidenav-container input:not([type='checkbox']):not([type='radio']):not([type='range']),
+.mat-sidenav-container select,
+.mat-sidenav-container textarea {
+  color: var(--color-ink);
+}
+
+.mat-sidenav-container,
+.cdk-overlay-container {
+  --mat-sidenav-container-background-color: var(--color-surface);
+  --mat-sidenav-content-background-color: var(--nx-body-bg);
+  --mat-menu-container-color: var(--color-surface);
+  --mat-menu-item-label-text-color: var(--color-ink);
+  --mat-menu-item-icon-color: var(--color-ink-soft);
+  --mat-dialog-container-color: var(--color-surface);
 }
 
 .mat-sidenav,
@@ -122,8 +233,8 @@ body {
 }
 
 .nx-tab-on {
-  border-bottom-color: var(--primary);
-  color: var(--primary);
+  border-bottom-color: var(--color-ink);
+  color: var(--color-ink);
   font-weight: 600;
 }
 
@@ -156,7 +267,7 @@ button.nx-tab {
 }
 
 .mat-sidenav {
-  background: #fff;
+  background: var(--color-surface);
   border-right: 1px solid var(--border-subtle);
 }
 
@@ -171,11 +282,11 @@ button.nx-tab {
 }
 
 .mat-mdc-nav-list .mat-mdc-list-item:hover {
-  background: color-mix(in srgb, var(--primary) 6%, white);
+  background: color-mix(in srgb, var(--primary) 6%, var(--color-surface));
 }
 
 .mat-mdc-list-item.mdc-list-item--activated {
-  background: color-mix(in srgb, var(--primary) 8%, white);
+  background: color-mix(in srgb, var(--primary) 8%, var(--color-surface));
   color: var(--primary);
   border-radius: 8px;
 }
@@ -187,7 +298,7 @@ button.nx-tab {
 }
 
 .brand-soft {
-  background: color-mix(in srgb, var(--primary) 14%, white);
+  background: color-mix(in srgb, var(--primary) 14%, var(--color-surface));
   color: var(--primary);
 }
 
@@ -244,7 +355,7 @@ main .mat-mdc-row {
 }
 
 main .mat-mdc-row:hover .mat-mdc-cell {
-  background: color-mix(in srgb, var(--primary) 7%, white);
+  background: color-mix(in srgb, var(--primary) 7%, var(--color-surface));
 }
 
 main > section > p.py-10 {
@@ -266,7 +377,7 @@ main > section > p.py-10 {
 }
 
 button[aria-label^='Agendar']:hover {
-  background: color-mix(in srgb, var(--primary) 12%, white);
+  background: color-mix(in srgb, var(--primary) 12%, var(--color-surface));
 }
 
 @keyframes nx-rise {
@@ -285,13 +396,13 @@ main > :not(router-outlet) {
 .choice-card {
   border-radius: 0.9rem;
   border: 1px solid var(--border-subtle);
-  background: #fff;
+  background: var(--color-surface);
   box-shadow: none;
   transition: background 0.15s ease;
 }
 
 .choice-card:hover {
-  background: color-mix(in srgb, var(--primary) 5%, white);
+  background: color-mix(in srgb, var(--primary) 5%, var(--color-surface));
 }
 
 button[aria-label^='Agendar'] {
@@ -312,7 +423,7 @@ button[aria-label^='Agendar']:active {
 .service-sheet .mat-mdc-dialog-surface {
   border-radius: 20px;
   overflow: hidden;
-  background: #fff;
+  background: var(--color-surface);
 }
 
 .pick-sheet {

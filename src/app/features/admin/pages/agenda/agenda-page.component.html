@@ -24,11 +24,11 @@
     </div>
     <div class="flex flex-wrap gap-2">
       @if (!isStaff()) {
-        <button type="button" class="btn btn-ghost" (click)="dayOff()">Día libre</button>
+        <button type="button" class="btn btn-ghost hidden sm:inline-flex" (click)="dayOff()">Día libre</button>
       }
-      <button type="button" class="btn btn-secondary" (click)="openBlock()">
+      <button type="button" class="btn btn-secondary" aria-label="Bloquear horario" (click)="openBlock()">
         <mat-icon>block</mat-icon>
-        Bloquear horario
+        <span class="hidden sm:inline">Bloquear horario</span>
       </button>
       <button type="button" class="btn btn-primary" (click)="openCreate()">
         <mat-icon>add</mat-icon>
@@ -124,7 +124,7 @@
     <p role="alert" class="mb-3 text-sm text-red-700">{{ message }}</p>
   }
 
-  <div class="overflow-hidden card lg:grid lg:grid-cols-[minmax(0,1fr)_260px]">
+  <div class="overflow-hidden rounded-2xl border border-line bg-surface lg:grid lg:grid-cols-[minmax(0,1fr)_260px]">
     <div class="min-w-0 p-4 sm:p-5">
   @switch (currentView()) {
     @case ('month') {
@@ -186,11 +186,11 @@
               @for (slot of slots; track slot) {
                 <button
                   type="button"
-                  class="block h-7 w-full border-t border-line"
+                  class="group block h-7 w-full border-t border-line hover:bg-canvas"
                   [class.border-line]="slot % 60 === 0"
                   [attr.aria-label]="'Agendar ' + dayKey(day) + ' ' + slotLabel(slot)"
                   (click)="openCreateAt(day, slot)"
-                ></button>
+                ><span class="hidden pl-2 text-left text-xs text-muted group-hover:block">+ {{ slotLabel(slot) }}</span></button>
               }
               @for (block of blocksOn(day); track block.starts_at + block.staff_id + block.id) {
                 <button
@@ -267,11 +267,11 @@
                 @for (slot of slots; track slot) {
                   <button
                     type="button"
-                    class="relative block h-7 w-full border-t border-line"
+                    class="group relative block h-7 w-full border-t border-line hover:bg-canvas"
                     [class.border-line]="slot % 60 === 0"
                     [attr.aria-label]="'Agendar con ' + member.full_name + ' a las ' + slotLabel(slot)"
                     (click)="openCreateAt(cursor(), slot, member.id)"
-                  ></button>
+                  ><span class="hidden pl-2 text-left text-xs text-muted group-hover:block">+ {{ slotLabel(slot) }}</span></button>
                 }
                 @for (block of blocksOn(cursor(), member.id); track block.starts_at + block.staff_id + block.id) {
                   <button
@@ -321,12 +321,12 @@
             <button type="button" class="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-surface" (click)="openAppointment(item, $event)">
               <span class="h-9 w-1 shrink-0 rounded-full" [style.background]="staffColor(item.staff_id)"></span>
               <span class="min-w-0 flex-1">
-                <span class="nums block text-sm font-semibold text-ink">{{ formatTime(item.starts_at) }}</span>
+                <span class="nums block whitespace-nowrap text-sm font-semibold text-ink">{{ formatTime(item.starts_at) }}</span>
                 <span class="block truncate text-sm text-muted">{{ item.client_name }}</span>
+                @if (mark(item)) {
+                  <span class="badge badge-warn mt-1 max-w-full truncate">{{ mark(item) }}</span>
+                }
               </span>
-              @if (mark(item)) {
-                <span class="badge badge-warn">{{ mark(item) }}</span>
-              }
             </button>
           </li>
         }
@@ -367,146 +367,284 @@
 </section>
 
 @if (selected(); as pop) {
-  <button type="button" class="fixed inset-0 z-30 cursor-default" aria-label="Cerrar detalle" (click)="closeAppointment()"></button>
-  <article class="fixed z-40 w-[min(20rem,calc(100vw-1rem))] overflow-y-auto rounded border border-line bg-white p-3 shadow" [style.left.px]="pop.x" [style.top.px]="pop.y" [style.max-height.px]="pop.maxHeight">
-    <div class="flex items-start justify-between gap-2">
-      <h2 class="card-title">{{ pop.appointment.client_name }}</h2>
-      <button mat-icon-button type="button" aria-label="Cerrar" (click)="closeAppointment()">
+  <button type="button" class="fixed inset-0 z-30 cursor-default bg-black/30 md:bg-transparent" aria-label="Cerrar detalle" (click)="closeAppointment()"></button>
+  <article
+    class="fixed inset-x-0 bottom-0 z-40 flex max-h-[85vh] flex-col overflow-auto rounded-t-2xl border border-line bg-surface md:inset-x-auto md:bottom-4 md:right-4 md:top-4 md:max-h-none md:w-[26rem] md:rounded-2xl"
+    role="dialog"
+    aria-modal="true"
+    [attr.aria-label]="'Cita de ' + pop.appointment.client_name"
+  >
+    <div class="flex justify-center pt-2 md:hidden" aria-hidden="true">
+      <span class="h-1.5 w-10 rounded-full bg-line-strong"></span>
+    </div>
+    <header class="flex items-start justify-between gap-3 border-b border-line px-4 pb-3 pt-2 md:pt-4">
+      <div class="min-w-0">
+        <h2 class="truncate text-base font-semibold text-ink">{{ pop.appointment.client_name }}</h2>
+        <p class="text-sm text-ink-soft">{{ pop.appointment.service_name }}</p>
+        <p class="nums text-sm text-muted">{{ pop.appointment.starts_at.slice(0, 10) }} · {{ formatTime(pop.appointment.starts_at) }}</p>
+        <span class="badge mt-1.5" [class]="statusBadge(pop.appointment)">{{ statusLabel(pop.appointment.status) }}{{ pop.appointment.status === 'scheduled' ? (pop.appointment.client_confirmed ? ' · Confirmó' : ' · Sin confirmar') : '' }}</span>
+      </div>
+      <button type="button" class="btn btn-ghost w-10! shrink-0 px-0!" aria-label="Cerrar" (click)="closeAppointment()">
         <mat-icon>close</mat-icon>
       </button>
-    </div>
-    <p class="text-sm text-ink-soft">{{ formatTime(pop.appointment.starts_at) }} · {{ pop.appointment.service_name }}</p>
-    @if (pop.appointment.extra_label) {
-      <p class="text-sm text-ink-soft">También: {{ pop.appointment.extra_label }}</p>
-    }
-    <p class="text-sm text-ink-soft">{{ pop.appointment.staff_name }}</p>
-    @if (pop.appointment.resource_name) {
-      <p class="text-sm text-ink-soft">Recurso: {{ pop.appointment.resource_name }}</p>
-    }
-    <p class="mt-2 text-sm">{{ pop.appointment.client_phone || 'Sin teléfono' }}</p>
-    @if (pop.history.length) {
-      <ul class="mt-2 text-xs text-muted">
-        @for (line of pop.history; track line) {
-          <li>{{ line }}</li>
-        }
-      </ul>
-    }
-    <p class="text-sm">{{ pop.appointment.client_email || 'Sin correo' }}</p>
-    @if (pop.appointment.answers) {
-      <p class="mt-2 whitespace-pre-line text-sm text-ink-soft">{{ pop.appointment.answers }}</p>
-    }
-    @if (pop.appointment.notes) {
-      <p class="mt-2 text-sm text-ink-soft">{{ pop.appointment.notes }}</p>
-    }
-    @if (pop.appointment.photo_count && pop.appointment.cancel_token) {
-      <p class="mt-3 text-xs font-medium">Fotos de referencia</p>
-      <div class="mt-1 flex flex-wrap gap-2">
-        @for (index of photoIndexes(pop.appointment.photo_count); track index) {
-          <a [href]="referencePhoto(pop.appointment.cancel_token, index)" target="_blank" rel="noopener">
-            <img [src]="referencePhoto(pop.appointment.cancel_token, index)" alt="Foto de referencia {{ index + 1 }}" class="h-20 w-20 rounded object-cover" />
-          </a>
-        }
-      </div>
-    }
-    <p class="mt-2 text-xs text-muted">{{ statusLabel(pop.appointment.status) }}{{ pop.appointment.status === 'scheduled' ? (pop.appointment.client_confirmed ? ' · Confirmó' : ' · Sin confirmar') : '' }}</p>
-    @if (bill(pop.appointment); as row) {
-      <p class="mt-2 text-sm">
-        Total {{ pesos(row.total) }}.
-        @if (row.deposit) {
-          {{ row.pending ? 'Falta el anticipo de' : 'Anticipo' }} {{ pesos(row.deposit) }}{{ row.pending ? '' : ' ya descontado' }}. En la cita cobra {{ pesos(row.rest) }}.
-        }
-      </p>
-    }
-    <label class="mt-2 block text-xs">
-      Precio acordado
-      <input class="mt-1 w-full rounded border px-2 py-1" type="number" min="0" [value]="pop.appointment.quoted_price ?? ''" (change)="saveQuote(pop.appointment, $any($event.target).value)" />
-    </label>
-    @if (pop.appointment.payment_proof) {
-      <p class="mt-3 text-xs font-medium">Comprobante</p>
-      <img [src]="pop.appointment.payment_proof" alt="Comprobante" class="mt-1 max-h-48 w-full rounded object-contain" />
-    } @else if (pop.appointment.status === 'awaiting_deposit') {
-      <p class="mt-3 text-xs text-muted">Aún no sube el comprobante.</p>
-    }
-    @if (pop.appointment.status === 'awaiting_deposit') {
-      <div class="mt-3 flex flex-col gap-2">
-        <button class="btn btn-primary" type="button" (click)="acceptAndTell(pop.appointment)">
-          {{ pop.appointment.payment_proof ? 'Aceptar y avisar' : 'Depósito recibido' }}
-        </button>
-        @if (pop.appointment.payment_proof) {
-          <button class="btn btn-secondary" type="button" (click)="askAnother(pop.appointment)">Pedir otra foto</button>
-        }
-        <button class="btn btn-secondary" type="button" (click)="setStatus(pop.appointment, 'cancelled')">Liberar horario</button>
-      </div>
-    }
-    @if (pop.appointment.status === 'completed') {
-      <div class="mt-3 flex flex-col gap-2">
-        <button class="btn btn-secondary" type="button" (click)="repeat(pop.appointment, 3)">Siguiente en 3 semanas</button>
-        <button class="btn btn-secondary" type="button" (click)="repeat(pop.appointment, 4)">Siguiente en 4 semanas</button>
-      </div>
-    }
-    @if (pop.appointment.status === 'scheduled') {
-      <div class="mt-3 flex flex-col gap-2">
-        @if (pendingId() === pop.appointment.id) {
-          <mat-spinner diameter="20" />
-        } @else {
-          @if (moving() === pop.appointment.id) {
-            <div class="flex flex-col gap-2 rounded-xl border border-line p-3">
-              <p class="text-xs font-medium">Cambiar a</p>
-              <div class="flex gap-2">
-                <input class="min-w-0 flex-1 rounded border px-2 py-2 text-sm" type="date" [value]="moveDate()" (input)="moveDate.set($any($event.target).value)" />
-                <input class="w-28 rounded border px-2 py-2 text-sm" type="time" step="300" [value]="moveTime()" (input)="moveTime.set($any($event.target).value)" />
-              </div>
-              <select class="rounded border px-2 py-2 text-sm" [value]="moveStaff()" (change)="moveStaff.set(+$any($event.target).value)">
-                @for (member of staff(); track member.id) {
-                  @if (member.is_active) {
-                    <option [value]="member.id" [selected]="member.id === moveStaff()">{{ member.full_name }}</option>
-                  }
-                }
-              </select>
-              @if (moveError(); as message) {
-                <p class="text-xs text-red-700" role="alert">{{ message }}</p>
+    </header>
+
+    <div class="flex flex-col gap-3 px-4 py-3">
+      @if (lastNote(); as last) {
+        <div class="rounded-lg border border-line bg-canvas px-3 py-2">
+          <p class="card-title">Última visita{{ last.date ? ' · ' + last.date : '' }}</p>
+          <p class="mt-1 whitespace-pre-line text-sm text-ink">{{ last.note }}</p>
+        </div>
+      }
+
+      @if (quoteFocus()) {
+        @if (pop.appointment.photo_count && pop.appointment.cancel_token) {
+          <div>
+            <p class="card-title">Fotos de referencia</p>
+            <div class="mt-1 flex flex-wrap gap-2">
+              @for (index of photoIndexes(pop.appointment.photo_count); track index) {
+                <a [href]="referencePhoto(pop.appointment.cancel_token, index)" target="_blank" rel="noopener">
+                  <img [src]="referencePhoto(pop.appointment.cancel_token, index)" alt="Foto de referencia {{ index + 1 }}" class="h-24 w-24 rounded-lg object-cover" />
+                </a>
               }
-              <div class="flex gap-2">
-                <button type="button" class="btn btn-primary flex-1" (click)="saveMove(pop.appointment)">Guardar cambio</button>
-                <button class="btn btn-ghost" type="button" (click)="moving.set(null)">Cerrar</button>
-              </div>
             </div>
-          } @else {
-            <button class="btn btn-secondary" type="button" (click)="startMove(pop.appointment)">Cambiar día u hora</button>
+          </div>
+        }
+        <ng-container [ngTemplateOutlet]="quoteBox" [ngTemplateOutletContext]="{ $implicit: pop.appointment }" />
+      }
+
+      <div class="text-sm text-ink-soft">
+        @if (pop.appointment.extra_label) {
+          <p>También: {{ pop.appointment.extra_label }}</p>
+        }
+        <p>{{ pop.appointment.staff_name }}</p>
+        @if (pop.appointment.resource_name) {
+          <p>Recurso: {{ pop.appointment.resource_name }}</p>
+        }
+        <p class="mt-1 text-ink">{{ pop.appointment.client_phone || 'Sin teléfono' }}</p>
+        <p class="text-ink">{{ pop.appointment.client_email || 'Sin correo' }}</p>
+      </div>
+      @if (pop.history.length) {
+        <ul class="text-xs text-muted">
+          @for (line of pop.history; track line) {
+            <li>{{ line }}</li>
           }
-          <button class="btn btn-secondary" type="button" (click)="repeat(pop.appointment, 3)">Cada 3 semanas</button>
-          <button class="btn btn-secondary" type="button" (click)="repeat(pop.appointment, 4)">Cada 4 semanas</button>
-          @if (charging() === pop.appointment.id) {
-            <div class="flex flex-col gap-2 rounded-xl border border-line p-3">
-              <label class="text-xs font-medium">Total cobrado (incluye anticipo)
-                <input class="mt-1 w-full rounded border px-2 py-2 text-sm" type="number" min="0" inputmode="decimal" [value]="chargeAmount()" (input)="chargeAmount.set($any($event.target).value)" />
-              </label>
-              <div class="flex flex-wrap gap-2">
-                @for (method of payMethods; track method.value) {
-                  <button type="button" class="rounded-full border px-3 py-1.5 text-sm" [class.bg-stone-900]="chargeMethod() === method.value" [class.text-white]="chargeMethod() === method.value" (click)="chargeMethod.set(method.value)">{{ method.label }}</button>
+        </ul>
+      }
+      @if (pop.appointment.answers) {
+        <p class="whitespace-pre-line text-sm text-ink-soft">{{ pop.appointment.answers }}</p>
+      }
+      @if (pop.appointment.notes) {
+        <p class="text-sm text-ink-soft">{{ pop.appointment.notes }}</p>
+      }
+      @if (pop.appointment.visit_note) {
+        <p class="text-sm text-ink-soft"><span class="font-medium text-ink">Nota de la visita:</span> {{ pop.appointment.visit_note }}</p>
+      }
+      @if (!quoteFocus() && pop.appointment.photo_count && pop.appointment.cancel_token) {
+        <div>
+          <p class="card-title">Fotos de referencia</p>
+          <div class="mt-1 flex flex-wrap gap-2">
+            @for (index of photoIndexes(pop.appointment.photo_count); track index) {
+              <a [href]="referencePhoto(pop.appointment.cancel_token, index)" target="_blank" rel="noopener">
+                <img [src]="referencePhoto(pop.appointment.cancel_token, index)" alt="Foto de referencia {{ index + 1 }}" class="h-20 w-20 rounded-lg object-cover" />
+              </a>
+            }
+          </div>
+        </div>
+      }
+      @if (bill(pop.appointment); as row) {
+        <p class="text-sm text-ink">
+          Total <span class="nums">{{ pesos(row.total) }}</span>.
+          @if (row.deposit) {
+            {{ row.pending ? 'Falta el anticipo de' : 'Anticipo' }} {{ pesos(row.deposit) }}{{ row.pending ? '' : ' ya descontado' }}. En la cita cobra {{ pesos(row.rest) }}.
+          }
+        </p>
+      }
+      @if (pop.appointment.tip) {
+        <p class="text-sm text-ink-soft">Propina <span class="nums">{{ pesos(pop.appointment.tip) }}</span></p>
+      }
+      @if (!quoteFocus()) {
+        <ng-container [ngTemplateOutlet]="quoteBox" [ngTemplateOutletContext]="{ $implicit: pop.appointment }" />
+      }
+      @if (pop.appointment.payment_proof) {
+        <div>
+          <p class="card-title">Comprobante</p>
+          <img [src]="pop.appointment.payment_proof" alt="Comprobante" class="mt-1 max-h-48 w-full rounded-lg object-contain" />
+        </div>
+      } @else if (pop.appointment.status === 'awaiting_deposit') {
+        <p class="text-xs text-muted">Aún no sube el comprobante.</p>
+      }
+      @if (pop.appointment.status === 'awaiting_deposit') {
+        <div class="flex flex-col gap-2">
+          <button class="btn btn-primary h-12" type="button" (click)="acceptAndTell(pop.appointment)">
+            {{ pop.appointment.payment_proof ? 'Aceptar y avisar' : 'Depósito recibido' }}
+          </button>
+          @if (pop.appointment.payment_proof) {
+            <button class="btn btn-secondary" type="button" (click)="askAnother(pop.appointment)">Pedir otra foto</button>
+          }
+          <button class="btn btn-secondary" type="button" (click)="setStatus(pop.appointment, 'cancelled')">Liberar horario</button>
+        </div>
+      }
+
+      @if (pop.appointment.status === 'scheduled' && pendingId() !== pop.appointment.id) {
+        @if (charging() === pop.appointment.id) {
+          <div id="charge-panel" class="flex flex-col gap-3 rounded-lg border border-line p-3">
+            <p class="card-title">Cobro</p>
+            <label class="text-sm text-ink">Total del servicio (incluye anticipo)
+              <input class="mt-1 w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm nums" type="number" min="0" inputmode="decimal" [value]="chargeAmount()" (input)="chargeAmount.set($any($event.target).value)" />
+            </label>
+            <div class="flex flex-wrap gap-2" role="group" aria-label="Método de pago">
+              @for (method of payMethods; track method.value) {
+                <button type="button" class="h-9 rounded-full border border-line-strong px-3 text-sm" [class.bg-ink]="chargeMethod() === method.value" [class.text-white]="chargeMethod() === method.value" [attr.aria-pressed]="chargeMethod() === method.value" (click)="chargeMethod.set(method.value)">{{ method.label }}</button>
+              }
+            </div>
+            <label class="text-sm text-ink">Propina <span class="text-muted">(opcional)</span>
+              <input class="mt-1 w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm nums" type="number" min="0" inputmode="decimal" placeholder="0" [value]="chargeTip()" (input)="chargeTip.set($any($event.target).value)" />
+            </label>
+            @if (products().length) {
+              <div class="flex flex-col gap-2">
+                <p class="text-sm text-ink">Productos</p>
+                <div class="flex gap-2">
+                  <select class="min-w-0 flex-1 rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm" aria-label="Producto" (change)="productPick.set(+$any($event.target).value || null)">
+                    <option value="" [selected]="productPick() === null">Agregar producto</option>
+                    @for (product of products(); track product.id) {
+                      <option [value]="product.id" [selected]="productPick() === product.id">{{ product.name }} · {{ pesos(product.price) }}</option>
+                    }
+                  </select>
+                  <button type="button" class="btn btn-secondary" [disabled]="productPick() === null" (click)="addProduct()">Agregar</button>
+                </div>
+                @for (row of cart(); track row.id) {
+                  <div class="flex items-center gap-2 text-sm">
+                    <span class="min-w-0 flex-1 truncate text-ink">{{ row.name }}</span>
+                    <input class="w-16 rounded-lg border border-line-strong bg-surface px-2 py-1.5 text-sm nums" type="number" min="1" [max]="row.stock" [value]="row.qty" [attr.aria-label]="'Cantidad de ' + row.name" (input)="setProductQty(row.id, $any($event.target).value)" />
+                    <span class="nums w-20 text-right text-ink">{{ pesos(row.price * row.qty) }}</span>
+                    <button type="button" class="btn btn-ghost w-9! px-0!" [attr.aria-label]="'Quitar ' + row.name" (click)="removeProduct(row.id)"><mat-icon>close</mat-icon></button>
+                  </div>
                 }
               </div>
-              <div class="flex gap-2">
-                <button type="button" class="btn btn-primary flex-1" (click)="completeWithCharge(pop.appointment)">Cobrar y completar</button>
-                <button class="btn btn-ghost" type="button" (click)="charging.set(null)">Cerrar</button>
-              </div>
+            }
+            <label class="text-sm text-ink">Nota de la visita (privada)
+              <textarea class="mt-1 w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm" rows="2" maxlength="2000" placeholder="Fórmula, tono, alergias…" [value]="chargeNote()" (input)="chargeNote.set($any($event.target).value)"></textarea>
+            </label>
+            <dl class="grid grid-cols-[1fr_auto] gap-x-3 gap-y-0.5 border-t border-line pt-2 text-sm">
+              <dt class="text-muted">Servicio</dt><dd class="nums text-right text-ink">{{ pesos(serviceCharge()) }}</dd>
+              @if (cart().length) {
+                <dt class="text-muted">Productos</dt><dd class="nums text-right text-ink">{{ pesos(productsTotal()) }}</dd>
+              }
+              @if (tipAmount()) {
+                <dt class="text-muted">Propina</dt><dd class="nums text-right text-ink">{{ pesos(tipAmount()) }}</dd>
+              }
+              <dt class="font-semibold text-ink">Total a cobrar</dt><dd class="nums text-right font-semibold text-ink">{{ pesos(serviceCharge() + productsTotal() + tipAmount()) }}</dd>
+            </dl>
+            <button class="btn btn-ghost self-start" type="button" (click)="charging.set(null)">Cerrar cobro</button>
+          </div>
+        }
+        @if (moving() === pop.appointment.id) {
+          <div class="flex flex-col gap-2 rounded-lg border border-line p-3">
+            <p class="card-title">Cambiar a</p>
+            <div class="flex gap-2">
+              <input class="min-w-0 flex-1 rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm" type="date" aria-label="Día" [value]="moveDate()" (input)="moveDate.set($any($event.target).value)" />
+              <input class="w-28 rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm" type="time" step="300" aria-label="Hora" [value]="moveTime()" (input)="moveTime.set($any($event.target).value)" />
             </div>
-          } @else {
-            <button class="btn btn-secondary" type="button" (click)="startCharge(pop.appointment)">Cobrar y completar</button>
+            <select class="rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm" [attr.aria-label]="copy.text().person" [value]="moveStaff()" (change)="moveStaff.set(+$any($event.target).value)">
+              @for (member of staff(); track member.id) {
+                @if (member.is_active) {
+                  <option [value]="member.id" [selected]="member.id === moveStaff()">{{ member.full_name }}</option>
+                }
+              }
+            </select>
+            @if (moveError(); as message) {
+              <p class="text-xs text-red-700" role="alert">{{ message }}</p>
+            }
+            <div class="flex gap-2">
+              <button type="button" class="btn btn-primary flex-1" (click)="saveMove(pop.appointment)">Guardar cambio</button>
+              <button class="btn btn-ghost" type="button" (click)="moving.set(null)">Cerrar</button>
+            </div>
+          </div>
+        }
+        <details class="rounded-lg border border-line">
+          <summary class="cursor-pointer px-3 py-2 text-sm text-ink-soft">Más opciones</summary>
+          <div class="flex flex-col gap-1 px-2 pb-2">
+            <button class="btn btn-ghost justify-start" type="button" (click)="repeat(pop.appointment, 3)">Repetir cada 3 semanas</button>
+            <button class="btn btn-ghost justify-start" type="button" (click)="repeat(pop.appointment, 4)">Repetir cada 4 semanas</button>
+            <button class="btn btn-ghost justify-start" type="button" (click)="setStatus(pop.appointment, 'no_show')">No llegó</button>
+            <button class="btn btn-ghost justify-start text-red-700" type="button" (click)="setStatus(pop.appointment, 'cancelled')">Cancelar cita</button>
+          </div>
+        </details>
+      }
+      @if (pop.appointment.status === 'completed') {
+        <div class="flex flex-col gap-2">
+          <p class="card-title">Siguiente cita</p>
+          <div class="grid grid-cols-2 gap-2">
+            <button class="btn btn-secondary" type="button" (click)="repeat(pop.appointment, 3)">En 3 semanas</button>
+            <button class="btn btn-secondary" type="button" (click)="repeat(pop.appointment, 4)">En 4 semanas</button>
+          </div>
+        </div>
+      }
+      @if (freed().length) {
+        <div class="flex flex-col gap-2">
+          @for (row of freed(); track row.href) {
+            <a class="text-sm font-medium text-emerald-700" [href]="row.href" target="_blank" rel="noopener">Ofrecer el horario a {{ row.name }}</a>
           }
-          <button class="btn btn-secondary" type="button" (click)="setStatus(pop.appointment, 'no_show')">No llegó</button>
-          <button class="btn btn-secondary" type="button" (click)="setStatus(pop.appointment, 'cancelled')">Cancelar</button>
+        </div>
+      }
+    </div>
+
+    <footer class="sticky bottom-0 mt-auto flex flex-col gap-2 border-t border-line bg-surface px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
+      @if (pendingId() === pop.appointment.id) {
+        <div class="flex h-12 items-center justify-center"><mat-spinner diameter="22" /></div>
+      } @else {
+        @if (pop.appointment.status === 'scheduled') {
+          @if (charging() === pop.appointment.id) {
+            <button type="button" class="btn btn-primary h-12 w-full text-base" (click)="completeWithCharge(pop.appointment)">
+              Cobrar {{ pesos(serviceCharge() + productsTotal() + tipAmount()) }} y completar
+            </button>
+          } @else {
+            <button type="button" class="btn btn-primary h-12 w-full text-base" (click)="startCharge(pop.appointment)">Cobrar y completar</button>
+          }
         }
-      </div>
-    }
-    @if (freed().length) {
-      <div class="mt-3 flex flex-col gap-2">
-        @for (row of freed(); track row.href) {
-          <a class="text-sm font-medium text-emerald-700" [href]="row.href" target="_blank" rel="noopener">Ofrecer el horario a {{ row.name }}</a>
-        }
-      </div>
-    }
+        <div class="grid gap-2" [class.grid-cols-2]="pop.appointment.status === 'scheduled' || pop.appointment.status === 'awaiting_deposit'">
+          @if (chatHref(pop.appointment); as href) {
+            <a class="btn btn-whatsapp h-12" [href]="href" target="_blank" rel="noopener">WhatsApp</a>
+          }
+          @if (pop.appointment.status === 'scheduled' || pop.appointment.status === 'awaiting_deposit') {
+            <button type="button" class="btn btn-secondary h-12" [class.col-span-2]="!chatHref(pop.appointment)" (click)="startMove(pop.appointment)">Cambiar día u hora</button>
+          }
+        </div>
+      }
+    </footer>
   </article>
+}
+
+<ng-template #quoteBox let-appointment>
+  <div class="flex flex-col gap-2">
+    <label class="text-sm text-ink" for="quote-price">Precio acordado</label>
+    <div class="flex gap-2">
+      <input
+        #quoteInput
+        id="quote-price"
+        class="min-w-0 flex-1 rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm nums"
+        type="number"
+        min="0"
+        inputmode="decimal"
+        [value]="appointment.quoted_price ?? ''"
+        (keydown.enter)="saveQuote(appointment, quoteInput.value)"
+      />
+      <button type="button" class="btn btn-secondary" [disabled]="quoteSaving()" (click)="saveQuote(appointment, quoteInput.value)">
+        {{ quoteSaving() ? 'Guardando…' : 'Guardar precio' }}
+      </button>
+    </div>
+    @if (quoteHref(); as href) {
+      <a class="btn btn-whatsapp w-full" [href]="href" target="_blank" rel="noopener" (click)="quoteHref.set(null)">Enviar precio por WhatsApp</a>
+    }
+  </div>
+</ng-template>
+
+@if (undo(); as row) {
+  <div class="fixed inset-x-4 top-4 z-50 mx-auto flex max-w-sm md:bottom-4 md:top-auto items-center justify-between gap-3 rounded-lg bg-ink px-4 py-3 text-sm text-white" role="status">
+    <span>Cita cancelada · {{ row.appointment.client_name }}</span>
+    <button type="button" class="font-semibold underline" (click)="undoCancel()">Deshacer</button>
+  </div>
 }
 
 <ng-template #editor>

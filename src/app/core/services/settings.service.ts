@@ -35,6 +35,10 @@ export interface BusinessSettings {
   resources: string | null;
   payment_url: string | null;
   privacy_notice?: string | null;
+  loyalty_every?: number | null;
+  loyalty_percent?: number | null;
+  /** JSON: [{"code":"BIENVENIDA","percent":10,"first_visit":true}] */
+  coupons?: string | null;
   hours: BusinessHour[];
 }
 
@@ -56,6 +60,9 @@ export interface ProfileUpdate {
   resources?: string | null;
   payment_url?: string | null;
   privacy_notice?: string | null;
+  loyalty_every?: number | null;
+  loyalty_percent?: number | null;
+  coupons?: string | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -65,6 +72,19 @@ export class SettingsService {
 
   getSettings(): Observable<BusinessSettings> {
     return this.http.get<BusinessSettings>(`${this.apiBaseUrl}/settings/business`);
+  }
+
+  /** Datos de ejemplo: servicios del giro, equipo, clientas y citas, para demos o para arrancar. */
+  demoStatus(): Observable<{ loaded: boolean }> {
+    return this.http.get<{ loaded: boolean }>(`${this.apiBaseUrl}/settings/demo`);
+  }
+
+  loadDemo(): Observable<Record<string, number>> {
+    return this.http.post<Record<string, number>>(`${this.apiBaseUrl}/settings/demo`, {});
+  }
+
+  clearDemo(): Observable<void> {
+    return this.http.delete<void>(`${this.apiBaseUrl}/settings/demo`);
   }
 
   updateProfile(data: ProfileUpdate): Observable<BusinessSettings> {
