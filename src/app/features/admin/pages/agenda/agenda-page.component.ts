@@ -16,6 +16,7 @@ import { forkJoin, interval, of } from 'rxjs';
 import { catchError, distinctUntilChanged, map, switchMap } from 'rxjs/operators';
 
 import { BusinessCopy } from '@core/business-copy';
+import { MessageVars, firstName, longDay, whatsappLink } from '@core/message-templates';
 import { Toasts } from '@core/toasts';
 import { Appointment, AppointmentStatus } from '@core/models/appointment.model';
 import { ScheduleItem } from '@core/models/schedule.model';
@@ -768,8 +769,17 @@ export class AgendaPageComponent {
   }
 
   protected whatsappHref(): string {
-    const text = `¡Hola! 👋 Ya puedes reservar tu cita en línea: eliges servicio, día y hora en segundos.\n\n${this.shareLink()}`;
-    return `https://wa.me/?text=${encodeURIComponent(text)}`;
+    return whatsappLink(null, this.copy.message('share_link', { negocio: this.shopName(), enlace: this.shareLink() }));
+  }
+
+  private shopName(): string {
+    return this.auth.currentUser()?.businessName ?? '';
+  }
+
+  /** Enlace de la cita para la clienta (verla, confirmarla, cambiarla o cancelarla). */
+  private manageLink(appointment: Appointment): string {
+    const slug = this.auth.currentUser()?.slug ?? '';
+    return appointment.cancel_token && slug ? `${location.origin}/${slug}/manage/${appointment.cancel_token}` : '';
   }
 
   protected dayKey(day: Date): string {
@@ -870,16 +880,13 @@ export class AgendaPageComponent {
     if (!phone || appointment.quoted_price == null) {
       return null;
     }
-    const slug = this.auth.currentUser()?.slug ?? '';
-    const link = appointment.cancel_token && slug ? `\n\nAquí puedes ver tu cita: ${location.origin}/${slug}/manage/${appointment.cancel_token}` : '';
-    const day = parseTimestamp(appointment.starts_at).toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
-    const deposit = appointment.deposit_amount
-      ? `\nPara apartar tu lugar el anticipo es de ${this.pesos(appointment.deposit_amount)}; el resto lo pagas en la cita.`
-      : '';
-    const text =
-      `Hola ${appointment.client_name.split(' ')[0]}, ya revisamos tu cita de ${appointment.service_name}.\n\n` +
-      `Día: ${day}\nHora: ${this.formatTime(appointment.starts_at)}\nPrecio: ${this.pesos(appointment.quoted_price)}${deposit}${link}`;
-    return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+    const text = this.copy.message('quote', {
+      ...this.visitVars(appointment),
+      precio: this.pesos(appointment.quoted_price),
+      anticipo: appointment.deposit_amount ? this.pesos(appointment.deposit_amount) : '',
+      enlace: this.manageLink(appointment),
+    });
+    return whatsappLink(phone, text);
   }
 
   /** Enlace directo al chat de la clienta. */
@@ -888,8 +895,20 @@ export class AgendaPageComponent {
     if (!phone) {
       return null;
     }
-    const text = `Hola ${appointment.client_name.split(' ')[0]}, te escribimos por tu cita de ${appointment.service_name} el ${appointment.starts_at.slice(0, 10)} a las ${this.formatTime(appointment.starts_at)}.`;
-    return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+    return whatsappLink(phone, this.copy.message('chat', this.visitVars(appointment)));
+  }
+
+  /** Lo que comparten casi todos los mensajes sobre una cita. */
+  private visitVars(appointment: Appointment): MessageVars {
+    return {
+      nombre: firstName(appointment.client_name),
+      negocio: this.shopName(),
+      servicio: appointment.service_name,
+      dia: longDay(appointment.starts_at),
+      hora: this.formatTime(appointment.starts_at),
+      equipo: appointment.staff_name,
+      cita: this.copy.text().visit.toLowerCase(),
+    };
   }
 
   /** Precio variable o sin precio acordado: hay que cotizar. */
@@ -947,8 +966,12 @@ export class AgendaPageComponent {
     const phone = (appointment.client_phone ?? '').replace(/\D/g, '');
     if (phone) {
       // Se deja como enlace para tocar: abrirlo después de la confirmación lo bloquearía el navegador.
-      const text = `Hola ${appointment.client_name} 👋 Te apartamos tus próximas citas de ${appointment.service_name} a las ${time}:\n\n${dates.map((day) => `📅 ${label(day)}`).join('\n')}\n\nSi alguna fecha no te queda, avísanos por aquí y la movemos.`;
-      this.clientNotice.set(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`);
+      const text = this.copy.message('repeat', {
+        ...this.visitVars(appointment),
+        hora: this.formatTime(appointment.starts_at),
+        fechas: dates.map((day) => `📅 ${label(day)}`).join('\n'),
+      });
+      this.clientNotice.set(whatsappLink(phone, text));
     }
     const jobs = dates.map((next) => {
       return this.appointmentsApi
@@ -1382,11 +1405,10 @@ export class AgendaPageComponent {
     );
     this.charging.set(null);
     const phone = (appointment.client_phone ?? '').replace(/\D/g, '');
-    const slug = this.auth.currentUser()?.slug;
-    if (phone && slug && appointment.cancel_token) {
-      const link = `${location.origin}/${slug}/manage/${appointment.cancel_token}`;
-      const text = `¡Gracias por venir, ${appointment.client_name.split(' ')[0]}! 💛 ¿Nos ayudas con tu opinión? Toma 10 segundos:\n\n${link}`;
-      this.reviewNotice.set({ name: appointment.client_name.split(' ')[0], href: `https://wa.me/${phone.length === 10 ? '52' + phone : phone}?text=${encodeURIComponent(text)}` });
+    const link = this.manageLink(appointment);
+    if (phone && link) {
+      const text = this.copy.message('review', { nombre: firstName(appointment.client_name), enlace: link });
+      this.reviewNotice.set({ name: firstName(appointment.client_name), href: whatsappLink(phone, text) });
     }
   }
 
@@ -1525,12 +1547,7 @@ export class AgendaPageComponent {
     if (!phone) {
       return null;
     }
-    const slug = this.auth.currentUser()?.slug ?? '';
-    const link = appointment.cancel_token && slug ? `${location.origin}/${slug}/manage/${appointment.cancel_token}` : '';
-    const day = appointment.starts_at.slice(0, 10);
-    const time = appointment.starts_at.slice(11, 16);
-    const text = `Hola ${appointment.client_name}, tu ${this.copy.text().visit.toLowerCase()} de ${appointment.service_name} quedó el ${day} a las ${time}.${link ? ` Puedes verla o cancelarla aquí: ${link}` : ''}`;
-    return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+    return whatsappLink(phone, this.copy.message('booked', { ...this.visitVars(appointment), enlace: this.manageLink(appointment) }));
   }
 
   protected receiveDeposit(appointment: Appointment, event: Event): void {
@@ -1541,9 +1558,8 @@ export class AgendaPageComponent {
   protected acceptAndTell(appointment: Appointment): void {
     this.setStatus(appointment, 'scheduled');
     const phone = (appointment.client_phone ?? '').replace(/\D/g, '');
-    const text = encodeURIComponent(`Hola ${appointment.client_name}, tu cita quedó confirmada.`);
     if (phone) {
-      window.open(`https://wa.me/${phone}?text=${text}`, '_blank', 'noopener');
+      window.open(whatsappLink(phone, this.copy.message('deposit_ok', this.visitVars(appointment))), '_blank', 'noopener');
     }
   }
 
@@ -1553,11 +1569,9 @@ export class AgendaPageComponent {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
         const phone = (appointment.client_phone ?? '').replace(/\D/g, '');
-        const slug = this.auth.currentUser()?.slug ?? '';
-        const link = appointment.cancel_token && slug ? `${location.origin}/${slug}/manage/${appointment.cancel_token}` : '';
-        const text = encodeURIComponent(`Hola ${appointment.client_name}, no se lee el comprobante. Sube otra foto aquí: ${link}`);
         if (phone) {
-          window.open(`https://wa.me/${phone}?text=${text}`, '_blank', 'noopener');
+          const text = this.copy.message('proof_retry', { nombre: firstName(appointment.client_name), enlace: this.manageLink(appointment) });
+          window.open(whatsappLink(phone, text), '_blank', 'noopener');
         }
         this.loadAppointments(this.range(), this.staffId(), this.serviceId());
         this.closeAppointment();
@@ -1722,12 +1736,17 @@ export class AgendaPageComponent {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((rows) => {
         const slug = this.auth.currentUser()?.slug ?? '';
-        const shop = this.auth.currentUser()?.businessName ?? 'el negocio';
-        const when = appointment.starts_at.slice(11, 16);
         this.freed.set(
           rows.map((row) => ({
             name: row.client_name,
-            href: `https://wa.me/${row.client_phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola ${row.client_name}, en ${shop} se liberó ${appointment.service_name} el ${day} a las ${when}. Aparta aquí: ${location.origin}/${slug}/book`)}`,
+            href: whatsappLink(
+              row.client_phone,
+              this.copy.message('waitlist', {
+                ...this.visitVars(appointment),
+                nombre: firstName(row.client_name),
+                enlace: slug ? this.booking.shareUrl(slug) : '',
+              }),
+            ),
           })),
         );
       });

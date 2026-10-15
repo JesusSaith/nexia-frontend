@@ -4,6 +4,9 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 
+import { BusinessCopy } from '@core/business-copy';
+import { firstName, whatsappLink } from '@core/message-templates';
+import { AuthService } from '@core/services/auth.service';
 import { BookingService, ClientCard } from '@core/services/booking.service';
 
 interface GuestClient {
@@ -28,6 +31,8 @@ export class Customers {
   private readonly bookingApi = inject(BookingService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly router = inject(Router);
+  private readonly auth = inject(AuthService);
+  private readonly copy = inject(BusinessCopy);
   private readonly money = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
   private readonly when = new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
@@ -190,9 +195,11 @@ export class Customers {
   }
 
   protected birthdayWish(row: GuestClient): string {
-    const phone = this.digits(row.phone);
-    const text = `¡Feliz cumpleaños, ${row.full_name.split(' ')[0]}! 🎂🎉 De parte de todo el equipo te deseamos un día increíble. ¡Te esperamos pronto para consentirte! 💖`;
-    return `https://wa.me/${phone.length === 10 ? '52' + phone : phone}?text=${encodeURIComponent(text)}`;
+    return whatsappLink(row.phone, this.copy.message('birthday', { nombre: firstName(row.full_name), negocio: this.shopName() }));
+  }
+
+  private shopName(): string {
+    return this.auth.currentUser()?.businessName ?? '';
   }
 
   protected digits(phone: string | null | undefined): string {
@@ -204,9 +211,7 @@ export class Customers {
   }
 
   protected missYou(row: GuestClient): string {
-    const phone = this.digits(row.phone);
-    const text = `¡Hola ${row.full_name.split(' ')[0]}! 👋 Hace tiempo que no te vemos y te extrañamos. ¿Te apartamos tu próxima cita? Dinos qué día te acomoda.`;
-    return `https://wa.me/${phone.length === 10 ? '52' + phone : phone}?text=${encodeURIComponent(text)}`;
+    return whatsappLink(row.phone, this.copy.message('miss_you', { nombre: firstName(row.full_name), negocio: this.shopName() }));
   }
 }
 

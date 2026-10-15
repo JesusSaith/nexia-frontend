@@ -7,6 +7,7 @@ import { MatIconModule } from '@angular/material/icon';
 
 import { BUSINESS_KINDS, kindOf } from '@core/business-kinds';
 import { BusinessCopy } from '@core/business-copy';
+import { MESSAGE_TEMPLATES, MessageKey, MessageVars, VARIABLE_HELP, defaultText, fillTemplate, longDay } from '@core/message-templates';
 import { API_BASE_URL } from '@core/config/api-base-url';
 import { BusinessCoupon } from '@core/models/business.model';
 import { BusinessSettings, ProfileUpdate, SettingsService } from '@core/services/settings.service';
@@ -14,14 +15,15 @@ import { Toasts } from '@core/toasts';
 import { Confirm } from '@shared/components/confirm/confirm';
 import { PickFieldComponent } from '@shared/components/when-field/when-field';
 
-type SectionId = 'negocio' | 'apariencia' | 'reservas' | 'anticipo' | 'promociones' | 'pausa' | 'avisos' | 'privacidad';
+type SectionId = 'negocio' | 'apariencia' | 'reservas' | 'anticipo' | 'promociones' | 'mensajes' | 'pausa' | 'avisos' | 'privacidad';
 
-const SECTIONS: readonly { id: SectionId; label: string; icon: string }[] = [
+const SECTIONS: readonly { id: SectionId; label: string; icon: string; short?: string }[] = [
   { id: 'negocio', label: 'Tu negocio', icon: 'storefront' },
   { id: 'apariencia', label: 'Apariencia', icon: 'palette' },
   { id: 'reservas', label: 'Reglas de reserva', icon: 'event_available' },
   { id: 'anticipo', label: 'Anticipo y pagos', icon: 'payments' },
   { id: 'promociones', label: 'Promociones', icon: 'sell' },
+  { id: 'mensajes', label: 'Mensajes de WhatsApp', short: 'Mensajes', icon: 'chat' },
   { id: 'pausa', label: 'Pausa y vacaciones', icon: 'beach_access' },
   { id: 'avisos', label: 'Avisos por correo', icon: 'mark_email_unread' },
   { id: 'privacidad', label: 'Privacidad y datos', icon: 'shield' },
@@ -144,6 +146,11 @@ export class SettingsPageComponent {
   protected readonly alertOptions = ALERT_OPTIONS;
   protected readonly emailAlerts = signal<ReadonlySet<string>>(new Set());
   protected readonly accountEmail = signal('');
+  protected readonly messageTemplates = MESSAGE_TEMPLATES;
+  protected readonly variableHelp = VARIABLE_HELP;
+  /** Texto de cada mensaje tal como está en el editor (de fábrica si la dueña no lo cambió). */
+  protected readonly messages = signal<Record<MessageKey, string>>(defaultMessages());
+  protected readonly openMessage = signal<MessageKey | null>(null);
 
   /** Lo último que vino del servidor: base para "Descartar" y para contar cambios. */
   private readonly savedSettings = signal<BusinessSettings | null>(null);
@@ -193,6 +200,10 @@ export class SettingsPageComponent {
       loyalty_percent: loyalty.percent,
       coupons: couponsJson(this.coupons()),
       email_alerts: ALERT_OPTIONS.map((option) => option.value).filter((value) => this.emailAlerts().has(value)),
+      // Solo se guardan los que difieren del texto de fábrica.
+      message_templates: Object.fromEntries(
+        MESSAGE_TEMPLATES.filter((item) => this.messages()[item.key].trim() !== item.text.trim()).map((item) => [item.key, this.messages()[item.key].trim()]),
+      ),
     };
   });
 
@@ -261,6 +272,7 @@ export class SettingsPageComponent {
       anticipo: deposit ? `${deposit} · ${payload.deposit_hold_hours} h para pagar${this.depositWarning() ? ' · falta la cuenta' : ''}` : 'Sin anticipo',
       promociones: offers.length ? offers.join(' · ') : 'Sin promociones',
       pausa: this.status().title,
+      mensajes: this.customizedCount() ? `${this.customizedCount()} personalizado${this.customizedCount() === 1 ? '' : 's'} de ${MESSAGE_TEMPLATES.length}` : 'Todos con el texto de fábrica',
       avisos: this.emailAlerts().size ? `${this.emailAlerts().size} de ${ALERT_OPTIONS.length} encendidos · a ${this.accountEmail()}` : 'Apagados: solo los ves en Inicio',
       privacidad: payload.privacy_notice ? 'Aviso de privacidad propio' : 'Aviso genérico de Nexia',
     };
@@ -375,6 +387,62 @@ export class SettingsPageComponent {
     if (digits !== control.value) {
       control.setValue(digits);
     }
+  }
+
+  protected readonly customizedCount = computed(() => Object.keys(this.payload().message_templates ?? {}).length);
+
+  /** Datos de ejemplo para la vista previa de cada mensaje. */
+  protected readonly sampleVars = computed<MessageVars>(() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const iso = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const later = (weeks: number) => new Date(tomorrow.getTime() + weeks * 7 * 86_400_000);
+    return {
+      nombre: 'María',
+      negocio: this.payload().name || 'Tu negocio',
+      servicio: 'Corte de cabello',
+      dia: longDay(iso(tomorrow)),
+      hora: '11:00 a.m.',
+      equipo: 'Ana',
+      enlace: `${location.host}/tu-negocio/…`,
+      cuando: 'mañana',
+      precio: '$450.00',
+      anticipo: '$150.00',
+      fechas: [3, 6, 9].map((weeks) => `📅 ${longDay(iso(later(weeks)))}`).join('\n'),
+      cita: this.copy.text().visit.toLowerCase(),
+    };
+  });
+
+  protected preview(key: MessageKey): string {
+    return fillTemplate(this.messages()[key], this.sampleVars());
+  }
+
+  protected isCustomized(key: MessageKey): boolean {
+    return this.messages()[key].trim() !== defaultText(key).trim();
+  }
+
+  protected toggleMessage(key: MessageKey): void {
+    this.openMessage.update((current) => (current === key ? null : key));
+  }
+
+  protected editMessage(key: MessageKey, text: string): void {
+    this.messages.update((current) => ({ ...current, [key]: text }));
+  }
+
+  protected resetMessage(key: MessageKey): void {
+    this.editMessage(key, defaultText(key));
+  }
+
+  /** Inserta la variable donde está el cursor y lo deja justo después. */
+  protected insertVariable(key: MessageKey, area: HTMLTextAreaElement, name: string): void {
+    const token = `{${name}}`;
+    const start = area.selectionStart ?? area.value.length;
+    const end = area.selectionEnd ?? start;
+    this.editMessage(key, area.value.slice(0, start) + token + area.value.slice(end));
+    setTimeout(() => {
+      area.focus();
+      area.setSelectionRange(start + token.length, start + token.length);
+    });
   }
 
   protected toggleAlert(kind: string): void {
@@ -528,6 +596,7 @@ export class SettingsPageComponent {
           this.apply(settings);
           this.copy.setLabel(settings.staff_label);
           this.copy.setLogo(settings.logo_url);
+          this.copy.setTemplates(settings.message_templates);
           this.saving.set(false);
           this.toasts.show('Cambios guardados.');
         },
@@ -588,6 +657,7 @@ export class SettingsPageComponent {
     this.loyaltyPercent.set(settings.loyalty_percent ?? null);
     this.coupons.set(parseCoupons(settings.coupons));
     this.emailAlerts.set(new Set(settings.email_alerts ?? []));
+    this.messages.set({ ...defaultMessages(), ...(settings.message_templates ?? {}) } as Record<MessageKey, string>);
     this.accountEmail.set(settings.email);
     this.timezonePicks.set(timezoneOptions(settings.timezone || 'America/Mexico_City'));
     this.form.setValue({
@@ -619,6 +689,10 @@ export class SettingsPageComponent {
     this.bookingUrl.set(settings.slug ? `${location.origin}/${settings.slug}/book` : null);
     this.privacyUrl.set(settings.slug ? `${location.origin}/${settings.slug}/privacidad` : null);
   }
+}
+
+function defaultMessages(): Record<MessageKey, string> {
+  return Object.fromEntries(MESSAGE_TEMPLATES.map((item) => [item.key, item.text])) as Record<MessageKey, string>;
 }
 
 function presetLabel(field: PresetField, value: number | null | undefined, unit: string): string {

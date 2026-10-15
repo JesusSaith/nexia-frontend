@@ -9,6 +9,8 @@ import { catchError, map, switchMap } from 'rxjs/operators';
 
 import { Appointment, AvailabilitySlot } from '@core/models/appointment.model';
 import { SchedulesService } from '@core/services/schedules.service';
+import { BusinessCopy } from '@core/business-copy';
+import { firstName, longDay, whatsappLink } from '@core/message-templates';
 import { ReadinessStep, SettingsService } from '@core/services/settings.service';
 import { Confirm } from '@shared/components/confirm/confirm';
 import { DashboardStats } from '@core/models/dashboard.model';
@@ -32,6 +34,7 @@ export class HomePageComponent {
   private readonly dashboardApi = inject(DashboardService);
   private readonly appointmentsApi = inject(AppointmentsService);
   private readonly auth = inject(AuthService);
+  private readonly copy = inject(BusinessCopy);
   private readonly bookingApi = inject(BookingService);
   private readonly staffApi = inject(StaffService);
   private readonly servicesApi = inject(ServicesService);
@@ -289,12 +292,11 @@ export class HomePageComponent {
   }
 
   protected birthdayWhatsapp(client: { full_name: string; phone: string }): string {
-    const phone = client.phone.replace(/\D/g, '');
-    const shop = this.auth.currentUser()?.businessName ?? '';
-    const text = encodeURIComponent(
-      `¡Feliz cumpleaños, ${client.full_name.split(' ')[0]}! 🎉 Todo el equipo${shop ? ` de ${shop}` : ''} te desea un día increíble. ¡Te esperamos pronto para consentirte!`,
-    );
-    return `https://wa.me/${phone}?text=${text}`;
+    return whatsappLink(client.phone, this.copy.message('birthday', { nombre: firstName(client.full_name), negocio: this.shopName() }));
+  }
+
+  private shopName(): string {
+    return this.auth.currentUser()?.businessName ?? '';
   }
 
   protected offer(slot: string, staff: string): void {
@@ -302,11 +304,8 @@ export class HomePageComponent {
     if (!client) {
       return;
     }
-    const phone = client.phone.replace(/\D/g, '');
-    const text = encodeURIComponent(
-      `Hola ${client.full_name}, mañana tenemos lugar a las ${this.timeFormat.format(parseLocal(slot))} con ${staff}. ¿Lo apartamos?`,
-    );
-    window.open(`https://wa.me/${phone}?text=${text}`, '_blank', 'noopener');
+    const text = this.copy.message('opening', { nombre: firstName(client.full_name), hora: this.timeFormat.format(parseLocal(slot)), equipo: staff });
+    window.open(whatsappLink(client.phone, text), '_blank', 'noopener');
   }
 
   /**
@@ -331,27 +330,19 @@ export class HomePageComponent {
   }
 
   protected remind(item: Appointment, when: 'hoy' | 'mañana' = 'mañana'): string {
-    const phone = (item.client_phone ?? '').replace(/\D/g, '');
     const slug = this.auth.currentUser()?.slug ?? '';
-    const shop = this.auth.currentUser()?.businessName ?? '';
     const start = parseLocal(item.starts_at);
-    const lines = [
-      `Hola ${item.client_name.split(' ')[0]} 👋 Te recordamos tu cita de ${when}${shop ? ` en ${shop}` : ''}:`,
-      '',
-      `📋 ${item.service_name}`,
-      `📅 ${new Intl.DateTimeFormat('es-MX', { weekday: 'long', day: 'numeric', month: 'long' }).format(start)}`,
-      `🕐 ${this.timeFormat.format(start)}`,
-      `💁 Con ${item.staff_name}`,
-    ];
-    if (item.cancel_token && slug) {
-      lines.push(
-        '',
-        `Por favor confírmanos tu asistencia aquí. Si ya no puedes, ahí mismo la cambias o la cancelas para darle el lugar a alguien más:`,
-        `${location.origin}/${slug}/manage/${item.cancel_token}`,
-      );
-    }
-    lines.push('', '¡Te esperamos!');
-    return `https://wa.me/${phone}?text=${encodeURIComponent(lines.join('\n'))}`;
+    const text = this.copy.message('reminder', {
+      nombre: firstName(item.client_name),
+      cuando: when,
+      negocio: this.shopName(),
+      servicio: item.service_name,
+      dia: longDay(item.starts_at),
+      hora: this.timeFormat.format(start),
+      equipo: item.staff_name,
+      enlace: item.cancel_token && slug ? `${location.origin}/${slug}/manage/${item.cancel_token}` : '',
+    });
+    return whatsappLink(item.client_phone, text);
   }
 
   protected noticeText(message: string): string {
@@ -372,14 +363,18 @@ export class HomePageComponent {
     return message.startsWith('Horario libre') ? [...message.matchAll(/\d{8,}/g)].map((match) => match[0]) : [];
   }
 
+  /** El aviso dice "Horario libre 10:00. Avisar a Ana López 5511…, … Quedó libre el 16 oct a las 10:00". */
   protected waitWhatsapp(message: string, phone: string): string {
-    const time = message.match(/\d{2}:\d{2}/)?.[0] ?? '';
     const slug = this.auth.currentUser()?.slug ?? '';
-    const link = slug ? `\n\n${this.bookingApi.shareUrl(slug)}` : '';
-    const text = encodeURIComponent(
-      `¡Hola! 👋 Te escribimos porque estabas en lista de espera: se liberó un horario${time ? ` a las ${time}` : ''}. Si lo quieres, apártalo aquí antes de que alguien más lo tome:${link}`,
-    );
-    return `https://wa.me/${phone}?text=${text}`;
+    const name = message.match(new RegExp(`(?:Avisar a |, )([^,]+?) ${phone}`))?.[1] ?? '';
+    const text = this.copy.message('waitlist', {
+      nombre: firstName(name),
+      negocio: this.shopName(),
+      dia: message.match(/Quedó libre el (\d+ \w+)/)?.[1] ?? '',
+      hora: message.match(/\d{2}:\d{2}/)?.[0] ?? '',
+      enlace: slug ? this.bookingApi.shareUrl(slug) : '',
+    });
+    return whatsappLink(phone, text);
   }
 
   /** Solo la hora ("11:00 a.m."), para listas que ya dicen de qué día son. */

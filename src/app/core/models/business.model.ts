@@ -28,6 +28,8 @@ export interface BusinessBrand {
   promo_text?: string | null;
   promo_until?: string | null;
   gallery?: string[];
+  /** Solo en /businesses/me: mensajes de WhatsApp que la dueña reescribió. */
+  message_templates?: Record<string, string>;
   /** Lealtad: cada N visitas cobradas, la siguiente lleva X% de descuento. */
   loyalty_every?: number | null;
   loyalty_percent?: number | null;

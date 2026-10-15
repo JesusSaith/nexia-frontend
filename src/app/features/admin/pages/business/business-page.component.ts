@@ -14,6 +14,8 @@ import { BookingService } from '@core/services/booking.service';
 import { DashboardService } from '@core/services/dashboard.service';
 import { StaffService } from '@core/services/staff.service';
 import { Readiness, SettingsService } from '@core/services/settings.service';
+import { BusinessCopy } from '@core/business-copy';
+import { whatsappLink } from '@core/message-templates';
 
 @Component({
   selector: 'app-business-page',
@@ -33,6 +35,7 @@ export class BusinessPageComponent {
   private readonly dashboardApi = inject(DashboardService);
   private readonly staffApi = inject(StaffService);
   private readonly settingsApi = inject(SettingsService);
+  private readonly copy = inject(BusinessCopy);
   private readonly destroyRef = inject(DestroyRef);
   private readonly timeFormat = new Intl.DateTimeFormat('es-MX', { hour: '2-digit', minute: '2-digit' });
 
@@ -140,8 +143,7 @@ export class BusinessPageComponent {
   }
 
   protected whatsappHref(): string {
-    const text = `¡Hola! 👋 Ya puedes reservar tu cita con nosotros en línea: eliges servicio, día y hora en segundos.\n\n${this.shareUrl()}`;
-    return `https://wa.me/?text=${encodeURIComponent(text)}`;
+    return whatsappLink(null, this.copy.message('share_link', { negocio: this.brand()?.name ?? '', enlace: this.shareUrl() }));
   }
 
   protected link(value: string | null | undefined, kind: 'web' | 'instagram' | 'facebook'): string {

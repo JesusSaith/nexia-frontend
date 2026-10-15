@@ -189,6 +189,7 @@ export class AdminLayoutComponent {
           this.brandName.set(brand.name);
           this.copy.setLabel(brand.staff_label);
           this.copy.setLogo(brand.logo_url);
+          this.copy.setTemplates(brand.message_templates);
         });
       interval(20000)
         .pipe(

@@ -80,6 +80,9 @@ En celular hay una barra inferior con **Inicio · Agenda · Clientes · Más**.
 | **Mi negocio** | Enlace para compartir (con vista previa), código QR y estado de preparación del negocio. |
 | **Configuración** | Arriba, si la página está tomando citas (con interruptor) y "Ver mi página". Siete secciones con resumen visible aunque estén cerradas: Tu negocio, Apariencia (logo, color de marca con vista previa, fotos), Reglas de reserva (opciones rápidas), Anticipo y pagos (avisa si falta la CLABE), Promociones, Pausa y vacaciones, Privacidad y datos. Todo se guarda junto, en una sola petición; la barra de guardar solo aparece con cambios y avisa antes de salir sin guardar. |
 
+### Mensajes de WhatsApp
+Los 13 mensajes que la dueña manda desde el panel (recordatorio, cita agendada, cotización, cumpleaños, te extrañamos, lista de espera, compartir enlace…) salen de plantillas en `src/app/core/message-templates.ts`. Se editan en Configuración → Mensajes de WhatsApp con vista previa; el backend guarda solo los que cambian (`message_templates`). `{nombre}` vacío se quita; cualquier otra variable vacía quita su línea. Para un mensaje nuevo: agrégalo a `MESSAGE_TEMPLATES` y a `MESSAGE_KEYS` en `app/core/messages.py`, y ármalo con `copy.message(clave, datos)` + `whatsappLink`.
+
 ### Ciclo de una cita
 ```
 Reserva (clienta o dueña)

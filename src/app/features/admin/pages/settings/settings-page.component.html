@@ -49,7 +49,7 @@
         @for (section of sections; track section.id) {
           <button type="button" class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-ink-soft transition-colors hover:bg-surface hover:text-ink" [class.bg-surface]="isOpen(section.id)" [class.text-ink]="isOpen(section.id)" [class.font-medium]="isOpen(section.id)" (click)="goTo(section.id)">
             <mat-icon class="h-[18px]! w-[18px]! shrink-0 text-[18px]! text-muted">{{ section.icon }}</mat-icon>
-            <span class="flex-1 truncate">{{ section.label }}</span>
+            <span class="flex-1 truncate">{{ section.short ?? section.label }}</span>
             @if (sectionHasError(section.id)) {
               <span class="h-2 w-2 rounded-full bg-[var(--nx-bad-fg)]" aria-label="Tiene errores"></span>
             } @else if (section.id === 'anticipo' && depositWarning()) {
@@ -355,6 +355,62 @@
                 }
               </div>
             </div>
+          </div>
+        </details>
+
+        <!-- Mensajes de WhatsApp -->
+        <details id="sec-mensajes" class="card group scroll-mt-6 p-0!" [open]="isOpen('mensajes')" (toggle)="onToggle('mensajes', $event)">
+          <ng-container *ngTemplateOutlet="head; context: { $implicit: 'mensajes' }" />
+          <div class="flex flex-col gap-3 p-4 sm:p-5">
+            <p class="text-sm text-ink-soft">
+              Así se escriben los mensajes que mandas desde el panel. Las palabras entre llaves, como <code class="rounded bg-canvas px-1">{{ '{' }}nombre{{ '}' }}</code>, se cambian solas por los datos de cada cita. Si un dato falta, su línea no se manda.
+            </p>
+            <ul class="divide-y divide-line rounded-xl border border-line">
+              @for (template of messageTemplates; track template.key) {
+                <li>
+                  <button type="button" class="row-hover flex w-full items-center gap-3 px-4 py-3 text-left" [attr.aria-expanded]="openMessage() === template.key" (click)="toggleMessage(template.key)">
+                    <span class="min-w-0 flex-1">
+                      <span class="block text-sm font-medium text-ink">{{ template.label }}</span>
+                      <span class="field-hint block truncate">{{ template.where }}</span>
+                    </span>
+                    @if (isCustomized(template.key)) {
+                      <span class="badge badge-info shrink-0">Personalizado</span>
+                    }
+                    <mat-icon class="shrink-0 text-muted transition-transform" [class.rotate-180]="openMessage() === template.key" aria-hidden="true">expand_more</mat-icon>
+                  </button>
+                  @if (openMessage() === template.key) {
+                    <div class="grid gap-4 border-t border-line bg-canvas/50 p-4 lg:grid-cols-2">
+                      <div>
+                        <textarea #area class="input min-h-40 text-sm" rows="8" maxlength="1000" [value]="messages()[template.key]" (input)="editMessage(template.key, $any($event.target).value)" [attr.aria-label]="'Texto de ' + template.label"></textarea>
+                        <p class="field-hint mt-2">Toca un dato para ponerlo donde está el cursor:</p>
+                        <div class="mt-1.5 flex flex-wrap gap-1.5">
+                          @for (name of template.vars; track name) {
+                            <button type="button" class="chip h-7! px-2.5! text-xs!" [title]="variableHelp[name]" (click)="insertVariable(template.key, area, name)">{{ '{' + name + '}' }}</button>
+                          }
+                        </div>
+                        <div class="mt-3 flex items-center justify-between gap-3">
+                          <span class="field-hint nums">{{ messages()[template.key].length }}/1000</span>
+                          @if (isCustomized(template.key)) {
+                            <button type="button" class="btn btn-ghost h-8! px-3! text-xs" (click)="resetMessage(template.key)">
+                              <mat-icon>restart_alt</mat-icon>
+                              Volver al de fábrica
+                            </button>
+                          }
+                        </div>
+                      </div>
+                      <div>
+                        <p class="label">Así le llega a tu clienta</p>
+                        <!-- Burbuja tipo WhatsApp con datos de ejemplo. -->
+                        <div class="rounded-xl bg-[#e7ddd3] p-3">
+                          <p class="ml-auto max-w-[92%] whitespace-pre-line rounded-lg rounded-tr-none bg-[#d9fdd3] px-3 py-2 text-sm leading-relaxed text-[#111b21] shadow-sm">{{ preview(template.key) }}</p>
+                        </div>
+                        <p class="field-hint mt-2">Con datos de ejemplo: María, mañana a las 11:00 con Ana.</p>
+                      </div>
+                    </div>
+                  }
+                </li>
+              }
+            </ul>
           </div>
         </details>
 

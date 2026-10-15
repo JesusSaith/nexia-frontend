@@ -68,6 +68,7 @@ export interface BusinessSettings {
   promo_text: string | null;
   promo_until: string | null;
   gallery: string[];
+  message_templates: Record<string, string>;
   hours: BusinessHour[];
 }
 
@@ -106,6 +107,7 @@ export interface ProfileUpdate {
   promo_text?: string | null;
   promo_until?: string | null;
   gallery?: string[];
+  message_templates?: Record<string, string>;
 }
 
 @Injectable({ providedIn: 'root' })
