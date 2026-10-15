@@ -85,6 +85,8 @@ export class ServicesPageComponent {
 
   private readonly formEvents = toSignal(this.form.events, { initialValue: undefined });
 
+  /** Recién registrada: solo están los servicios sugeridos del giro, todos apagados. */
+  protected readonly onlySuggested = computed(() => this.services().length > 0 && this.services().every((row) => !row.is_active));
   protected readonly categories = computed(() =>
     [...this.catalog()].sort((a, b) => a.localeCompare(b, 'es')),
   );

@@ -61,6 +61,12 @@
         </div>
       </div>
     }
+    @if (onlySuggested()) {
+      <p class="badge-info mb-3 flex items-start gap-2 rounded-xl px-3 py-2.5 text-sm">
+        <mat-icon class="h-5! w-5! shrink-0 text-[20px]!" aria-hidden="true">lightbulb</mat-icon>
+        <span>Te dejamos servicios típicos de tu giro. Ajusta precio y duración, activa los que ofreces y borra los que no. Mientras estén inactivos, tus clientas no los ven.</span>
+      </p>
+    }
     @if (visible().length === 0) {
       <div class="empty">
         <mat-icon>category</mat-icon>
@@ -68,13 +74,20 @@
         <button class="btn btn-secondary" type="button" (click)="openCreate(categoryFilter())">Agregar servicio</button>
       </div>
     } @else {
-      <ul class="card divide-y divide-line px-0! py-0!">
+      <ul class="card divide-y divide-line overflow-hidden px-0! py-0!">
+        <li class="card-head bg-canvas px-4 py-3 sm:px-5">
+          <span class="sec-icon"><mat-icon>content_cut</mat-icon></span>
+          <div>
+            <h2 class="card-title">{{ categoryFilter() || 'Todos los servicios' }}</h2>
+            <p class="text-sm text-muted"><span class="nums">{{ visible().length }}</span> {{ visible().length === 1 ? 'servicio' : 'servicios' }}</p>
+          </div>
+        </li>
         @for (row of visible(); track row.id) {
-          <li class="flex items-center gap-3 px-4 py-3 sm:px-5" [class.opacity-60]="!row.is_active">
+          <li class="row-hover flex items-center gap-3 px-4 py-3 sm:px-5" [class.opacity-60]="!row.is_active">
             @if (row.image_url) {
               <img class="h-12 w-12 shrink-0 rounded-lg object-cover" [src]="row.image_url" [alt]="row.name" />
             } @else {
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-canvas text-base font-semibold text-ink-soft" aria-hidden="true">{{ row.name.slice(0, 1) }}</div>
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-base font-semibold text-accent" aria-hidden="true">{{ row.name.slice(0, 1) }}</div>
             }
             <div class="min-w-0 flex-1">
               <div class="flex items-center gap-2">

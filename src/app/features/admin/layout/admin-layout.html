@@ -1,104 +1,119 @@
 <mat-sidenav-container class="h-dvh">
-  <mat-sidenav mode="over" [opened]="sidebarOpen()" (closedStart)="closeSidebar()" class="w-64">
-    <div class="flex h-16 items-center gap-2 px-4">
-      <img src="/nexia-mark.png" alt="Nexia" class="h-10 w-10 object-contain" />
-    </div>
-    <mat-nav-list>
-      @for (link of links(); track link.path) {
-        <a
-          mat-list-item
-          [routerLink]="link.path"
-          routerLinkActive
-          #drawerSection="routerLinkActive"
-          [activated]="drawerSection.isActive"
-          [routerLinkActiveOptions]="{ exact: link.exact }"
-          (click)="onNavigate()"
-        >
-          <mat-icon matListItemIcon>{{ link.icon }}</mat-icon>
-          <span matListItemTitle>
-            {{ link.label }}
-            @if (link.path === '/admin/home' && unread() > 0) {
-              ({{ unread() }})
-            }
+  <!-- Escritorio: menú fijo. Celular: el mismo menú se abre como cajón desde "Más". -->
+  <mat-sidenav
+    [mode]="isHandset() ? 'over' : 'side'"
+    [opened]="isHandset() ? sidebarOpen() : true"
+    [disableClose]="!isHandset()"
+    (closedStart)="closeSidebar()"
+    class="w-60"
+  >
+    <nav class="nx-rail" aria-label="Secciones">
+      <div class="flex items-center gap-3 px-4 pb-2 pt-5">
+        @if (headerLogo(); as logo) {
+          <img [src]="logo" [alt]="brandName() || businessName()" class="h-10 w-10 shrink-0 rounded-xl bg-white object-contain" (error)="clearLogo()" />
+        } @else {
+          <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-base font-semibold text-white" style="background: var(--primary)">
+            {{ (brandName() || businessName() || 'N').slice(0, 1) }}
           </span>
-        </a>
-      }
-    </mat-nav-list>
-  </mat-sidenav>
-
-  <mat-sidenav-content>
-    <header class="border-b border-[var(--border-subtle)] bg-surface">
-      <div class="mx-auto flex h-16 max-w-7xl items-center gap-2 px-3 md:grid md:grid-cols-[1fr_auto_1fr] md:gap-4 md:px-8">
-        <div class="flex shrink-0 items-center gap-1">
-          @if (isHandset()) {
-            <button mat-icon-button type="button" aria-label="Abrir menú" (click)="toggleSidebar()">
-              <mat-icon>menu</mat-icon>
-            </button>
-          }
-          <img src="/nexia-mark.png" alt="Nexia" class="h-9 w-9 object-contain md:h-11 md:w-11" />
-        </div>
-        <div class="flex min-w-0 flex-1 items-center gap-2 md:flex-none md:gap-3">
-          @if (headerLogo(); as logo) {
-            <img [src]="logo" [alt]="brandName() || businessName()" class="h-9 w-9 shrink-0 rounded-xl object-contain md:h-11 md:w-11" (error)="clearLogo()" />
-          }
-          <span class="truncate text-base font-semibold md:text-xl">{{ brandName() || businessName() }}</span>
-        </div>
-        <div class="flex items-center gap-1 justify-self-end">
-          <button mat-icon-button type="button" [matMenuTriggerFor]="themeMenu" [attr.aria-label]="'Tema: ' + (isDark() ? 'oscuro' : 'claro')" title="Tema">
-            <mat-icon>{{ isDark() ? 'dark_mode' : 'light_mode' }}</mat-icon>
-          </button>
-          <mat-menu #themeMenu="matMenu">
-            @for (option of themeOptions; track option.value) {
-              <button mat-menu-item type="button" (click)="setThemeMode(option.value)" [attr.aria-checked]="themeMode() === option.value" role="menuitemradio">
-                <mat-icon>{{ option.icon }}</mat-icon>
-                <span>{{ option.label }}</span>
-                @if (themeMode() === option.value) {
-                  <mat-icon class="ml-2 !mr-0">check</mat-icon>
-                }
-              </button>
-            }
-          </mat-menu>
-          <button class="btn btn-ghost" type="button" [matMenuTriggerFor]="userMenu">
-            <mat-icon>account_circle</mat-icon>
-            <span class="ml-1 hidden sm:inline">{{ currentUser()?.fullName }}</span>
-          </button>
-          <mat-menu #userMenu="matMenu">
-            <button mat-menu-item type="button" disabled>
-              <mat-icon>badge</mat-icon>
-              <span>{{ roleLabel() }}</span>
-            </button>
-            <button mat-menu-item type="button" (click)="logout()" [disabled]="loggingOut()">
-              <mat-icon>logout</mat-icon>
-              <span>{{ loggingOut() ? 'Cerrando…' : 'Cerrar sesión' }}</span>
-            </button>
-          </mat-menu>
+        }
+        <div class="min-w-0">
+          <p class="truncate text-sm font-semibold text-[var(--nx-rail-ink)]">{{ brandName() || businessName() }}</p>
+          <p class="text-[11px] text-[var(--nx-rail-soft)]">Panel de Nexia</p>
         </div>
       </div>
-      @if (!isHandset()) {
-        <nav class="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4 pb-1 md:px-8" aria-label="Secciones">
-          @for (link of links(); track link.path) {
+
+      <div class="flex-1 overflow-y-auto px-3 pb-4">
+        @for (group of linkGroups(); track group.title) {
+          @if (group.title) {
+            <p class="nx-rail-group">{{ group.title }}</p>
+          } @else {
+            <div class="h-3"></div>
+          }
+          @for (link of group.links; track link.path) {
             <a
-              class="nx-tab shrink-0"
+              class="nx-rail-link"
               [routerLink]="link.path"
-              routerLinkActive="nx-tab-on"
+              routerLinkActive="nx-rail-on"
               [routerLinkActiveOptions]="{ exact: link.exact }"
+              (click)="onNavigate()"
             >
               <mat-icon>{{ link.icon }}</mat-icon>
-              {{ link.label }}
+              <span class="flex-1 truncate">{{ link.label }}</span>
               @if (link.path === '/admin/home' && unread() > 0) {
-                <span class="ml-1 rounded-full bg-accent px-1.5 text-[10px] leading-4 text-white">{{ unread() }}</span>
+                <span class="rounded-full px-1.5 text-[10px] font-semibold leading-4 text-white" style="background: var(--primary)">{{ unread() }}</span>
               }
             </a>
           }
-        </nav>
-      }
-    </header>
+        }
+      </div>
+
+      <div class="nx-rail-foot">
+        <button type="button" class="nx-rail-btn" [matMenuTriggerFor]="themeMenu" [attr.aria-label]="'Tema: ' + (isDark() ? 'oscuro' : 'claro')">
+          <mat-icon>{{ isDark() ? 'dark_mode' : 'light_mode' }}</mat-icon>
+          <span class="flex-1">Tema</span>
+          <span class="text-xs">{{ isDark() ? 'Oscuro' : 'Claro' }}</span>
+        </button>
+        <button type="button" class="nx-rail-btn" [matMenuTriggerFor]="userMenu">
+          <span class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[var(--nx-rail-hover)] text-xs font-semibold text-[var(--nx-rail-ink)]">
+            {{ (currentUser()?.fullName || '?').slice(0, 1) }}
+          </span>
+          <span class="min-w-0 flex-1">
+            <span class="block truncate text-sm text-[var(--nx-rail-ink)]">{{ currentUser()?.fullName }}</span>
+            <span class="block text-[11px]">{{ roleLabel() }}</span>
+          </span>
+          <mat-icon>unfold_more</mat-icon>
+        </button>
+      </div>
+    </nav>
+  </mat-sidenav>
+
+  <mat-menu #themeMenu="matMenu">
+    @for (option of themeOptions; track option.value) {
+      <button mat-menu-item type="button" (click)="setThemeMode(option.value)" [attr.aria-checked]="themeMode() === option.value" role="menuitemradio">
+        <mat-icon>{{ option.icon }}</mat-icon>
+        <span>{{ option.label }}</span>
+        @if (themeMode() === option.value) {
+          <mat-icon class="ml-2 !mr-0">check</mat-icon>
+        }
+      </button>
+    }
+  </mat-menu>
+  <mat-menu #userMenu="matMenu">
+    <button mat-menu-item type="button" disabled>
+      <mat-icon>badge</mat-icon>
+      <span>{{ roleLabel() }}</span>
+    </button>
+    <button mat-menu-item type="button" (click)="logout()" [disabled]="loggingOut()">
+      <mat-icon>logout</mat-icon>
+      <span>{{ loggingOut() ? 'Cerrando…' : 'Cerrar sesión' }}</span>
+    </button>
+  </mat-menu>
+
+  <mat-sidenav-content>
+    <!-- Celular: barra superior con el negocio; en escritorio todo eso vive en el menú lateral. -->
+    @if (isHandset()) {
+      <header class="sticky top-0 z-20 border-b border-[var(--nx-rail-line)] bg-[var(--nx-rail-bg)] text-[var(--nx-rail-ink)]">
+        <div class="flex h-14 items-center gap-3 px-4">
+          @if (headerLogo(); as logo) {
+            <img [src]="logo" [alt]="brandName() || businessName()" class="h-8 w-8 shrink-0 rounded-lg bg-white object-contain" (error)="clearLogo()" />
+          } @else {
+            <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-sm font-semibold text-white" style="background: var(--primary)">
+              {{ (brandName() || businessName() || 'N').slice(0, 1) }}
+            </span>
+          }
+          <span class="min-w-0 flex-1 truncate text-base font-semibold">{{ brandName() || businessName() }}</span>
+          <button type="button" class="grid h-9 w-9 place-items-center rounded-full text-[var(--nx-rail-soft)]" [matMenuTriggerFor]="userMenu" aria-label="Cuenta">
+            <mat-icon>account_circle</mat-icon>
+          </button>
+        </div>
+      </header>
+    }
 
     @if (logoutError(); as message) {
       <p role="alert" class="badge-bad px-4 py-2 text-sm">{{ message }}</p>
     }
 
-    <main class="admin-main mx-auto w-full max-w-7xl px-3 pb-24 pt-5 md:px-10 md:py-9">
+    <main class="admin-main mx-auto w-full max-w-6xl px-3 pb-24 pt-5 md:px-8 md:py-8 lg:px-10">
       <router-outlet />
     </main>
     <!-- Celular: lo más usado a un toque; el resto sigue en el menú. -->

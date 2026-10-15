@@ -17,22 +17,22 @@
   } @else {
     <form class="flex flex-col gap-3" [formGroup]="form" (ngSubmit)="save()">
       <p class="text-sm text-ink-soft">{{ profile()?.role_title }}</p>
-      <label class="rounded-xl border border-line bg-white px-3 py-2">
+      <label class="rounded-xl border border-line bg-surface px-3 py-2">
         <span class="block text-xs text-muted">Nombre</span>
         <input class="w-full bg-transparent text-sm outline-none" formControlName="full_name" />
       </label>
       @if (nameError()) {
         <p class="text-sm text-red-700">{{ nameError() }}</p>
       }
-      <label class="rounded-xl border border-line bg-white px-3 py-2">
+      <label class="rounded-xl border border-line bg-surface px-3 py-2">
         <span class="block text-xs text-muted">Teléfono</span>
         <input class="w-full bg-transparent text-sm outline-none" type="tel" formControlName="phone" />
       </label>
-      <label class="rounded-xl border border-line bg-white px-3 py-2">
+      <label class="rounded-xl border border-line bg-surface px-3 py-2">
         <span class="block text-xs text-muted">Foto</span>
         <input class="w-full bg-transparent text-sm outline-none" formControlName="avatar_url" placeholder="https://" />
       </label>
-      <label class="rounded-xl border border-line bg-white px-3 py-2">
+      <label class="rounded-xl border border-line bg-surface px-3 py-2">
         <span class="block text-xs text-muted">Biografía</span>
         <textarea class="w-full bg-transparent text-sm outline-none" rows="4" formControlName="bio"></textarea>
       </label>

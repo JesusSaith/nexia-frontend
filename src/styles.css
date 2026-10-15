@@ -26,7 +26,8 @@
 
 :root {
   --primary: var(--business-primary, #e11d48);
-  --bg-app: #f3f1ee;
+  /* Lienzo con más tono que las tarjetas blancas, para que no se lea todo como un solo blanco. */
+  --bg-app: #ece8e2;
   --surface-card: #ffffff;
   --border-subtle: #e6e2dc;
   --ink: #161616;
@@ -47,6 +48,13 @@
   --nx-bad-fg: #b42318;
   --nx-info-bg: #eff8ff;
   --nx-info-fg: #175cd3;
+  /* Menú lateral oscuro del panel (igual en claro y oscuro, solo cambia el tono). */
+  --nx-rail-bg: #1f1c1b;
+  --nx-rail-line: #2f2b29;
+  --nx-rail-ink: #f3efeb;
+  --nx-rail-soft: #b9b0a9;
+  --nx-rail-hover: #2b2725;
+  --nx-card-shadow: 0 1px 2px rgb(28 26 25 / 0.05), 0 2px 6px rgb(28 26 25 / 0.04);
 }
 
 /*
@@ -85,6 +93,10 @@
   --nx-bad-fg: #fca5a5;
   --nx-info-bg: rgb(59 130 246 / 0.15);
   --nx-info-fg: #93c5fd;
+  --nx-rail-bg: #0d0c0b;
+  --nx-rail-line: #262321;
+  --nx-rail-hover: #1d1b1a;
+  --nx-card-shadow: none;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -115,6 +127,10 @@
     --nx-bad-fg: #fca5a5;
     --nx-info-bg: rgb(59 130 246 / 0.15);
     --nx-info-fg: #93c5fd;
+    --nx-rail-bg: #0d0c0b;
+    --nx-rail-line: #262321;
+    --nx-rail-hover: #1d1b1a;
+    --nx-card-shadow: none;
   }
 }
 
@@ -145,8 +161,22 @@ body {
 .page-head h1 { font-size: 1.5rem; line-height: 2rem; font-weight: 600; letter-spacing: -0.015em; color: var(--color-ink); }
 .page-head p { margin-top: 0.125rem; font-size: 0.875rem; color: var(--color-muted); }
 
-.card { background: var(--color-surface); border: 1px solid var(--color-line); border-radius: var(--radius-2xl); padding: 1.25rem; }
-.card-title { font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; color: var(--color-muted); }
+.card { background: var(--color-surface); border: 1px solid var(--color-line); border-radius: var(--radius-2xl); padding: 1.25rem; box-shadow: var(--nx-card-shadow); }
+.card-title { font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; color: var(--color-ink-soft); }
+/* Rayita del color de la marca antes de cada título de tarjeta: guía la vista entre tantas tarjetas. */
+.card-title::before { content: ''; display: inline-block; width: 3px; height: 0.85em; margin-right: 0.5rem; border-radius: 2px; background: var(--primary); vertical-align: -0.05em; }
+/* Encabezado de tarjeta con ícono: <div class="card-head"><span class="sec-icon"><mat-icon>…</mat-icon></span><div>título + ayuda</div></div> */
+.card-head { display: flex; align-items: center; gap: 0.75rem; }
+.card-head .card-title::before { display: none; }
+.sec-icon { display: grid; place-items: center; flex-shrink: 0; width: 2.25rem; height: 2.25rem; border-radius: 0.625rem; background: var(--color-accent-soft); color: var(--color-accent); }
+.sec-icon .mat-icon { width: 20px; height: 20px; font-size: 20px; }
+/* Iniciales de personas (clientas, equipo) con el tono de la marca en vez de gris. */
+.avatar { display: grid; place-items: center; flex-shrink: 0; width: 2.25rem; height: 2.25rem; border-radius: 999px; background: var(--color-accent-soft); color: var(--color-accent); font-size: 0.75rem; font-weight: 600; }
+/* Filas de lista dentro de una tarjeta: hover suave para que se note qué se puede tocar. */
+.row-hover { transition: background-color .15s; }
+.row-hover:hover { background: color-mix(in srgb, var(--primary) 4%, var(--color-surface)); }
+/* Tarjeta destacada (un aviso, un total): fondo con el tono de la marca. */
+.card-tint { background: color-mix(in srgb, var(--primary) 6%, var(--color-surface)); border-color: color-mix(in srgb, var(--primary) 18%, var(--color-line)); }
 
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; height: 2.5rem; padding: 0 1rem; border-radius: var(--radius-lg); font-size: 0.875rem; font-weight: 500; border: 1px solid transparent; transition: background-color .15s, border-color .15s; white-space: nowrap; }
 .btn:disabled { opacity: .5; pointer-events: none; }
@@ -170,6 +200,64 @@ body {
 .empty p { max-width: 22rem; font-size: 0.875rem; color: var(--color-ink-soft); }
 .empty .btn { margin-top: 0.5rem; }
 .badge-neutral { background: var(--color-canvas); color: var(--color-ink-soft); }
+
+/* Tarjeta de número (Inicio, Clientes): ícono de color + cifra + etiqueta. */
+.stat { display: flex; align-items: center; gap: 0.875rem; background: var(--color-surface); border: 1px solid var(--color-line); border-radius: var(--radius-2xl); padding: 1rem; box-shadow: var(--nx-card-shadow); transition: border-color .15s; }
+a.stat:hover { border-color: var(--color-line-strong); }
+.stat-icon { display: grid; place-items: center; flex-shrink: 0; width: 2.5rem; height: 2.5rem; border-radius: 0.75rem; }
+.stat-icon .mat-icon { width: 20px; height: 20px; font-size: 20px; }
+.stat-value { font-size: 1.5rem; line-height: 1.75rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--color-ink); }
+.stat-label { font-size: 0.75rem; color: var(--color-muted); }
+.stat-accent { background: var(--color-accent-soft); color: var(--color-accent); }
+.stat-ok { background: var(--nx-ok-bg); color: var(--nx-ok-fg); }
+.stat-warn { background: var(--nx-warn-bg); color: var(--nx-warn-fg); }
+.stat-bad { background: var(--nx-bad-bg); color: var(--nx-bad-fg); }
+.stat-info { background: var(--nx-info-bg); color: var(--nx-info-fg); }
+@media (max-width: 639px) {
+  .stat { flex-direction: column; align-items: flex-start; gap: 0.5rem; padding: 0.75rem; }
+  .stat-icon { width: 2rem; height: 2rem; border-radius: 0.625rem; }
+  .stat-icon .mat-icon { width: 18px; height: 18px; font-size: 18px; }
+  .stat-value { font-size: 1.25rem; line-height: 1.5rem; }
+}
+
+/* Menú lateral oscuro del panel. */
+.nx-rail { display: flex; height: 100%; flex-direction: column; background: var(--nx-rail-bg); color: var(--nx-rail-ink); }
+.nx-rail-group { padding: 0 0.75rem; margin-top: 1.25rem; font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--nx-rail-soft); opacity: 0.75; }
+.nx-rail-link { position: relative; display: flex; align-items: center; gap: 0.75rem; height: 2.5rem; padding: 0 0.75rem; margin-top: 0.125rem; border-radius: 0.625rem; font-size: 0.875rem; color: var(--nx-rail-soft); text-decoration: none; transition: background-color .15s, color .15s; }
+.nx-rail-link .mat-icon { width: 20px; height: 20px; font-size: 20px; }
+.nx-rail-link:hover { background: var(--nx-rail-hover); color: var(--nx-rail-ink); }
+.nx-rail-on, .nx-rail-on:hover { background: color-mix(in srgb, var(--primary) 22%, var(--nx-rail-bg)); color: #fff; font-weight: 600; }
+.nx-rail-on::before { content: ''; position: absolute; left: -0.75rem; top: 0.5rem; bottom: 0.5rem; width: 3px; border-radius: 0 3px 3px 0; background: var(--primary); }
+.nx-rail-on .mat-icon { color: color-mix(in srgb, var(--primary) 55%, #fff); }
+.nx-rail-foot { border-top: 1px solid var(--nx-rail-line); padding: 0.75rem; }
+.nx-rail-btn { display: flex; width: 100%; align-items: center; gap: 0.75rem; height: 2.5rem; padding: 0 0.75rem; border-radius: 0.625rem; font-size: 0.875rem; color: var(--nx-rail-soft); text-align: left; }
+.nx-rail-btn:hover { background: var(--nx-rail-hover); color: var(--nx-rail-ink); }
+.nx-rail-btn .mat-icon { width: 20px; height: 20px; font-size: 20px; flex-shrink: 0; }
+
+/* Campo de formulario del panel: <label class="block"><span class="label">…</span><input class="input" /></label> */
+.label { display: block; margin-bottom: 0.25rem; font-size: 0.8125rem; font-weight: 500; color: var(--color-ink-soft); }
+.input { display: block; width: 100%; height: 2.5rem; padding: 0 0.75rem; border: 1px solid var(--color-line-strong); border-radius: var(--radius-lg); background: var(--color-surface); font-size: 0.875rem; color: var(--color-ink); outline: none; transition: border-color .15s, box-shadow .15s; }
+textarea.input { height: auto; padding: 0.5rem 0.75rem; line-height: 1.4; }
+.input:focus { border-color: var(--color-accent); box-shadow: 0 0 0 3px var(--color-accent-soft); }
+.input.ng-invalid.ng-touched, .input-invalid { border-color: var(--nx-bad-fg); }
+/* Opciones rápidas (chips) para elegir un valor común a un toque. */
+.chip { display: inline-flex; align-items: center; height: 2rem; padding: 0 0.75rem; border: 1px solid var(--color-line-strong); border-radius: 999px; background: var(--color-surface); font-size: 0.8125rem; color: var(--color-ink-soft); transition: background-color .15s, border-color .15s, color .15s; }
+.chip:hover { border-color: var(--color-accent); color: var(--color-ink); }
+.chip-on, .chip-on:hover { border-color: var(--color-accent); background: var(--color-accent-soft); color: var(--color-accent); font-weight: 600; }
+/* Interruptor: <button role="switch" class="switch" [attr.aria-checked]="on"><span></span></button> */
+.switch { position: relative; flex-shrink: 0; width: 2.75rem; height: 1.5rem; border-radius: 999px; background: var(--color-line-strong); transition: background-color .15s; }
+.switch > span { position: absolute; top: 0.125rem; left: 0.125rem; width: 1.25rem; height: 1.25rem; border-radius: 999px; background: #fff; box-shadow: 0 1px 2px rgb(0 0 0 / 0.2); transition: transform .15s; }
+.switch[aria-checked='true'] { background: var(--color-accent); }
+.switch[aria-checked='true'] > span { transform: translateX(1.25rem); }
+
+/* Campo con la etiqueta dentro del borde (login y registro). */
+.field { display: block; border: 1px solid var(--color-line); border-radius: var(--radius-xl); background: var(--color-surface); padding: 0.5rem 0.75rem; transition: border-color .15s, box-shadow .15s; }
+.field:focus-within { border-color: var(--color-accent); box-shadow: 0 0 0 3px var(--color-accent-soft); }
+.field-invalid, .field-invalid:focus-within { border-color: var(--nx-bad-fg); }
+.field-label { display: block; font-size: 0.75rem; color: var(--color-muted); }
+.field-input { width: 100%; background: transparent; font-size: 0.875rem; line-height: 1.25rem; outline: none; }
+.field-hint { font-size: 0.8125rem; color: var(--color-muted); }
+.field-error { font-size: 0.8125rem; color: var(--nx-bad-fg); }
 }
 
 .mat-drawer,
@@ -181,6 +269,13 @@ body {
 .mat-sidenav-content,
 .mat-toolbar {
   background: var(--nx-body-bg);
+}
+
+/* "bg-ink text-white" (pestaña o día elegido): en oscuro bg-ink es claro, así que el texto toma el color
+ * de superficie; en claro sigue siendo blanco. */
+.bg-ink.text-white,
+.bg-ink .text-white {
+  color: var(--color-surface);
 }
 
 /* Fondos blancos fijos dentro del panel: en claro siguen siendo #fff, en oscuro pasan a superficie.
@@ -203,6 +298,10 @@ body {
 .cdk-overlay-container {
   --mat-sidenav-container-background-color: var(--color-surface);
   --mat-sidenav-content-background-color: var(--nx-body-bg);
+  /* Menú lateral: ancho fijo y sin esquina redondeada (Material trae 360px y 16px). */
+  --mat-sidenav-container-width: 15rem;
+  --mat-sidenav-container-shape: 0;
+  --mat-sidenav-container-elevation-shadow: none;
   --mat-menu-container-color: var(--color-surface);
   --mat-menu-item-label-text-color: var(--color-ink);
   --mat-menu-item-icon-color: var(--color-ink-soft);
@@ -267,8 +366,8 @@ button.nx-tab {
 }
 
 .mat-sidenav {
-  background: var(--color-surface);
-  border-right: 1px solid var(--border-subtle);
+  background: var(--nx-rail-bg);
+  border-right: 1px solid var(--nx-rail-line);
 }
 
 .mat-mdc-nav-list {

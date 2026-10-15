@@ -23,6 +23,8 @@ interface AdminNavLink {
   path: string;
   exact: boolean;
   icon: string;
+  /** Título del bloque en el menú lateral; los enlaces sin grupo van arriba, sin título. */
+  group?: string;
 }
 
 type ThemeMode = 'light' | 'dark' | 'system';
@@ -48,12 +50,12 @@ const MANAGER_LINKS: readonly AdminNavLink[] = [
   { label: 'Agenda', path: '/admin/agenda', exact: true, icon: 'calendar_month' },
   { label: 'Clientes', path: '/admin/clientes', exact: false, icon: 'person' },
   { label: 'Reportes', path: '/admin/dashboard', exact: true, icon: 'space_dashboard' },
-  { label: 'Servicios', path: '/admin/services', exact: false, icon: 'category' },
-  { label: 'Equipo', path: '/admin/staff', exact: false, icon: 'groups' },
-  { label: 'Horarios', path: '/admin/schedules', exact: false, icon: 'schedule' },
-  { label: 'Mi negocio', path: '/admin/negocio', exact: true, icon: 'storefront' },
+  { label: 'Servicios', path: '/admin/services', exact: false, icon: 'category', group: 'Tu negocio' },
+  { label: 'Equipo', path: '/admin/staff', exact: false, icon: 'groups', group: 'Tu negocio' },
+  { label: 'Horarios', path: '/admin/schedules', exact: false, icon: 'schedule', group: 'Tu negocio' },
+  { label: 'Mi negocio', path: '/admin/negocio', exact: true, icon: 'storefront', group: 'Tu negocio' },
   // FUTURE_PHASE_INVENTORY: { label: 'Inventario', path: '/admin/caja', exact: true, icon: 'inventory_2' },
-  { label: 'Configuración', path: '/admin/settings', exact: true, icon: 'tune' },
+  { label: 'Configuración', path: '/admin/settings', exact: true, icon: 'tune', group: 'Tu negocio' },
 ];
 
 const STAFF_LINKS: readonly AdminNavLink[] = [
@@ -122,6 +124,21 @@ export class AdminLayoutComponent {
     }
     const clients = this.copy.text().clients;
     return MANAGER_LINKS.map((link) => (link.path === '/admin/clientes' ? { ...link, label: clients } : link));
+  });
+
+  /** Los enlaces en bloques para el menú lateral: [{ title, links }]. */
+  protected readonly linkGroups = computed(() => {
+    const groups: { title: string; links: AdminNavLink[] }[] = [];
+    for (const link of this.links()) {
+      const title = link.group ?? '';
+      const last = groups.at(-1);
+      if (last && last.title === title) {
+        last.links.push(link);
+      } else {
+        groups.push({ title, links: [link] });
+      }
+    }
+    return groups;
   });
 
   protected readonly currentUser = this.authService.currentUser;

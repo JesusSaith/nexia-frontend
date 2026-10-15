@@ -1,7 +1,7 @@
 <section>
   @if (previewUrl(); as src) {
     <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" (click)="previewUrl.set(null)">
-      <div class="flex max-h-[92vh] w-full max-w-5xl flex-col gap-3 rounded-2xl bg-white p-4" (click)="$event.stopPropagation()">
+      <div class="flex max-h-[92vh] w-full max-w-5xl flex-col gap-3 rounded-2xl bg-surface p-4" (click)="$event.stopPropagation()">
         <img [src]="src" alt="Vista previa del mes" class="max-h-[74vh] w-full object-contain" />
         <div class="flex justify-end gap-2">
           <button type="button" class="h-10 rounded-full px-4 text-sm" (click)="previewUrl.set(null)">Cerrar</button>
@@ -12,7 +12,7 @@
     </div>
   }
   @if (focus(); as kind) {
-    <p class="card mb-4 flex items-center justify-between gap-3 py-3! text-sm">
+    <p class="card card-tint mb-4 flex items-center justify-between gap-3 py-3! text-sm">
       <span>{{ kind === 'missed' ? 'Citas que no se hicieron en este periodo.' : 'Anticipos por cobrar en este periodo.' }}</span>
       <button type="button" class="text-xs text-accent" (click)="focus.set(null)">Ver todas</button>
     </p>
@@ -81,7 +81,7 @@
       <label class="text-sm">Hasta
         <app-time-field class="mt-1 block" formControlName="end" />
       </label>
-      <label class="rounded-xl border border-line bg-white px-3 py-2 text-sm">
+      <label class="rounded-xl border border-line bg-surface px-3 py-2 text-sm">
         <span class="block text-xs text-muted">Nota</span>
         <input class="w-full bg-transparent outline-none" formControlName="note" />
       </label>
@@ -99,7 +99,7 @@
   }
 
   @if (reviewNotice(); as ask) {
-    <p class="card mb-3 flex flex-wrap items-center justify-between gap-2 py-3! text-sm">
+    <p class="card card-tint mb-3 flex flex-wrap items-center justify-between gap-2 py-3! text-sm">
       <span>Cobrado ¿Le pides su opinión a {{ ask.name }}?</span>
       <span class="flex gap-3">
         <a class="font-medium text-emerald-700" [href]="ask.href" target="_blank" rel="noopener" (click)="reviewNotice.set(null)">Pedir opinión por WhatsApp</a>
@@ -108,7 +108,7 @@
     </p>
   }
   @if (clientNotice(); as href) {
-    <p class="card mb-3 flex flex-wrap items-center justify-between gap-2 py-3! text-sm">
+    <p class="card card-tint mb-3 flex flex-wrap items-center justify-between gap-2 py-3! text-sm">
       <span>La {{ copy.text().visit.toLowerCase() }} quedó agendada.</span>
       <span class="flex gap-3">
         <a class="font-medium text-accent" [href]="href" target="_blank" rel="noopener">Enviar por WhatsApp</a>
@@ -117,18 +117,18 @@
     </p>
   }
   @if (blockNotice(); as message) {
-    <p class="card mb-3 py-3! text-sm text-ink" role="status">{{ message }}</p>
+    <p class="card card-tint mb-3 py-3! text-sm text-ink" role="status">{{ message }}</p>
   }
 
   @if (loadError(); as message) {
     <p role="alert" class="mb-3 text-sm text-red-700">{{ message }}</p>
   }
 
-  <div class="overflow-hidden rounded-2xl border border-line bg-surface lg:grid lg:grid-cols-[minmax(0,1fr)_260px]">
+  <div class="overflow-hidden rounded-2xl border border-line bg-surface shadow-[var(--nx-card-shadow)] lg:grid lg:grid-cols-[minmax(0,1fr)_260px]">
     <div class="min-w-0 p-4 sm:p-5">
   @switch (currentView()) {
     @case ('month') {
-          <div class="grid grid-cols-7 text-center text-[10px] text-muted sm:text-xs">
+          <div class="grid grid-cols-7 border-b border-line text-center text-[10px] font-semibold uppercase tracking-wide text-muted sm:text-xs">
             @for (label of weekdayLabels; track label) {
               <div class="py-2">{{ label }}</div>
             }
@@ -157,7 +157,7 @@
           }
     }
     @case ('week') {
-      <div class="max-w-full min-w-0 overflow-auto rounded border border-line bg-white">
+      <div class="max-w-full min-w-0 overflow-auto rounded border border-line bg-surface">
         <div class="grid min-w-[1100px] gap-x-2" style="grid-template-columns: 3.5rem repeat(7, minmax(8.5rem, 1fr))">
           <div class="border-b border-line"></div>
           @for (day of weekDays(); track dayKey(day)) {
@@ -233,7 +233,7 @@
       @if (visibleStaff().length === 0) {
         <p class="py-10 text-center text-sm text-ink-soft">No hay {{ copy.text().people.toLowerCase() }} activos para este día.</p>
       } @else {
-        <div class="max-w-full min-w-0 overflow-auto rounded border border-line bg-white">
+        <div class="max-w-full min-w-0 overflow-auto rounded border border-line bg-surface">
           <div
             class="grid min-w-[640px]"
             [style.grid-template-columns]="'3.5rem repeat(' + visibleStaff().length + ', minmax(160px, 1fr))'"
@@ -313,8 +313,11 @@
     }
   }
     </div>
-    <aside class="flex flex-col border-t border-line bg-canvas/40 p-4 lg:border-l lg:border-t-0">
-      <p class="card-title first-letter:uppercase">{{ weekdayName(cursor()) }} {{ cursor().getDate() }}</p>
+    <aside class="flex flex-col border-t border-line bg-canvas p-4 lg:border-l lg:border-t-0">
+      <div class="card-head -mx-4 -mt-4 mb-1 border-b border-line bg-accent-soft/40 px-4 py-3">
+        <span class="sec-icon bg-surface!"><mat-icon>today</mat-icon></span>
+        <p class="card-title first-letter:uppercase">{{ weekdayName(cursor()) }} {{ cursor().getDate() }}</p>
+      </div>
       <ul class="mt-2 flex max-h-[32rem] flex-col overflow-y-auto">
         @for (item of appointmentsOn(cursor()); track item.id) {
           <li>
@@ -648,7 +651,7 @@
 }
 
 <ng-template #editor>
-  <form id="appointment-form" class="flex max-h-[92vh] flex-col bg-white" [formGroup]="form" (ngSubmit)="save()">
+  <form id="appointment-form" class="flex max-h-[92vh] flex-col bg-surface" [formGroup]="form" (ngSubmit)="save()">
     <header class="flex items-center justify-between border-b border-line px-4 py-3">
       <button type="button" class="flex h-9 w-9 items-center justify-center rounded-full hover:bg-canvas" aria-label="Cerrar" (click)="closeEditor()" [disabled]="isSaving()">
         <mat-icon>close</mat-icon>

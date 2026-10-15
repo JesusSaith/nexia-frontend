@@ -34,12 +34,12 @@ function openSheet(overlay: Overlay, view: ViewContainerRef, anchor: HTMLElement
   selector: 'app-date-field',
   template: `
     <div class="relative">
-      <button type="button" class="flex h-10 w-full items-center justify-between rounded-xl border border-line bg-white px-3 text-left text-sm disabled:opacity-50" [disabled]="disabled()" (click)="toggle($event)">
+      <button type="button" class="flex h-10 w-full items-center justify-between rounded-xl border border-line bg-surface px-3 text-left text-sm text-ink disabled:opacity-50" [disabled]="disabled()" (click)="toggle($event)">
         <span [class.text-muted]="!value()">{{ shown() }}</span>
         <span class="text-muted" aria-hidden="true">▾</span>
       </button>
     <ng-template #panel>
-      <div class="w-[280px] rounded-2xl border border-line bg-white p-3 shadow-lg" (click)="$event.stopPropagation()">
+      <div class="w-[280px] rounded-2xl border border-line bg-surface p-3 text-ink shadow-lg" (click)="$event.stopPropagation()">
         <div class="mb-2 flex items-center justify-between">
           <button type="button" class="h-8 w-8 rounded-full text-muted" (click)="shift(-1)" aria-label="Mes anterior">‹</button>
           <p class="text-sm font-medium">{{ monthLabel() }}</p>
@@ -52,7 +52,7 @@ function openSheet(overlay: Overlay, view: ViewContainerRef, anchor: HTMLElement
           @for (day of cells(); track iso(day)) {
             <button
               type="button"
-              class="flex h-9 flex-col items-center justify-center rounded-lg text-sm disabled:text-stone-300"
+              class="flex h-9 flex-col items-center justify-center rounded-lg text-sm disabled:text-line-strong"
               [class.bg-accent]="value() === iso(day)"
               [class.text-white]="value() === iso(day)"
               [disabled]="blocked(day)"
@@ -200,12 +200,12 @@ export class DateFieldComponent implements ControlValueAccessor {
   selector: 'app-time-field',
   template: `
     <div class="relative">
-      <button type="button" class="flex h-10 w-full items-center justify-between rounded-xl border border-line bg-white px-3 text-left text-sm disabled:opacity-50" [disabled]="disabled() || locked()" (click)="toggle($event)">
+      <button type="button" class="flex h-10 w-full items-center justify-between rounded-xl border border-line bg-surface px-3 text-left text-sm text-ink disabled:opacity-50" [disabled]="disabled() || locked()" (click)="toggle($event)">
         <span [class.text-muted]="!shown()">{{ shown() || 'Elegir hora' }}</span>
         <span class="text-muted" aria-hidden="true">▾</span>
       </button>
     <ng-template #panel>
-      <div class="max-h-64 overflow-auto rounded-2xl border border-line bg-white p-2 shadow-lg" (click)="$event.stopPropagation()">
+      <div class="max-h-64 overflow-auto rounded-2xl border border-line bg-surface p-2 text-ink shadow-lg" (click)="$event.stopPropagation()">
         @if (choices().length === 0) {
           <p class="px-2 py-3 text-sm text-muted">Sin horarios.</p>
         } @else {
@@ -304,12 +304,12 @@ export type PickOption = { value: string | number | null; label: string };
 @Component({
   selector: 'app-pick-field',
   template: `
-    <button type="button" class="flex w-full items-center justify-between gap-3 text-left text-sm" [class.h-10]="!bare()" [class.rounded-xl]="!bare()" [class.border]="!bare()" [class.border-line]="!bare()" [class.bg-white]="!bare()" [class.px-3]="!bare()" (click)="toggle($event)">
+    <button type="button" class="flex w-full items-center justify-between gap-3 text-left text-sm" [class.h-10]="!bare()" [class.rounded-xl]="!bare()" [class.border]="!bare()" [class.border-line]="!bare()" [class.bg-surface]="!bare()" [class.px-3]="!bare()" (click)="toggle($event)">
       <span class="truncate" [class.text-muted]="label() === placeholder()">{{ label() }}</span>
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" class="h-4 w-4 shrink-0 text-muted" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M5 7.5 10 12.5 15 7.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
     <ng-template #panel>
-      <div class="pick-sheet max-h-64 overflow-auto rounded-2xl border border-line bg-white p-1.5 shadow-lg" style="width:100%" (click)="$event.stopPropagation()">
+      <div class="pick-sheet max-h-64 overflow-auto rounded-2xl border border-line bg-surface p-1.5 text-ink shadow-lg" style="width:100%" (click)="$event.stopPropagation()">
         @for (option of options(); track option.label) {
           <button type="button" class="block w-full rounded-xl px-3 py-2 text-left text-sm" [class.bg-accent-soft]="same(option.value)" [class.font-medium]="same(option.value)" (click)="choose(option.value)">{{ option.label }}</button>
         }

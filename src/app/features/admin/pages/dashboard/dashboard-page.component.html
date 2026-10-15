@@ -87,7 +87,8 @@
     <div class="grid items-start gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)]">
       <div class="flex h-full min-w-0 flex-col gap-4">
         <article class="card flex flex-1 flex-col">
-          <div class="flex items-center justify-between gap-3">
+          <div class="card-head">
+            <span class="sec-icon"><mat-icon>{{ view() === 'expenses' ? 'pie_chart' : view() === 'staff' ? 'groups' : view() === 'commission' ? 'payments' : 'show_chart' }}</mat-icon></span>
             @if (view() === 'income') {
               <button type="button" class="card-title inline-flex items-center gap-1 hover:text-ink" (click)="pickerOpen.set(true)">
                 {{ viewTitle() }}
@@ -97,7 +98,7 @@
               <h2 class="card-title">{{ viewTitle() }}</h2>
             }
           </div>
-          <p class="nums mt-2 text-3xl font-semibold tracking-tight text-ink">{{ headline() }}</p>
+          <p class="nums mt-3 text-3xl font-semibold tracking-tight text-ink">{{ headline() }}</p>
           <p class="mt-1 text-sm text-muted">{{ chartCaption() }}</p>
           @if (bars().length === 0) {
             <p class="py-8 text-center text-sm text-muted">Nada en este periodo.</p>
@@ -127,7 +128,7 @@
                     <span class="nums shrink-0 text-right font-medium text-ink">{{ money(bar.amount) }}</span>
                   </div>
                   <div class="h-1.5 overflow-hidden rounded-full bg-canvas">
-                    <div class="h-full rounded-full bg-ink" [style.width.%]="bar.height"></div>
+                    <div class="h-full rounded-full bg-accent" [style.width.%]="bar.height"></div>
                   </div>
                 </li>
               }
@@ -138,29 +139,35 @@
                 <line x1="58" x2="628" [attr.y1]="tick.y" [attr.y2]="tick.y" stroke="var(--color-line)" />
                 <text x="52" [attr.y]="tick.y + 4" text-anchor="end" fill="var(--color-muted)" font-size="11">{{ tick.label }}</text>
               }
-              <path [attr.d]="chart.area" fill="var(--color-ink)" fill-opacity="0.06" />
-              <path [attr.d]="chart.line" fill="none" stroke="var(--color-ink)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+              <path [attr.d]="chart.area" fill="var(--color-accent)" fill-opacity="0.1" />
+              <path [attr.d]="chart.line" fill="none" stroke="var(--color-accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
               @for (label of chart.labels; track label.x) {
                 <text [attr.x]="label.x" y="198" text-anchor="middle" fill="var(--color-muted)" font-size="11">{{ label.label }}</text>
               }
             </svg>
             <p class="mt-1 flex items-center gap-2 text-xs text-muted">
-              <span class="inline-block h-0.5 w-5 bg-ink"></span>
+              <span class="inline-block h-0.5 w-5 bg-accent"></span>
               {{ legend() }}
             </p>
           }
         </article>
         @if (view() === 'expenses' && books(); as row) {
           <div class="grid grid-cols-2 gap-3">
-            <div class="card p-4!">
-              <p class="text-xs text-muted">Fijos</p>
-              <p class="nums mt-1 text-2xl font-semibold text-ink">{{ money(row.expense_fixed) }}</p>
-              <p class="mt-1 text-xs text-muted">Renta, luz y lo que se repite</p>
+            <div class="stat">
+              <span class="stat-icon stat-accent"><mat-icon>home_work</mat-icon></span>
+              <span class="min-w-0">
+                <span class="stat-value block">{{ money(row.expense_fixed) }}</span>
+                <span class="stat-label block">Fijos</span>
+                <span class="mt-0.5 block text-xs text-muted">Renta, luz y lo que se repite</span>
+              </span>
             </div>
-            <div class="card p-4!">
-              <p class="text-xs text-muted">Variables</p>
-              <p class="nums mt-1 text-2xl font-semibold text-ink">{{ money(row.expense_variable) }}</p>
-              <p class="mt-1 text-xs text-muted"><span class="nums">{{ expenseShare() }}%</span> de los ingresos se va en gastos</p>
+            <div class="stat">
+              <span class="stat-icon stat-warn"><mat-icon>shopping_cart</mat-icon></span>
+              <span class="min-w-0">
+                <span class="stat-value block">{{ money(row.expense_variable) }}</span>
+                <span class="stat-label block">Variables</span>
+                <span class="mt-0.5 block text-xs text-muted"><span class="nums">{{ expenseShare() }}%</span> de los ingresos se va en gastos</span>
+              </span>
             </div>
           </div>
         }
@@ -172,8 +179,11 @@
             <article class="card flex-1">
               <div class="flex items-start justify-between gap-3">
                 <div>
-                  <h2 class="card-title">Meta</h2>
-                  <p class="mt-2 text-xs text-muted">Ganancia</p>
+                  <div class="card-head">
+                    <span class="sec-icon"><mat-icon>flag</mat-icon></span>
+                    <h2 class="card-title">Meta</h2>
+                  </div>
+                  <p class="mt-3 text-xs text-muted">Ganancia</p>
                   <p class="nums mt-0.5 text-2xl font-semibold text-ink">{{ money(row.profit) }}</p>
                 </div>
                 <div class="inline-flex rounded-lg border border-line-strong bg-surface p-0.5" role="tablist" aria-label="Tipo de meta">
@@ -186,7 +196,7 @@
               </label>
               @if (goal() > 0) {
                 <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-canvas" role="meter" [attr.aria-valuenow]="goalProgress()" aria-valuemin="0" aria-valuemax="100" aria-label="Avance de la meta">
-                  <div class="h-full rounded-full bg-ink transition-all" [style.width.%]="goalProgress()"></div>
+                  <div class="h-full rounded-full bg-accent transition-all" [style.width.%]="goalProgress()"></div>
                 </div>
                 <p class="nums mt-1 text-xs text-muted">{{ goalProgress() }}% de la meta</p>
               }
@@ -209,7 +219,10 @@
         }
         @if ((view() === 'staff' || view() === 'commission') && books(); as row) {
           <article class="card flex-1">
-            <h2 class="card-title">Detalle</h2>
+            <div class="card-head">
+              <span class="sec-icon"><mat-icon>{{ view() === 'staff' ? 'badge' : 'request_quote' }}</mat-icon></span>
+              <h2 class="card-title">Detalle</h2>
+            </div>
             @if (row.staff.length === 0) {
               <p class="py-8 text-center text-sm text-muted">Sin {{ copy.text().people.toLowerCase() }} en este periodo.</p>
             } @else if (view() === 'staff') {
@@ -244,7 +257,10 @@
         }
         @if (view() === 'expenses') {
           <article class="card flex-1">
-            <h2 class="card-title">Agregar gasto</h2>
+            <div class="card-head">
+              <span class="sec-icon"><mat-icon>add_card</mat-icon></span>
+              <h2 class="card-title">Agregar gasto</h2>
+            </div>
             <div class="mt-3 grid gap-2">
               <input class="h-10 rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" placeholder="Renta, luz, insumos…" aria-label="Concepto" [value]="expenseName()" (input)="expenseName.set($any($event.target).value)" />
               <input class="nums h-10 rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" type="number" min="0" placeholder="Monto" aria-label="Monto" [value]="expenseAmount()" (input)="expenseAmount.set($any($event.target).value)" />
@@ -278,34 +294,52 @@
 
     @if (view() === 'income' && books(); as row) {
       <div class="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <div class="card p-4!">
-          <p class="text-xs text-muted">Ticket promedio</p>
-          <p class="nums mt-1 text-2xl font-semibold text-ink">{{ money(row.average_ticket) }}</p>
-          <p class="mt-1 text-xs text-muted">Promedio de cada cita completada. <span class="nums">{{ row.completed_count }}</span> en el periodo.</p>
+        <div class="stat">
+          <span class="stat-icon stat-accent"><mat-icon>receipt_long</mat-icon></span>
+          <span class="min-w-0">
+            <span class="stat-value block">{{ money(row.average_ticket) }}</span>
+            <span class="stat-label block">Ticket promedio</span>
+            <span class="mt-0.5 block text-xs text-muted">Promedio de cada cita completada. <span class="nums">{{ row.completed_count }}</span> en el periodo.</span>
+          </span>
         </div>
-        <div class="card p-4!">
-          <p class="text-xs text-muted">No se hicieron</p>
-          <p class="nums mt-1 text-2xl font-semibold text-ink">{{ row.missed_count }}</p>
-          <p class="mt-1 text-xs text-muted">Canceladas o sin llegar. <span class="nums">{{ money(row.missed_amount) }}</span> que no entró.</p>
-          <a class="mt-2 inline-flex items-center gap-0.5 text-xs font-medium text-ink-soft hover:text-ink" [routerLink]="['/admin/agenda']" [queryParams]="agendaQuery('missed')">Ver en la agenda <mat-icon class="h-4! w-4! text-[16px]!">chevron_right</mat-icon></a>
+        <div class="stat">
+          <span class="stat-icon" [class.stat-bad]="row.missed_count > 0" [class.stat-ok]="!(row.missed_count > 0)"><mat-icon>event_busy</mat-icon></span>
+          <span class="min-w-0">
+            <span class="stat-value block">{{ row.missed_count }}</span>
+            <span class="stat-label block">No se hicieron</span>
+            <span class="mt-0.5 block text-xs text-muted">Canceladas o sin llegar. <span class="nums">{{ money(row.missed_amount) }}</span> que no entró.</span>
+            <a class="mt-1 inline-flex items-center gap-0.5 text-xs font-medium text-accent hover:text-ink" [routerLink]="['/admin/agenda']" [queryParams]="agendaQuery('missed')">Ver en la agenda <mat-icon class="h-4! w-4! text-[16px]!">chevron_right</mat-icon></a>
+          </span>
         </div>
-        <div class="card p-4!">
-          <p class="text-xs text-muted">Anticipos</p>
-          <p class="nums mt-1 text-2xl font-semibold text-ink">{{ money(row.deposit_due) }}</p>
-          <p class="mt-1 text-xs text-muted">Por cobrar. <span class="nums">{{ row.deposit_count }}</span> pendientes y <span class="nums">{{ row.proofs_pending }}</span> comprobantes.</p>
-          <a class="mt-2 inline-flex items-center gap-0.5 text-xs font-medium text-ink-soft hover:text-ink" [routerLink]="['/admin/agenda']" [queryParams]="agendaQuery('deposit')">Ver en la agenda <mat-icon class="h-4! w-4! text-[16px]!">chevron_right</mat-icon></a>
+        <div class="stat">
+          <span class="stat-icon" [class.stat-warn]="row.deposit_due > 0" [class.stat-ok]="!(row.deposit_due > 0)"><mat-icon>payments</mat-icon></span>
+          <span class="min-w-0">
+            <span class="stat-value block">{{ money(row.deposit_due) }}</span>
+            <span class="stat-label block">Anticipos</span>
+            <span class="mt-0.5 block text-xs text-muted">Por cobrar. <span class="nums">{{ row.deposit_count }}</span> pendientes y <span class="nums">{{ row.proofs_pending }}</span> comprobantes.</span>
+            <a class="mt-1 inline-flex items-center gap-0.5 text-xs font-medium text-accent hover:text-ink" [routerLink]="['/admin/agenda']" [queryParams]="agendaQuery('deposit')">Ver en la agenda <mat-icon class="h-4! w-4! text-[16px]!">chevron_right</mat-icon></a>
+          </span>
         </div>
-        <div class="card min-w-0 p-4!">
-          <p class="text-xs text-muted">Más pedido</p>
-          <p class="mt-1 truncate text-2xl font-semibold text-ink">{{ topService() }}</p>
-          <p class="mt-1 text-xs text-muted">El servicio con más citas. <span class="nums">{{ row.top_count }} · {{ money(row.top_income) }}</span>.</p>
+        <div class="stat min-w-0">
+          <span class="stat-icon stat-info"><mat-icon>star</mat-icon></span>
+          <span class="min-w-0 max-w-full flex-1">
+            <span class="stat-value block truncate">{{ topService() }}</span>
+            <span class="stat-label block">Más pedido</span>
+            <span class="mt-0.5 block text-xs text-muted">El servicio con más citas. <span class="nums">{{ row.top_count }} · {{ money(row.top_income) }}</span>.</span>
+          </span>
         </div>
       </div>
-      <div class="mt-4 grid items-start gap-4 lg:grid-cols-2">
+      <!-- grid-flow-col + auto-cols-fr: si no hay cierre de hoy, Resultado ocupa todo el ancho en vez de dejar media fila vacía. -->
+      <div class="mt-4 grid gap-4 lg:auto-cols-fr lg:grid-flow-col">
         @if (closeout(); as day) {
-          <article class="card">
-            <h2 class="card-title">Cierre de hoy</h2>
-            <p class="mt-1 text-sm text-muted">Lo cobrado hoy, aparte del periodo de arriba.</p>
+          <article class="card h-full">
+            <div class="card-head">
+              <span class="sec-icon"><mat-icon>today</mat-icon></span>
+              <div>
+                <h2 class="card-title">Cierre de hoy</h2>
+                <p class="text-sm text-muted">Lo cobrado hoy, aparte del periodo de arriba.</p>
+              </div>
+            </div>
             <ul class="mt-2 divide-y divide-line text-sm">
               <li class="flex items-center justify-between gap-3 py-2.5">
                 <div><p class="text-ink">Entró</p><p class="text-xs text-muted">Citas completadas</p></div>
@@ -326,9 +360,14 @@
             </ul>
           </article>
         }
-        <article class="card">
-          <h2 class="card-title">Resultado</h2>
-          <p class="mt-1 text-sm text-muted">Ingresos del periodo, menos gastos y comisiones.</p>
+        <article class="card card-tint h-full">
+          <div class="card-head">
+            <span class="sec-icon"><mat-icon>account_balance_wallet</mat-icon></span>
+            <div>
+              <h2 class="card-title">Resultado</h2>
+              <p class="text-sm text-muted">Ingresos del periodo, menos gastos y comisiones.</p>
+            </div>
+          </div>
           <ul class="mt-2 divide-y divide-line text-sm">
             <li class="flex items-center justify-between gap-3 py-2.5">
               <div><p class="text-ink">Ingresos</p><p class="text-xs text-muted">Citas completadas</p></div>
@@ -344,7 +383,7 @@
             </li>
             <li class="flex items-center justify-between gap-3 py-2.5">
               <div><p class="font-semibold text-ink">Ganancia</p><p class="text-xs text-muted">Lo que queda</p></div>
-              <span class="nums text-right text-base font-semibold text-ink">{{ money(row.profit) }}</span>
+              <span class="nums text-right text-lg font-semibold text-accent">{{ money(row.profit) }}</span>
             </li>
           </ul>
           <p class="mt-2 text-sm text-muted">Margen <span class="nums">{{ margin() }}%</span> de los ingresos. {{ compareText() }}</p>
@@ -355,46 +394,70 @@
     @if ((view() === 'staff' || view() === 'commission') && books()) {
       <div class="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         @if (view() === 'staff') {
-          <div class="card p-4!">
-            <p class="text-xs text-muted">Equipo</p>
-            <p class="nums mt-1 text-2xl font-semibold text-ink">{{ team().count }}</p>
-            <p class="mt-1 text-xs text-muted">Colaboradores en este periodo</p>
+          <div class="stat">
+            <span class="stat-icon stat-accent"><mat-icon>groups</mat-icon></span>
+            <span class="min-w-0">
+              <span class="stat-value block">{{ team().count }}</span>
+              <span class="stat-label block">Equipo</span>
+              <span class="mt-0.5 block text-xs text-muted">Colaboradores en este periodo</span>
+            </span>
           </div>
-          <div class="card p-4!">
-            <p class="text-xs text-muted">Citas</p>
-            <p class="nums mt-1 text-2xl font-semibold text-ink">{{ team().visits }}</p>
-            <p class="mt-1 text-xs text-muted">Visitas atendidas por el equipo</p>
+          <div class="stat">
+            <span class="stat-icon stat-info"><mat-icon>event_available</mat-icon></span>
+            <span class="min-w-0">
+              <span class="stat-value block">{{ team().visits }}</span>
+              <span class="stat-label block">Citas</span>
+              <span class="mt-0.5 block text-xs text-muted">Visitas atendidas por el equipo</span>
+            </span>
           </div>
-          <div class="card p-4!">
-            <p class="text-xs text-muted">Horas libres</p>
-            <p class="nums mt-1 text-2xl font-semibold text-ink">{{ team().free }}</p>
-            <p class="mt-1 text-xs text-muted">Huecos sin cita en el periodo</p>
+          <div class="stat">
+            <span class="stat-icon stat-warn"><mat-icon>hourglass_empty</mat-icon></span>
+            <span class="min-w-0">
+              <span class="stat-value block">{{ team().free }}</span>
+              <span class="stat-label block">Horas libres</span>
+              <span class="mt-0.5 block text-xs text-muted">Huecos sin cita en el periodo</span>
+            </span>
           </div>
-          <div class="card min-w-0 p-4!">
-            <p class="text-xs text-muted">Quién más vendió</p>
-            <p class="mt-1 truncate text-2xl font-semibold text-ink">{{ team().top }}</p>
-            <p class="mt-1 text-xs text-muted">El ingreso más alto del equipo</p>
+          <div class="stat min-w-0">
+            <span class="stat-icon stat-ok"><mat-icon>emoji_events</mat-icon></span>
+            <span class="min-w-0 max-w-full flex-1">
+              <span class="stat-value block truncate">{{ team().top }}</span>
+              <span class="stat-label block">Quién más vendió</span>
+              <span class="mt-0.5 block text-xs text-muted">El ingreso más alto del equipo</span>
+            </span>
           </div>
         } @else {
-          <div class="card p-4!">
-            <p class="text-xs text-muted">Comisión</p>
-            <p class="nums mt-1 text-2xl font-semibold text-ink">{{ money(team().commission) }}</p>
-            <p class="mt-1 text-xs text-muted">Lo que corresponde al equipo</p>
+          <div class="stat">
+            <span class="stat-icon stat-accent"><mat-icon>percent</mat-icon></span>
+            <span class="min-w-0">
+              <span class="stat-value block">{{ money(team().commission) }}</span>
+              <span class="stat-label block">Comisión</span>
+              <span class="mt-0.5 block text-xs text-muted">Lo que corresponde al equipo</span>
+            </span>
           </div>
-          <div class="card p-4!">
-            <p class="text-xs text-muted">Pagado</p>
-            <p class="nums mt-1 text-2xl font-semibold text-ink">{{ money(team().paid) }}</p>
-            <p class="mt-1 text-xs text-muted">Comisiones ya saldadas</p>
+          <div class="stat">
+            <span class="stat-icon stat-ok"><mat-icon>check_circle</mat-icon></span>
+            <span class="min-w-0">
+              <span class="stat-value block">{{ money(team().paid) }}</span>
+              <span class="stat-label block">Pagado</span>
+              <span class="mt-0.5 block text-xs text-muted">Comisiones ya saldadas</span>
+            </span>
           </div>
-          <div class="card p-4!">
-            <p class="text-xs text-muted">Por pagar</p>
-            <p class="nums mt-1 text-2xl font-semibold" [class.text-red-700]="team().owed > 0" [class.text-ink]="!(team().owed > 0)">{{ money(team().owed) }}</p>
-            <p class="mt-1 text-xs text-muted">Lo que el negocio aún debe</p>
+          <div class="stat">
+            <span class="stat-icon" [class.stat-bad]="team().owed > 0" [class.stat-ok]="!(team().owed > 0)"><mat-icon>pending_actions</mat-icon></span>
+            <span class="min-w-0">
+              <span class="stat-value block" [class.text-red-700]="team().owed > 0" [class.text-ink]="!(team().owed > 0)">{{ money(team().owed) }}</span>
+              <span class="stat-label block">Por pagar</span>
+              <span class="mt-0.5 block text-xs text-muted">Lo que el negocio aún debe</span>
+            </span>
           </div>
-          <div class="card min-w-0 p-4!">
-            <p class="text-xs text-muted">Mayor comisión</p>
-            <p class="mt-1 truncate text-2xl font-semibold text-ink">{{ team().topPay }}</p>
-            <p class="mt-1 text-xs text-muted">Quien acumula más en el periodo</p>
+          <div class="stat min-w-0">
+            <span class="stat-icon stat-info"><mat-icon>emoji_events</mat-icon></span>
+            <span class="min-w-0 max-w-full flex-1">
+              <span class="stat-value block truncate">{{ team().topPay }}</span>
+              <span class="stat-label block">Mayor comisión</span>
+              <span class="mt-0.5 block text-xs text-muted">Quien acumula más en el periodo</span>
+            </span>
           </div>
         }
       </div>

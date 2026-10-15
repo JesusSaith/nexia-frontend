@@ -33,29 +33,35 @@
   } @else {
     <!-- Indicadores -->
     <div class="mb-4 grid grid-cols-3 gap-3">
-      <div class="card p-4!">
-        <p class="text-xs text-muted">En el equipo</p>
-        <p class="nums mt-1 text-2xl font-semibold text-ink">{{ staff().length }}</p>
+      <div class="stat">
+        <span class="stat-icon stat-accent"><mat-icon>groups</mat-icon></span>
+        <span><span class="stat-value block">{{ staff().length }}</span><span class="stat-label block">En el equipo</span></span>
       </div>
-      <div class="card p-4!">
-        <p class="text-xs text-muted">Activos</p>
-        <p class="nums mt-1 text-2xl font-semibold text-ink">{{ activeCount() }}</p>
+      <div class="stat">
+        <span class="stat-icon stat-ok"><mat-icon>how_to_reg</mat-icon></span>
+        <span><span class="stat-value block">{{ activeCount() }}</span><span class="stat-label block">Activos</span></span>
       </div>
-      <div class="card p-4!">
-        <p class="text-xs text-muted">Servicios activos</p>
-        <p class="nums mt-1 text-2xl font-semibold text-ink">{{ activeServices().length }}</p>
+      <div class="stat">
+        <span class="stat-icon stat-info"><mat-icon>category</mat-icon></span>
+        <span><span class="stat-value block">{{ activeServices().length }}</span><span class="stat-label block">Servicios activos</span></span>
       </div>
     </div>
 
     <section class="card">
-      <h2 class="card-title">Integrantes</h2>
-      <ul class="mt-2 divide-y divide-line">
+      <div class="card-head">
+        <span class="sec-icon"><mat-icon>badge</mat-icon></span>
+        <div>
+          <h2 class="card-title">Integrantes</h2>
+          <p class="text-sm text-muted">Quién atiende y qué servicios ofrece cada quien.</p>
+        </div>
+      </div>
+      <ul class="-mx-5 mt-3 divide-y divide-line border-t border-line">
         @for (member of staff(); track member.id) {
-          <li class="flex items-start gap-3 py-4" [class.opacity-60]="!member.is_active">
+          <li class="row-hover flex items-start gap-3 px-5 py-4" [class.opacity-60]="!member.is_active">
             @if (member.avatar_url) {
               <img [src]="member.avatar_url" [alt]="member.full_name" class="h-10 w-10 shrink-0 rounded-full object-cover" />
             } @else {
-              <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-canvas text-xs font-semibold text-ink-soft">
+              <span class="avatar h-10! w-10!">
                 {{ initials(member.full_name) }}
               </span>
             }
@@ -75,7 +81,7 @@
               }
               <div class="mt-2 flex flex-wrap gap-1">
                 @for (serviceId of member.service_ids ?? []; track serviceId) {
-                  <span class="badge badge-neutral">{{ serviceName(serviceId) }}</span>
+                  <span class="badge bg-accent-soft text-accent">{{ serviceName(serviceId) }}</span>
                 }
                 @if ((member.service_ids ?? []).length === 0) {
                   <span class="badge badge-warn">Sin servicios asignados</span>
