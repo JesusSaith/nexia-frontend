@@ -1,8 +1,8 @@
 # Nexia: cómo funciona el proyecto
 
-Nexia es un sistema de reservas en línea para negocios que atienden con cita: salones, barberías, spas, consultorios, veterinarias y clases. Cada negocio tiene una página pública donde sus clientas reservan y un panel donde la dueña administra agenda, clientas, cobros y reportes.
+Nexia es un sistema de reservas en línea para negocios que atienden con cita: salones de belleza y de uñas, barberías, spas, consultorios, clínicas dentales, veterinarias y estudios. Cada negocio tiene una página pública donde sus clientas reservan y un panel donde la dueña administra agenda, clientas, cobros y reportes.
 
-Este documento explica cómo está armado, cómo fluye cada proceso y qué queda pendiente.
+Este documento explica cómo está armado, cómo fluye cada proceso y qué queda pendiente. Al final está el [historial de cambios](#10-historial-de-cambios).
 
 ---
 
@@ -10,9 +10,10 @@ Este documento explica cómo está armado, cómo fluye cada proceso y qué queda
 
 | Pieza | Tecnología | Carpeta |
 |---|---|---|
-| Frontend | Angular 20 (componentes standalone, signals), Tailwind v4, Angular Material (diálogos e íconos) | `nexia-frontend` |
+| Frontend | Angular 22 (componentes standalone, signals), Tailwind v4, Angular Material (diálogos, menús e íconos) | `nexia-frontend` |
 | Backend (API) | FastAPI + SQLModel (SQLAlchemy) | `nexia-backend` |
 | Base de datos | SQLite en desarrollo (`nexia_dev.db`), PostgreSQL en producción | — |
+| Correo | Resend (bienvenida, recuperar contraseña, avisos a la dueña) | — |
 
 **Varios negocios, una instalación.** Todos los negocios viven en la misma base. Cada fila pertenece a un `business_id`, y la página pública se identifica por el `slug` del negocio (`/salon-ana/book`).
 
@@ -25,7 +26,37 @@ Este documento explica cómo está armado, cómo fluye cada proceso y qué queda
 
 ---
 
-## 2. Flujo de la clienta (página pública)
+## 2. Alta y acceso de la dueña
+
+Código: `src/app/features/auth/`, `src/app/features/legal/` y, en el backend, `app/routers/auth.py`.
+
+### Registro (`/auth/register`)
+- **Cabe en una sola pantalla.** Primero el negocio y después la cuenta:
+  - **Tipo de negocio** en botones (Salón de belleza, Salón de uñas, Barbería, Spa, Consultorio, Clínica dental, Veterinaria, Estudio, Otro). La lista vive en `src/app/core/business-kinds.ts` y es la misma que usa Configuración.
+  - **Nombre del negocio**, con la vista previa del enlace real (`…/salon-ana/book`), que pide a `GET /api/auth/slug-preview` (agrega `-2` si el nombre ya existe).
+  - **WhatsApp del negocio**: solo números, 10 dígitos; si pegan `+52` se quita.
+  - **Tu nombre, correo y contraseña** (mínimo 8).
+  - **Casilla obligatoria** de términos y aviso de privacidad.
+- **Errores en su campo:** el correo repetido ofrece "Inicia sesión" con el correo ya escrito, y al enviar con errores el foco salta al primero.
+- **En el backend todo va en una transacción** (`POST /api/auth/register`):
+  - crea el negocio y la cuenta, guarda teléfono, giro y la **zona horaria del navegador**, y registra cuándo se aceptaron los términos (`users.terms_accepted_at`);
+  - el giro define cómo se llama al personal (Estilista, Manicurista, Barbero…; `app/core/catalog.py`);
+  - deja **servicios sugeridos del giro, apagados**, para que ningún precio inventado salga al público hasta que la dueña los revise y active;
+  - manda un **correo de bienvenida** con su enlace.
+- Los slugs que chocarían con rutas de la app (`admin`, `auth`, `terminos`…) reciben el sufijo `-negocio`.
+
+### Login y contraseña (`/auth/login`, `/auth/restablecer`)
+- **"¿Olvidaste tu contraseña?"** cambia el mismo formulario a "Recupera tu contraseña" y pide solo el correo. La respuesta es igual exista o no la cuenta.
+- El correo trae un enlace a `/auth/restablecer?token=…` que **vence en 1 hora y sirve una vez**: lleva una huella de la contraseña actual, y al cambiarla deja de valer. Al guardar la nueva, la dueña entra directo a su panel y le llega un aviso de "tu contraseña cambió". Un enlace vencido lleva al login ya en modo recuperar.
+- Quien ya tiene sesión y abre login o registro va directo a su panel (`guestGuard`).
+
+### Páginas legales de la plataforma
+- `/terminos` y `/privacidad`: términos y aviso de privacidad de Nexia para las dueñas. El aviso que ven las clientas de cada negocio es otro (`/:negocio/privacidad`).
+- Los datos de quien opera Nexia están como marcadores en `src/app/features/legal/legal-info.ts` (ver pendientes).
+
+---
+
+## 3. Flujo de la clienta (página pública)
 
 Ruta: `/:negocio/book`. Código: `src/app/features/booking/pages/booking/`.
 
@@ -39,6 +70,7 @@ Ruta: `/:negocio/book`. Código: `src/app/features/booking/pages/booking/`.
 - El calendario abre en el primer día con lugares, y salta al mes siguiente si el actual está lleno.
 - Las horas aparecen agrupadas en Mañana, Tarde y Noche. Al tocar una, avanza al paso 3.
 - Si el día no tiene lugares, puede anotarse en la **lista de espera**.
+- Si el negocio está **en pausa** o **cerrado por vacaciones**, la página lo dice y no deja reservar esos días (la API también lo bloquea).
 
 ### Paso 3. Datos
 - Teléfono (10 dígitos), nombre, y correo o nota de forma opcional.
@@ -64,24 +96,64 @@ Ruta: `/:negocio/book`. Código: `src/app/features/booking/pages/booking/`.
 
 ---
 
-## 3. Flujo de la dueña (panel `/admin`)
+## 4. Flujo de la dueña (panel `/admin`)
 
-En celular hay una barra inferior con **Inicio · Agenda · Clientes · Más**.
+**Navegación:** en escritorio, un **menú lateral oscuro fijo** con el logo y el nombre del negocio, las secciones en dos bloques (el día a día y "Tu negocio") y, abajo, el tema y la cuenta. En celular hay una barra superior oscura y una barra inferior con **Inicio · Agenda · Clientes · Más**; "Más" abre el mismo menú como cajón.
 
 | Pestaña | Para qué sirve |
 |---|---|
-| **Inicio** | Indicadores del día (citas, sin confirmar, anticipos pendientes), lista "Pon tu negocio en marcha", citas de hoy y de mañana, **recordatorios de mañana uno por uno por WhatsApp**, avisos y paquetes. |
-| **Agenda** | Vistas Mes, Semana y Día (en celular abre en Día), con un color por colaboradora. Permite crear una cita (busca a la clienta por nombre o teléfono), **cambiar día u hora**, **cobrar y completar** con monto y método de pago, pedir la opinión, marcar "no llegó" o cancelar (con confirmación), repetir cada 3 o 4 semanas, bloquear horarios, marcar días libres y compartir una imagen con la disponibilidad del mes. |
+| **Inicio** | Indicadores del día con ícono de color (citas, sin confirmar, anticipos pendientes), lista "Pon tu negocio en marcha" con los avisos importantes, **recordatorios de mañana uno por uno por WhatsApp**, pendientes, cumpleaños, citas de hoy y de mañana, avisos, más pedidos del mes y paquetes. Las tarjetas van en dos columnas independientes, sin huecos. |
+| **Agenda** | Vistas Mes, Semana y Día (en celular abre en Día), con un color por colaboradora. Permite crear una cita (busca a la clienta por nombre o teléfono), **cambiar día u hora**, **cobrar y completar** con monto y método de pago, pedir la opinión, marcar "no llegó" o cancelar, repetir cada 3 o 4 semanas, bloquear horarios, marcar días libres y compartir una imagen con la disponibilidad del mes. |
 | **Clientes** | Fichas unificadas por teléfono, mejores clientas, las que más cancelan, **"Dejaron de venir"** (más de 45 días) con WhatsApp para invitarlas a volver, historial con el estado de cada visita, notas internas y botones de Llamar y WhatsApp. |
 | **Reportes** | Ingresos por día, semana, mes o rango, **cómo te pagaron** (efectivo, transferencia, tarjeta o paquete), gastos fijos y variables, comisiones por colaboradora, meta de ganancia y exportación a Excel o PDF. |
-| **Servicios** | Precio, duración, foto, categoría, precio variable, anticipo propio, cupo y preguntas para la clienta. |
+| **Servicios** | Precio, duración, foto, categoría, precio variable, anticipo propio, cupo y preguntas para la clienta. Si solo están los sugeridos del registro (apagados), un aviso explica que hay que revisarlos y activarlos. |
 | **Equipo** | Colaboradoras, servicios que realiza cada una, comisión y foto. |
-| **Horarios** | Turno por día, descanso y horas fijas. Incluye "Copiar lunes" al resto de la semana, sábado incluido. |
-| **Mi negocio** | Enlace para compartir (con vista previa), código QR y estado de preparación del negocio. |
-| **Configuración** | Arriba, si la página está tomando citas (con interruptor) y "Ver mi página". Siete secciones con resumen visible aunque estén cerradas: Tu negocio, Apariencia (logo, color de marca con vista previa, fotos), Reglas de reserva (opciones rápidas), Anticipo y pagos (avisa si falta la CLABE), Promociones, Pausa y vacaciones, Privacidad y datos. Todo se guarda junto, en una sola petición; la barra de guardar solo aparece con cambios y avisa antes de salir sin guardar. |
+| **Horarios** | Turno por día, descanso y horas fijas. Los días abiertos llevan franja de color y los cerrados se ven en gris. Incluye "Copiar lunes" al resto de la semana. |
+| **Mi negocio** | Enlace para compartir (con vista previa), código QR, contacto y la misma lista de "qué te falta" que Inicio. |
+| **Configuración** | Ver la sección siguiente. |
+
+### Configuración (`/admin/settings`)
+- **Franja de estado arriba:** "Tu página está recibiendo reservas", "Tu página no está tomando citas" o "Cierras del 20 al 27 oct", con un interruptor y el botón **"Ver mi página"**.
+- **Nueve secciones**, cada una con un **resumen visible aunque esté cerrada** (por ejemplo, "$200 · 3 h para pagar · falta la cuenta"):
+  1. **Tu negocio:** nombre, tipo, descripción, WhatsApp (10 dígitos), dirección y redes.
+  2. **Apariencia:** logo, color de marca con vista previa y fotos del trabajo (hasta 3). Del logo solo se **sugiere** un color; no se cambia solo.
+  3. **Reglas de reserva:** opciones rápidas en vez de números sueltos (anticipación, días a futuro, tiempo entre citas, hasta cuándo cancelar), mensaje sobre cancelaciones, zona horaria y salas o equipos.
+  4. **Anticipo y pagos:** monto fijo, porcentaje para servicios por cotizar, cuenta o CLABE, tiempo para pagarlo y enlace de pago. **Avisa si falta la CLABE**, porque sin ella el anticipo no se cobra.
+  5. **Promociones:** anuncio en la página (con fecha de fin), premio por visitas y cupones.
+  6. **Mensajes de WhatsApp:** ver más abajo.
+  7. **Pausa y vacaciones:** "No tomar citas por ahora" y un cierre con fechas.
+  8. **Avisos por correo:** qué avisos le llegan a la dueña (ver más abajo).
+  9. **Privacidad y datos:** aviso de privacidad propio y "Descargar copia".
+- **Un solo guardado:** todo va en una petición (`PATCH /api/settings/business`).
+- **Barra de cambios:** solo aparece si hay algo por guardar ("3 cambios sin guardar · Descartar · Guardar cambios"). Si intentas salir de la pantalla o cerrar la pestaña con cambios, pregunta antes.
+- **Errores:** al guardar con errores, la pantalla te lleva a la primera sección con problemas. En escritorio, un índice lateral salta a cada sección y marca las que tienen errores o les falta un dato.
 
 ### Mensajes de WhatsApp
-Los 13 mensajes que la dueña manda desde el panel (recordatorio, cita agendada, cotización, cumpleaños, te extrañamos, lista de espera, compartir enlace…) salen de plantillas en `src/app/core/message-templates.ts`. Se editan en Configuración → Mensajes de WhatsApp con vista previa; el backend guarda solo los que cambian (`message_templates`). `{nombre}` vacío se quita; cualquier otra variable vacía quita su línea. Para un mensaje nuevo: agrégalo a `MESSAGE_TEMPLATES` y a `MESSAGE_KEYS` en `app/core/messages.py`, y ármalo con `copy.message(clave, datos)` + `whatsappLink`.
+- **De dónde salen:** los 13 mensajes que la dueña manda desde el panel (recordatorio, cita agendada, anticipo recibido, comprobante ilegible, cotización, escribirle por su cita, citas repetidas, pedir opinión, cumpleaños, te extrañamos, ofrecer horario libre, lista de espera y compartir enlace) salen de plantillas en `src/app/core/message-templates.ts`.
+- **Cómo se editan:** en Configuración, con botones para insertar variables (`{nombre}`, `{servicio}`, `{dia}`, `{hora}`, `{equipo}`, `{enlace}`…), vista previa tipo burbuja de WhatsApp y "Volver al de fábrica". El backend guarda solo los que cambian (`businesses.message_templates`) y no los expone en la página pública.
+- **Reglas al llenarlos:**
+  - `{nombre}` vacío se quita y se acomoda la puntuación ("¡Hola!");
+  - cualquier otra variable vacía quita su línea entera;
+  - las fechas salen como "jueves 16 de octubre";
+  - a los números de 10 dígitos se les antepone el 52.
+- **Para agregar un mensaje nuevo:** súmalo a `MESSAGE_TEMPLATES` y a `MESSAGE_KEYS` (`app/core/messages.py`), y ármalo con `copy.message(clave, datos)` y `whatsappLink(teléfono, texto)`.
+- Los 2 mensajes que la clienta escribe al negocio desde la página de reservas no son editables.
+
+### Avisos por correo a la dueña
+- **Qué llega:** los mismos avisos de Inicio, ahora también por correo (cita nueva, cancelación, cambio de horario, comprobante o pago de anticipo, anticipo vencido, lista de espera y confirmación), cada uno con el botón "Ver en mi agenda". Más un **resumen de las citas de mañana a las 8 p. m.**, hora del negocio.
+- **Configuración:** la dueña elige cuáles en Configuración → Avisos por correo. Todos vienen encendidos menos las confirmaciones.
+- **Cómo funciona** (`app/core/alerts.py`):
+  - cada aviso (`add_notice`) lleva un tipo;
+  - el correo se encola en la sesión y **sale solo si el commit se confirma**, en un hilo aparte para no hacer esperar a la clienta;
+  - lo que provoca la propia dueña desde el panel no manda correo.
+- **El resumen** lo revisa un ciclo cada 10 minutos dentro de la API; en el plan gratis de Render, si la API está dormida, sale cuando despierta.
+
+### Qué le falta al negocio
+- **Una sola lista** para Inicio y Mi negocio (`app/core/readiness.py`, `GET /api/settings/readiness`), con tres tipos de paso:
+  - **para poder reservar:** servicios activos, equipo, horarios y compartir el enlace;
+  - **para dar confianza:** logo, descripción, dirección e Instagram;
+  - **avisos:** "falta tu CLABE" o "tu página está en pausa". Se muestran en Inicio aunque se haya ocultado la lista.
+- **"Comparte tu enlace"** se guarda en el negocio (`link_shared`), no en el navegador.
 
 ### Ciclo de una cita
 ```
@@ -95,7 +167,7 @@ Reserva (clienta o dueña)
 - Si el anticipo no llega en `deposit_hold_hours` (3 h por defecto), el horario se libera solo.
 - Las fotos de referencia se borran automáticamente 30 días después de la cita.
 
-### Mejoras de la versión actual
+### Otras funciones del panel
 - **Ficha de la cita como hoja deslizable** en celular, con Cobrar, WhatsApp y Mover al alcance del pulgar.
 - **Deshacer al cancelar:** aparece "Cita cancelada · Deshacer" durante 5 segundos, en lugar de pedir confirmación antes.
 - **Cambios al instante:** la cita se ve cobrada, movida o cancelada sin esperar a que la agenda se recargue.
@@ -103,54 +175,52 @@ Reserva (clienta o dueña)
 - **Cotizar en un paso:** desde el aviso se abre la cita con las fotos de referencia y el precio, y queda listo el WhatsApp con el precio.
 - **Repetir la última cita** desde la ficha de la clienta: mismo servicio y misma colaboradora, solo falta elegir el día.
 - **Cumpleaños:** fecha opcional en la ficha; Inicio y Clientes avisan el día del cumpleaños con un WhatsApp de felicitación listo.
-- **Promociones** (Configuración):
-  - **cupones** por código, con opción de que solo valgan en la primera visita;
-  - **lealtad**: cada N visitas cobradas, la siguiente tiene X% de descuento.
-  
-  El descuento lo calcula el backend al reservar y se guarda en `discount_percent`.
-- **Página de reservas:** la tarjeta "Tus próximas citas" (tomadas de los enlaces guardados en el dispositivo; no hay búsqueda por teléfono, por seguridad), y la foto, el puesto y la descripción de cada colaboradora más grandes, junto con la calificación general del negocio.
+- **Promociones:** **cupones** por código (con opción de que solo valgan en la primera visita) y **premio por visitas** (cada N visitas cobradas, la siguiente tiene X% de descuento). El descuento lo calcula el backend al reservar y se guarda en `discount_percent`.
+- **Página de reservas:** la tarjeta "Tus próximas citas" (tomadas de los enlaces guardados en el dispositivo; no hay búsqueda por teléfono, por seguridad), y la foto, el puesto y la descripción de cada colaboradora, junto con la calificación general del negocio.
 - **El panel se instala como app (PWA)** y tiene **modo oscuro** (Claro, Oscuro o Sistema); la página pública de reservas siempre se ve en claro.
-- **Datos de ejemplo** con un botón (Inicio → "Llenar con ejemplo"), para demos, y la lista **Pendientes** en Inicio.
+- **Datos de ejemplo** con un botón (Inicio → "Llenar con ejemplo"), para demos. Reutiliza los servicios sugeridos en vez de duplicarlos, y al quitarlos los vuelve a apagar.
 
 ---
 
-## 4. Seguridad y protección
+## 5. Seguridad y protección
 
-- **Arranque seguro:** con `ENVIRONMENT=production`, la API no arranca si `JWT_SECRET` es el de ejemplo, si `COOKIE_SECURE` es falso, si la base es SQLite o si `FRONTEND_URL` no usa `https`.
+- **Arranque seguro:** con `ENVIRONMENT=production`, la API no arranca si `JWT_SECRET` es el de ejemplo, si `COOKIE_SECURE` es falso, si la base es SQLite o si `FRONTEND_URL` no usa `https`. Si falta `RESEND_API_KEY`, avisa en el log.
 - **Contra citas falsas:**
   - campo trampa (*honeypot*);
-  - máximo 6 intentos por **negocio + IP** cada 10 minutos (en memoria);
+  - máximo 6 intentos por **negocio + IP** cada 10 minutos (en memoria, `app/core/throttle.py`);
   - máximo 3 citas próximas por teléfono.
-- **Pausa y vacaciones:** la API también los respeta (disponibilidad, reservas y cambios de cita de la clienta) con `app/core/shop_note.py`; antes solo los aplicaba la página de reservas. Las citas que crea la dueña no se bloquean.
-- **Columnas propias:** pausa (`bookings_paused`), cierre (`closed_from`/`closed_to`), anuncio (`promo_text`/`promo_until`) y fotos (`gallery`, JSON) ya no viven empaquetados dentro de `resources`, que queda solo para salas o equipos. Los datos con el formato viejo se migran solos al arrancar.
-- **Contra registros en masa:** `/auth/register` usa el mismo límite de 6 intentos por IP cada 10 minutos (`app/core/throttle.py`).
+- **Contra registros en masa y abuso de cuentas:** registro, "olvidé mi contraseña" y restablecer usan el mismo límite por IP.
 - **IP real:** el primer valor de `X-Forwarded-For` lo puede inventar cualquiera, así que la IP se lee contando desde la derecha `TRUSTED_PROXY_HOPS` saltos (0 en local; 2 detrás de Vercel → Render).
-- **Cookie de sesión:** respeta `COOKIE_SECURE` y `COOKIE_SAMESITE` del `.env` al iniciar sesión, al registrarse y al cerrar sesión.
+- **Cookie de sesión:** respeta `COOKIE_SECURE` y `COOKIE_SAMESITE` del `.env` al iniciar sesión, al registrarse, al restablecer la contraseña y al cerrar sesión.
+- **Tokens separados:** un enlace de recuperación no sirve como sesión, ni una sesión como enlace de recuperación.
+- **Enlaces en correos:** se arman con la dirección desde la que se abrió la app solo si es de confianza (`app/core/origins.py`): en local, cualquier `localhost`; en producción, únicamente `FRONTEND_URL`. Así nadie puede mandarte un enlace de recuperación a un sitio falso.
 - **CORS:** en producción solo se acepta el dominio de `FRONTEND_URL`; en desarrollo, cualquier puerto de `localhost`.
-- **Registro:** pide aceptar los términos (`/terminos`) y el aviso de privacidad de Nexia (`/privacidad`) y guarda cuándo se aceptaron (`users.terms_accepted_at`). Los slugs que chocarían con rutas de la app (`admin`, `auth`, `terminos`…) reciben el sufijo `-negocio`.
-- **Privacidad:** aviso por negocio, borrado de fotos y datos de la clienta solo en su propio dispositivo.
-- **Recuperar contraseña:** desde el login («¿Olvidaste tu contraseña?»). El enlace (`/auth/restablecer?token=…`) vence en 1 hora y sirve una sola vez, porque lleva una huella de la contraseña actual. La respuesta es igual exista o no la cuenta, y al cambiarla llega un aviso por correo.
-- **Avisos por correo a la dueña** (`app/core/alerts.py`): los mismos avisos de Inicio (cita nueva, cancelación, cambio, comprobante, anticipo vencido, lista de espera, confirmación) más un resumen de las citas de mañana a las 8 p. m. hora del negocio. Ella elige cuáles en Configuración → Avisos por correo. El correo sale solo si el commit se confirma, y en un hilo aparte para no hacer esperar a la clienta. El resumen lo revisa un ciclo cada 10 minutos dentro de la API (en el plan gratis de Render, si la API está dormida, sale cuando despierta).
-- **Qué le falta al negocio** (`app/core/readiness.py`, `GET /api/settings/readiness`): una sola lista para Inicio y Mi negocio. "Comparte tu enlace" se guarda en el negocio (`link_shared`), ya no en el navegador. Los avisos (falta la CLABE, página en pausa) aparecen en Inicio aunque se haya ocultado la lista.
-- **Correos:** con Resend (`app/core/mailer.py`, textos en `app/core/emails.py`): bienvenida al registrarse, enlace para recuperar y aviso de contraseña cambiada. Sin `RESEND_API_KEY` no se envían; se escriben en el log del backend, con el enlace, para probar en local.
+- **Pausa y vacaciones:** la API también los respeta (disponibilidad, reservas y cambios de cita de la clienta) con `app/core/shop_note.py`. Las citas que crea la dueña no se bloquean.
+- **Validaciones en la API:** teléfono de 10 dígitos, enlace de pago con `https://`, fechas de cierre completas y en orden, fotos solo como imágenes pequeñas (hasta 3), mensajes de hasta 1000 caracteres.
+- **Privacidad:** aviso por negocio; las fotos de referencia se borran a los 30 días; los datos de la clienta se recuerdan solo en su propio dispositivo; los mensajes personalizados de la dueña no salen en la página pública.
 - **Monitoreo opcional:** si se define `SENTRY_DSN` en el `.env` (requiere instalar `sentry-sdk`), los errores llegan a Sentry.
 
 ---
 
-## 5. Diseño (frontend)
+## 6. Diseño (frontend)
 
 El sistema de diseño está en `src/styles.css`. Usa **siempre** estos nombres y no colores sueltos:
 
-- **Colores:** `bg-canvas`, `bg-surface`, `border-line`, `border-line-strong`, `text-ink`, `text-ink-soft`, `text-muted`, `accent`.
-- **Componentes:** `.page-head` (encabezado de página), `.card` y `.card-title`, `.btn` con sus variantes `btn-primary`, `btn-secondary`, `btn-ghost`, `btn-danger` y `btn-whatsapp`, `.badge-ok`, `-warn`, `-bad`, `-info` y `-neutral`, `.empty` (pantalla vacía) y `.nums` (números alineados).
-- **Panel:** menú lateral oscuro fijo en escritorio (`.nx-rail`, tokens `--nx-rail-*`), que en celular se abre como cajón desde "Más". El lienzo (`--bg-app`) tiene más tono que las tarjetas, y `.card` lleva una sombra suave (`--nx-card-shadow`).
-- **Tarjetas de número:** `.stat` con `.stat-icon` y un color (`stat-accent`, `-ok`, `-warn`, `-bad`, `-info`), más `.stat-value` y `.stat-label`.
+- **Colores:** `bg-canvas`, `bg-surface`, `border-line`, `border-line-strong`, `text-ink`, `text-ink-soft`, `text-muted`, `accent` (`text-accent`, `bg-accent-soft`). El color de marca de cada negocio es `--primary`.
+- **Estructura:** `.page-head` (encabezado de página), `.card` (con sombra suave, `--nx-card-shadow`) y `.card-title` (lleva una rayita del color de la marca), `.card-head` + `.sec-icon` (título con ícono), `.card-tint` (tarjeta destacada con tinte de la marca).
+- **Números:** `.stat` con `.stat-icon` y un color según el estado (`stat-accent`, `-ok`, `-warn`, `-bad`, `-info`), más `.stat-value` y `.stat-label`.
+- **Listas y personas:** `.avatar` (iniciales con el tono de la marca), `.row-hover` (filas tocables).
+- **Formularios del panel:** `.label` + `.input`, `.chip` / `.chip-on` (opciones rápidas) y `.switch` (interruptor con `role="switch"` y `aria-checked`). En login y registro: `.field`, `.field-label`, `.field-input`, `.field-hint` y `.field-error`.
+- **Botones y etiquetas:** `.btn` con `btn-primary`, `btn-secondary`, `btn-ghost`, `btn-danger` y `btn-whatsapp`; `.badge-ok`, `-warn`, `-bad`, `-info` y `-neutral`; `.empty` (pantalla vacía) y `.nums` (números alineados).
+- **Menú lateral:** `.nx-rail`, `.nx-rail-link`, `.nx-rail-on` y tokens `--nx-rail-*`.
+- **Huecos:** para tarjetas de alturas distintas lado a lado, usa columnas independientes (`grid items-start` con un `flex flex-col gap-4` por columna), no una rejilla de filas.
+- **Modo oscuro:** solo con tokens; no agregues `bg-white`. Los menús desplegables viven fuera del panel, así que también deben usar `bg-surface`.
 - **Confirmaciones:** el servicio `Confirm` (`src/app/shared/components/confirm/`). No usar `window.confirm`.
 - **Tipografía:** Plus Jakarta Sans. **Íconos:** Material Symbols (`<mat-icon>`). Sin emojis en la interfaz; en los mensajes de WhatsApp sí se usan.
 
 ---
 
-## 6. Desarrollo local
+## 7. Desarrollo local
 
 ```bash
 # Backend
@@ -165,46 +235,95 @@ npx ng serve --port 4200
 npx ng test --watch=false
 ```
 
-- Las variables de entorno están explicadas en `nexia-backend/.env.example`.
-- **El puerto del frontend puede ser cualquiera.** Los enlaces que arma el backend (correos y `/s/:negocio`) usan la dirección desde la que se abrió la app (`app/core/origins.py`): en local, cualquier `localhost`; en producción, solo `FRONTEND_URL`.
-- Las columnas nuevas de la base se agregan solas al arrancar (`app/db/init_db.py`). No hay herramienta de migraciones.
-- **Zona horaria:** las citas se guardan como hora local del negocio, sin zona. Para "ahora" y "hoy" usa siempre `local_now(business)` / `local_today(business)` de `app/core/clock.py`, nunca `datetime.now()` ni `date.today()`: el servidor corre en UTC. La zona se toma del navegador al registrarse y se cambia en Configuración → Cómo se reserva.
+- **Variables de entorno:** están explicadas en `nexia-backend/.env.example`. Las nuevas son `TRUSTED_PROXY_HOPS`, `RESEND_API_KEY` y `MAIL_FROM`.
+- **Correos en local:** sin `RESEND_API_KEY` no se envían; se escriben en la terminal del backend, con su enlace, para probar recuperar contraseña o los avisos.
+- **El puerto del frontend puede ser cualquiera.** Los enlaces que arma el backend (correos y `/s/:negocio`) usan la dirección desde la que se abrió la app.
+- **Migraciones:** las columnas nuevas se agregan solas al arrancar (`app/db/init_db.py`); no hay herramienta de migraciones. Ahí también se pasan a sus columnas los datos que quedaron con el formato viejo, empaquetados dentro de `resources`.
+- **Zona horaria:** las citas se guardan como hora local del negocio, sin zona. Para "ahora" y "hoy" usa siempre `local_now(business)` / `local_today(business)` de `app/core/clock.py`, nunca `datetime.now()` ni `date.today()`: el servidor corre en UTC. La zona se toma del navegador al registrarse y se cambia en Configuración → Reglas de reserva.
+- **Piezas del backend que conviene conocer** (`app/core/`):
+
+  | Archivo | Para qué |
+  |---|---|
+  | `clock.py` | Hora local de cada negocio |
+  | `throttle.py` | Límite de intentos por IP |
+  | `origins.py` | Dirección de confianza para enlaces |
+  | `mailer.py`, `emails.py` | Envío con Resend y textos de los correos |
+  | `alerts.py` | Avisos por correo y resumen diario |
+  | `readiness.py` | Qué le falta al negocio |
+  | `shop_note.py` | Pausa y cierre |
+  | `catalog.py` | Giros, etiqueta del personal y servicios sugeridos |
+  | `messages.py` | Claves de los mensajes de WhatsApp |
 
 ---
 
-## 7. Publicación (plan actual)
+## 8. Publicación (plan actual)
 
 | Pieza | Para demos ($0) | Para negocios reales |
 |---|---|---|
 | Frontend | Vercel | Vercel |
 | API | Render (plan gratis; se duerme tras unos 15 minutos sin uso) | Railway (~$5 USD/mes) o un plan de pago de Render |
 | Base | Neon (PostgreSQL gratis) | La base de Railway o un plan de pago |
+| Correo | Resend (plan gratis) | Resend con dominio propio |
 
-- **Todos los negocios usan la misma instalación**; cada uno se registra en `/auth`.
-- Ya están listos `render.yaml`, el endpoint `/api/health`, la compatibilidad con PostgreSQL y `vercel.json`, que apunta a `https://nexia-api.onrender.com`. Los pasos están en `nexia-backend/DEPLOY.md`.
-- **Pendiente antes de las demos:** confirmar en los logs de Render que `X-Forwarded-For` llega como `clienta, vercel` (si llega con otro número de saltos, ajustar `TRUSTED_PROXY_HOPS`). También falta ajustar `render.yaml` para usar Neon como base.
+- **Todos los negocios usan la misma instalación**; cada uno se registra en `/auth/register`.
+- **Ya está listo:** `render.yaml` (con `TRUSTED_PROXY_HOPS=2`), el endpoint `/api/health`, la compatibilidad con PostgreSQL y `vercel.json`, que apunta a `https://nexia-api.onrender.com`. Los pasos están en `nexia-backend/DEPLOY.md`.
+- **Pendiente antes de las demos:**
+  - confirmar en los logs de Render que `X-Forwarded-For` llega como `clienta, vercel` (si llega con otro número de saltos, ajustar `TRUSTED_PROXY_HOPS`);
+  - ajustar `render.yaml` para usar Neon como base.
 - **Riesgo que queda:** quien llame directo a `nexia-api.onrender.com` (sin pasar por Vercel) todavía puede inventar la IP. Cerrarlo del todo pide un proxy propio que agregue un encabezado secreto, o poner Cloudflare delante.
 - **Correo en producción:** crear cuenta en Resend, verificar el dominio y poner `RESEND_API_KEY` y `MAIL_FROM` (p. ej. `Nexia <hola@tudominio.mx>`) en Render. Sin dominio verificado, Resend solo entrega a tu propio correo.
+- **Resumen diario:** en el plan gratis de Render llega tarde si la API está dormida a las 8 p. m.; en un plan de pago sale a tiempo.
 - **Respaldos:** programar `scripts/backup_db.py` cada día y guardar las copias fuera del servidor.
 
 ---
 
-## 8. Pendientes y planes futuros
+## 9. Pendientes y planes futuros
+
+**Antes de abrir a negocios reales**
+- Llenar razón social, domicilio, correo y ciudad en `src/app/features/legal/legal-info.ts`, y pedir a un abogado que revise `/terminos` y `/privacidad`. La sección "Precio del servicio" de los términos es genérica: confirmar si Nexia va a cobrar.
+- Configurar Resend con el dominio y verificar `TRUSTED_PROXY_HOPS` en Render (ver la sección 8).
+- Recorrer en el navegador: el registro en celular, recuperar contraseña con un correo real y los menús del selector de hora en modo oscuro.
+
+**Siguientes mejoras de Configuración** (en este orden)
+1. **Métodos de pago que acepta el negocio:** hoy "efectivo, transferencia, tarjeta" está fijo en Agenda. Que al cobrar solo salgan los que acepta, que la página de reservas lo diga y que Reportes los agrupe igual.
+2. **Varios cierres y días festivos:** una lista en lugar de un solo periodo de vacaciones, con días festivos de México sugeridos.
+3. **Regla para clientas que faltan:** pedir anticipo de forma automática a quien falta seguido.
+4. **Enlace personalizado:** poder cambiar el slug, sin romper el enlace anterior (QR impresos).
 
 **Corto plazo**
-- **Antes de abrir a negocios reales:** llenar razón social, domicilio, correo y ciudad en `src/app/features/legal/legal-info.ts` y pedir a un abogado que revise `/terminos` y `/privacidad`.
-- Revisar en el navegador Equipo, Horarios, Configuración, Mi negocio y la ficha de la cita, y ajustar los selectores de hora.
+- **Asistente de 3 pasos después del registro** ("¿Atiendes tú?", horario base, activar servicios), usando la lista de `readiness`.
 - Una sola opinión por cita.
-- Limpiar el código muerto: formularios con `@if (false…)` (el de Configuración ya se quitó), la sección de huecos de Inicio y el código de reseñas sin usar en la página de reservas.
+- Limpiar el código muerto: formularios con `@if (false…)`, la sección de huecos de Inicio y el código de reseñas sin usar en la página de reservas.
 - Pasar el límite de intentos a Redis si algún día hay varios servidores.
+- Que la agenda use la zona horaria del negocio y no la del navegador (hoy coinciden casi siempre).
 
-**Según lo que pidan los primeros negocios** (ya hechos: notas por visita, propinas, venta de productos al cobrar, cupones, lealtad, cumpleaños, PWA y modo oscuro)
+**Según lo que pidan los primeros negocios** (ya hechos: notas por visita, propinas, venta de productos al cobrar, cupones, premio por visitas, cumpleaños, PWA, modo oscuro, avisos por correo y mensajes editables)
 - Formularios de ingreso y consentimiento (consultorios, spas, tatuajes).
 - Clases con cupo visible ("quedan 3 lugares").
 - Paquetes y membresías a la venta desde la página de reservas.
-- Regla de no-show: pedir anticipo de forma automática a quien falta seguido.
 - Sincronización con Google Calendar para cada colaboradora.
 - Recordatorios automáticos con la API oficial de WhatsApp Business (con costo por mensaje).
 - Varias sucursales por dueño.
 - Botón "Reservar" en Google Maps e Instagram.
 - Guardar las fotos en un servicio de archivos (S3 o similar) en lugar de dentro de la base, cuando crezca el volumen.
+
+---
+
+## 10. Historial de cambios
+
+### 15 de octubre de 2026
+
+| Repositorio | Commit | Qué cambió |
+|---|---|---|
+| backend | `7493b8c` | **Cuentas.** Registro en una transacción (perfil, giro, zona horaria, términos, servicios sugeridos apagados), vista previa del slug, slugs reservados, recuperar contraseña por correo, correo de bienvenida con Resend, enlaces con la dirección de confianza, cookie que respeta `COOKIE_SECURE`, límite por IP que no se puede falsificar (`TRUSTED_PROXY_HOPS`). |
+| backend | `9f1f995` | **Zona horaria.** "Ahora" y "hoy" en la hora de cada negocio en todo el backend (antes usaba la del servidor, en UTC). |
+| backend | `7bb6e50` | **Configuración y avisos.** Un solo guardado con validaciones, pausa y vacaciones respetadas por la API, avisos por correo a la dueña con resumen diario, lista única de "qué te falta", datos de ejemplo sin duplicar servicios. |
+| backend | `02262e9` | **Columnas propias** para pausa, cierre, anuncio y fotos (antes iban empaquetados en `resources`), con migración automática. |
+| backend | `e59321d` | **Mensajes de WhatsApp** personalizados guardados por negocio. |
+| frontend | `1752dee` | **Registro en una pantalla**, recuperar contraseña desde el login, `/auth/restablecer`, páginas `/terminos` y `/privacidad`, `guestGuard`, tipos de negocio compartidos. |
+| frontend | `1abc25e` | **Rediseño del panel:** menú lateral oscuro, fondo con más tono, tarjetas con sombra e íconos de color, todas las pantallas sin huecos, arreglos de modo oscuro. |
+| frontend | `e80014d` | **Configuración nueva** (franja de estado, secciones con resumen, opciones rápidas, barra de cambios, aviso al salir), sección de avisos por correo, Inicio y Mi negocio con la misma lista. |
+| frontend | `4c6d592` | La página de reservas y Configuración leen pausa, cierre, anuncio y fotos de sus campos nuevos. |
+| frontend | `7748e79` | **Mensajes de WhatsApp editables** con variables y vista previa; textos unificados, fechas legibles y prefijo 52 en todos los números. |
+
+Pruebas al cerrar el día: backend 40, frontend 26, todas pasando.
