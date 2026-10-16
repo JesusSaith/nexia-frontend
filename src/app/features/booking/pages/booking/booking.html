@@ -114,7 +114,7 @@
   </nav>
 
   @if (loadError(); as message) {
-    <p role="alert" class="text-sm text-red-700">{{ message }}</p>
+    <p role="alert" class="text-sm text-[var(--nx-bad-fg)]">{{ message }}</p>
   } @else if (isLoading()) {
     <div class="flex justify-center py-16">
       <mat-spinner diameter="36" />
@@ -292,7 +292,7 @@
   } @else if (step() === 2) {
     <section class="flex flex-col gap-4">
       @if (bumpNotice(); as notice) {
-        <p role="alert" class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">{{ notice }}</p>
+        <p role="alert" class="rounded-xl badge-warn px-3 py-2 text-sm">{{ notice }}</p>
       }
       @if (soonest().length) {
         <div>
@@ -339,7 +339,7 @@
           >
             {{ day.getDate() }}
             @if (openDays().includes(dayIso(day))) {
-              <span class="mx-auto mt-0.5 block h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+              <span class="mx-auto mt-0.5 block h-1.5 w-1.5 rounded-full bg-[var(--nx-ok-fg)]"></span>
             }
           </button>
         }
@@ -352,7 +352,7 @@
         </label>
       }
       @if (slotsError(); as message) {
-        <p role="alert" class="text-sm text-red-700">{{ message }}</p>
+        <p role="alert" class="text-sm text-[var(--nx-bad-fg)]">{{ message }}</p>
       } @else if (slotsLoading()) {
         <div class="flex justify-center py-10">
           <mat-spinner diameter="32" />
@@ -360,7 +360,7 @@
       } @else if (slots().length === 0) {
         <p class="text-sm text-ink-soft">Ese día no tiene horarios libres. Déjanos tus datos y te avisamos.</p>
         @if (waitSent()) {
-          <p class="text-sm text-emerald-700">Listo. Te avisamos si se libera un horario.</p>
+          <p class="text-sm text-[var(--nx-ok-fg)]">Listo. Te avisamos si se libera un horario.</p>
         } @else {
           <div class="flex flex-col gap-2 sm:max-w-sm">
             <label class="rounded-xl border border-line bg-white px-3 py-2">
@@ -425,7 +425,7 @@
         />
       </label>
       @if (phoneError(); as message) {
-        <p class="text-sm text-red-700">{{ message }}</p>
+        <p class="text-sm text-[var(--nx-bad-fg)]">{{ message }}</p>
       }
       @if (loyaltyPercent() && !usePackage()) {
         <p class="text-sm text-ink-soft" role="status">
@@ -437,7 +437,7 @@
         <input class="w-full bg-transparent text-sm outline-none" formControlName="client_name" autocomplete="name" />
       </label>
       @if (nameError(); as message) {
-        <p class="text-sm text-red-700">{{ message }}</p>
+        <p class="text-sm text-[var(--nx-bad-fg)]">{{ message }}</p>
       }
       @if (copy().pet) {
         <label class="rounded-xl border border-line bg-white px-3 py-2">
@@ -486,7 +486,7 @@
             }
           </div>
           @if (photoError(); as message) {
-            <p class="mt-2 text-sm text-red-700" role="alert">{{ message }}</p>
+            <p class="mt-2 text-sm text-[var(--nx-bad-fg)]" role="alert">{{ message }}</p>
           }
         </div>
       }
@@ -496,7 +496,7 @@
           <input class="w-full bg-transparent text-sm outline-none" type="email" formControlName="client_email" autocomplete="email" />
         </label>
         @if (emailError(); as message) {
-          <p class="text-sm text-red-700">{{ message }}</p>
+          <p class="text-sm text-[var(--nx-bad-fg)]">{{ message }}</p>
         }
         @if (!selectedService()?.variable_price) {
           <label class="rounded-xl border border-line bg-white px-3 py-2">
@@ -527,7 +527,7 @@
           <button type="button" class="btn btn-secondary h-auto! shrink-0" [disabled]="!coupon().trim()" (click)="checkCoupon()">Aplicar</button>
         </div>
         @if (couponError(); as message) {
-          <p class="text-sm text-red-700" role="alert">{{ message }}</p>
+          <p class="text-sm text-[var(--nx-bad-fg)]" role="alert">{{ message }}</p>
         } @else if (couponChecked() && couponPercent()) {
           <p class="text-sm text-ink-soft" role="status">Cupón {{ couponChecked() }}: <span class="nums">{{ couponPercent() }}%</span> de descuento.</p>
         }
@@ -538,7 +538,7 @@
       }
 
       @if (formError(); as message) {
-        <p role="alert" class="mb-3 text-sm text-red-700">{{ message }}</p>
+        <p role="alert" class="mb-3 text-sm text-[var(--nx-bad-fg)]">{{ message }}</p>
       }
 
       @if (money(); as cash) {
@@ -624,7 +624,7 @@
     </form>
   } @else if (confirmation(); as appointment) {
     <section class="nx-success mx-auto flex w-full max-w-md flex-col items-center card px-6 py-10 text-center shadow-sm">
-      <span class="flex h-16 w-16 items-center justify-center rounded-full bg-rose-50 text-rose-500">
+      <span class="flex h-16 w-16 items-center justify-center rounded-full bg-accent-soft text-accent">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-8 w-8" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M5 12.5l5 5L20 7"/></svg>
       </span>
       @if (appointment.needs_approval) {
@@ -637,17 +637,17 @@
         </p>
       }
       @if (appointment.status === 'awaiting_deposit' && appointment.deposit_amount && holdUntil(appointment); as limit) {
-        <p class="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+        <p class="mt-3 rounded-xl badge-warn px-3 py-2 text-sm">
           Te guardamos el horario hasta <strong>{{ limit }}</strong>. Si no llega el anticipo, se libera para alguien más.
         </p>
       }
       @if (appointment.status === 'awaiting_deposit' && appointment.deposit_amount) {
         <ol class="mt-4 w-full space-y-2 text-left text-sm">
-          <li class="rounded-xl bg-rose-50 px-3 py-2">
+          <li class="rounded-xl bg-canvas px-3 py-2">
             1. Transfiere <strong>${{ appointment.deposit_amount }}</strong> a {{ brand()?.deposit_account }}. Se descuenta del total.
             <button type="button" class="ml-2 text-xs font-medium underline" (click)="copyAccount()">{{ accountCopied() ? 'Copiada' : 'Copiar cuenta' }}</button>
           </li>
-          <li class="rounded-xl bg-rose-50 px-3 py-2">2. Sube la foto del comprobante para que el negocio confirme tu cita</li>
+          <li class="rounded-xl bg-canvas px-3 py-2">2. Sube la foto del comprobante para que el negocio confirme tu cita</li>
         </ol>
         <!-- FUTURE_PHASE_SPEI: confirmar el anticipo con la clave de rastreo (Banxico). Falta probarlo con transferencias reales.
         @if (brand()?.spei_check && appointment.cancel_token) {
@@ -655,14 +655,14 @@
         }
         -->
         @if (proofSent()) {
-          <p class="mt-3 text-sm text-emerald-700">Foto enviada. El negocio la ve en la agenda y ahí acepta la cita.</p>
+          <p class="mt-3 text-sm text-[var(--nx-ok-fg)]">Foto enviada. El negocio la ve en la agenda y ahí acepta la cita.</p>
         } @else {
           <label class="mt-4 flex h-11 w-full cursor-pointer items-center justify-center rounded-full bg-ink text-sm text-white">
             Subir comprobante
             <input class="hidden" type="file" accept="image/png,image/jpeg,image/webp" (change)="onProof($event)" />
           </label>
           @if (formError(); as message) {
-            <p class="mt-2 text-sm text-red-700" role="alert">{{ message }}</p>
+            <p class="mt-2 text-sm text-[var(--nx-bad-fg)]" role="alert">{{ message }}</p>
           }
         }
       }

@@ -73,7 +73,7 @@
         }
       </nav>
 
-      <form id="settings-form" class="flex min-w-0 flex-col gap-3" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <form id="settings-form" class="nx-quiet flex min-w-0 flex-col gap-4" [formGroup]="form" (ngSubmit)="save()" novalidate>
         <ng-template #head let-id>
           @let section = sectionInfo(id);
           <summary class="flex cursor-pointer list-none items-center gap-3 rounded-[calc(var(--radius-2xl)-1px)] p-4 transition-colors hover:bg-canvas/60 group-open:rounded-b-none group-open:border-b group-open:border-line sm:p-5 [&::-webkit-details-marker]:hidden">

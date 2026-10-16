@@ -13,13 +13,13 @@
       </div>
       <h1 class="mt-1 text-2xl font-semibold">Tu cita</h1>
       @if (notice(); as message) {
-        <p class="mt-4 rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700" role="status">{{ message }}</p>
+        <p class="mt-4 rounded-xl badge-info px-3 py-2 text-sm" role="status">{{ message }}</p>
       }
       @if (item.needs_approval && !item.is_cancelled && !item.is_past) {
         <p class="mt-4 rounded-xl border border-line bg-canvas px-3 py-2 text-sm text-ink-soft" role="status">Tu solicitud está apartada. {{ item.business_name }} la revisa y te confirma por WhatsApp.</p>
       }
       @if (item.status === 'completed') {
-        <div class="mt-4 rounded-2xl bg-rose-50 p-4">
+        <div class="mt-4 rounded-2xl bg-canvas p-4">
           @if (reviewState() === 'sent') {
             <p class="text-sm font-medium">¡Gracias por tu opinión! </p>
           } @else {
@@ -31,7 +31,7 @@
             </div>
             <textarea class="mt-2 w-full resize-none rounded-xl border border-line bg-white px-3 py-2 text-sm outline-none" rows="2" maxlength="1000" placeholder="Cuéntanos en una frase" [value]="opinion()" (input)="opinion.set($any($event.target).value)"></textarea>
             @if (reviewError(); as message) {
-              <p class="mt-1 text-xs text-red-700" role="alert">{{ message }}</p>
+              <p class="mt-1 text-xs text-[var(--nx-bad-fg)]" role="alert">{{ message }}</p>
             }
             <button type="button" class="btn btn-primary mt-2 w-full disabled:opacity-50" [disabled]="reviewState() === 'sending'" (click)="sendReview(item)">
               {{ reviewState() === 'sending' ? 'Enviando…' : 'Enviar opinión' }}
@@ -40,7 +40,7 @@
         </div>
       }
       @if (item.is_cancelled) {
-        <p class="mt-4 text-sm font-medium text-rose-700">Cita cancelada</p>
+        <p class="mt-4 text-sm font-medium text-[var(--nx-bad-fg)]">Cita cancelada</p>
       }
       <dl class="mt-5 space-y-2 text-sm">
         <div>
@@ -72,7 +72,7 @@
         <button type="button" class="btn btn-primary mt-4 w-full" [disabled]="saving()" (click)="acceptPrice()">Sí, ese precio</button>
       }
       @if (item.price_accepted) {
-        <p class="mt-4 text-sm text-emerald-700">Aceptaste este precio.</p>
+        <p class="mt-4 text-sm text-[var(--nx-ok-fg)]">Aceptaste este precio.</p>
       }
       @if (item.status === 'awaiting_deposit' && !item.deposit_amount) {
         <p class="mt-4 text-sm">El anticipo se calcula cuando quede el precio acordado.</p>
@@ -85,7 +85,7 @@
         }
         -->
         @if (item.payment_proof) {
-          <p class="mt-2 text-sm text-emerald-700">Foto enviada. El negocio confirma la cita cuando la revise.</p>
+          <p class="mt-2 text-sm text-[var(--nx-ok-fg)]">Foto enviada. El negocio confirma la cita cuando la revise.</p>
         } @else {
           <label class="mt-3 flex h-11 cursor-pointer items-center justify-center rounded-2xl bg-ink text-sm text-white">
             Subir comprobante
@@ -94,7 +94,7 @@
         }
       }
       @if (item.changes_locked && !item.is_cancelled && !item.is_past) {
-        <p class="mt-4 text-sm text-rose-700">Ya no se puede cambiar esta cita.</p>
+        <p class="mt-4 text-sm text-[var(--nx-bad-fg)]">Ya no se puede cambiar esta cita.</p>
       }
       @if (item.status === 'awaiting_deposit' && item.payment_url) {
         <a class="btn btn-primary mt-4 justify-center" [href]="item.payment_url" target="_blank" rel="noopener">Pagar anticipo</a>
@@ -104,7 +104,7 @@
         <button type="button" class="btn btn-primary mt-4 w-full" [disabled]="saving()" (click)="confirmVisit()">Sí voy</button>
       }
       @if (item.client_confirmed) {
-        <p class="mt-4 text-sm text-emerald-700">Confirmaste que vas.</p>
+        <p class="mt-4 text-sm text-[var(--nx-ok-fg)]">Confirmaste que vas.</p>
       }
       @if (!item.is_cancelled && !item.is_past && !item.changes_locked) {
         <div class="mt-6 flex flex-col gap-2">
@@ -131,7 +131,7 @@
               <button
                 type="button"
                 class="rounded-full border px-3 py-1 text-sm"
-                [class.bg-rose-500]="selectedSlot() === slot.starts_at"
+                [class.bg-accent]="selectedSlot() === slot.starts_at"
                 [class.text-white]="selectedSlot() === slot.starts_at"
                 (click)="selectedSlot.set(slot.starts_at)"
               >

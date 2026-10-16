@@ -24,14 +24,14 @@
     </header>
 
     @if (demoLoaded()) {
-      <section class="card mb-4 flex flex-wrap items-center justify-between gap-3 py-3!">
+      <section class="card mb-6 flex flex-wrap items-center justify-between gap-3 py-3!">
         <p class="flex items-center gap-2 text-sm text-ink"><mat-icon class="text-muted">science</mat-icon>Estás viendo datos de ejemplo.</p>
         <button type="button" class="btn btn-secondary h-9!" [disabled]="demoBusy()" (click)="toggleDemo()">Quitar datos de ejemplo</button>
       </section>
     }
 
     <!-- Indicadores del día -->
-    <div class="mb-4 grid grid-cols-3 gap-3">
+    <div class="mb-6 grid grid-cols-3 gap-3">
       <a routerLink="/admin/agenda" class="stat">
         <span class="stat-icon stat-accent"><mat-icon>event</mat-icon></span>
         <span>
@@ -58,7 +58,7 @@
     </div>
 
     @if ((!setupHidden() || setupWarnings()) && setupLeft() > 0) {
-      <section class="card card-tint mb-4">
+      <section class="card card-tint mb-6">
         <div class="flex items-start justify-between gap-3">
           <div class="card-head">
             <span class="sec-icon bg-accent! text-white!"><mat-icon>rocket_launch</mat-icon></span>
@@ -96,7 +96,7 @@
     }
 
     @if (readyReminders().length > 0) {
-      <section class="card mb-4 flex flex-wrap items-center justify-between gap-3">
+      <section class="card mb-6 flex flex-wrap items-center justify-between gap-3">
         <div class="flex items-center gap-3">
           <span class="stat-icon stat-ok"><mat-icon>notifications_active</mat-icon></span>
           <div>
@@ -118,7 +118,7 @@
     }
 
     @if (birthdays().length) {
-      <section class="card mb-4">
+      <section class="card mb-6">
         <h2 class="card-title flex items-center gap-1.5"><mat-icon class="h-4! w-4! text-[16px]!">cake</mat-icon>Cumpleaños de hoy</h2>
         <ul class="mt-2 divide-y divide-line">
           @for (client of birthdays(); track client.id) {
@@ -134,7 +134,7 @@
     }
 
     @if (dueShown().length) {
-      <section class="card mb-4">
+      <section class="card mb-6">
         <div class="card-head">
           <span class="sec-icon"><mat-icon>event_repeat</mat-icon></span>
           <h2 class="card-title">Les toca volver</h2>
@@ -155,7 +155,7 @@
     }
 
     @if (todos().length) {
-      <section class="card mb-4">
+      <section class="card mb-6">
         <div class="card-head">
           <span class="sec-icon"><mat-icon>pending_actions</mat-icon></span>
           <h2 class="card-title">Pendientes</h2>
@@ -173,8 +173,8 @@
     }
 
     <!-- Dos columnas independientes: cada una apila sus tarjetas y ninguna deja hueco bajo la más corta. -->
-    <div class="grid items-start gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-      <div class="flex min-w-0 flex-col gap-4">
+    <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+      <div class="flex min-w-0 flex-col gap-6">
         <section class="card">
           <div class="flex items-center justify-between gap-3">
             <div class="card-head">
@@ -266,7 +266,7 @@
         </section>
       </div>
 
-      <div class="flex min-w-0 flex-col gap-4">
+      <div class="flex min-w-0 flex-col gap-6">
         <section class="card">
           <div class="card-head">
             <span class="sec-icon"><mat-icon>event_upcoming</mat-icon></span>

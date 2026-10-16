@@ -113,7 +113,7 @@
                   <li class="flex items-center gap-2 py-2">
                     <span class="h-2.5 w-2.5 shrink-0 rounded-sm" [style.background]="slice.color"></span>
                     <span class="min-w-0 flex-1 truncate text-ink-soft">{{ slice.label }}</span>
-                    <span class="nums shrink-0 text-right font-medium text-ink">{{ money(slice.amount) }}</span>
+                    <span class="nums shrink-0 text-right text-base font-semibold text-ink">{{ money(slice.amount) }}</span>
                     <span class="nums w-10 shrink-0 text-right text-muted">{{ slice.share }}%</span>
                   </li>
                 }
@@ -125,7 +125,7 @@
                 <li>
                   <div class="mb-1 flex justify-between gap-3 text-sm">
                     <span class="min-w-0 truncate text-ink-soft">{{ bar.label }}</span>
-                    <span class="nums shrink-0 text-right font-medium text-ink">{{ money(bar.amount) }}</span>
+                    <span class="nums shrink-0 text-right text-base font-semibold text-ink">{{ money(bar.amount) }}</span>
                   </div>
                   <div class="h-1.5 overflow-hidden rounded-full bg-canvas">
                     <div class="h-full rounded-full bg-accent" [style.width.%]="bar.height"></div>
@@ -208,7 +208,7 @@
                     @for (method of methods; track method.label) {
                       <li class="flex items-center justify-between gap-3 py-2.5">
                         <span class="text-ink-soft">{{ method.label }}</span>
-                        <span class="nums text-right font-medium text-ink">{{ money(method.amount) }}</span>
+                        <span class="nums text-right text-base font-semibold text-ink">{{ money(method.amount) }}</span>
                       </li>
                     }
                   </ul>
@@ -278,7 +278,7 @@
                       <p class="truncate font-medium text-ink">{{ item.name }}</p>
                       <p class="text-xs text-muted">{{ item.kind === 'fixed' ? (item.cadence === 'week' ? 'Semanal' : item.cadence === 'day' ? 'Por día' : 'Mensual') : 'Variable' }}</p>
                     </div>
-                    <span class="nums shrink-0 text-right font-medium text-ink">{{ money(item.amount) }}</span>
+                    <span class="nums shrink-0 text-right text-base font-semibold text-ink">{{ money(item.amount) }}</span>
                     <span class="flex shrink-0">
                       <button type="button" class="btn btn-ghost h-8! w-8! px-0!" aria-label="Editar" (click)="editExpense(item)"><mat-icon class="h-4! w-4! text-[16px]!">edit</mat-icon></button>
                       <button type="button" class="btn btn-ghost h-8! w-8! px-0!" aria-label="Quitar" (click)="removeExpense(item.id)"><mat-icon class="h-4! w-4! text-[16px]!">delete</mat-icon></button>
