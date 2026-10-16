@@ -139,6 +139,44 @@ export class DashboardPageComponent {
     const row = this.books();
     return Boolean(row) && !row!.total && !row!.completed_count && !row!.missed_count && !row!.deposit_due && !row!.expense_fixed && !row!.expense_variable;
   });
+  /** Ocupación de cada colaboradora: horas ocupadas sobre horas de trabajo. */
+  protected readonly occupancyRows = computed(() =>
+    (this.books()?.staff ?? [])
+      .filter((person) => (person.open_hours ?? 0) > 0)
+      .map((person) => ({ name: person.staff_name, percent: person.occupancy ?? 0 }))
+      .sort((left, right) => right.percent - left.percent),
+  );
+  protected readonly occupancyHint = computed(() => {
+    const value = this.books()?.occupancy ?? 0;
+    return value >= 85 ? 'Casi lleno: quizá te falta equipo u horario.' : value >= 50 ? 'Buen nivel de ocupación.' : 'Hay espacio: buen momento para promociones o "Les toca volver".';
+  });
+  protected readonly clientShare = computed(() => {
+    const fresh = this.books()?.new_clients ?? 0;
+    const back = this.books()?.returning_clients ?? 0;
+    return { fresh, back, total: fresh + back, freshPercent: fresh + back ? Math.round((fresh / (fresh + back)) * 100) : 0 };
+  });
+  protected readonly topMax = computed(() => Math.max(1, ...(this.books()?.top_services ?? []).map((item) => item.income)));
+  /** Mapa de calor: filas = días (lun–dom), columnas = horas con actividad (mínimo 9 a 19 h). */
+  protected readonly heat = computed(() => {
+    const rows = this.books()?.busy_hours ?? [];
+    const hours = rows.map((item) => item.hour);
+    const first = Math.min(9, ...hours);
+    const last = Math.max(19, ...hours);
+    const columns = Array.from({ length: last - first + 1 }, (_, index) => first + index);
+    const max = Math.max(1, ...rows.map((item) => item.count));
+    const count = new Map(rows.map((item) => [`${item.day}-${item.hour}`, item.count]));
+    return {
+      columns,
+      days: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map((label, day) => ({
+        label,
+        cells: columns.map((hour) => {
+          const value = count.get(`${day}-${hour}`) ?? 0;
+          return { hour, value, level: value / max };
+        }),
+      })),
+      empty: rows.length === 0,
+    };
+  });
   /** La meta solo aparece cuando la dueña la pone ("Poner meta"). */
   protected readonly editingGoal = signal(false);
   protected readonly margin = computed(() => {

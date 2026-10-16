@@ -362,6 +362,116 @@
           </span>
         </div>
       </div>
+      <!-- Ocupación, clientas, servicios que más dejan y horas fuertes. -->
+      <div class="mt-4 grid items-start gap-4 lg:grid-cols-2">
+        <article class="card">
+          <div class="card-head">
+            <span class="sec-icon"><mat-icon>event_seat</mat-icon></span>
+            <h2 class="card-title">Ocupación</h2>
+          </div>
+          <p class="nums mt-3 text-3xl font-semibold tracking-tight text-ink">{{ row.occupancy ?? 0 }}%</p>
+          <p class="text-sm text-muted">del horario de trabajo se llenó (hasta hoy). {{ occupancyHint() }}</p>
+          @if (occupancyRows().length > 1) {
+            <ul class="mt-3 flex flex-col gap-2.5">
+              @for (person of occupancyRows(); track person.name) {
+                <li>
+                  <div class="mb-1 flex justify-between gap-3 text-sm">
+                    <span class="truncate text-ink-soft">{{ person.name }}</span>
+                    <span class="nums font-semibold text-ink">{{ person.percent }}%</span>
+                  </div>
+                  <div class="h-1.5 overflow-hidden rounded-full bg-canvas"><div class="h-full rounded-full bg-accent" [style.width.%]="person.percent"></div></div>
+                </li>
+              }
+            </ul>
+          }
+        </article>
+
+        <article class="card">
+          <div class="card-head">
+            <span class="sec-icon"><mat-icon>group_add</mat-icon></span>
+            <h2 class="card-title">{{ copy.text().clients }}</h2>
+          </div>
+          @if (clientShare(); as share) {
+            @if (share.total) {
+              <div class="mt-3 grid grid-cols-2 gap-3">
+                <div>
+                  <p class="nums text-3xl font-semibold tracking-tight text-ink">{{ share.fresh }}</p>
+                  <p class="text-sm text-muted">Nuevas</p>
+                </div>
+                <div>
+                  <p class="nums text-3xl font-semibold tracking-tight text-ink">{{ share.back }}</p>
+                  <p class="text-sm text-muted">Regresaron</p>
+                </div>
+              </div>
+              <div class="mt-3 flex h-2 overflow-hidden rounded-full bg-canvas" role="img" [attr.aria-label]="share.freshPercent + '% nuevas'">
+                <div class="h-full bg-accent" [style.width.%]="share.freshPercent"></div>
+              </div>
+              <p class="mt-2 text-sm text-muted">{{ share.freshPercent >= 60 ? 'Llegan muchas nuevas: cuida que regresen.' : share.freshPercent <= 20 ? 'Casi todas regresan: buena señal; atrae nuevas con tu enlace.' : 'Buen equilibrio entre nuevas y frecuentes.' }}</p>
+            } @else {
+              <p class="py-6 text-sm text-muted">Sin citas completadas en este periodo.</p>
+            }
+          }
+        </article>
+
+        <article class="card">
+          <div class="card-head">
+            <span class="sec-icon"><mat-icon>leaderboard</mat-icon></span>
+            <h2 class="card-title">Servicios que más dejan</h2>
+          </div>
+          @if ((row.top_services ?? []).length) {
+            <ol class="mt-3 flex flex-col gap-2.5">
+              @for (item of row.top_services ?? []; track item.name; let index = $index) {
+                <li>
+                  <div class="mb-1 flex justify-between gap-3 text-sm">
+                    <span class="truncate text-ink-soft"><span class="nums text-muted">{{ index + 1 }}.</span> {{ item.name }} <span class="nums text-muted">· {{ item.count }}</span></span>
+                    <span class="nums font-semibold text-ink">{{ money(item.income) }}</span>
+                  </div>
+                  <div class="h-1.5 overflow-hidden rounded-full bg-canvas"><div class="h-full rounded-full bg-accent" [style.width.%]="(item.income / topMax()) * 100"></div></div>
+                </li>
+              }
+            </ol>
+          } @else {
+            <p class="py-6 text-sm text-muted">Sin citas completadas en este periodo.</p>
+          }
+        </article>
+
+        <article class="card">
+          <div class="card-head">
+            <span class="sec-icon"><mat-icon>grid_on</mat-icon></span>
+            <h2 class="card-title">Días y horas más fuertes</h2>
+          </div>
+          @if (heat(); as map) {
+            @if (map.empty) {
+              <p class="py-6 text-sm text-muted">Sin citas completadas en este periodo.</p>
+            } @else {
+              <div class="mt-3 overflow-x-auto">
+                <table class="w-full border-separate border-spacing-0.5 text-xs" aria-label="Citas por día y hora">
+                  <thead>
+                    <tr>
+                      <th></th>
+                      @for (hour of map.columns; track hour) {
+                        <th class="nums font-normal text-muted">{{ hour }}</th>
+                      }
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (day of map.days; track day.label) {
+                      <tr>
+                        <th class="pr-1 text-left font-normal text-muted">{{ day.label }}</th>
+                        @for (cell of day.cells; track cell.hour) {
+                          <td class="h-6 min-w-5 rounded-sm" [style.background]="cell.value ? 'color-mix(in srgb, var(--primary) ' + (15 + cell.level * 85) + '%, transparent)' : 'var(--color-canvas)'" [attr.title]="day.label + ' ' + cell.hour + ':00 · ' + cell.value + ' citas'"></td>
+                        }
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+              <p class="mt-2 text-sm text-muted">Más oscuro, más citas. Los huecos claros son buenos para promociones.</p>
+            }
+          }
+        </article>
+      </div>
+
       <div class="mt-4">
         <article class="card card-tint h-full">
           <div class="card-head">

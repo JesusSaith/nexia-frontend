@@ -21,6 +21,8 @@ export interface CommissionRow {
   visits: number;
   ticket: number;
   free_hours: number;
+  open_hours?: number;
+  occupancy?: number;
   paid: number;
 }
 
@@ -45,6 +47,13 @@ export interface StockMove {
 export interface SalesReport {
   service_income: number;
   by_method?: Record<string, number>;
+  /** % del horario de trabajo que se llenó. */
+  occupancy?: number;
+  new_clients?: number;
+  returning_clients?: number;
+  top_services?: { name: string; count: number; income: number }[];
+  /** Citas completadas por día de la semana (0 = lunes) y hora. */
+  busy_hours?: { day: number; hour: number; count: number }[];
   product_income: number;
   total: number;
   expense_fixed: number;
