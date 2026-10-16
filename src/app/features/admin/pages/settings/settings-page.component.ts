@@ -351,7 +351,7 @@ export class SettingsPageComponent {
       ].join(' · '),
       promociones: offers.length ? offers.join(' · ') : 'Sin promociones',
       pausa: [this.pauseBookings() ? 'En pausa' : 'Tomando citas', this.upcomingClosures().length ? `${this.upcomingClosures().length} cierre${this.upcomingClosures().length === 1 ? '' : 's'} por venir` : 'sin cierres'].join(' · '),
-      mensajes: (this.autoReminders() || this.autoReturn() ? 'Automáticos encendidos · ' : '') + (this.customizedCount() ? `${this.customizedCount()} personalizado${this.customizedCount() === 1 ? '' : 's'} de ${MESSAGE_TEMPLATES.length}` : 'Todos con el texto de fábrica'),
+      mensajes: (this.customizedCount() ? `${this.customizedCount()} personalizado${this.customizedCount() === 1 ? '' : 's'} de ${MESSAGE_TEMPLATES.length}` : 'Todos con el texto de fábrica'),
       avisos: this.emailAlerts().size ? `${this.emailAlerts().size} de ${ALERT_OPTIONS.length} encendidos · a ${this.accountEmail()}` : 'Apagados: solo los ves en Inicio',
       privacidad: payload.privacy_notice ? 'Aviso de privacidad propio' : 'Aviso genérico de Nexia',
     };

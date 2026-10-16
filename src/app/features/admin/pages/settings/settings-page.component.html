@@ -322,11 +322,13 @@
               <label class="block sm:col-span-2">
                 <span class="label">Cuenta o CLABE para recibirlo</span>
                 <input class="input nums" formControlName="depositAccount" placeholder="CLABE, número de tarjeta o referencia" [class.input-invalid]="depositWarning()" />
+                <!-- FUTURE_PHASE_SPEI: aviso de que con CLABE Banxico confirma los anticipos solos.
                 @if (clabeOk()) {
                   <span class="mt-1 flex items-center gap-1 text-xs text-[var(--nx-ok-fg)]"><mat-icon class="h-4! w-4! text-[16px]!">verified</mat-icon>Con tu CLABE, Banxico confirma los anticipos solos: la clienta pone su clave de rastreo y la cita queda pagada.</span>
                 } @else {
                   <span class="field-hint mt-1 block">Si pones tu CLABE (18 dígitos), los anticipos se confirman solos con Banxico.</span>
                 }
+                -->
               </label>
             </div>
             <div>
@@ -428,7 +430,7 @@
         <details id="sec-mensajes" class="card group scroll-mt-6 p-0!" [open]="isOpen('mensajes')" (toggle)="onToggle('mensajes', $event)">
           <ng-container *ngTemplateOutlet="head; context: { $implicit: 'mensajes' }" />
           <div class="flex flex-col gap-3 p-4 sm:p-5">
-            <!-- Envío automático por la API oficial de WhatsApp. -->
+            <!-- FUTURE_PHASE_WHATSAPP: envío automático por la API oficial de WhatsApp (recordatorio con botones y "Te toca").
             <div class="rounded-xl border border-line">
               <div class="flex items-start gap-3 border-b border-line px-4 py-3">
                 <mat-icon class="mt-0.5 shrink-0" [class.text-[var(--nx-ok-fg)]]="whatsappReady()" [class.text-muted]="!whatsappReady()">{{ whatsappReady() ? 'check_circle' : 'link_off' }}</mat-icon>
@@ -461,6 +463,7 @@
                 <button type="button" role="switch" class="switch" [attr.aria-checked]="autoReturn()" (click)="autoReturn.set(!autoReturn())" aria-label="Invitación automática a volver"><span></span></button>
               </div>
             </div>
+            -->
             <p class="text-sm text-ink-soft">
               Así se escriben los mensajes que mandas desde el panel. Las palabras entre llaves, como <code class="rounded bg-canvas px-1">{{ '{' }}nombre{{ '}' }}</code>, se cambian solas por los datos de cada cita. Si un dato falta, su línea no se manda.
             </p>

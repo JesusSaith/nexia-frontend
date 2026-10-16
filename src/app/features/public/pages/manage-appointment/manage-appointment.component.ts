@@ -6,12 +6,12 @@ import { ActivatedRoute } from '@angular/router';
 import { AvailabilitySlot } from '@core/models/appointment.model';
 import { ReviewsService } from '@core/services/reviews.service';
 import { BookingService, ManagedAppointment } from '@core/services/booking.service';
-import { SpeiCheckComponent } from '@shared/components/spei-check/spei-check';
+// FUTURE_PHASE_SPEI: import { SpeiCheckComponent } from '@shared/components/spei-check/spei-check';
 import { DateFieldComponent } from '@shared/components/when-field/when-field';
 
 @Component({
   selector: 'app-manage-appointment',
-  imports: [DateFieldComponent, SpeiCheckComponent],
+  imports: [DateFieldComponent], // FUTURE_PHASE_SPEI: SpeiCheckComponent
   templateUrl: './manage-appointment.component.html',
   styleUrl: './manage-appointment.component.css',
 })
