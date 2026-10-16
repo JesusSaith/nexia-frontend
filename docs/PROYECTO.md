@@ -88,11 +88,11 @@ Ruta: `/:negocio/book`. Código: `src/app/features/booking/pages/booking/`.
 - Botón de WhatsApp con un mensaje completo para el negocio: servicio, día, hora, colaboradora, nombre, notas, fotos y anticipo.
 - **"Agregar a mi calendario":** Google Calendar o archivo `.ics`.
 - Enlace para ver, cambiar o cancelar la cita (`/:negocio/manage/:token`).
-- **Si hay anticipo:** cuenta para transferir, botón para subir el comprobante y la hora hasta la que se guarda el horario. Si el negocio tiene **CLABE válida**, aparece **"Ya transferí: confirmar al instante"** (ver "Anticipo confirmado con Banxico").
+- **Si hay anticipo:** cuenta para transferir, botón para subir el comprobante y la hora hasta la que se guarda el horario.
 - **Si alguien ganó el horario** mientras llenaba sus datos: regresa sola al paso 2 con los horarios actualizados y conserva lo que escribió.
 
 ### Página de la cita (`/:negocio/manage/:token`)
-- Ver, cambiar o cancelar la cita, confirmar asistencia, aceptar la cotización, subir el comprobante de pago o **confirmarlo con la clave de rastreo**.
+- Ver, cambiar o cancelar la cita, confirmar asistencia, aceptar la cotización y subir el comprobante de pago.
 - Después de la cita (estado completada): **dejar una opinión** con estrellas.
 
 ### Otras rutas públicas
@@ -128,7 +128,7 @@ Ruta: `/:negocio/book`. Código: `src/app/features/booking/pages/booking/`.
   3. **Reglas de reserva:** opciones rápidas en vez de números sueltos (anticipación, días a futuro, tiempo entre citas, hasta cuándo cancelar), **aprobar cada cita a mano**, mensaje sobre cancelaciones, zona horaria y salas o equipos.
   4. **Anticipo y pagos:** **métodos de pago que acepta** (efectivo, transferencia, tarjeta; al menos uno), monto fijo, porcentaje para servicios por cotizar, cuenta o CLABE, tiempo para pagarlo y enlace de pago. **Avisa si falta la CLABE**, porque sin ella el anticipo no se cobra.
   5. **Promociones:** anuncio en la página (con fecha de fin), premio por visitas y cupones.
-  6. **Mensajes de WhatsApp:** **envío automático** (recordatorio con botones y "Te toca") y los textos editables. Ver más abajo.
+  6. **Mensajes de WhatsApp:** los textos editables. Ver más abajo.
   7. **Pausa, vacaciones y festivos:** "No tomar citas por ahora" y una **lista de cierres** (un día o un periodo, con nombre). Sugiere los **días festivos de México** de los próximos 12 meses (oficiales, Semana Santa, Día de Muertos, 12 de diciembre…), uno por uno o "Cerrar todos", y permite limpiar los cierres que ya pasaron.
   8. **Avisos por correo:** qué avisos le llegan a la dueña (ver más abajo).
   9. **Privacidad y datos:** aviso de privacidad propio y "Descargar copia".
@@ -151,7 +151,13 @@ Ruta: `/:negocio/book`. Código: `src/app/features/booking/pages/booking/`.
 - **Para agregar un mensaje nuevo:** súmalo a `MESSAGE_TEMPLATES` y a `MESSAGE_KEYS` (`app/core/messages.py`), y ármalo con `copy.message(clave, datos)` y `whatsappLink(teléfono, texto)`.
 - Los 2 mensajes que la clienta escribe al negocio desde la página de reservas no son editables.
 
-### Recordatorios automáticos con "Confirmo / Cambiar"
+### En pausa (código listo, oculto)
+Están programados y probados, pero **apagados y sin mostrarse** hasta decidir encenderlos. En el código se buscan con `FUTURE_PHASE_WHATSAPP` y `FUTURE_PHASE_SPEI`.
+- **WhatsApp automático** (recordatorios con botones e invitación automática de "Te toca"): el ciclo y el webhook están comentados en `app/main.py`, y el bloque "Envío automático" está comentado en Configuración. Las columnas (`auto_reminders`, `reminder_hours`, `auto_return`) existen, pero no hacen nada.
+- **Anticipo con Banxico:** `SPEI_CHECK=false` por defecto, así que la API responde `spei_check=false`. Están comentados el botón "Ya transferí" (confirmación y página de la cita) y el aviso de CLABE en Configuración.
+- **Para encenderlos:** descomentar esos bloques y, para SPEI, poner `SPEI_CHECK=true`. Antes, hacer lo de "Para encender lo automático" en la sección 9.
+
+### Recordatorios automáticos con "Confirmo / Cambiar" (en pausa)
 - **Qué hace:** si la dueña lo enciende (Configuración → Mensajes → Envío automático), cada cita agendada recibe un WhatsApp **1 día, 12 h o 3 h antes** con dos botones. **"Confirmo"** marca la cita como confirmada en la agenda (aviso "confirmó por WhatsApp") y le responde a la clienta. **"Cambiar"** le manda su enlace para moverla o cancelarla.
 - **Cómo funciona:** el ciclo de 10 minutos de la API (`app/core/auto_messages.py`) busca citas `scheduled`, ya aprobadas, sin `reminder_sent_at` y dentro de la ventana. No recuerda las agendadas hace menos de 2 h. Manda la plantilla `nexia_recordatorio` con los botones `confirm:<token>` y `change:<token>`. El webhook `POST /api/whatsapp/webhook` (`app/routers/whatsapp.py`) recibe el botón; valida la firma de Meta con `WHATSAPP_APP_SECRET`.
 - **Requisito:** la API oficial de WhatsApp conectada en el servidor (`app/core/whatsapp.py`, variables en `.env.example`). Sin ella, Configuración dice "Aún no está conectada" y nada sale; los recordatorios uno por uno desde Inicio siguen igual.
@@ -161,9 +167,9 @@ Ruta: `/:negocio/book`. Código: `src/app/features/booking/pages/booking/`.
 - **A quién:** la última visita completada de cada clienta por servicio. Aparece 3 días antes de que le toque y hasta 60 días después (más tarde ya está en "Dejaron de venir"). No aparece si ya tiene una cita próxima.
 - **Horario sugerido:** el primer horario libre con la misma colaboradora desde el día que le toca (busca 14 días).
 - **En Inicio:** tarjeta "Les toca volver" con **Invitar** por WhatsApp (mensaje `due`, con el día y hora sugeridos). Al tocarlo queda marcada (`appointments.return_invited`) y baja en la lista. API: `GET /api/clients/due` y `POST /api/clients/due/{cita}/invited`.
-- **Automático:** con "Te toca volver" encendido en Envío automático, el día que le toca sale la plantilla `nexia_te_toca`, una sola vez por visita.
+- **Automático (en pausa):** con "Te toca volver" encendido en Envío automático, el día que le toca saldría la plantilla `nexia_te_toca`, una sola vez por visita.
 
-### Anticipo confirmado con Banxico (SPEI)
+### Anticipo confirmado con Banxico (SPEI) (en pausa)
 - **Cuándo aplica:** la cuenta del anticipo es una **CLABE válida** (18 dígitos con dígito verificador y banco conocido) y `SPEI_CHECK` está encendido. Configuración lo indica junto al campo.
 - **Qué hace la clienta:** en la confirmación o en su página de cita, "Ya transferí: confirmar al instante". Pone banco de origen, **clave de rastreo**, fecha y monto (`src/app/shared/components/spei-check/`).
 - **Qué hace la API:** `POST /api/public/appointments/{token}/spei` consulta el **CEP de Banxico** (`app/core/spei.py`: `valida.do` y luego `descarga.do?formato=XML`). Si la transferencia existe, llegó a la CLABE del negocio y es por el anticipo o más, la cita pasa a `scheduled` sola, se guarda la clave (`appointments.spei_tracking`, no se puede usar dos veces) y la dueña recibe el aviso "Banxico confirmó el anticipo".
@@ -338,7 +344,7 @@ npx ng test --watch=false
 - Configurar Resend con el dominio y verificar `TRUSTED_PROXY_HOPS` en Render (ver la sección 8).
 - Recorrer en el navegador: el registro en celular, recuperar contraseña con un correo real y los menús del selector de hora en modo oscuro.
 
-**Para encender lo automático**
+**Para encender lo automático** (hoy en pausa; ver "En pausa" en la sección 4)
 - Crear la app de Meta y conectar un número de WhatsApp Business. Aprobar las plantillas `nexia_recordatorio` (con los botones rápidos "Confirmo" y "Cambiar") y `nexia_te_toca` (textos en `.env.example`). Registrar el webhook `/api/whatsapp/webhook` y poner las 4 variables en Render. Cada plantilla enviada tiene costo en Meta.
 - **Plan de pago:** el envío automático es el candidato natural. Hoy cualquier negocio lo puede encender; falta el cobro y limitarlo a ese plan.
 - **SPEI:** probar con una transferencia real y su clave de rastreo. El CEP es el formulario público de Banxico; si cambia su formato, ajustar `app/core/spei.py`. Otra opción más estable es un proveedor con webhook de depósitos (por ejemplo, una CLABE por negocio en STP).
@@ -401,4 +407,6 @@ Pruebas al cerrar el día: backend 40, frontend 26, todas pasando.
 | backend | `4669926` | **Recordatorios automáticos con "Confirmo / Cambiar"** (API de WhatsApp y webhook), **"Te toca volver"** (`return_days`, cálculo por historial, horario sugerido, invitación automática) y **anticipo confirmado con Banxico** (CEP, CLABE, clave de rastreo única). |
 | frontend | `b20f23d` | Envío automático en Configuración, aviso de CLABE con Banxico, "Vuelven cada" en Servicios, tarjeta "Les toca volver" en Inicio, "Ya transferí: confirmar al instante" en la confirmación y en la página de la cita. |
 
-Pruebas: backend 48, frontend 30, todas pasando.
+| backend, frontend | `4641384`, `295a8da` | **En pausa:** WhatsApp automático y anticipo con Banxico quedan comentados y ocultos (`FUTURE_PHASE_WHATSAPP`, `FUTURE_PHASE_SPEI`; `SPEI_CHECK=false`). "Les toca volver" manual sigue activo. |
+
+Pruebas: backend 48 (1 omitida a propósito: el webhook en pausa), frontend 30, todas pasando.
