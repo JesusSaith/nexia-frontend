@@ -60,6 +60,9 @@ Código: `src/app/features/auth/`, `src/app/features/legal/` y, en el backend, `
 
 Ruta: `/:negocio/book`. Código: `src/app/features/booking/pages/booking/`.
 
+### Encabezado
+- Logo, nombre, descripción y dirección. Si el negocio subió fotos de su trabajo, **la primera se usa como portada** arriba, con un degradado del color de la marca.
+
 ### Paso 1. Servicio
 - Elige un servicio. Puede filtrar por categoría y sumar servicios extra a la misma cita.
 - Si solo una colaboradora hace ese servicio, queda elegida sola. Si hay varias, aparece **"Cualquiera disponible"**.
@@ -105,7 +108,7 @@ Ruta: `/:negocio/book`. Código: `src/app/features/booking/pages/booking/`.
 | Pestaña | Para qué sirve |
 |---|---|
 | **Inicio** | Indicadores del día con ícono de color (citas, sin confirmar, anticipos pendientes), lista "Pon tu negocio en marcha" con los avisos importantes, **recordatorios de mañana uno por uno por WhatsApp**, pendientes (incluye "Aprobar solicitud"), cumpleaños, citas de hoy y de mañana, avisos, más pedidos del mes y paquetes. Las tarjetas van en dos columnas independientes, sin huecos. |
-| **Agenda** | Vistas Mes, Semana y Día (en celular abre en Día), con un color por colaboradora. Permite crear una cita (busca a la clienta por nombre o teléfono), **aprobar o rechazar** las solicitudes "Por aprobar", **cambiar día u hora**, **cobrar y completar** con monto y método de pago (solo los que acepta el negocio, más "Paquete"), pedir la opinión, marcar "no llegó" o cancelar, repetir cada 3 o 4 semanas, bloquear horarios, marcar días libres y compartir una imagen con la disponibilidad del mes. |
+| **Agenda** | Vistas Mes, Semana y Día (en celular abre en Día), con un color por colaboradora. Permite crear una cita (busca a la clienta por nombre o teléfono), **aprobar o rechazar** las solicitudes "Por aprobar" (se ven con contorno punteado y la etiqueta "Por aprobar" sin abrir la ficha), un **resumen del día** ("6 citas · $3,200 por cobrar"), **cambiar día u hora**, **cobrar y completar** con monto y método de pago (solo los que acepta el negocio, más "Paquete"), pedir la opinión, marcar "no llegó" o cancelar, repetir cada 3 o 4 semanas, bloquear horarios, marcar días libres y compartir una imagen con la disponibilidad del mes. |
 | **Clientes** | Fichas unificadas por teléfono, mejores clientas, las que más cancelan, **"Dejaron de venir"** (más de 45 días) con WhatsApp para invitarlas a volver, historial con el estado de cada visita, notas internas y botones de Llamar y WhatsApp. |
 | **Reportes** | Ingresos por día, semana, mes o rango, **cómo te pagaron** (efectivo, transferencia, tarjeta o paquete), gastos fijos y variables, comisiones por colaboradora, meta de ganancia y exportación a Excel o PDF. |
 | **Servicios** | Precio, duración, foto, categoría, precio variable, anticipo propio, cupo y preguntas para la clienta. Si solo están los sugeridos del registro (apagados), un aviso explica que hay que revisarlos y activarlos. |
@@ -117,6 +120,7 @@ Ruta: `/:negocio/book`. Código: `src/app/features/booking/pages/booking/`.
 ### Configuración (`/admin/settings`)
 - **Franja de estado arriba:** "Tu página está recibiendo reservas", "Tu página no está tomando citas" o "Cierras del 20 al 27 oct", con un interruptor y el botón **"Ver mi página"**.
 - **La pausa se aplica al momento:** el interruptor (arriba o en Pausa y vacaciones) guarda solo `bookings_paused`, sin arrastrar otros cambios pendientes, y avisa con un mensaje.
+- **Vista previa en vivo** (pantallas de 1280 px o más): a la derecha, el encabezado de la página de reservas con lo que se lleva escrito, sin guardar: portada, logo, nombre, color, anuncio, pausa o próximo cierre, métodos de pago y un servicio de ejemplo. En laptops el índice lateral se cambia por chips arriba para dejarle espacio.
 - **Llegar directo a lo que falta:** `/admin/settings?sec=anticipo` abre y baja a esa sección. Los avisos de Inicio y Mi negocio usan esa dirección.
 - **Nueve secciones**, cada una con un **resumen visible aunque esté cerrada** (por ejemplo, "$200 · 3 h para pagar · falta la cuenta"):
   1. **Tu negocio:** nombre, tipo, descripción, WhatsApp (10 dígitos), dirección y redes.
@@ -314,9 +318,8 @@ npx ng test --watch=false
 **Siguientes mejoras de Configuración** (en este orden)
 1. **Regla para clientas que faltan:** pedir anticipo de forma automática a quien falta seguido.
 2. **Enlace personalizado:** poder cambiar el slug, sin romper el enlace anterior (QR impresos).
-3. **Vista previa en vivo** de la página de reservas dentro de Configuración (logo, color, anuncio y fotos antes de guardar).
-4. **Tope de citas por día** (por negocio o por colaboradora) y **qué pasa con el anticipo si la clienta cancela**.
-5. **Mensajes agrupados** por momento (antes de la cita, después, para atraer clientas).
+3. **Tope de citas por día** (por negocio o por colaboradora) y **qué pasa con el anticipo si la clienta cancela**.
+4. **Mensajes agrupados** por momento (antes de la cita, después, para atraer clientas).
 
 **Corto plazo**
 - **Asistente de 3 pasos después del registro** ("¿Atiendes tú?", horario base, activar servicios), usando la lista de `readiness`.
@@ -364,5 +367,7 @@ Pruebas al cerrar el día: backend 40, frontend 26, todas pasando.
 | backend | `5fcdf90` | **Métodos de pago** (`payment_methods`), **lista de cierres** (`closures`, con migración del cierre único) y **aprobar citas a mano** (`approve_bookings`, `appointments.needs_approval`, `POST /appointments/{id}/approve`); 2 mensajes nuevos (`approved`, `declined`). |
 | frontend | `261f727` | **Métodos de pago** en Configuración, Agenda, página de reservas y Reportes; **cierres y festivos de México** sugeridos; **aprobar o rechazar** solicitudes en Agenda e Inicio, con avisos a la clienta en la confirmación y en su página de cita. |
 | frontend | `261f727` | **Configuración, flujo y arreglos:** avisos que abren su sección (`?sec=`), pausa instantánea, chips de secciones en celular, validación visible de cupones, premio por visitas, anuncio y anticipo, fotos con quitar y reordenar, Facebook normalizado, errores del servidor que llevan a su sección, el color cuenta como un cambio. |
+
+| frontend | `77f5830` | **Interfaz:** vista previa en vivo en Configuración, portada con la primera foto en la página de reservas, citas "Por aprobar" con contorno punteado y resumen del día en Agenda. |
 
 Pruebas: backend 43, frontend 30, todas pasando.
