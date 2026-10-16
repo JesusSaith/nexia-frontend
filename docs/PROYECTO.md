@@ -262,7 +262,10 @@ Reserva (clienta o dueña)
 El sistema de diseño está en `src/styles.css`. Usa **siempre** estos nombres y no colores sueltos:
 
 - **Colores:** `bg-canvas`, `bg-surface`, `border-line`, `border-line-strong`, `text-ink`, `text-ink-soft`, `text-muted`, `accent` (`text-accent`, `bg-accent-soft`). El color de marca de cada negocio es `--primary`.
-- **Estructura:** `.page-head` (encabezado de página), `.card` (con sombra suave, `--nx-card-shadow`) y `.card-title` (lleva una rayita del color de la marca), `.card-head` + `.sec-icon` (título con ícono), `.card-tint` (tarjeta destacada con tinte de la marca).
+- **Tamaños de letra:** el cuerpo es de **15 px** (`text-sm` está redefinido a 0.9375rem en `@theme`) y lo más chico de 13 px (`text-xs`). Ayudas, etiquetas y chips van a 14 px. Botones y campos miden 44 px de alto. No bajes de `text-xs`.
+- **Contraste:** `text-muted` (#6b645e) cumple 4.5:1 sobre blanco y sobre el fondo del panel (#f2efeb). Si cambias un gris o el fondo, revisa que siga cumpliendo.
+- **Enfoque:** al navegar con teclado, enlaces, botones, interruptores y selectores muestran un anillo del color de la marca (`:focus-visible`). Los campos usan su propio borde con halo.
+- **Estructura:** `.page-head` (encabezado de página), `.card` (con sombra suave, `--nx-card-shadow`) y `.card-title` (15 px, en letra normal y sin mayúsculas, con una rayita del color de la marca), `.card-head` + `.sec-icon` (título con ícono), `.card-tint` (tarjeta destacada con tinte de la marca).
 - **Números:** `.stat` con `.stat-icon` y un color según el estado (`stat-accent`, `-ok`, `-warn`, `-bad`, `-info`), más `.stat-value` y `.stat-label`.
 - **Listas y personas:** `.avatar` (iniciales con el tono de la marca), `.row-hover` (filas tocables).
 - **Formularios del panel:** `.label` + `.input`, `.chip` / `.chip-on` (opciones rápidas) y `.switch` (interruptor con `role="switch"` y `aria-checked`). En login y registro: `.field`, `.field-label`, `.field-input`, `.field-hint` y `.field-error`.
@@ -408,5 +411,7 @@ Pruebas al cerrar el día: backend 40, frontend 26, todas pasando.
 | frontend | `b20f23d` | Envío automático en Configuración, aviso de CLABE con Banxico, "Vuelven cada" en Servicios, tarjeta "Les toca volver" en Inicio, "Ya transferí: confirmar al instante" en la confirmación y en la página de la cita. |
 
 | backend, frontend | `4641384`, `295a8da` | **En pausa:** WhatsApp automático y anticipo con Banxico quedan comentados y ocultos (`FUTURE_PHASE_WHATSAPP`, `FUTURE_PHASE_SPEI`; `SPEI_CHECK=false`). "Les toca volver" manual sigue activo. |
+
+| frontend | `97f81fd` | **Lectura más cómoda:** letra base de 15 px, ayudas y etiquetas de 14 px, títulos de tarjeta sin mayúsculas, gris con contraste suficiente, fondo del panel más claro, controles de 44 px y anillo de enfoque. |
 
 Pruebas: backend 48 (1 omitida a propósito: el webhook en pausa), frontend 30, todas pasando.
