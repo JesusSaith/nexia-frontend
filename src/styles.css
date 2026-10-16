@@ -3,13 +3,19 @@
 @theme {
   /* Sistema de diseño Nexia: usar estos nombres (bg-canvas, border-line, text-ink…), no hex sueltos. */
   --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  /* Letra más cómoda: text-sm es el cuerpo de casi toda la app (15 px) y text-xs lo más chico (13 px). */
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.15rem;
+  --text-sm: 0.9375rem;
+  --text-sm--line-height: 1.4rem;
   --color-canvas: #f6f5f3;
   --color-surface: #ffffff;
   --color-line: #e7e4df;
   --color-line-strong: #d6d1ca;
   --color-ink: #1c1a19;
   --color-ink-soft: #4a4542;
-  --color-muted: #7a736d;
+  /* Gris de ayudas: contraste ≥ 4.5:1 también sobre el fondo del panel. */
+  --color-muted: #6b645e;
   --color-accent: var(--primary);
   --color-accent-soft: color-mix(in srgb, var(--primary) 10%, var(--color-surface));
   /* Esquinas más sobrias: dos radios de verdad (controles y tarjetas). */
@@ -27,12 +33,12 @@
 :root {
   --primary: var(--business-primary, #e11d48);
   /* Lienzo con más tono que las tarjetas blancas, para que no se lea todo como un solo blanco. */
-  --bg-app: #ece8e2;
+  --bg-app: #f2efeb;
   --surface-card: #ffffff;
   --border-subtle: #e6e2dc;
   --ink: #161616;
   --text-main: #1c1917;
-  --text-muted: #78716c;
+  --text-muted: #6b645e;
   --nx-shadow: none;
   --mat-sys-primary: var(--primary);
   /* Valores que cambian con el modo oscuro (ver bloque "Modo oscuro" abajo). */
@@ -141,14 +147,22 @@ body {
   /* Controles nativos y variables light-dark() de Material siguen el modo. */
   color-scheme: var(--nx-scheme);
   font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Enfoque visible con teclado (no al hacer clic), del color de la marca. */
+:where(a, button, [role='button'], [role='switch'], summary, select, input[type='checkbox'], input[type='radio'], input[type='file']):focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 @layer base {
   *, ::before, ::after { border-color: var(--color-line); }
   /* Títulos y descripción iguales en todas las páginas del panel. */
   .admin-main h1 { font-size: 1.5rem; line-height: 2rem; font-weight: 600; letter-spacing: -0.015em; color: var(--color-ink); }
-  .admin-main h1 + p { margin-top: 0.125rem; font-size: 0.875rem; color: var(--color-muted); }
+  .admin-main h1 + p { margin-top: 0.125rem; font-size: 0.9375rem; color: var(--color-muted); }
   .admin-main h2 { color: var(--color-ink); }
   input, select, textarea { accent-color: var(--color-ink); }
 }
@@ -159,10 +173,10 @@ body {
 
 .page-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 0.75rem; margin-bottom: 1.25rem; }
 .page-head h1 { font-size: 1.5rem; line-height: 2rem; font-weight: 600; letter-spacing: -0.015em; color: var(--color-ink); }
-.page-head p { margin-top: 0.125rem; font-size: 0.875rem; color: var(--color-muted); }
+.page-head p { margin-top: 0.125rem; font-size: 0.9375rem; color: var(--color-muted); }
 
 .card { background: var(--color-surface); border: 1px solid var(--color-line); border-radius: var(--radius-2xl); padding: 1.25rem; box-shadow: var(--nx-card-shadow); }
-.card-title { font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; color: var(--color-ink-soft); }
+.card-title { font-size: 0.9375rem; font-weight: 600; color: var(--color-ink); }
 /* Rayita del color de la marca antes de cada título de tarjeta: guía la vista entre tantas tarjetas. */
 .card-title::before { content: ''; display: inline-block; width: 3px; height: 0.85em; margin-right: 0.5rem; border-radius: 2px; background: var(--primary); vertical-align: -0.05em; }
 /* Encabezado de tarjeta con ícono: <div class="card-head"><span class="sec-icon"><mat-icon>…</mat-icon></span><div>título + ayuda</div></div> */
@@ -178,7 +192,7 @@ body {
 /* Tarjeta destacada (un aviso, un total): fondo con el tono de la marca. */
 .card-tint { background: color-mix(in srgb, var(--primary) 6%, var(--color-surface)); border-color: color-mix(in srgb, var(--primary) 18%, var(--color-line)); }
 
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; height: 2.5rem; padding: 0 1rem; border-radius: var(--radius-lg); font-size: 0.875rem; font-weight: 500; border: 1px solid transparent; transition: background-color .15s, border-color .15s; white-space: nowrap; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; height: 2.75rem; padding: 0 1.125rem; border-radius: var(--radius-lg); font-size: 0.9375rem; font-weight: 500; border: 1px solid transparent; transition: background-color .15s, border-color .15s; white-space: nowrap; }
 .btn:disabled { opacity: .5; pointer-events: none; }
 .btn-primary { background: var(--color-ink); color: var(--color-surface); }
 .btn-primary:hover { background: var(--nx-primary-hover); }
@@ -189,7 +203,7 @@ body {
 .btn-danger { background: #b42318; color: #fff; }
 .btn-whatsapp { background: #1f9d55; color: #fff; }
 
-.badge { display: inline-flex; align-items: center; gap: 0.25rem; height: 1.375rem; padding: 0 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 500; }
+.badge { display: inline-flex; align-items: center; gap: 0.25rem; height: 1.5rem; padding: 0 0.5625rem; border-radius: 999px; font-size: 0.8125rem; font-weight: 500; }
 .badge-ok { background: var(--nx-ok-bg); color: var(--nx-ok-fg); }
 .badge-warn { background: var(--nx-warn-bg); color: var(--nx-warn-fg); }
 .badge-bad { background: var(--nx-bad-bg); color: var(--nx-bad-fg); }
@@ -197,7 +211,7 @@ body {
 .btn .mat-icon { width: 20px; height: 20px; font-size: 20px; }
 .empty { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; padding: 3rem 1rem; text-align: center; border: 1px dashed var(--color-line-strong); border-radius: var(--radius-2xl); background: var(--color-surface); }
 .empty .mat-icon { width: 32px; height: 32px; font-size: 32px; color: var(--color-muted); }
-.empty p { max-width: 22rem; font-size: 0.875rem; color: var(--color-ink-soft); }
+.empty p { max-width: 22rem; font-size: 0.9375rem; color: var(--color-ink-soft); }
 .empty .btn { margin-top: 0.5rem; }
 .badge-neutral { background: var(--color-canvas); color: var(--color-ink-soft); }
 
@@ -207,7 +221,7 @@ a.stat:hover { border-color: var(--color-line-strong); }
 .stat-icon { display: grid; place-items: center; flex-shrink: 0; width: 2.5rem; height: 2.5rem; border-radius: 0.75rem; }
 .stat-icon .mat-icon { width: 20px; height: 20px; font-size: 20px; }
 .stat-value { font-size: 1.5rem; line-height: 1.75rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--color-ink); }
-.stat-label { font-size: 0.75rem; color: var(--color-muted); }
+.stat-label { font-size: 0.8125rem; color: var(--color-muted); }
 .stat-accent { background: var(--color-accent-soft); color: var(--color-accent); }
 .stat-ok { background: var(--nx-ok-bg); color: var(--nx-ok-fg); }
 .stat-warn { background: var(--nx-warn-bg); color: var(--nx-warn-fg); }
@@ -235,13 +249,13 @@ a.stat:hover { border-color: var(--color-line-strong); }
 .nx-rail-btn .mat-icon { width: 20px; height: 20px; font-size: 20px; flex-shrink: 0; }
 
 /* Campo de formulario del panel: <label class="block"><span class="label">…</span><input class="input" /></label> */
-.label { display: block; margin-bottom: 0.25rem; font-size: 0.8125rem; font-weight: 500; color: var(--color-ink-soft); }
-.input { display: block; width: 100%; height: 2.5rem; padding: 0 0.75rem; border: 1px solid var(--color-line-strong); border-radius: var(--radius-lg); background: var(--color-surface); font-size: 0.875rem; color: var(--color-ink); outline: none; transition: border-color .15s, box-shadow .15s; }
-textarea.input { height: auto; padding: 0.5rem 0.75rem; line-height: 1.4; }
+.label { display: block; margin-bottom: 0.375rem; font-size: 0.875rem; font-weight: 500; color: var(--color-ink-soft); }
+.input { display: block; width: 100%; height: 2.75rem; padding: 0 0.875rem; border: 1px solid var(--color-line-strong); border-radius: var(--radius-lg); background: var(--color-surface); font-size: 0.9375rem; color: var(--color-ink); outline: none; transition: border-color .15s, box-shadow .15s; }
+textarea.input { height: auto; padding: 0.625rem 0.875rem; line-height: 1.5; }
 .input:focus { border-color: var(--color-accent); box-shadow: 0 0 0 3px var(--color-accent-soft); }
 .input.ng-invalid.ng-touched, .input-invalid { border-color: var(--nx-bad-fg); }
 /* Opciones rápidas (chips) para elegir un valor común a un toque. */
-.chip { display: inline-flex; align-items: center; height: 2rem; padding: 0 0.75rem; border: 1px solid var(--color-line-strong); border-radius: 999px; background: var(--color-surface); font-size: 0.8125rem; color: var(--color-ink-soft); transition: background-color .15s, border-color .15s, color .15s; }
+.chip { display: inline-flex; align-items: center; height: 2.25rem; padding: 0 0.875rem; border: 1px solid var(--color-line-strong); border-radius: 999px; background: var(--color-surface); font-size: 0.875rem; color: var(--color-ink-soft); transition: background-color .15s, border-color .15s, color .15s; }
 .chip:hover { border-color: var(--color-accent); color: var(--color-ink); }
 .chip-on, .chip-on:hover { border-color: var(--color-accent); background: var(--color-accent-soft); color: var(--color-accent); font-weight: 600; }
 /* Interruptor: <button role="switch" class="switch" [attr.aria-checked]="on"><span></span></button> */
@@ -254,10 +268,10 @@ textarea.input { height: auto; padding: 0.5rem 0.75rem; line-height: 1.4; }
 .field { display: block; border: 1px solid var(--color-line); border-radius: var(--radius-xl); background: var(--color-surface); padding: 0.5rem 0.75rem; transition: border-color .15s, box-shadow .15s; }
 .field:focus-within { border-color: var(--color-accent); box-shadow: 0 0 0 3px var(--color-accent-soft); }
 .field-invalid, .field-invalid:focus-within { border-color: var(--nx-bad-fg); }
-.field-label { display: block; font-size: 0.75rem; color: var(--color-muted); }
-.field-input { width: 100%; background: transparent; font-size: 0.875rem; line-height: 1.25rem; outline: none; }
-.field-hint { font-size: 0.8125rem; color: var(--color-muted); }
-.field-error { font-size: 0.8125rem; color: var(--nx-bad-fg); }
+.field-label { display: block; font-size: 0.8125rem; color: var(--color-muted); }
+.field-input { width: 100%; background: transparent; font-size: 0.9375rem; line-height: 1.4rem; outline: none; }
+.field-hint { font-size: 0.875rem; line-height: 1.45; color: var(--color-muted); }
+.field-error { font-size: 0.875rem; line-height: 1.45; color: var(--nx-bad-fg); }
 }
 
 .mat-drawer,
