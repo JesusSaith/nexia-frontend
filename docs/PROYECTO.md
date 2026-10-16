@@ -120,7 +120,7 @@ Ruta: `/:negocio/book`. Código: `src/app/features/booking/pages/booking/`.
 ### Configuración (`/admin/settings`)
 - **Franja de estado arriba:** "Tu página está recibiendo reservas", "Tu página no está tomando citas" o "Cierras del 20 al 27 oct", con un interruptor y el botón **"Ver mi página"**.
 - **La pausa se aplica al momento:** el interruptor (arriba o en Pausa y vacaciones) guarda solo `bookings_paused`, sin arrastrar otros cambios pendientes, y avisa con un mensaje.
-- **Vista previa en vivo** (pantallas de 1280 px o más): a la derecha, el encabezado de la página de reservas con lo que se lleva escrito, sin guardar: portada, logo, nombre, color, anuncio, pausa o próximo cierre, métodos de pago y un servicio de ejemplo. En laptops el índice lateral se cambia por chips arriba para dejarle espacio.
+- **Vista previa en vivo** (solo en pantallas muy anchas, 1536 px o más): a la derecha, el encabezado de la página de reservas con lo que se lleva escrito, sin guardar: portada, logo, nombre, color, anuncio, pausa o próximo cierre, métodos de pago y un servicio de ejemplo. El índice lateral de secciones se queda siempre en escritorio; los chips son solo para celular.
 - **Llegar directo a lo que falta:** `/admin/settings?sec=anticipo` abre y baja a esa sección. Los avisos de Inicio y Mi negocio usan esa dirección.
 - **Nueve secciones**, cada una con un **resumen visible aunque esté cerrada** (por ejemplo, "$200 · 3 h para pagar · falta la cuenta"):
   1. **Tu negocio:** nombre, tipo, descripción, WhatsApp (10 dígitos), dirección y redes.

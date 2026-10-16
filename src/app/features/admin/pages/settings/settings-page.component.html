@@ -43,8 +43,8 @@
       </label>
     </div>
 
-    <!-- Índice en celular y en laptops (donde la vista previa ocupa el lado): chips que se deslizan de lado, con punto si algo falta. -->
-    <nav class="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1 lg:hidden xl:flex 2xl:hidden" aria-label="Secciones de configuración">
+    <!-- Índice en celular: chips que se deslizan de lado, con punto si algo falta. -->
+    <nav class="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1 lg:hidden" aria-label="Secciones de configuración">
       @for (section of sections; track section.id) {
         <button type="button" class="chip shrink-0 gap-1.5" [class.chip-on]="isOpen(section.id)" (click)="goTo(section.id)">
           {{ section.short ?? section.label }}
@@ -57,9 +57,9 @@
       }
     </nav>
 
-    <div class="grid items-start gap-6 lg:grid-cols-[13rem_minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_19rem] 2xl:grid-cols-[13rem_minmax(0,1fr)_20rem]">
+    <div class="grid items-start gap-6 lg:grid-cols-[13rem_minmax(0,1fr)] 2xl:grid-cols-[13rem_minmax(0,1fr)_20rem]">
       <!-- Índice: en escritorio salta a cada sección; en celular las secciones se abren y cierran. -->
-      <nav class="sticky top-6 hidden flex-col gap-0.5 lg:flex xl:hidden 2xl:flex" aria-label="Secciones de configuración">
+      <nav class="sticky top-6 hidden flex-col gap-0.5 lg:flex" aria-label="Secciones de configuración">
         @for (section of sections; track section.id) {
           <button type="button" class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-ink-soft transition-colors hover:bg-surface hover:text-ink" [class.bg-surface]="isOpen(section.id)" [class.text-ink]="isOpen(section.id)" [class.font-medium]="isOpen(section.id)" (click)="goTo(section.id)">
             <mat-icon class="h-[18px]! w-[18px]! shrink-0 text-[18px]! text-muted">{{ section.icon }}</mat-icon>
@@ -601,7 +601,7 @@
 
       <!-- Vista previa en vivo (pantallas anchas): así se ve el encabezado de la página con lo que llevas escrito, sin guardar. -->
       @let color = form.controls.primaryColor.value;
-      <aside class="sticky top-6 hidden flex-col gap-2 xl:flex" aria-label="Vista previa de tu página">
+      <aside class="sticky top-6 hidden flex-col gap-2 2xl:flex" aria-label="Vista previa de tu página">
         <p class="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted"><mat-icon class="h-4! w-4! text-[16px]!">visibility</mat-icon>Así te ven tus clientas</p>
         <!-- La página de reservas siempre es clara, así que la vista previa también. -->
         <div class="overflow-hidden rounded-2xl border bg-white text-[#1e1b1e] shadow-sm" [style.border-color]="color + '47'">
