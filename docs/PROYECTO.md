@@ -367,7 +367,6 @@ Pruebas al cerrar el día: backend 40, frontend 26, todas pasando.
 | backend | `5fcdf90` | **Métodos de pago** (`payment_methods`), **lista de cierres** (`closures`, con migración del cierre único) y **aprobar citas a mano** (`approve_bookings`, `appointments.needs_approval`, `POST /appointments/{id}/approve`); 2 mensajes nuevos (`approved`, `declined`). |
 | frontend | `261f727` | **Métodos de pago** en Configuración, Agenda, página de reservas y Reportes; **cierres y festivos de México** sugeridos; **aprobar o rechazar** solicitudes en Agenda e Inicio, con avisos a la clienta en la confirmación y en su página de cita. |
 | frontend | `261f727` | **Configuración, flujo y arreglos:** avisos que abren su sección (`?sec=`), pausa instantánea, chips de secciones en celular, validación visible de cupones, premio por visitas, anuncio y anticipo, fotos con quitar y reordenar, Facebook normalizado, errores del servidor que llevan a su sección, el color cuenta como un cambio. |
-
 | frontend | `77f5830` | **Interfaz:** vista previa en vivo en Configuración, portada con la primera foto en la página de reservas, citas "Por aprobar" con contorno punteado y resumen del día en Agenda. |
 
 Pruebas: backend 43, frontend 30, todas pasando.
