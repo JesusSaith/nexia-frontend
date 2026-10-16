@@ -698,6 +698,9 @@ export class AgendaPageComponent {
   }
 
   protected mark(item: Appointment): string {
+    if (item.needs_approval && item.status !== 'cancelled') {
+      return 'Por aprobar';
+    }
     if (item.status === 'awaiting_deposit') {
       if (item.payment_proof) {
         return 'Comprobante listo';
@@ -1138,6 +1141,8 @@ export class AgendaPageComponent {
   protected tone(appointment: Appointment): string {
     if (appointment.status === 'completed') return 'opacity-60';
     if (appointment.status === 'cancelled' || appointment.status === 'no_show') return 'opacity-50 line-through';
+    // Por aprobar: contorno punteado para que se vea sin abrir la ficha.
+    if (appointment.needs_approval) return 'outline-2 outline-dashed outline-[var(--nx-warn-fg)] -outline-offset-2';
     return '';
   }
 
@@ -1260,6 +1265,20 @@ export class AgendaPageComponent {
     }
     const rest = Math.max(0, Math.round((total - deposit) * 100) / 100);
     return `Anticipo ${this.pesos(deposit)}. En la cita cobra ${this.pesos(rest)}.`;
+  }
+
+  /** "6 citas · $3,200 por cobrar" para el día que se está viendo. */
+  protected daySummary(day: Date): string {
+    const active = this.appointmentsOn(day).filter((item) => item.status !== 'cancelled' && item.status !== 'no_show');
+    if (!active.length) {
+      return '';
+    }
+    const due = active
+      .filter((item) => item.status !== 'completed')
+      .reduce((sum, item) => sum + (this.bill(item)?.rest ?? 0), 0);
+    const visit = this.copy.text().visit.toLowerCase();
+    const count = `${active.length} ${visit}${active.length === 1 ? '' : 's'}`;
+    return due > 0 ? `${count} · ${this.pesosFormat.format(due)} por cobrar` : count;
   }
 
   protected bill(appointment: Appointment): { total: number; deposit: number; rest: number; pending: boolean } | null {

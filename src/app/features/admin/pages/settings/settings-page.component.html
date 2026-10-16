@@ -43,8 +43,8 @@
       </label>
     </div>
 
-    <!-- Índice en celular: chips que se deslizan de lado, con punto si algo falta. -->
-    <nav class="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1 lg:hidden" aria-label="Secciones de configuración">
+    <!-- Índice en celular y en laptops (donde la vista previa ocupa el lado): chips que se deslizan de lado, con punto si algo falta. -->
+    <nav class="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1 lg:hidden xl:flex 2xl:hidden" aria-label="Secciones de configuración">
       @for (section of sections; track section.id) {
         <button type="button" class="chip shrink-0 gap-1.5" [class.chip-on]="isOpen(section.id)" (click)="goTo(section.id)">
           {{ section.short ?? section.label }}
@@ -57,9 +57,9 @@
       }
     </nav>
 
-    <div class="grid items-start gap-6 lg:grid-cols-[13rem_minmax(0,1fr)]">
+    <div class="grid items-start gap-6 lg:grid-cols-[13rem_minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_19rem] 2xl:grid-cols-[13rem_minmax(0,1fr)_20rem]">
       <!-- Índice: en escritorio salta a cada sección; en celular las secciones se abren y cierran. -->
-      <nav class="sticky top-6 hidden flex-col gap-0.5 lg:flex" aria-label="Secciones de configuración">
+      <nav class="sticky top-6 hidden flex-col gap-0.5 lg:flex xl:hidden 2xl:flex" aria-label="Secciones de configuración">
         @for (section of sections; track section.id) {
           <button type="button" class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-ink-soft transition-colors hover:bg-surface hover:text-ink" [class.bg-surface]="isOpen(section.id)" [class.text-ink]="isOpen(section.id)" [class.font-medium]="isOpen(section.id)" (click)="goTo(section.id)">
             <mat-icon class="h-[18px]! w-[18px]! shrink-0 text-[18px]! text-muted">{{ section.icon }}</mat-icon>
@@ -598,6 +598,52 @@
           </div>
         </details>
       </form>
+
+      <!-- Vista previa en vivo (pantallas anchas): así se ve el encabezado de la página con lo que llevas escrito, sin guardar. -->
+      @let color = form.controls.primaryColor.value;
+      <aside class="sticky top-6 hidden flex-col gap-2 xl:flex" aria-label="Vista previa de tu página">
+        <p class="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted"><mat-icon class="h-4! w-4! text-[16px]!">visibility</mat-icon>Así te ven tus clientas</p>
+        <!-- La página de reservas siempre es clara, así que la vista previa también. -->
+        <div class="overflow-hidden rounded-2xl border bg-white text-[#1e1b1e] shadow-sm" [style.border-color]="color + '47'">
+          @if (photos()[0]; as cover) {
+            <div class="relative h-24">
+              <img [src]="cover" alt="" class="h-full w-full object-cover" />
+              <span class="absolute inset-0" [style.background]="'linear-gradient(to bottom, transparent 55%, ' + color + '1f)'"></span>
+            </div>
+          }
+          <div class="flex items-center gap-3 px-4 py-4" [style.background]="color + '1f'">
+            @if (logoSrc(); as src) {
+              <img [src]="src" alt="" class="h-12 w-12 shrink-0 rounded-xl bg-white object-contain p-0.5" />
+            } @else {
+              <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-base font-semibold text-white" [style.background]="color">{{ (form.controls.name.value || 'N').charAt(0) }}</span>
+            }
+            <div class="min-w-0">
+              <p class="text-[10px] font-medium uppercase tracking-wide" [style.color]="color">Reservas</p>
+              <p class="truncate text-base font-semibold">{{ form.controls.name.value || 'Tu negocio' }}</p>
+              @if (form.controls.description.value) {
+                <p class="line-clamp-2 text-xs text-[#57534e]">{{ form.controls.description.value }}</p>
+              }
+            </div>
+          </div>
+          <div class="flex flex-col gap-2 px-4 py-3">
+            @if (promo().trim() && !promoError()) {
+              <p class="rounded-xl px-3 py-1.5 text-xs text-white" [style.background]="color">{{ promo() }}</p>
+            }
+            @if (pauseBookings()) {
+              <p class="rounded-xl bg-[#fef3c7] px-3 py-1.5 text-xs text-[#78350f]">Por ahora no estamos tomando citas.</p>
+            } @else if (upcomingClosures()[0]; as next) {
+              <p class="text-xs" [style.color]="color">Cerramos: {{ closureText(next) }}{{ next.label ? ' (' + next.label + ')' : '' }}.</p>
+            }
+            <div class="rounded-xl border border-[#e7e5e4] p-3">
+              <p class="text-sm font-medium">Corte de cabello</p>
+              <p class="text-xs text-[#78716c]">45 min · $250</p>
+            </div>
+            <p class="text-[11px] text-[#78716c]">Aceptamos {{ methodsText() }}.{{ approveBookings() ? ' Confirmamos cada solicitud por WhatsApp.' : '' }}</p>
+            <span class="flex h-9 items-center justify-center rounded-full text-sm font-medium text-white" [style.background]="color">Elegir horario</span>
+          </div>
+        </div>
+        <p class="field-hint">Se actualiza mientras escribes. El servicio es de ejemplo.</p>
+      </aside>
     </div>
 
     <!-- Solo aparece cuando hay algo por guardar. bottom-20 en celular para no tapar la navegación inferior. -->

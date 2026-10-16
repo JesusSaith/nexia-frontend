@@ -1,5 +1,12 @@
 <main class="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8" [class.pb-40]="summary() && !confirmation()">
   <header class="flex flex-col gap-3 overflow-hidden rounded-2xl border bg-white" style="border-color: color-mix(in srgb, var(--booking-primary, var(--primary)) 28%, white)">
+    <!-- Portada: la primera foto del trabajo, con un degradado del color de la marca para que el texto se lea. -->
+    @if (gallery()[0]; as cover) {
+      <div class="relative h-28 sm:h-36" aria-hidden="true">
+        <img [src]="cover" alt="" class="h-full w-full object-cover" />
+        <span class="absolute inset-0" style="background: linear-gradient(to bottom, transparent 55%, color-mix(in srgb, var(--booking-primary, var(--primary)) 12%, white))"></span>
+      </div>
+    }
     <div class="flex items-center gap-4 px-5 py-5" style="background: color-mix(in srgb, var(--booking-primary, var(--primary)) 12%, white)">
       @if (brand()?.logo_url && !logoFailed()) {
         <img [src]="brand()!.logo_url" [alt]="brand()?.name || ''" class="h-16 w-16 rounded-2xl bg-white object-contain p-1" (error)="logoFailed.set(true)" />

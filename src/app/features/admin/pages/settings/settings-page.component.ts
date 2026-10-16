@@ -12,7 +12,7 @@ import { MESSAGE_TEMPLATES, MessageKey, MessageVars, VARIABLE_HELP, defaultText,
 import { API_BASE_URL } from '@core/config/api-base-url';
 import { BusinessCoupon, Closure } from '@core/models/business.model';
 import { Holiday, upcomingHolidays } from '@core/holidays';
-import { PAYMENT_METHODS } from '@core/payment-methods';
+import { PAYMENT_METHODS, methodsSentence } from '@core/payment-methods';
 import { BusinessSettings, ProfileUpdate, SettingsService } from '@core/services/settings.service';
 import { Toasts } from '@core/toasts';
 import { Confirm } from '@shared/components/confirm/confirm';
@@ -153,6 +153,7 @@ export class SettingsPageComponent {
   protected readonly paymentMethodOptions = PAYMENT_METHODS;
   protected readonly paymentMethods = signal<ReadonlySet<string>>(new Set(PAYMENT_METHODS.map((item) => item.value)));
   protected readonly approveBookings = signal(false);
+  protected readonly methodsText = computed(() => methodsSentence([...this.paymentMethods()]));
   protected readonly loyaltyEvery = signal<number | null>(null);
   protected readonly loyaltyPercent = signal<number | null>(null);
   protected readonly coupons = signal<BusinessCoupon[]>([]);

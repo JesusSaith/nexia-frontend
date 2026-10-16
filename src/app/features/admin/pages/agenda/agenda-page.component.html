@@ -317,6 +317,9 @@
       <div class="card-head -mx-4 -mt-4 mb-1 border-b border-line bg-accent-soft/40 px-4 py-3">
         <span class="sec-icon bg-surface!"><mat-icon>today</mat-icon></span>
         <p class="card-title first-letter:uppercase">{{ weekdayName(cursor()) }} {{ cursor().getDate() }}</p>
+        @if (daySummary(cursor()); as text) {
+          <span class="nums ml-auto text-sm text-muted">{{ text }}</span>
+        }
       </div>
       <ul class="mt-2 flex max-h-[32rem] flex-col overflow-y-auto">
         @for (item of appointmentsOn(cursor()); track item.id) {
