@@ -43,7 +43,15 @@ Código: `src/app/features/auth/`, `src/app/features/legal/` y, en el backend, `
   - el giro define cómo se llama al personal (Estilista, Manicurista, Barbero…; `app/core/catalog.py`);
   - deja **servicios sugeridos del giro, apagados**, para que ningún precio inventado salga al público hasta que la dueña los revise y active;
   - manda un **correo de bienvenida** con su enlace.
+- **Al terminar el registro** la dueña llega al **asistente de bienvenida** (`/admin/bienvenida`, ver abajo), no a un panel vacío.
 - Los slugs que chocarían con rutas de la app (`admin`, `auth`, `terminos`…) reciben el sufijo `-negocio`.
+
+### Asistente de bienvenida (`/admin/bienvenida`)
+- **Tres pasos** con barra de avance (`src/app/features/admin/pages/welcome/`):
+  1. **Quién atiende:** "Yo atiendo" (con su nombre) y "Tengo equipo" (nombres). Crea en Equipo a quien falte.
+  2. **Horario:** días que abre y hora de apertura y cierre; se aplica a todo el equipo.
+  3. **Servicios:** prende los sugeridos del giro y pone su precio. Se asignan a todo el equipo.
+- Usa las mismas APIs que Equipo, Horarios y Servicios. Se puede saltar ("Lo hago después"); mientras falte algo para poder reservar, Inicio muestra **"Usar el asistente"**.
 
 ### Login y contraseña (`/auth/login`, `/auth/restablecer`)
 - **"¿Olvidaste tu contraseña?"** cambia el mismo formulario a "Recupera tu contraseña" y pide solo el correo. La respuesta es igual exista o no la cuenta.
@@ -219,7 +227,8 @@ Reserva (clienta o dueña)
         ├─ cambiar hora / cancelar / no llegó
         └─ Cobrar y completar → completed (precio final + método) → pedir opinión
 ```
-- Si el anticipo no llega en `deposit_hold_hours` (3 h por defecto), el horario se libera solo.
+- Si el anticipo no llega en `deposit_hold_hours` (3 h por defecto), el horario se libera solo, **salvo** que la clienta ya haya subido comprobante o dicho "Ya pagué": entonces espera a que la dueña lo revise.
+- **"Ya pagué"** (cuando el negocio tiene enlace de pago) **no confirma la cita**: marca `paid_claim`, avisa a la dueña ("dice que ya pagó: revisa tu cuenta") y en Agenda aparece "Dice que pagó". La dueña la acepta con "Depósito recibido" después de revisar su cuenta.
 - Las fotos de referencia se borran automáticamente 30 días después de la cita.
 
 ### Otras funciones del panel
@@ -354,7 +363,6 @@ npx ng test --watch=false
 - Crear la app de Meta y conectar un número de WhatsApp Business. Aprobar las plantillas `nexia_recordatorio` (con los botones rápidos "Confirmo" y "Cambiar") y `nexia_te_toca` (textos en `.env.example`). Registrar el webhook `/api/whatsapp/webhook` y poner las 4 variables en Render. Cada plantilla enviada tiene costo en Meta.
 - **Plan de pago:** el envío automático es el candidato natural. Hoy cualquier negocio lo puede encender; falta el cobro y limitarlo a ese plan.
 - **SPEI:** probar con una transferencia real y su clave de rastreo. El CEP es el formulario público de Banxico; si cambia su formato, ajustar `app/core/spei.py`. Otra opción más estable es un proveedor con webhook de depósitos (por ejemplo, una CLABE por negocio en STP).
-- Revisar `POST /{token}/paid` ("Ya pagué" con enlace de pago): hoy marca el anticipo como pagado sin verificar nada.
 
 **Siguientes mejoras de Configuración** (en este orden)
 1. **Regla para clientas que faltan:** pedir anticipo de forma automática a quien falta seguido.
@@ -363,7 +371,6 @@ npx ng test --watch=false
 4. **Mensajes agrupados** por momento (antes de la cita, después, para atraer clientas).
 
 **Corto plazo**
-- **Asistente de 3 pasos después del registro** ("¿Atiendes tú?", horario base, activar servicios), usando la lista de `readiness`.
 - Una sola opinión por cita.
 - Limpiar el código muerto: formularios con `@if (false…)`, la sección de huecos de Inicio y el código de reseñas sin usar en la página de reservas.
 - Pasar el límite de intentos a Redis si algún día hay varios servidores.
@@ -419,4 +426,8 @@ Pruebas al cerrar el día: backend 40, frontend 26, todas pasando.
 
 | frontend | `782f129` | **Pantallas más limpias:** ayudas de Configuración bajo demanda (ⓘ), avisos de la página de reservas y de la cita con los tokens del sistema, más espacio entre tarjetas en Inicio y cifras más grandes en Agenda, Cobro y Reportes. |
 
-Pruebas: backend 48 (1 omitida a propósito: el webhook en pausa), frontend 30, todas pasando.
+| backend | `88ee51c` | **"Ya pagué" ya no confirma solo:** queda como aviso para que la dueña revise (`paid_claim`). Los anticipos con comprobante o con "Ya pagué" no se liberan al vencer. |
+| frontend | `46134f6` | "Dice que pagó" en Agenda e Inicio; la clienta ve que el negocio lo está revisando. |
+| frontend | `1005403` | **Asistente de bienvenida** de 3 pasos después del registro. **Revisión en el navegador:** Agenda legible en modo oscuro (bloques y franja de horario con tokens), Semana con los 7 días visibles en laptop y ayudas bajo demanda funcionando. |
+
+Pruebas: backend 49 (1 omitida a propósito: el webhook en pausa), frontend 30, todas pasando.
