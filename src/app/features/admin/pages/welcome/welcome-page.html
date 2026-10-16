@@ -1,0 +1,135 @@
+<section class="mx-auto max-w-2xl pb-16">
+  <header class="page-head">
+    <div>
+      <h1>Pon tu página en marcha</h1>
+      <p>Tres pasos y tus {{ copy.text().clients.toLowerCase() }} ya pueden reservar. Todo se puede cambiar después.</p>
+    </div>
+    <a routerLink="/admin/home" class="btn btn-ghost">Lo hago después</a>
+  </header>
+
+  <!-- Avance -->
+  <ol class="mb-6 grid grid-cols-3 gap-2" aria-label="Pasos">
+    @for (label of ['Quién atiende', 'Horario', 'Servicios']; track label; let index = $index) {
+      <li class="flex flex-col gap-1.5">
+        <span class="h-1.5 rounded-full" [class.bg-accent]="step() > index" [class.bg-line]="step() <= index"></span>
+        <span class="text-sm" [class.font-semibold]="step() === index + 1" [class.text-ink]="step() === index + 1" [class.text-muted]="step() !== index + 1">{{ index + 1 }}. {{ label }}</span>
+      </li>
+    }
+  </ol>
+
+  @if (loading()) {
+    <div class="h-64 animate-pulse rounded-2xl bg-line"></div>
+  } @else {
+    <div class="card flex flex-col gap-5">
+      @switch (step()) {
+        @case (1) {
+          <div>
+            <h2 class="text-lg font-semibold text-ink">¿Quién atiende a tus {{ copy.text().clients.toLowerCase() }}?</h2>
+            <p class="field-hint mt-1">Cada persona tiene su propia agenda. Tus {{ copy.text().clients.toLowerCase() }} eligen con quién al reservar.</p>
+          </div>
+          @if (existing().length) {
+            <p class="badge-info rounded-xl px-3 py-2 text-sm">Ya tienes a {{ existing().length === 1 ? existing()[0].full_name : existing().length + ' personas' }} en tu equipo. Puedes agregar más o seguir.</p>
+          }
+          <label class="flex items-center justify-between gap-4 rounded-xl border border-line p-4">
+            <span>
+              <span class="block text-sm font-semibold text-ink">Yo atiendo</span>
+              <span class="field-hint block">Tu nombre aparece como {{ copy.text().person.toLowerCase() }} en la página.</span>
+            </span>
+            <button type="button" role="switch" class="switch" [attr.aria-checked]="ownerWorks()" (click)="ownerWorks.set(!ownerWorks())" aria-label="Yo atiendo"><span></span></button>
+          </label>
+          @if (ownerWorks()) {
+            <label class="block">
+              <span class="label">Tu nombre como aparece en la página</span>
+              <input class="input" [value]="ownerName()" (input)="ownerName.set($any($event.target).value)" maxlength="120" />
+            </label>
+          }
+          <label class="flex items-center justify-between gap-4 rounded-xl border border-line p-4">
+            <span>
+              <span class="block text-sm font-semibold text-ink">Tengo equipo</span>
+              <span class="field-hint block">Agrega a quienes atienden contigo. Su foto y servicios los ajustas en Equipo.</span>
+            </span>
+            <button type="button" role="switch" class="switch" [attr.aria-checked]="withTeam()" (click)="withTeam.set(!withTeam())" aria-label="Tengo equipo"><span></span></button>
+          </label>
+          @if (withTeam()) {
+            <div class="flex flex-col gap-2">
+              @for (name of teamNames(); track $index) {
+                <input class="input" [value]="name" (input)="setTeamName($index, $any($event.target).value)" maxlength="120" [placeholder]="'Nombre ' + ($index + 1)" [attr.aria-label]="'Nombre ' + ($index + 1)" />
+              }
+              <button type="button" class="btn btn-ghost self-start" (click)="addTeamName()"><mat-icon>add</mat-icon>Otra persona</button>
+            </div>
+          }
+        }
+        @case (2) {
+          <div>
+            <h2 class="text-lg font-semibold text-ink">¿Qué días y a qué hora abres?</h2>
+            <p class="field-hint mt-1">Lo usamos para todo tu equipo. Descansos y horarios por persona los ajustas en Horarios.</p>
+          </div>
+          <div class="flex flex-wrap gap-2" role="group" aria-label="Días que abres">
+            @for (day of days; track day; let index = $index) {
+              <button type="button" class="chip w-14 justify-center" [class.chip-on]="openDays().has(index)" [attr.aria-pressed]="openDays().has(index)" (click)="toggleDay(index)">{{ day }}</button>
+            }
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <label class="block">
+              <span class="label">Abres</span>
+              <input class="input nums" type="time" step="900" [value]="opens()" (change)="opens.set($any($event.target).value)" />
+            </label>
+            <label class="block">
+              <span class="label">Cierras</span>
+              <input class="input nums" type="time" step="900" [value]="closes()" (change)="closes.set($any($event.target).value)" />
+            </label>
+          </div>
+        }
+        @case (3) {
+          <div>
+            <h2 class="text-lg font-semibold text-ink">¿Qué servicios ofreces?</h2>
+            <p class="field-hint mt-1">Prende los que haces y pon tu precio. Duración, foto y anticipo los ajustas en Servicios.</p>
+          </div>
+          @if (services().length) {
+            <ul class="divide-y divide-line rounded-xl border border-line">
+              @for (item of services(); track item.id) {
+                <li class="flex items-center gap-3 px-4 py-3">
+                  <button type="button" role="switch" class="switch" [attr.aria-checked]="picked().has(item.id)" (click)="togglePick(item.id)" [attr.aria-label]="item.name"><span></span></button>
+                  <span class="min-w-0 flex-1">
+                    <span class="block truncate text-sm font-medium text-ink">{{ item.name }}</span>
+                    <span class="field-hint block nums">{{ item.duration_minutes }} min</span>
+                  </span>
+                  <label class="flex items-center gap-1.5 text-sm text-muted">
+                    $
+                    <input class="input nums h-10! w-24" type="number" min="0" inputmode="decimal" [disabled]="!picked().has(item.id)" [value]="prices()[item.id]" (input)="setPrice(item.id, $any($event.target).value)" [attr.aria-label]="'Precio de ' + item.name" />
+                  </label>
+                </li>
+              }
+            </ul>
+            <p class="text-sm text-ink-soft nums">{{ pickedCount() }} de {{ services().length }} elegidos</p>
+          } @else {
+            <p class="empty">Aún no tienes servicios. Créalos en <a routerLink="/admin/services" class="font-medium text-accent">Servicios</a>.</p>
+          }
+        }
+      }
+
+      @if (error(); as message) {
+        <p class="field-error" role="alert">{{ message }}</p>
+      }
+
+      <div class="flex items-center justify-between gap-3 border-t border-line pt-4">
+        @if (step() > 1) {
+          <button type="button" class="btn btn-ghost" [disabled]="saving()" (click)="back()">Atrás</button>
+        } @else {
+          <span></span>
+        }
+        @switch (step()) {
+          @case (1) {
+            <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="saveTeam()">{{ saving() ? 'Guardando…' : 'Siguiente' }}</button>
+          }
+          @case (2) {
+            <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="saveHours()">{{ saving() ? 'Guardando…' : 'Siguiente' }}</button>
+          }
+          @case (3) {
+            <button type="button" class="btn btn-primary" [disabled]="saving() || !services().length" (click)="saveServices()">{{ saving() ? 'Guardando…' : 'Terminar' }}</button>
+          }
+        }
+      </div>
+    </div>
+  }
+</section>

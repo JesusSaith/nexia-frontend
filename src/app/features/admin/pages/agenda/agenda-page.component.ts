@@ -1137,7 +1137,7 @@ export class AgendaPageComponent {
   }
 
   protected staffTint(staffId: number): string {
-    return `color-mix(in srgb, ${this.staffColor(staffId)} 12%, white)`;
+    return `color-mix(in srgb, ${this.staffColor(staffId)} 16%, var(--color-surface))`;
   }
 
   /** Estado legible dentro del bloque: completadas atenuadas, canceladas tachadas. */

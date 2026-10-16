@@ -278,8 +278,9 @@ textarea.input { height: auto; padding: 0.625rem 0.875rem; line-height: 1.5; }
  * (span.field-hint junto al campo) se esconde y aparece al enfocar el campo; la etiqueta lleva un ⓘ
  * que, al tocarla, enfoca el campo. Los errores, avisos y las descripciones de interruptores (p.field-hint) se ven siempre.
  */
-.nx-quiet span.field-hint { display: none; }
-.nx-quiet :focus-within > span.field-hint { display: block; }
+/* !important: le gana a la clase `block` de Tailwind que llevan las ayudas. */
+.nx-quiet span.field-hint { display: none !important; }
+.nx-quiet :focus-within > span.field-hint { display: block !important; }
 .nx-quiet :is(label, div):has(> span.field-hint) > .label::after {
   content: 'i';
   display: inline-grid;

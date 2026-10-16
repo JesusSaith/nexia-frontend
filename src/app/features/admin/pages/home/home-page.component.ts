@@ -86,6 +86,8 @@ export class HomePageComponent {
   /** Pasos para dejar el negocio listo; desaparece al completarlos o al ocultarla. */
   protected readonly setup = signal<ReadinessStep[]>([]);
   protected readonly setupHidden = signal(readFlag('nexia-setup-hidden'));
+  /** Falta algo para poder reservar (servicios, equipo u horario): se ofrece el asistente. */
+  protected readonly needsWizard = computed(() => this.setup().some((step) => step.group === 'arranque' && step.key !== 'share' && !step.done));
   protected readonly setupLeft = computed(() => this.setup().filter((step) => !step.done).length);
   /** Un aviso (p. ej. falta la CLABE) se muestra aunque la lista se haya ocultado. */
   protected readonly setupWarnings = computed(() => this.setup().some((step) => step.group === 'aviso'));

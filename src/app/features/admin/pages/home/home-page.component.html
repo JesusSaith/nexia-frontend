@@ -68,6 +68,9 @@
             </div>
           </div>
           <div class="flex gap-1">
+            @if (needsWizard()) {
+              <a routerLink="/admin/bienvenida" class="btn btn-primary h-8! px-3! text-xs">Usar el asistente</a>
+            }
             @if (!demoLoaded()) {
               <button type="button" class="btn btn-secondary h-8! px-3! text-xs" [disabled]="demoBusy()" (click)="toggleDemo()">Llenar con ejemplo</button>
             }

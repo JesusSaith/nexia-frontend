@@ -136,7 +136,7 @@ export class Register {
               ? 'Tu negocio está listo. Empieza agregando tus servicios.'
               : 'Tu negocio está listo. Te dejamos servicios sugeridos: ajusta precios y actívalos.',
           );
-          void this.router.navigateByUrl('/admin');
+          void this.router.navigateByUrl('/admin/bienvenida');
         },
         error: (error: HttpErrorResponse) => {
           this.submitting.set(false);

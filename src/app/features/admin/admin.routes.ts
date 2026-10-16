@@ -19,6 +19,12 @@ export const adminRoutes: Routes = [
           import('./pages/settings/settings-page.component').then((m) => m.SettingsPageComponent),
       },
       {
+        // Asistente de 3 pasos después del registro (también se abre desde Inicio).
+        path: 'bienvenida',
+        canActivate: [managers],
+        loadComponent: () => import('./pages/welcome/welcome-page').then((m) => m.WelcomePageComponent),
+      },
+      {
         path: 'negocio',
         canActivate: [managers],
         loadComponent: () =>
