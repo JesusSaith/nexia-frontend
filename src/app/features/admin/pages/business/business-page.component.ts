@@ -57,7 +57,7 @@ export class BusinessPageComponent {
   protected readonly readiness = signal<Readiness | null>(null);
   protected readonly readyToShare = computed(() => this.readiness()?.can_book ?? false);
   protected readonly nextStep = computed(
-    () => this.readiness()?.steps.find((step) => !step.done && step.key !== 'share')?.path ?? '/admin/settings',
+    () => this.readiness()?.steps.find((step) => !step.done && step.key !== 'share') ?? { path: '/admin/settings', section: null },
   );
   protected readonly toast = signal<string | null>(null);
 

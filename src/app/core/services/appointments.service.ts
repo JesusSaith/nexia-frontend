@@ -111,6 +111,11 @@ export class AppointmentsService {
     return this.http.get<{ note: string | null; date: string | null }>(`${this.apiBaseUrl}/appointments/${id}/last-note`);
   }
 
+  /** Acepta una reserva que llegó por aprobar. */
+  approve(id: number): Observable<Appointment> {
+    return this.http.post<Appointment>(`${this.apiBaseUrl}/appointments/${id}/approve`, {});
+  }
+
   clearProof(id: number): Observable<Appointment> {
     return this.http.post<Appointment>(`${this.apiBaseUrl}/appointments/${id}/another-proof`, {});
   }

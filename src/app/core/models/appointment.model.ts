@@ -54,6 +54,8 @@ export interface Appointment {
   tip?: number | null;
   visit_note?: string | null;
   discount_percent?: number | null;
+  /** Llegó por la página con "aprobar citas a mano": el horario está apartado, falta el sí de la dueña. */
+  needs_approval?: boolean;
 }
 
 export interface AppointmentQuery {

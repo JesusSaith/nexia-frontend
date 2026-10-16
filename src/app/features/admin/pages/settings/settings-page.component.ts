@@ -2,6 +2,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, HostListener, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { ActivatedRoute } from '@angular/router';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 
@@ -9,7 +10,9 @@ import { BUSINESS_KINDS, kindOf } from '@core/business-kinds';
 import { BusinessCopy } from '@core/business-copy';
 import { MESSAGE_TEMPLATES, MessageKey, MessageVars, VARIABLE_HELP, defaultText, fillTemplate, longDay } from '@core/message-templates';
 import { API_BASE_URL } from '@core/config/api-base-url';
-import { BusinessCoupon } from '@core/models/business.model';
+import { BusinessCoupon, Closure } from '@core/models/business.model';
+import { Holiday, upcomingHolidays } from '@core/holidays';
+import { PAYMENT_METHODS } from '@core/payment-methods';
 import { BusinessSettings, ProfileUpdate, SettingsService } from '@core/services/settings.service';
 import { Toasts } from '@core/toasts';
 import { Confirm } from '@shared/components/confirm/confirm';
@@ -24,7 +27,7 @@ const SECTIONS: readonly { id: SectionId; label: string; icon: string; short?: s
   { id: 'anticipo', label: 'Anticipo y pagos', icon: 'payments' },
   { id: 'promociones', label: 'Promociones', icon: 'sell' },
   { id: 'mensajes', label: 'Mensajes de WhatsApp', short: 'Mensajes', icon: 'chat' },
-  { id: 'pausa', label: 'Pausa y vacaciones', icon: 'beach_access' },
+  { id: 'pausa', label: 'Pausa, vacaciones y festivos', short: 'Pausa y cierres', icon: 'beach_access' },
   { id: 'avisos', label: 'Avisos por correo', icon: 'mark_email_unread' },
   { id: 'privacidad', label: 'Privacidad y datos', icon: 'shield' },
 ];
@@ -94,6 +97,7 @@ export class SettingsPageComponent {
   private readonly http = inject(HttpClient);
   private readonly apiBaseUrl = inject(API_BASE_URL);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly route = inject(ActivatedRoute);
 
   protected readonly sections = SECTIONS;
   protected readonly kindPicks = BUSINESS_KINDS.map(({ value, label }) => ({ value, label }));
@@ -122,8 +126,8 @@ export class SettingsPageComponent {
     timezone: new FormControl('America/Mexico_City', { nonNullable: true }),
     resources: new FormControl('', { nonNullable: true }),
     cancelPolicy: new FormControl('', { nonNullable: true }),
-    depositAmount: new FormControl<number | null>(null),
-    depositPercent: new FormControl<number | null>(null),
+    depositAmount: new FormControl<number | null>(null, [Validators.min(0)]),
+    depositPercent: new FormControl<number | null>(null, [Validators.min(1), Validators.max(100)]),
     depositAccount: new FormControl('', { nonNullable: true }),
     depositHoldHours: new FormControl<number | null>(3),
     paymentUrl: new FormControl('', { nonNullable: true, validators: [Validators.pattern(/^(https?:\/\/\S+)?$/)] }),
@@ -134,12 +138,21 @@ export class SettingsPageComponent {
   protected readonly logoUrl = signal<string | null>(null);
   protected readonly suggestedColor = signal<string | null>(null);
   protected readonly uploading = signal(false);
+  protected readonly photoNotice = signal('');
+  protected readonly pausing = signal(false);
   protected readonly photos = signal<string[]>([]);
   protected readonly promo = signal('');
   protected readonly promoUntil = signal('');
   protected readonly pauseBookings = signal(false);
-  protected readonly closedFrom = signal('');
-  protected readonly closedTo = signal('');
+  /** Cierres guardados (vacaciones y festivos), ordenados por fecha. */
+  protected readonly closures = signal<Closure[]>([]);
+  // Lo que se está escribiendo para agregar un cierre nuevo.
+  protected readonly newFrom = signal('');
+  protected readonly newTo = signal('');
+  protected readonly newLabel = signal('');
+  protected readonly paymentMethodOptions = PAYMENT_METHODS;
+  protected readonly paymentMethods = signal<ReadonlySet<string>>(new Set(PAYMENT_METHODS.map((item) => item.value)));
+  protected readonly approveBookings = signal(false);
   protected readonly loyaltyEvery = signal<number | null>(null);
   protected readonly loyaltyPercent = signal<number | null>(null);
   protected readonly coupons = signal<BusinessCoupon[]>([]);
@@ -173,7 +186,7 @@ export class SettingsPageComponent {
       phone: value.phone.trim(),
       address: value.address.trim() || null,
       instagram: value.instagram.trim().replace(/^@/, '') || null,
-      facebook: value.facebook.trim() || null,
+      facebook: facebookUrl(value.facebook),
       logo_url: this.logoUrl(),
       primary_color: color,
       canvas_color: colorChanged ? lighten(color, 0.9) : (saved?.canvas_color ?? null),
@@ -191,8 +204,9 @@ export class SettingsPageComponent {
       privacy_notice: value.privacyNotice.trim() || null,
       resources: value.resources.trim() || null,
       bookings_paused: this.pauseBookings(),
-      closed_from: this.closedFrom() || null,
-      closed_to: this.closedTo() || null,
+      closures: this.closures(),
+      payment_methods: PAYMENT_METHODS.map((item) => item.value).filter((value) => this.paymentMethods().has(value)),
+      approve_bookings: this.approveBookings(),
       promo_text: this.promo().trim().slice(0, 80) || null,
       promo_until: this.promo().trim() ? this.promoUntil() || null : null,
       gallery: this.photos(),
@@ -214,17 +228,56 @@ export class SettingsPageComponent {
       return 0;
     }
     const current = this.payload();
-    return (Object.keys(current) as (keyof ProfileUpdate)[]).filter((key) => JSON.stringify(current[key]) !== JSON.stringify(saved[key])).length;
+    return (Object.keys(current) as (keyof ProfileUpdate)[]).filter((key) => key !== 'canvas_color' && JSON.stringify(current[key]) !== JSON.stringify(saved[key])).length;
   });
 
-  protected readonly closureError = computed(() => {
-    const from = this.closedFrom();
-    const to = this.closedTo();
-    if (Boolean(from) !== Boolean(to)) {
-      return 'Pon las dos fechas: desde cuándo y hasta cuándo cierras.';
-    }
-    return from && to && to < from ? 'La fecha "hasta" no puede ser antes que "desde".' : '';
+  /** Error del cierre que se está agregando (no bloquea el guardado: aún no está en la lista). */
+  protected readonly closureError = signal('');
+
+  /** Cierres que no han terminado; los pasados se ven aparte y se pueden limpiar. */
+  protected readonly upcomingClosures = computed(() => this.closures().filter((row) => row.to >= todayIso()));
+  protected readonly pastClosures = computed(() => this.closures().filter((row) => row.to < todayIso()));
+
+  /** Festivos de los próximos 12 meses que aún no están en la lista. */
+  protected readonly suggestedHolidays = computed(() => {
+    const taken = new Set(this.closures().flatMap((row) => (row.from === row.to ? [row.from] : [])));
+    return upcomingHolidays(todayIso()).filter((item) => !taken.has(item.date) && !this.closures().some((row) => item.date >= row.from && item.date <= row.to));
   });
+
+  /** Un mensaje por cupón con problema; vacío si está bien. Antes se descartaban sin avisar. */
+  protected readonly couponIssues = computed(() => {
+    const codes = this.coupons().map((row) => row.code.trim().toUpperCase().replace(/\s+/g, ''));
+    return this.coupons().map((row, index) => {
+      if (!codes[index]) {
+        return 'Escribe el código.';
+      }
+      if (codes.indexOf(codes[index]) !== index) {
+        return 'Ese código ya está arriba.';
+      }
+      return row.percent >= 1 && row.percent <= 100 ? '' : 'El descuento va de 1 a 100%.';
+    });
+  });
+
+  protected readonly loyaltyError = computed(() => {
+    const every = this.loyaltyEvery();
+    const percent = this.loyaltyPercent();
+    if (!every && !percent) {
+      return '';
+    }
+    if (!every || !percent) {
+      return 'Pon las dos cosas: cada cuántas visitas y el descuento.';
+    }
+    if (every < 2 || every > 50) {
+      return 'Las visitas van de 2 a 50.';
+    }
+    return percent < 1 || percent > 100 ? 'El descuento va de 1 a 100%.' : '';
+  });
+
+  protected readonly promoError = computed(() =>
+    this.promo().trim() && this.promoUntil() && this.promoUntil() < todayIso() ? 'Esa fecha ya pasó: el anuncio no se vería.' : '',
+  );
+
+  protected readonly today = todayIso();
 
   /** El backend solo cobra anticipo si hay a dónde pagarlo. */
   protected readonly depositWarning = computed(() => {
@@ -239,10 +292,14 @@ export class SettingsPageComponent {
     if (this.pauseBookings()) {
       return { tone: 'warn' as const, icon: 'pause_circle', title: 'Tu página no está tomando citas', detail: 'Tus clientas ven que por ahora no hay reservas en línea.' };
     }
-    const from = this.closedFrom();
-    const to = this.closedTo();
-    if (from && to && to >= todayIso()) {
-      return { tone: 'info' as const, icon: 'event_busy', title: `Cierras del ${shortDate(from)} al ${shortDate(to)}`, detail: 'Esos días no se pueden reservar. Fuera de esas fechas todo sigue igual.' };
+    const today = todayIso();
+    const now = this.upcomingClosures().find((row) => row.from <= today);
+    if (now) {
+      return { tone: 'info' as const, icon: 'event_busy', title: `Hoy tu negocio está cerrado${now.label ? ` (${now.label})` : ''}`, detail: `Tu página no deja reservar ${now.from === now.to ? 'este día' : `hasta el ${shortDate(now.to)}`}. Los demás días todo sigue igual.` };
+    }
+    const next = this.upcomingClosures()[0];
+    if (next && next.from <= addDays(today, 14)) {
+      return { tone: 'info' as const, icon: 'event_busy', title: `Cierras ${closureText(next)}${next.label ? ` (${next.label})` : ''}`, detail: 'Esos días no se pueden reservar. Fuera de esas fechas todo sigue igual.' };
     }
     return { tone: 'ok' as const, icon: 'check_circle', title: 'Tu página está recibiendo reservas', detail: 'Tus clientas pueden agendar en línea a cualquier hora.' };
   });
@@ -268,10 +325,14 @@ export class SettingsPageComponent {
         payload.min_notice_hours ? `${presetLabel('minNoticeHours', payload.min_notice_hours, 'h')} de anticipación` : 'Sin mínimo de anticipación',
         `hasta ${presetLabel('maxDaysAhead', payload.max_days_ahead, 'días')} a futuro`,
         payload.cancel_hours === null ? 'cancelan hasta que empiece' : `cancelan ${presetLabel('cancelHours', payload.cancel_hours, 'h antes')}`,
+        ...(payload.approve_bookings ? ['apruebas cada cita'] : []),
       ].join(' · '),
-      anticipo: deposit ? `${deposit} · ${payload.deposit_hold_hours} h para pagar${this.depositWarning() ? ' · falta la cuenta' : ''}` : 'Sin anticipo',
+      anticipo: [
+        deposit ? `${deposit} · ${payload.deposit_hold_hours} h para pagar${this.depositWarning() ? ' · falta la cuenta' : ''}` : 'Sin anticipo',
+        PAYMENT_METHODS.filter((item) => this.paymentMethods().has(item.value)).map((item) => item.label.toLowerCase()).join(', '),
+      ].join(' · '),
       promociones: offers.length ? offers.join(' · ') : 'Sin promociones',
-      pausa: this.status().title,
+      pausa: [this.pauseBookings() ? 'En pausa' : 'Tomando citas', this.upcomingClosures().length ? `${this.upcomingClosures().length} cierre${this.upcomingClosures().length === 1 ? '' : 's'} por venir` : 'sin cierres'].join(' · '),
       mensajes: this.customizedCount() ? `${this.customizedCount()} personalizado${this.customizedCount() === 1 ? '' : 's'} de ${MESSAGE_TEMPLATES.length}` : 'Todos con el texto de fábrica',
       avisos: this.emailAlerts().size ? `${this.emailAlerts().size} de ${ALERT_OPTIONS.length} encendidos · a ${this.accountEmail()}` : 'Apagados: solo los ves en Inicio',
       privacidad: payload.privacy_notice ? 'Aviso de privacidad propio' : 'Aviso genérico de Nexia',
@@ -286,6 +347,12 @@ export class SettingsPageComponent {
         next: (settings) => {
           this.apply(settings);
           this.isLoading.set(false);
+          // Los avisos de Inicio y Mi negocio llegan con ?sec=… para abrir justo lo que falta.
+          const sec = this.route.snapshot.queryParamMap.get('sec');
+          if (SECTIONS.some((section) => section.id === sec)) {
+            this.openSections.set(new Set([sec as SectionId]));
+            this.goTo(sec as SectionId);
+          }
         },
         error: (error: unknown) => {
           this.isLoading.set(false);
@@ -457,8 +524,88 @@ export class SettingsPageComponent {
     });
   }
 
+  /** La pausa se guarda al momento, sola: es lo que la dueña espera de un interruptor así, y no arrastra otros cambios. */
+  /** Siempre queda al menos uno: sin método no hay cómo cobrar. */
+  protected toggleMethod(value: string): void {
+    const next = new Set(this.paymentMethods());
+    if (next.has(value)) {
+      if (next.size === 1) {
+        this.toasts.show('Deja al menos un método de pago.');
+        return;
+      }
+      next.delete(value);
+    } else {
+      next.add(value);
+    }
+    this.paymentMethods.set(next);
+  }
+
+  protected addClosure(): void {
+    const from = this.newFrom();
+    const to = this.newTo() || from;
+    if (!from) {
+      this.closureError.set('Elige al menos el día en que cierras.');
+      return;
+    }
+    if (to < from) {
+      this.closureError.set('La fecha "hasta" no puede ser antes que "desde".');
+      return;
+    }
+    if (this.closures().some((row) => from <= row.to && to >= row.from)) {
+      this.closureError.set('Ya tienes un cierre que toca esas fechas.');
+      return;
+    }
+    this.pushClosures([{ from, to, label: this.newLabel().trim().slice(0, 60) || (from === to ? 'Cerrado' : 'Vacaciones') }]);
+    this.newFrom.set('');
+    this.newTo.set('');
+    this.newLabel.set('');
+    this.closureError.set('');
+  }
+
+  protected addHolidays(items: readonly Holiday[]): void {
+    this.pushClosures(items.map((item) => ({ from: item.date, to: item.date, label: item.label })));
+  }
+
+  protected removeClosure(row: Closure): void {
+    this.closures.update((rows) => rows.filter((item) => item !== row));
+  }
+
+  protected clearPastClosures(): void {
+    const today = todayIso();
+    this.closures.update((rows) => rows.filter((row) => row.to >= today));
+  }
+
+  protected closureText(row: Closure): string {
+    return closureText(row);
+  }
+
+  private pushClosures(rows: Closure[]): void {
+    this.closures.update((current) => [...current, ...rows].sort((left, right) => left.from.localeCompare(right.from)).slice(0, 40));
+  }
+
   protected togglePause(): void {
-    this.pauseBookings.update((paused) => !paused);
+    if (this.pausing()) {
+      return;
+    }
+    const paused = !this.pauseBookings();
+    this.pauseBookings.set(paused);
+    this.pausing.set(true);
+    this.settingsApi
+      .updateProfile({ bookings_paused: paused })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (settings) => {
+          this.pausing.set(false);
+          this.savedSettings.update((saved) => (saved ? { ...saved, bookings_paused: settings.bookings_paused } : saved));
+          this.savedPayload.update((saved) => (saved ? { ...saved, bookings_paused: Boolean(settings.bookings_paused) } : saved));
+          this.toasts.show(paused ? 'Pausaste tu página: no toma citas.' : 'Tu página vuelve a recibir reservas.');
+        },
+        error: (error: unknown) => {
+          this.pausing.set(false);
+          this.pauseBookings.set(!paused);
+          this.errorMessage.set(readError(error, 'No pudimos cambiar la pausa. Inténtalo de nuevo.'));
+        },
+      });
   }
 
   protected useSuggestedColor(): void {
@@ -527,7 +674,9 @@ export class SettingsPageComponent {
 
   protected addPhotos(event: Event): void {
     const input = event.target as HTMLInputElement;
-    const files = [...(input.files ?? [])].slice(0, 3 - this.photos().length);
+    const picked = [...(input.files ?? [])];
+    const files = picked.slice(0, 3 - this.photos().length);
+    this.photoNotice.set(picked.length > files.length ? 'Solo caben 3 fotos; usamos las primeras.' : '');
     for (const file of files) {
       const preview = URL.createObjectURL(file);
       const img = new Image();
@@ -539,7 +688,11 @@ export class SettingsPageComponent {
         canvas.height = Math.max(1, Math.round(img.height * scale));
         canvas.getContext('2d')?.drawImage(img, 0, 0, canvas.width, canvas.height);
         const data = canvas.toDataURL('image/jpeg', 0.7);
-        this.photos.update((items) => (items.length >= 3 || items.join('').length + data.length > 140000 ? items : [...items, data]));
+        if (this.photos().length >= 3 || this.photos().join('').length + data.length > 140000) {
+          this.photoNotice.set('Esa foto ya no cabe. Quita una o prueba con otra más simple.');
+          return;
+        }
+        this.photos.update((items) => [...items, data]);
       };
       img.src = preview;
     }
@@ -548,6 +701,18 @@ export class SettingsPageComponent {
 
   protected removePhoto(index: number): void {
     this.photos.update((items) => items.filter((_, item) => item !== index));
+    this.photoNotice.set('');
+  }
+
+  /** Mover una foto a la izquierda (la primera es la que más se ve). */
+  protected movePhoto(index: number): void {
+    if (index > 0) {
+      this.photos.update((items) => {
+        const next = [...items];
+        [next[index - 1], next[index]] = [next[index], next[index - 1]];
+        return next;
+      });
+    }
   }
 
   protected addCoupon(): void {
@@ -578,7 +743,7 @@ export class SettingsPageComponent {
     if (this.saving()) {
       return;
     }
-    if (this.form.invalid || this.closureError()) {
+    if (this.form.invalid || this.couponIssues().some(Boolean) || this.loyaltyError() || this.promoError()) {
       this.errorMessage.set('Revisa los campos marcados antes de guardar.');
       const firstBad = this.sections.find((section) => this.sectionHasError(section.id));
       if (firstBad) {
@@ -603,6 +768,11 @@ export class SettingsPageComponent {
         error: (error: unknown) => {
           this.saving.set(false);
           this.errorMessage.set(readError(error, 'No pudimos guardar. Revisa tu conexión e inténtalo de nuevo.'));
+          // Si el servidor dice qué campo falló, abre su sección.
+          const section = sectionOfError(error);
+          if (section) {
+            this.goTo(section);
+          }
         },
       });
   }
@@ -615,9 +785,9 @@ export class SettingsPageComponent {
       case 'apariencia':
         return controls.primaryColor.invalid;
       case 'anticipo':
-        return controls.paymentUrl.invalid;
-      case 'pausa':
-        return Boolean(this.closureError());
+        return controls.paymentUrl.invalid || controls.depositAmount.invalid || controls.depositPercent.invalid;
+      case 'promociones':
+        return this.couponIssues().some(Boolean) || Boolean(this.loyaltyError() || this.promoError());
       case 'privacidad':
         return controls.privacyNotice.invalid;
       default:
@@ -647,12 +817,15 @@ export class SettingsPageComponent {
     this.savedSettings.set(settings);
     this.logoUrl.set(settings.logo_url);
     this.suggestedColor.set(null);
+    this.photoNotice.set('');
     this.photos.set(settings.gallery ?? []);
     this.promo.set(settings.promo_text ?? '');
     this.promoUntil.set(settings.promo_until ?? '');
     this.pauseBookings.set(Boolean(settings.bookings_paused));
-    this.closedFrom.set(settings.closed_from ?? '');
-    this.closedTo.set(settings.closed_to ?? '');
+    this.closures.set(settings.closures ?? []);
+    this.closureError.set('');
+    this.paymentMethods.set(new Set(settings.payment_methods?.length ? settings.payment_methods : PAYMENT_METHODS.map((item) => item.value)));
+    this.approveBookings.set(Boolean(settings.approve_bookings));
     this.loyaltyEvery.set(settings.loyalty_every ?? null);
     this.loyaltyPercent.set(settings.loyalty_percent ?? null);
     this.coupons.set(parseCoupons(settings.coupons));
@@ -689,6 +862,32 @@ export class SettingsPageComponent {
     this.bookingUrl.set(settings.slug ? `${location.origin}/${settings.slug}/book` : null);
     this.privacyUrl.set(settings.slug ? `${location.origin}/${settings.slug}/privacidad` : null);
   }
+}
+
+/** Campo del backend → sección donde se corrige. */
+const FIELD_SECTION: Record<string, SectionId> = {
+  name: 'negocio', phone: 'negocio', description: 'negocio', address: 'negocio', instagram: 'negocio', facebook: 'negocio', business_kind: 'negocio',
+  logo_url: 'apariencia', primary_color: 'apariencia', gallery: 'apariencia',
+  min_notice_hours: 'reservas', max_days_ahead: 'reservas', buffer_minutes: 'reservas', cancel_hours: 'reservas', timezone: 'reservas', resources: 'reservas', cancel_policy: 'reservas',
+  deposit_amount: 'anticipo', deposit_percent: 'anticipo', deposit_account: 'anticipo', deposit_hold_hours: 'anticipo', payment_url: 'anticipo',
+  promo_text: 'promociones', promo_until: 'promociones', loyalty_every: 'promociones', loyalty_percent: 'promociones', coupons: 'promociones',
+  message_templates: 'mensajes', bookings_paused: 'pausa', closures: 'pausa', payment_methods: 'anticipo', approve_bookings: 'reservas', email_alerts: 'avisos', privacy_notice: 'privacidad',
+};
+
+function sectionOfError(error: unknown): SectionId | null {
+  const detail = error instanceof HttpErrorResponse ? error.error?.detail : null;
+  const loc: unknown[] = Array.isArray(detail) && Array.isArray(detail[0]?.loc) ? detail[0].loc : [];
+  const field = loc.find((part): part is string => typeof part === 'string' && part in FIELD_SECTION);
+  return field ? FIELD_SECTION[field] : null;
+}
+
+/** "tunegocio", "@tunegocio" o la URL completa quedan como facebook.com/tunegocio. */
+function facebookUrl(raw: string): string | null {
+  const value = raw.trim().replace(/^https?:\/\//i, '').replace(/^(www\.|m\.)/i, '').replace(/\/+$/, '');
+  if (!value) {
+    return null;
+  }
+  return /^(facebook|fb)\.com\//i.test(value) ? value.replace(/^fb\.com/i, 'facebook.com') : `facebook.com/${value.replace(/^@/, '')}`;
 }
 
 function defaultMessages(): Record<MessageKey, string> {
@@ -751,6 +950,17 @@ function parseCoupons(raw: string | null | undefined): BusinessCoupon[] {
 function todayIso(): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+function addDays(iso: string, days: number): string {
+  const [year, month, day] = iso.split('-').map(Number);
+  const moved = new Date(year, month - 1, day + days);
+  return `${moved.getFullYear()}-${String(moved.getMonth() + 1).padStart(2, '0')}-${String(moved.getDate()).padStart(2, '0')}`;
+}
+
+/** "el 24 dic" o "del 20 oct al 27 oct". */
+function closureText(row: Closure): string {
+  return row.from === row.to ? `el ${shortDate(row.from)}` : `del ${shortDate(row.from)} al ${shortDate(row.to)}`;
 }
 
 function shortDate(iso: string): string {

@@ -1,4 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { METHOD_LABELS } from '@core/payment-methods';
 import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatIconModule } from '@angular/material/icon';
@@ -406,15 +407,8 @@ export class DashboardPageComponent {
   }
 
   protected methodRows(rows: Record<string, number> | undefined): { label: string; amount: number }[] {
-    const names: Record<string, string> = {
-      efectivo: 'Efectivo',
-      transferencia: 'Transferencia',
-      tarjeta: 'Tarjeta',
-      paquete: 'Paquete',
-      sin_registrar: 'Sin registrar',
-    };
     return Object.entries(rows ?? {})
-      .map(([key, amount]) => ({ label: names[key] ?? key, amount }))
+      .map(([key, amount]) => ({ label: METHOD_LABELS[key] ?? key, amount }))
       .sort((a, b) => b.amount - a.amount);
   }
 

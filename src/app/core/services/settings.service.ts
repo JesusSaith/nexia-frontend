@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../config/api-base-url';
+import { Closure } from '../models/business.model';
 
 /** Un paso de "qué te falta" (ver app/core/readiness.py en el backend). */
 export interface ReadinessStep {
@@ -10,6 +11,8 @@ export interface ReadinessStep {
   label: string;
   done: boolean;
   path: string;
+  /** Sección de Configuración que abre el aviso (/admin/settings?sec=…). */
+  section?: string | null;
   /** arranque: sin esto no se puede reservar · perfil: da confianza · aviso: algo está mal configurado. */
   group: 'arranque' | 'perfil' | 'aviso';
 }
@@ -63,8 +66,9 @@ export interface BusinessSettings {
   /** Tipos de aviso que le llegan por correo a la dueña. */
   email_alerts: string[];
   bookings_paused: boolean;
-  closed_from: string | null;
-  closed_to: string | null;
+  closures: Closure[];
+  payment_methods: string[];
+  approve_bookings: boolean;
   promo_text: string | null;
   promo_until: string | null;
   gallery: string[];
@@ -102,8 +106,9 @@ export interface ProfileUpdate {
   timezone?: string | null;
   email_alerts?: string[];
   bookings_paused?: boolean;
-  closed_from?: string | null;
-  closed_to?: string | null;
+  closures?: Closure[];
+  payment_methods?: string[];
+  approve_bookings?: boolean;
   promo_text?: string | null;
   promo_until?: string | null;
   gallery?: string[];
@@ -141,7 +146,7 @@ export class SettingsService {
     return this.http.post<void>(`${this.apiBaseUrl}/settings/readiness/shared`, {});
   }
 
-  updateProfile(data: ProfileUpdate): Observable<BusinessSettings> {
+  updateProfile(data: Partial<ProfileUpdate>): Observable<BusinessSettings> {
     return this.http.patch<BusinessSettings>(`${this.apiBaseUrl}/settings/business`, data);
   }
 

@@ -23,7 +23,7 @@
       <p class="mx-5 rounded-2xl px-4 py-2 text-sm text-white" style="background: var(--booking-primary, var(--primary))">{{ text }}</p>
     }
     @if (closedLabel(); as label) {
-      <p class="px-5 text-sm" style="color: var(--booking-primary, var(--primary))">Cerramos del {{ label }}.</p>
+      <p class="px-5 text-sm" style="color: var(--booking-primary, var(--primary))">Cerramos: {{ label }}.</p>
     }
     @if (gallery().length || opinions().length) {
       <!-- Plegado para que en celular los servicios queden a la vista desde el inicio. -->
@@ -596,6 +596,12 @@
             </div>
             <p class="mt-1 text-xs text-muted">No pagas nada ahora.</p>
           }
+          @if (payMethods(); as methods) {
+            <p class="mt-2 text-xs text-muted">Aceptamos {{ methods }}.</p>
+          }
+          @if (brand()?.approve_bookings) {
+            <p class="mt-2 text-xs text-muted">El negocio revisa cada solicitud y te confirma por WhatsApp.</p>
+          }
           @if (policy(); as text) {
             <p class="mt-3 whitespace-pre-line border-t border-line pt-2 text-xs text-muted">
               <span class="font-medium text-ink-soft">Cancelaciones:</span> {{ text }}
@@ -614,10 +620,15 @@
       <span class="flex h-16 w-16 items-center justify-center rounded-full bg-rose-50 text-rose-500">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-8 w-8" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M5 12.5l5 5L20 7"/></svg>
       </span>
-      <h2 class="mt-5 text-2xl font-semibold text-ink">{{ appointment.status === 'awaiting_deposit' ? 'Tu horario está apartado' : '¡Tu ' + copy().visit.toLowerCase() + ' está reservada!' }}</h2>
-      <p class="mt-2 text-sm text-muted">
-        {{ appointment.status === 'awaiting_deposit' ? 'Transfiere el anticipo. La cita se confirma cuando llegue el depósito.' : 'Tu lugar está asegurado en nuestro sistema.' }}
-      </p>
+      @if (appointment.needs_approval) {
+        <h2 class="mt-5 text-2xl font-semibold text-ink">Recibimos tu solicitud</h2>
+        <p class="mt-2 text-sm text-muted">Te apartamos el horario. {{ brand()?.name || 'El negocio' }} la revisa y te confirma por WhatsApp.</p>
+      } @else {
+        <h2 class="mt-5 text-2xl font-semibold text-ink">{{ appointment.status === 'awaiting_deposit' ? 'Tu horario está apartado' : '¡Tu ' + copy().visit.toLowerCase() + ' está reservada!' }}</h2>
+        <p class="mt-2 text-sm text-muted">
+          {{ appointment.status === 'awaiting_deposit' ? 'Transfiere el anticipo. La cita se confirma cuando llegue el depósito.' : 'Tu lugar está asegurado en nuestro sistema.' }}
+        </p>
+      }
       @if (appointment.status === 'awaiting_deposit' && appointment.deposit_amount && holdUntil(appointment); as limit) {
         <p class="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
           Te guardamos el horario hasta <strong>{{ limit }}</strong>. Si no llega el anticipo, se libera para alguien más.

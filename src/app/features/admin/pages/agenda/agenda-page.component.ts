@@ -16,6 +16,7 @@ import { forkJoin, interval, of } from 'rxjs';
 import { catchError, distinctUntilChanged, map, switchMap } from 'rxjs/operators';
 
 import { BusinessCopy } from '@core/business-copy';
+import { ALL_METHODS, PAYMENT_METHODS } from '@core/payment-methods';
 import { MessageVars, firstName, longDay, whatsappLink } from '@core/message-templates';
 import { Toasts } from '@core/toasts';
 import { Appointment, AppointmentStatus } from '@core/models/appointment.model';
@@ -306,6 +307,7 @@ export class AgendaPageComponent {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((brand) => {
         this.holdHours.set(brand.deposit_hold_hours || 3);
+        this.acceptedMethods.set(brand.payment_methods?.length ? brand.payment_methods : ALL_METHODS);
         this.depositRules.set({
           account: brand.deposit_account ?? null,
           amount: brand.deposit_amount ?? null,
@@ -837,6 +839,7 @@ export class AgendaPageComponent {
   }
 
   protected statusBadge(appointment: Appointment): string {
+    if (appointment.needs_approval && appointment.status !== 'cancelled') return 'badge badge-warn';
     if (appointment.status === 'completed') return 'badge badge-ok';
     if (appointment.status === 'awaiting_deposit') return 'badge badge-warn';
     if (appointment.status === 'cancelled' || appointment.status === 'no_show') return 'badge badge-bad';
@@ -1300,12 +1303,12 @@ export class AgendaPageComponent {
     this.matchClient(found.phone);
   }
 
-  protected readonly payMethods = [
-    { value: 'efectivo', label: 'Efectivo' },
-    { value: 'transferencia', label: 'Transferencia' },
-    { value: 'tarjeta', label: 'Tarjeta' },
+  /** Los que acepta el negocio (Configuración → Anticipo y pagos) más "Paquete", que siempre está. */
+  private readonly acceptedMethods = signal<string[]>(ALL_METHODS);
+  protected readonly payMethods = computed(() => [
+    ...PAYMENT_METHODS.filter((item) => this.acceptedMethods().includes(item.value)),
     { value: 'paquete', label: 'Paquete' },
-  ];
+  ]);
   protected readonly charging = signal<number | null>(null);
   protected readonly chargeAmount = signal('');
   protected readonly chargeMethod = signal('efectivo');
@@ -1326,7 +1329,7 @@ export class AgendaPageComponent {
     this.charging.set(appointment.id);
     this.moving.set(null);
     this.chargeAmount.set(String(this.bill(appointment)?.total ?? appointment.quoted_price ?? this.services().find((item) => item.id === appointment.service_id)?.price ?? ''));
-    this.chargeMethod.set('efectivo');
+    this.chargeMethod.set(this.payMethods()[0].value);
     this.chargeTip.set('');
     this.chargeNote.set('');
     this.cart.set([]);
@@ -1553,6 +1556,44 @@ export class AgendaPageComponent {
   protected receiveDeposit(appointment: Appointment, event: Event): void {
     event.stopPropagation();
     this.setStatus(appointment, 'scheduled');
+  }
+
+  /** Aprobar a mano: el horario ya estaba apartado; queda confirmada y sale el WhatsApp para avisarle. */
+  protected approve(appointment: Appointment): void {
+    if (this.pendingId() !== null) {
+      return;
+    }
+    this.pendingId.set(appointment.id);
+    this.patchLocal({ ...appointment, needs_approval: false });
+    this.appointmentsApi
+      .approve(appointment.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (updated) => {
+          this.pendingId.set(null);
+          this.patchLocal({ ...appointment, ...updated });
+          const phone = (appointment.client_phone ?? '').replace(/\D/g, '');
+          if (phone) {
+            window.open(whatsappLink(phone, this.copy.message('approved', { ...this.visitVars(appointment), enlace: this.manageLink(appointment) })), '_blank', 'noopener');
+          }
+          this.refreshQuietly();
+        },
+        error: (error: unknown) => {
+          this.pendingId.set(null);
+          this.patchLocal(appointment);
+          this.loadError.set(readError(error, 'No pudimos aprobar la cita.'));
+        },
+      });
+  }
+
+  /** Rechazar es cancelar (con "Deshacer") y ofrecerle otro horario por WhatsApp. */
+  protected decline(appointment: Appointment): void {
+    const phone = (appointment.client_phone ?? '').replace(/\D/g, '');
+    void this.setStatus(appointment, 'cancelled', undefined, () => {
+      if (phone) {
+        window.open(whatsappLink(phone, this.copy.message('declined', { ...this.visitVars(appointment), enlace: this.shareLink() })), '_blank', 'noopener');
+      }
+    });
   }
 
   protected acceptAndTell(appointment: Appointment): void {

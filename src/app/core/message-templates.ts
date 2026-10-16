@@ -20,7 +20,9 @@ export type MessageKey =
   | 'miss_you'
   | 'opening'
   | 'waitlist'
-  | 'share_link';
+  | 'share_link'
+  | 'approved'
+  | 'declined';
 
 export type MessageVars = Partial<Record<MessageVar, string>>;
 
@@ -66,6 +68,20 @@ export const MESSAGE_TEMPLATES: readonly MessageTemplate[] = [
     where: 'Agenda → al crear una cita',
     vars: ['nombre', 'cita', 'servicio', 'dia', 'hora', 'enlace'],
     text: 'Hola {nombre}, tu {cita} de {servicio} quedó el {dia} a las {hora}.\nPuedes verla o cancelarla aquí: {enlace}',
+  },
+  {
+    key: 'approved',
+    label: 'Solicitud aprobada',
+    where: 'Agenda → al aprobar una cita (si apruebas a mano)',
+    vars: ['nombre', 'cita', 'servicio', 'dia', 'hora', 'equipo', 'enlace'],
+    text: '¡Hola {nombre}! 👋 Confirmamos tu {cita}:\n\n📋 {servicio}\n📅 {dia}\n🕐 {hora}\n💁 Con {equipo}\n\nPuedes verla o cambiarla aquí: {enlace}',
+  },
+  {
+    key: 'declined',
+    label: 'Solicitud rechazada',
+    where: 'Agenda → al rechazar una cita (si apruebas a mano)',
+    vars: ['nombre', 'dia', 'hora', 'enlace'],
+    text: 'Hola {nombre}, lo sentimos: no podemos atenderte el {dia} a las {hora}. Si quieres, elige otro horario aquí:\n{enlace}',
   },
   {
     key: 'deposit_ok',

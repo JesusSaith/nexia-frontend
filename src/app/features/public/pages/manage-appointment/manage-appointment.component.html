@@ -15,6 +15,9 @@
       @if (notice(); as message) {
         <p class="mt-4 rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700" role="status">{{ message }}</p>
       }
+      @if (item.needs_approval && !item.is_cancelled && !item.is_past) {
+        <p class="mt-4 rounded-xl border border-line bg-canvas px-3 py-2 text-sm text-ink-soft" role="status">Tu solicitud está apartada. {{ item.business_name }} la revisa y te confirma por WhatsApp.</p>
+      }
       @if (item.status === 'completed') {
         <div class="mt-4 rounded-2xl bg-rose-50 p-4">
           @if (reviewState() === 'sent') {

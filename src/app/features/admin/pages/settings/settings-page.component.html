@@ -37,11 +37,25 @@
       </div>
       <label class="flex items-center gap-3 text-sm font-medium text-ink">
         Recibir reservas
-        <button type="button" role="switch" class="switch" [attr.aria-checked]="!pauseBookings()" (click)="togglePause()" aria-label="Recibir reservas en línea">
+        <button type="button" role="switch" class="switch" [attr.aria-checked]="!pauseBookings()" [disabled]="pausing()" (click)="togglePause()" aria-label="Recibir reservas en línea">
           <span></span>
         </button>
       </label>
     </div>
+
+    <!-- Índice en celular: chips que se deslizan de lado, con punto si algo falta. -->
+    <nav class="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1 lg:hidden" aria-label="Secciones de configuración">
+      @for (section of sections; track section.id) {
+        <button type="button" class="chip shrink-0 gap-1.5" [class.chip-on]="isOpen(section.id)" (click)="goTo(section.id)">
+          {{ section.short ?? section.label }}
+          @if (sectionHasError(section.id)) {
+            <span class="h-2 w-2 rounded-full bg-[var(--nx-bad-fg)]" aria-label="Tiene errores"></span>
+          } @else if (section.id === 'anticipo' && depositWarning()) {
+            <span class="h-2 w-2 rounded-full bg-[var(--nx-warn-fg)]" aria-label="Falta un dato"></span>
+          }
+        </button>
+      }
+    </nav>
 
     <div class="grid items-start gap-6 lg:grid-cols-[13rem_minmax(0,1fr)]">
       <!-- Índice: en escritorio salta a cada sección; en celular las secciones se abren y cierran. -->
@@ -130,6 +144,7 @@
             <label class="block">
               <span class="label">Facebook</span>
               <input class="input" formControlName="facebook" placeholder="facebook.com/tunegocio" />
+              <span class="field-hint mt-1 block">Basta con el nombre de tu página; el enlace se arma solo.</span>
             </label>
           </div>
         </details>
@@ -185,10 +200,17 @@
               <span class="label">Fotos de tu trabajo</span>
               <div class="flex flex-wrap items-center gap-3">
                 @for (photo of photos(); track photo) {
-                  <button type="button" class="group/photo relative rounded-lg" (click)="removePhoto($index)" aria-label="Quitar foto">
+                  <div class="relative">
                     <img [src]="photo" alt="" class="h-20 w-20 rounded-lg border border-line object-cover" />
-                    <span class="absolute inset-0 flex items-center justify-center rounded-lg bg-black/50 text-white opacity-0 transition-opacity group-hover/photo:opacity-100"><mat-icon>close</mat-icon></span>
-                  </button>
+                    <button type="button" class="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full border border-line bg-surface text-ink-soft shadow-sm hover:text-ink" (click)="removePhoto($index)" [attr.aria-label]="'Quitar foto ' + ($index + 1)">
+                      <mat-icon class="h-4! w-4! text-[16px]!">close</mat-icon>
+                    </button>
+                    @if ($index > 0) {
+                      <button type="button" class="absolute -bottom-2 -left-2 flex h-7 w-7 items-center justify-center rounded-full border border-line bg-surface text-ink-soft shadow-sm hover:text-ink" (click)="movePhoto($index)" [attr.aria-label]="'Mover foto ' + ($index + 1) + ' antes'">
+                        <mat-icon class="h-4! w-4! text-[16px]!">arrow_back</mat-icon>
+                      </button>
+                    }
+                  </div>
                 }
                 @if (photos().length < 3) {
                   <label class="flex h-20 w-20 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-line-strong text-xs text-muted hover:border-accent hover:text-accent">
@@ -198,7 +220,11 @@
                   </label>
                 }
               </div>
-              <span class="field-hint mt-1 block">Hasta 3. Se ven debajo del nombre en tu página. Toca una para quitarla.</span>
+              @if (photoNotice(); as notice) {
+                <span class="field-error mt-1 block">{{ notice }}</span>
+              } @else {
+                <span class="field-hint mt-1 block">Hasta 3. Se ven debajo del nombre en tu página; la primera es la que más se ve.</span>
+              }
             </div>
           </div>
         </details>
@@ -230,6 +256,13 @@
               <textarea class="input" rows="2" formControlName="cancelPolicy" placeholder="Si no puedes venir, avísanos con 24 horas para darle tu lugar a alguien más."></textarea>
               <span class="field-hint mt-1 block">Lo ven tus clientas al reservar y al cancelar.</span>
             </label>
+            <div class="flex items-center justify-between gap-4 rounded-xl border border-line p-4">
+              <div>
+                <p class="text-sm font-semibold text-ink">Aprobar cada cita a mano</p>
+                <p class="field-hint">Las reservas de tu página apartan el horario, pero quedan "Por aprobar" hasta que tú las aceptas o rechazas desde la Agenda. A la clienta se le avisa que la confirmarás por WhatsApp.</p>
+              </div>
+              <button type="button" role="switch" class="switch" [attr.aria-checked]="approveBookings()" (click)="approveBookings.set(!approveBookings())" aria-label="Aprobar cada cita a mano"><span></span></button>
+            </div>
             <div class="grid gap-4 sm:grid-cols-2">
               <div>
                 <span class="label">Zona horaria</span>
@@ -249,6 +282,18 @@
         <details id="sec-anticipo" class="card group scroll-mt-6 p-0!" [open]="isOpen('anticipo')" (toggle)="onToggle('anticipo', $event)">
           <ng-container *ngTemplateOutlet="head; context: { $implicit: 'anticipo' }" />
           <div class="flex flex-col gap-4 p-4 sm:p-5">
+            <div>
+              <span class="label">Métodos de pago que aceptas</span>
+              <div class="flex flex-wrap gap-2" role="group" aria-label="Métodos de pago que aceptas">
+                @for (method of paymentMethodOptions; track method.value) {
+                  <button type="button" class="chip gap-1.5" [class.chip-on]="paymentMethods().has(method.value)" [attr.aria-pressed]="paymentMethods().has(method.value)" (click)="toggleMethod(method.value)">
+                    <mat-icon class="h-4! w-4! text-[16px]!">{{ method.icon }}</mat-icon>
+                    {{ method.label }}
+                  </button>
+                }
+              </div>
+              <span class="field-hint mt-1 block">Tu página dice cuáles aceptas, y al cobrar en la Agenda solo salen estos (más "Paquete").</span>
+            </div>
             @if (depositWarning(); as warning) {
               <p class="badge-warn flex items-start gap-2 rounded-xl px-3 py-2.5 text-sm" role="status">
                 <mat-icon class="h-5! w-5! shrink-0 text-[20px]!">warning</mat-icon>
@@ -259,12 +304,20 @@
               <label class="block">
                 <span class="label">Monto fijo</span>
                 <input class="input nums" type="number" min="0" formControlName="depositAmount" placeholder="Sin anticipo" />
-                <span class="field-hint mt-1 block">Para servicios con precio fijo. Cada servicio puede tener el suyo.</span>
+                @if (form.controls.depositAmount.invalid) {
+                  <span class="field-error mt-1 block">El monto no puede ser negativo.</span>
+                } @else {
+                  <span class="field-hint mt-1 block">Para servicios con precio fijo. Cada servicio puede tener el suyo.</span>
+                }
               </label>
               <label class="block">
                 <span class="label">Porcentaje en precio por cotizar</span>
                 <input class="input nums" type="number" min="1" max="100" formControlName="depositPercent" placeholder="Ej. 50" />
-                <span class="field-hint mt-1 block">Para servicios con precio variable: se calcula cuando aceptan tu cotización.</span>
+                @if (form.controls.depositPercent.invalid) {
+                  <span class="field-error mt-1 block">El porcentaje va de 1 a 100.</span>
+                } @else {
+                  <span class="field-hint mt-1 block">Para servicios con precio variable: se calcula cuando aceptan tu cotización.</span>
+                }
               </label>
               <label class="block sm:col-span-2">
                 <span class="label">Cuenta o CLABE para recibirlo</span>
@@ -300,7 +353,10 @@
               </label>
               <label class="block">
                 <span class="label">Visible hasta</span>
-                <input class="input" type="date" [value]="promoUntil()" [disabled]="!promo().trim()" (change)="promoUntil.set($any($event.target).value)" />
+                <input class="input" type="date" [attr.min]="today" [class.input-invalid]="promoError()" [value]="promoUntil()" [disabled]="!promo().trim()" (change)="promoUntil.set($any($event.target).value)" />
+                @if (promoError(); as message) {
+                  <span class="field-error mt-1 block">{{ message }}</span>
+                }
               </label>
             </div>
 
@@ -314,7 +370,9 @@
                 <input class="input nums w-20" type="number" min="1" max="100" placeholder="20" [value]="loyaltyPercent() ?? ''" (input)="loyaltyPercent.set(toNumber($any($event.target).value))" aria-label="Porcentaje de descuento" />
                 % de descuento
               </div>
-              @if (loyaltyEvery() && loyaltyPercent()) {
+              @if (loyaltyError(); as message) {
+                <span class="field-error mt-2 block">{{ message }}</span>
+              } @else if (loyaltyEvery() && loyaltyPercent()) {
                 <p class="badge-info mt-3 rounded-lg px-3 py-2 text-sm nums">La visita {{ loyaltyEvery() }}, {{ (loyaltyEvery() ?? 0) * 2 }}, {{ (loyaltyEvery() ?? 0) * 3 }}… lleva {{ loyaltyPercent() }}% de descuento.</p>
               }
             </div>
@@ -338,7 +396,7 @@
                   <div class="grid items-end gap-3 rounded-xl border border-line bg-canvas p-3 sm:grid-cols-[1fr_6rem_auto_auto]">
                     <label class="block">
                       <span class="label">Código</span>
-                      <input class="input uppercase" maxlength="40" placeholder="BIENVENIDA" [value]="coupon.code" (input)="editCoupon($index, { code: $any($event.target).value })" />
+                      <input class="input uppercase" maxlength="40" placeholder="BIENVENIDA" [class.input-invalid]="couponIssues()[$index]" [value]="coupon.code" (input)="editCoupon($index, { code: $any($event.target).value })" />
                     </label>
                     <label class="block">
                       <span class="label">%</span>
@@ -351,6 +409,9 @@
                     <button type="button" class="btn btn-ghost" [attr.aria-label]="'Quitar cupón ' + (coupon.code || $index + 1)" (click)="removeCoupon($index)">
                       <mat-icon>delete</mat-icon>
                     </button>
+                    @if (couponIssues()[$index]; as issue) {
+                      <span class="field-error sm:col-span-4">{{ issue }}</span>
+                    }
                   </div>
                 }
               </div>
@@ -421,28 +482,68 @@
             <div class="flex items-center justify-between gap-4 rounded-xl border border-line p-4">
               <div>
                 <p class="text-sm font-semibold text-ink">No tomar citas por ahora</p>
-                <p class="field-hint">Tu página sigue visible, pero no deja reservar hasta que lo vuelvas a activar.</p>
+                <p class="field-hint">Tu página sigue visible, pero no deja reservar hasta que lo vuelvas a activar. Se aplica al momento, sin guardar.</p>
               </div>
-              <button type="button" role="switch" class="switch" [attr.aria-checked]="pauseBookings()" (click)="togglePause()" aria-label="No tomar citas por ahora"><span></span></button>
+              <button type="button" role="switch" class="switch" [attr.aria-checked]="pauseBookings()" [disabled]="pausing()" (click)="togglePause()" aria-label="No tomar citas por ahora"><span></span></button>
             </div>
             <div>
-              <p class="text-sm font-semibold text-ink">Cierre por vacaciones</p>
-              <p class="field-hint">Esos días no se pueden reservar. Antes y después todo sigue igual.</p>
-              <div class="mt-3 grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+              <p class="text-sm font-semibold text-ink">Días que cierras</p>
+              <p class="field-hint">Vacaciones, puentes o días festivos. Esos días no se pueden reservar; los demás todo sigue igual.</p>
+              @if (upcomingClosures().length) {
+                <ul class="mt-3 divide-y divide-line rounded-xl border border-line">
+                  @for (row of upcomingClosures(); track row.from) {
+                    <li class="flex items-center gap-3 px-4 py-2.5">
+                      <mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">{{ row.from === row.to ? 'event' : 'date_range' }}</mat-icon>
+                      <div class="min-w-0 flex-1">
+                        <p class="truncate text-sm font-medium text-ink">{{ row.label || 'Cerrado' }}</p>
+                        <p class="field-hint">{{ closureText(row) }}</p>
+                      </div>
+                      <button type="button" class="btn btn-ghost h-8! px-2!" [attr.aria-label]="'Quitar ' + (row.label || 'cierre')" (click)="removeClosure(row)"><mat-icon>close</mat-icon></button>
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <p class="mt-3 rounded-xl border border-dashed border-line-strong px-4 py-4 text-center text-sm text-muted">Sin cierres por venir.</p>
+              }
+              @if (pastClosures().length) {
+                <button type="button" class="mt-2 text-sm font-medium text-ink-soft hover:text-ink" (click)="clearPastClosures()">Quitar {{ pastClosures().length }} cierre{{ pastClosures().length === 1 ? '' : 's' }} que ya pasaron</button>
+              }
+
+              <div class="mt-4 grid gap-3 rounded-xl border border-line p-3 sm:grid-cols-[1fr_1fr_1.3fr_auto] sm:items-end">
                 <label class="block">
                   <span class="label">Desde</span>
-                  <input class="input" type="date" [class.input-invalid]="closureError()" [value]="closedFrom()" (change)="closedFrom.set($any($event.target).value)" />
+                  <input class="input" type="date" [attr.min]="today" [class.input-invalid]="closureError()" [value]="newFrom()" (change)="newFrom.set($any($event.target).value); closureError.set('')" />
                 </label>
                 <label class="block">
-                  <span class="label">Hasta</span>
-                  <input class="input" type="date" [class.input-invalid]="closureError()" [attr.min]="closedFrom() || null" [value]="closedTo()" (change)="closedTo.set($any($event.target).value)" />
+                  <span class="label">Hasta <span class="text-muted">(si es más de un día)</span></span>
+                  <input class="input" type="date" [attr.min]="newFrom() || today" [class.input-invalid]="closureError()" [value]="newTo()" (change)="newTo.set($any($event.target).value); closureError.set('')" />
                 </label>
-                @if (closedFrom() || closedTo()) {
-                  <button type="button" class="btn btn-ghost" (click)="closedFrom.set(''); closedTo.set('')">Quitar fechas</button>
+                <label class="block">
+                  <span class="label">Nombre (opcional)</span>
+                  <input class="input" maxlength="60" placeholder="Vacaciones, Puente…" [value]="newLabel()" (input)="newLabel.set($any($event.target).value)" (keydown.enter)="$event.preventDefault(); addClosure()" />
+                </label>
+                <button type="button" class="btn btn-secondary" (click)="addClosure()"><mat-icon>add</mat-icon>Agregar</button>
+                @if (closureError(); as message) {
+                  <span class="field-error sm:col-span-4">{{ message }}</span>
                 }
               </div>
-              @if (closureError(); as message) {
-                <span class="field-error mt-1 block">{{ message }}</span>
+
+              @if (suggestedHolidays().length) {
+                <div class="mt-4">
+                  <div class="flex flex-wrap items-center justify-between gap-2">
+                    <p class="text-sm font-semibold text-ink">Días festivos que vienen</p>
+                    <button type="button" class="text-sm font-medium text-accent hover:underline" (click)="addHolidays(suggestedHolidays())">Cerrar todos</button>
+                  </div>
+                  <p class="field-hint">Toca los días en que no abres.</p>
+                  <div class="mt-2 flex flex-wrap gap-2">
+                    @for (holiday of suggestedHolidays(); track holiday.date) {
+                      <button type="button" class="chip gap-1.5" (click)="addHolidays([holiday])">
+                        <mat-icon class="h-4! w-4! text-[16px]!">add</mat-icon>
+                        {{ holiday.label }} · <span class="nums">{{ closureText({ from: holiday.date, to: holiday.date, label: '' }).replace('el ', '') }}</span>
+                      </button>
+                    }
+                  </div>
+                </div>
               }
             </div>
             <p class="field-hint flex items-center gap-1.5"><mat-icon class="h-4! w-4! text-[16px]!">info</mat-icon>Las citas que ya están agendadas no se cancelan.</p>

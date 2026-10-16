@@ -117,7 +117,7 @@
                 </li>
               }
             </ul>
-            <a [routerLink]="nextStep()" class="btn btn-primary mt-3">
+            <a [routerLink]="nextStep().path" [queryParams]="nextStep().section ? { sec: nextStep().section } : null" class="btn btn-primary mt-3">
               Completar
               <mat-icon>chevron_right</mat-icon>
             </a>

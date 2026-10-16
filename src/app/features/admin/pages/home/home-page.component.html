@@ -80,7 +80,7 @@
         <ul class="mt-3 divide-y divide-line">
           @for (step of setup(); track step.label) {
             <li>
-              <a class="flex items-center gap-3 py-2.5 text-sm" [routerLink]="step.path">
+              <a class="flex items-center gap-3 py-2.5 text-sm" [routerLink]="step.path" [queryParams]="step.section ? { sec: step.section } : null">
                 <mat-icon class="h-5! w-5! text-[20px]!" [class.text-emerald-600]="step.done" [class.text-line-strong]="!step.done && step.group !== 'aviso'" [class.text-amber-600]="step.group === 'aviso'">
                   {{ step.done ? 'check_circle' : step.group === 'aviso' ? 'warning' : 'radio_button_unchecked' }}
                 </mat-icon>

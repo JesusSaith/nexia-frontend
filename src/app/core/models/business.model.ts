@@ -23,8 +23,10 @@ export interface BusinessBrand {
   resources?: string | null;
   payment_url?: string | null;
   bookings_paused?: boolean;
-  closed_from?: string | null;
-  closed_to?: string | null;
+  closures?: Closure[];
+  /** Métodos que acepta (efectivo, transferencia, tarjeta); el backend responde los tres si no eligió. */
+  payment_methods?: string[];
+  approve_bookings?: boolean;
   promo_text?: string | null;
   promo_until?: string | null;
   gallery?: string[];
@@ -33,6 +35,13 @@ export interface BusinessBrand {
   /** Lealtad: cada N visitas cobradas, la siguiente lleva X% de descuento. */
   loyalty_every?: number | null;
   loyalty_percent?: number | null;
+}
+
+/** Un cierre: un día (festivo) o un periodo (vacaciones), ambas fechas incluidas. */
+export interface Closure {
+  from: string;
+  to: string;
+  label: string;
 }
 
 /** Cupón de descuento guardado como JSON en `coupons` del negocio. */

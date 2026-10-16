@@ -30,6 +30,7 @@ export interface ManagedAppointment {
   price_accepted: boolean;
   cancel_policy?: string | null;
   payment_url?: string | null;
+  needs_approval?: boolean;
 }
 
 export interface PrivacyNotice {

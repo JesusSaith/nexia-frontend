@@ -1,7 +1,8 @@
+import { Closure } from './models/business.model';
+
 export interface ShopNote {
   pause: boolean;
-  from: string;
-  to: string;
+  closures: Closure[];
   photos: string[];
   promo: string;
   until: string;
@@ -10,16 +11,14 @@ export interface ShopNote {
 /** Pausa, cierre, fotos y promoción con la forma que usa la página de reservas (columnas del negocio). */
 export function noteOf(brand: {
   bookings_paused?: boolean;
-  closed_from?: string | null;
-  closed_to?: string | null;
+  closures?: Closure[];
   promo_text?: string | null;
   promo_until?: string | null;
   gallery?: string[];
 } | null | undefined): ShopNote {
   return {
     pause: Boolean(brand?.bookings_paused),
-    from: brand?.closed_from ?? '',
-    to: brand?.closed_to ?? '',
+    closures: brand?.closures ?? [],
     photos: (brand?.gallery ?? []).slice(0, 3),
     promo: brand?.promo_text ?? '',
     until: brand?.promo_until ?? '',
@@ -34,17 +33,27 @@ export function liveOffer(note: ShopNote, today: string): string {
   return text;
 }
 
-export function dateClosed(day: string, note: ShopNote): boolean {
-  return Boolean(note.from && note.to && day >= note.from && day <= note.to);
+export function closureOn(day: string, note: ShopNote): Closure | null {
+  return note.closures.find((row) => day >= row.from && day <= row.to) ?? null;
 }
 
-export function closedSpan(note: ShopNote): string {
-  if (!note.from || !note.to) {
+export function dateClosed(day: string, note: ShopNote): boolean {
+  return closureOn(day, note) !== null;
+}
+
+/** El próximo cierre que aún no termina (para el aviso de arriba), o null. */
+export function nextClosure(note: ShopNote, today: string): Closure | null {
+  return note.closures.find((row) => row.to >= today) ?? null;
+}
+
+/** "24 dic" o "20 oct al 27 oct". */
+export function closureSpan(row: Closure | null): string {
+  if (!row) {
     return '';
   }
   const fmt = (iso: string) => {
     const [year, month, day] = iso.split('-').map(Number);
     return new Date(year, month - 1, day).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
   };
-  return `${fmt(note.from)} al ${fmt(note.to)}`;
+  return row.from === row.to ? fmt(row.from) : `${fmt(row.from)} al ${fmt(row.to)}`;
 }

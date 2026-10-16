@@ -15,7 +15,8 @@ import { forkJoin, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 
 import { businessWords } from '@core/business-words';
-import { closedSpan, dateClosed, liveOffer, noteOf } from '@core/shop-note';
+import { methodsSentence } from '@core/payment-methods';
+import { closureOn, closureSpan, liveOffer, nextClosure, noteOf } from '@core/shop-note';
 import { Appointment, AvailabilitySlot } from '@core/models/appointment.model';
 import { BusinessBrand, PublicService, PublicStaff } from '@core/models/business.model';
 import { BookingService } from '@core/services/booking.service';
@@ -219,7 +220,14 @@ export class Booking {
 
   protected readonly shopNote = computed(() => noteOf(this.brand()));
   protected readonly gallery = computed(() => this.shopNote().photos);
-  protected readonly closedLabel = computed(() => closedSpan(this.shopNote()));
+  /** Aviso arriba solo si el próximo cierre empieza en los siguientes 30 días. */
+  protected readonly closedLabel = computed(() => {
+    const next = nextClosure(this.shopNote(), todayInputValue());
+    const soon = new Date();
+    soon.setDate(soon.getDate() + 30);
+    return next && next.from <= soon.toISOString().slice(0, 10) ? closureSpan(next) + (next.label ? ` (${next.label})` : '') : '';
+  });
+  protected readonly payMethods = computed(() => methodsSentence(this.brand()?.payment_methods));
   protected readonly offer = computed(() => liveOffer(this.shopNote(), todayInputValue()));
   protected readonly primaryColor = computed(() => safeColor(this.brand()?.primary_color));
   protected readonly canvasColor = computed(() => {
@@ -1129,10 +1137,11 @@ export class Booking {
       return;
     }
 
-    if (dateClosed(date, this.shopNote())) {
+    const closure = closureOn(date, this.shopNote());
+    if (closure) {
       this.slots.set([]);
       this.slotsLoading.set(false);
-      this.slotsError.set(`Cerramos del ${closedSpan(this.shopNote())}.`);
+      this.slotsError.set(closure.from === closure.to ? `Ese día no abrimos${closure.label ? ` (${closure.label})` : ''}.` : `Cerramos del ${closureSpan(closure)}.`);
       return;
     }
 
