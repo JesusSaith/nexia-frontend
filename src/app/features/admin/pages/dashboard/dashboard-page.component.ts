@@ -1,3 +1,4 @@
+import { KeyValuePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { METHOD_LABELS } from '@core/payment-methods';
 import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
@@ -12,22 +13,24 @@ import { DashboardSummary, WeekTrendPoint } from '@core/models/dashboard.model';
 import { Service } from '@core/models/service.model';
 import { AppointmentsService } from '@core/services/appointments.service';
 import { AuthService } from '@core/services/auth.service';
+import { Toasts } from '@core/toasts';
 import { DashboardService } from '@core/services/dashboard.service';
 import { ServicesService } from '@core/services/services.service';
-import { SalesReport, ShopExpense, ShopService } from '@core/services/shop.service';
+import { CashDay, SalesReport, ShopExpense, ShopService } from '@core/services/shop.service';
 import { PickFieldComponent } from '@shared/components/when-field/when-field';
 import { ReportSheet, downloadExcel, downloadPdf } from './dashboard-export';
 
-type DashView = 'income' | 'staff' | 'commission' | 'expenses';
+type DashView = 'income' | 'staff' | 'commission' | 'expenses' | 'cash';
 
 @Component({
   selector: 'app-dashboard-page',
-  imports: [PickFieldComponent, RouterLink, MatIconModule],
+  imports: [PickFieldComponent, RouterLink, MatIconModule, KeyValuePipe],
   templateUrl: './dashboard-page.component.html',
 })
 export class DashboardPageComponent {
   private readonly dashboardApi = inject(DashboardService);
   private readonly auth = inject(AuthService);
+  private readonly toasts = inject(Toasts);
   protected readonly copy = inject(BusinessCopy);
   private readonly shop = inject(ShopService);
   private readonly appointmentsApi = inject(AppointmentsService);
@@ -46,6 +49,7 @@ export class DashboardPageComponent {
       { id: 'staff' as const, label: `Por ${person}` },
       { id: 'commission' as const, label: 'Comisiones' },
       { id: 'expenses' as const, label: 'Gastos' },
+      { id: 'cash' as const, label: 'Corte de caja' },
     ];
   });
   protected readonly shownTabs = computed(() => {
@@ -63,6 +67,14 @@ export class DashboardPageComponent {
   protected readonly kindPicks = [
     { value: 'fixed', label: 'Fijo' },
     { value: 'variable', label: 'Variable' },
+  ];
+  protected readonly categoryPicks = [
+    { value: 'renta', label: 'Renta' },
+    { value: 'nomina', label: 'Nómina' },
+    { value: 'insumos', label: 'Insumos' },
+    { value: 'servicios', label: 'Luz, agua, internet' },
+    { value: 'publicidad', label: 'Publicidad' },
+    { value: 'otros', label: 'Otros' },
   ];
   protected readonly cadencePicks = [
     { value: 'month', label: 'Mensual' },
@@ -96,6 +108,38 @@ export class DashboardPageComponent {
   protected readonly expenseAmount = signal('');
   protected readonly expenseKind = signal<'fixed' | 'variable'>('fixed');
   protected readonly expenseCadence = signal<'month' | 'week' | 'day'>('month');
+  protected readonly expenseCategory = signal('otros');
+
+  // Corte de caja: un día a la vez (por defecto hoy).
+  protected readonly cashDay = signal(iso(new Date()));
+  protected readonly cash = signal<CashDay | null>(null);
+  protected readonly cashCounted = signal('');
+  protected readonly cashNote = signal('');
+  protected readonly cashSaving = signal(false);
+  protected readonly cashDiff = computed(() => {
+    const counted = this.cashCounted().trim();
+    return counted === '' ? null : Math.round((Number(counted) - (this.cash()?.expected_cash ?? 0)) * 100) / 100;
+  });
+
+  /** Proyección: lo cobrado más lo ya agendado de aquí al fin del periodo. */
+  protected readonly projection = computed(() => {
+    const row = this.books();
+    if (!row || !(row.expected_count ?? 0) || this.period() === 'day') {
+      return null;
+    }
+    const total = row.total + (row.expected_income ?? 0);
+    const goal = this.goalMode() === 'money' ? this.goal() : 0;
+    return { done: row.total, expected: row.expected_income ?? 0, count: row.expected_count ?? 0, total, goalPercent: goal > 0 ? Math.round((total / goal) * 100) : null };
+  });
+  /** Avance hacia el punto de equilibrio del periodo. */
+  protected readonly breakEven = computed(() => {
+    const row = this.books();
+    if (!row || !(row.break_even ?? 0)) {
+      return null;
+    }
+    const need = row.break_even ?? 0;
+    return { need, visits: row.break_even_visits ?? 0, percent: Math.min(100, Math.round((row.total / need) * 100)), covered: row.total >= need, left: Math.max(0, need - row.total) };
+  });
   protected readonly editingExpense = signal<number | null>(null);
   protected readonly rangeStart = signal('');
   protected readonly rangeEnd = signal('');
@@ -271,7 +315,12 @@ export class DashboardPageComponent {
     if (this.view() !== 'expenses') {
       return [];
     }
-    const points = this.series().filter((point) => point.amount > 0);
+    // Por categoría cuando las hay; si todo es "otros", gasto por gasto como antes.
+    const categories = Object.entries(this.books()?.by_category ?? {}).filter(([, amount]) => amount > 0);
+    const labels = Object.fromEntries(this.categoryPicks.map((item) => [item.value, item.label]));
+    const points = categories.some(([key]) => key !== 'otros')
+      ? categories.map(([key, amount]) => ({ label: labels[key] ?? key, amount })).sort((left, right) => right.amount - left.amount)
+      : this.series().filter((point) => point.amount > 0);
     const total = points.reduce((sum, point) => sum + point.amount, 0);
     if (points.length < 1 || total <= 0) {
       return [];
@@ -331,6 +380,12 @@ export class DashboardPageComponent {
   });
 
   constructor() {
+    // El corte de caja se carga al abrir su pestaña.
+    effect(() => {
+      if (this.view() === 'cash' && !this.cash()) {
+        this.loadCash();
+      }
+    });
     effect(() => {
       const value = this.period();
       try {
@@ -418,6 +473,36 @@ export class DashboardPageComponent {
     this.expenseAmount.set(String(item.base || item.amount));
     this.expenseKind.set(item.kind === 'fixed' ? 'fixed' : 'variable');
     this.expenseCadence.set(item.cadence === 'week' || item.cadence === 'day' ? item.cadence : 'month');
+    this.expenseCategory.set(item.category || 'otros');
+  }
+
+  protected loadCash(day = this.cashDay()): void {
+    this.cashDay.set(day);
+    this.shop.getCash(day).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((data) => {
+      this.cash.set(data);
+      this.cashCounted.set(data.count ? String(data.count.counted) : '');
+      this.cashNote.set(data.count?.note ?? '');
+    });
+  }
+
+  protected saveCash(): void {
+    const counted = Number(this.cashCounted());
+    if (this.cashCounted().trim() === '' || Number.isNaN(counted) || counted < 0) {
+      return;
+    }
+    this.cashSaving.set(true);
+    this.shop.saveCash(this.cashDay(), counted, this.cashNote()).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (data) => {
+        this.cash.set(data);
+        this.cashSaving.set(false);
+        this.toasts.show('Corte de caja guardado.');
+      },
+      error: () => this.cashSaving.set(false),
+    });
+  }
+
+  protected methodLabel(key: string): string {
+    return METHOD_LABELS[key] ?? key;
   }
 
   protected removeExpense(id: number): void {
@@ -435,8 +520,8 @@ export class DashboardPageComponent {
     const cadence = this.expenseKind() === 'fixed' ? this.expenseCadence() : null;
     const editing = this.editingExpense();
     const request = editing
-      ? this.shop.updateExpense(editing, name, amount, this.expenseKind(), cadence)
-      : this.shop.addExpense(name, amount, this.expenseKind(), cadence);
+      ? this.shop.updateExpense(editing, name, amount, this.expenseKind(), cadence, this.expenseCategory())
+      : this.shop.addExpense(name, amount, this.expenseKind(), cadence, this.expenseCategory());
     request.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       this.editingExpense.set(null);
       this.expenseName.set('');

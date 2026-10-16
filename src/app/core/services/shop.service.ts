@@ -33,6 +33,24 @@ export interface ShopExpense {
   base: number;
   kind: string;
   cadence?: string | null;
+  category?: string | null;
+}
+
+/** Corte de caja de un día (GET/PUT /api/shop/cash). */
+export interface CashRow {
+  day: string;
+  expected: number;
+  counted: number;
+  difference: number;
+  note: string | null;
+}
+
+export interface CashDay {
+  day: string;
+  by_method: Record<string, number>;
+  expected_cash: number;
+  count: CashRow | null;
+  history: CashRow[];
 }
 
 export interface StockMove {
@@ -47,6 +65,13 @@ export interface StockMove {
 export interface SalesReport {
   service_income: number;
   by_method?: Record<string, number>;
+  /** Citas por venir de aquí al fin del periodo y lo que dejarían. */
+  expected_income?: number;
+  expected_count?: number;
+  by_category?: Record<string, number>;
+  /** Lo que hay que ingresar en el periodo para cubrir gastos y comisiones, y en cuántas citas. */
+  break_even?: number;
+  break_even_visits?: number;
   /** % del horario de trabajo que se llenó. */
   occupancy?: number;
   new_clients?: number;
@@ -102,12 +127,20 @@ export class ShopService {
     return this.http.get<StockMove[]>(`${this.apiBaseUrl}/shop/moves`);
   }
 
-  addExpense(name: string, amount: number, kind: 'fixed' | 'variable', cadence: 'month' | 'week' | 'day' | null): Observable<ShopExpense> {
-    return this.http.post<ShopExpense>(`${this.apiBaseUrl}/shop/expenses`, { name, amount, kind, cadence });
+  addExpense(name: string, amount: number, kind: 'fixed' | 'variable', cadence: 'month' | 'week' | 'day' | null, category: string | null = null): Observable<ShopExpense> {
+    return this.http.post<ShopExpense>(`${this.apiBaseUrl}/shop/expenses`, { name, amount, kind, cadence, category });
   }
 
-  updateExpense(id: number, name: string, amount: number, kind: 'fixed' | 'variable', cadence: 'month' | 'week' | 'day' | null): Observable<ShopExpense> {
-    return this.http.put<ShopExpense>(`${this.apiBaseUrl}/shop/expenses/${id}`, { name, amount, kind, cadence });
+  updateExpense(id: number, name: string, amount: number, kind: 'fixed' | 'variable', cadence: 'month' | 'week' | 'day' | null, category: string | null = null): Observable<ShopExpense> {
+    return this.http.put<ShopExpense>(`${this.apiBaseUrl}/shop/expenses/${id}`, { name, amount, kind, cadence, category });
+  }
+
+  getCash(day: string): Observable<CashDay> {
+    return this.http.get<CashDay>(`${this.apiBaseUrl}/shop/cash`, { params: { day } });
+  }
+
+  saveCash(day: string, counted: number, note: string): Observable<CashDay> {
+    return this.http.put<CashDay>(`${this.apiBaseUrl}/shop/cash`, { day, counted, note });
   }
 
   removeExpense(id: number): Observable<string> {
