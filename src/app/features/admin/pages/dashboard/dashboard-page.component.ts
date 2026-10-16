@@ -42,8 +42,9 @@ export class DashboardPageComponent {
     const person = this.copy.text().person.toLowerCase();
     return [
       { id: 'income' as const, label: 'Ingresos' },
-      { id: 'staff' as const, label: `Ingresos por ${person}` },
-      { id: 'commission' as const, label: `Comisiones por ${person}` },
+      // Cortas para que quepan las pestañas en celular.
+      { id: 'staff' as const, label: `Por ${person}` },
+      { id: 'commission' as const, label: 'Comisiones' },
       { id: 'expenses' as const, label: 'Gastos' },
     ];
   });
@@ -69,7 +70,8 @@ export class DashboardPageComponent {
     { value: 'day', label: 'Por día' },
   ];
   protected readonly view = signal<DashView>('income');
-  protected readonly period = signal<'day' | 'week' | 'month' | 'range'>('day');
+  /** Abre en Mes (en Día casi todo sale en $0 a media jornada) y recuerda el último periodo elegido. */
+  protected readonly period = signal<'day' | 'week' | 'month' | 'range'>(savedPeriod());
   protected readonly periods = [
     { id: 'day', label: 'Día' },
     { id: 'week', label: 'Semana' },
@@ -87,7 +89,6 @@ export class DashboardPageComponent {
   protected readonly summary = signal<DashboardSummary | null>(null);
   protected readonly isLoading = signal(true);
   protected readonly books = signal<SalesReport | null>(null);
-  protected readonly closeout = signal<SalesReport | null>(null);
   protected readonly previous = signal<SalesReport | null>(null);
   protected readonly goal = signal(Number(localStorage.getItem('nexia-profit-goal') || 0));
   protected readonly goalMode = signal<'money' | 'percent'>(localStorage.getItem('nexia-profit-mode') === 'percent' ? 'percent' : 'money');
@@ -116,6 +117,30 @@ export class DashboardPageComponent {
       topPay: topPay?.staff_name || 'Nadie',
     };
   });
+  /** Los 4 números de arriba, cada uno contra el periodo anterior. */
+  protected readonly kpis = computed(() => {
+    const now = this.books();
+    const before = this.previous();
+    if (!now) {
+      return [];
+    }
+    return [
+      { label: 'Ingresos', icon: 'trending_up', value: this.money(now.total), delta: change(now.total, before?.total) },
+      { label: 'Ganancia', icon: 'savings', value: this.money(now.profit), delta: change(now.profit, before?.profit) },
+      { label: 'Citas completadas', icon: 'event_available', value: String(now.completed_count), delta: change(now.completed_count, before?.completed_count) },
+      { label: 'Ticket promedio', icon: 'receipt_long', value: this.money(now.average_ticket), delta: change(now.average_ticket, before?.average_ticket) },
+    ];
+  });
+  protected readonly versus = computed(() =>
+    this.period() === 'day' ? 'vs. ayer' : this.period() === 'week' ? 'vs. semana pasada' : this.period() === 'month' ? 'vs. mes pasado' : 'vs. periodo anterior',
+  );
+  /** Sin nada en el periodo: se muestra un aviso en lugar de una fila de $0.00. */
+  protected readonly isEmpty = computed(() => {
+    const row = this.books();
+    return Boolean(row) && !row!.total && !row!.completed_count && !row!.missed_count && !row!.deposit_due && !row!.expense_fixed && !row!.expense_variable;
+  });
+  /** La meta solo aparece cuando la dueña la pone ("Poner meta"). */
+  protected readonly editingGoal = signal(false);
   protected readonly margin = computed(() => {
     const row = this.books();
     if (!row || row.total <= 0) {
@@ -152,7 +177,6 @@ export class DashboardPageComponent {
   });
   private readonly reloadBooks = signal(0);
   protected readonly loadError = signal<string | null>(null);
-  protected readonly greetingName = computed(() => this.auth.currentUser()?.fullName?.split(' ')[0] ?? 'hola');
   protected readonly points = computed(() => {
     const summary = this.summary();
     if (!summary) {
@@ -270,6 +294,14 @@ export class DashboardPageComponent {
 
   constructor() {
     effect(() => {
+      const value = this.period();
+      try {
+        localStorage.setItem('nexia-report-period', value);
+      } catch {
+        // Sin almacenamiento (modo privado): solo no se recuerda.
+      }
+    });
+    effect(() => {
       this.reloadBooks();
       this.customStart();
       this.customEnd();
@@ -315,8 +347,6 @@ export class DashboardPageComponent {
         this.view.set('income');
       }
     });
-    const today = iso(new Date());
-    this.shop.report(today, today).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((row) => this.closeout.set(row));
     this.servicesApi.getServices().pipe(takeUntilDestroyed(this.destroyRef)).subscribe((rows) => this.catalog.set(rows));
     this.dashboardApi
       .getSummary()
@@ -388,15 +418,10 @@ export class DashboardPageComponent {
       .subscribe(() => this.reloadBooks.update((value) => value + 1));
   }
 
-  protected compareText(): string {
-    const now = this.books()?.total ?? 0;
-    const before = this.previous()?.total ?? 0;
-    const diff = now - before;
-    const percent = before ? Math.round((diff / before) * 100) : 0;
-    const sign = diff > 0 ? '+' : '';
-    const name = this.period() === 'day' ? 'Ayer' : this.period() === 'week' ? 'Semana pasada' : this.period() === 'range' ? 'Periodo anterior' : 'Mes pasado';
-    return `${name} ${this.money(before)} · ${sign}${this.money(diff)}${before ? ` (${sign}${percent}%)` : ''}`;
+  protected kpiTone(delta: { up: boolean | null }): string {
+    return delta.up === null ? 'text-muted' : delta.up ? 'text-[var(--nx-ok-fg)]' : 'text-[var(--nx-bad-fg)]';
   }
+
 
   protected expenseShare(): number {
     const row = this.books();
@@ -614,6 +639,27 @@ function dailyCut(start: string, end: string, trend: WeekTrendPoint[], rows: App
     cursor.setDate(cursor.getDate() + 1);
   }
   return days;
+}
+
+function savedPeriod(): 'day' | 'week' | 'month' | 'range' {
+  try {
+    const value = localStorage.getItem('nexia-report-period');
+    return value === 'day' || value === 'week' || value === 'range' ? value : 'month';
+  } catch {
+    return 'month';
+  }
+}
+
+/** "↑ 18%" contra el periodo anterior; sin dato anterior no se compara. */
+function change(now: number, before: number | null | undefined): { text: string; up: boolean | null } {
+  if (!before) {
+    return { text: now ? 'Sin dato anterior' : '—', up: null };
+  }
+  const percent = Math.round(((now - before) / Math.abs(before)) * 100);
+  if (percent === 0) {
+    return { text: 'Igual', up: null };
+  }
+  return { text: `${percent > 0 ? '↑' : '↓'} ${Math.abs(percent)}%`, up: percent > 0 };
 }
 
 function previousSpan(start: string, end: string): { start: string; end: string } {
