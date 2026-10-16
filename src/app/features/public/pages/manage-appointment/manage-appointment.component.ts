@@ -161,7 +161,7 @@ export class ManageAppointmentComponent {
       next: (appointment) => {
         this.appointment.set(appointment);
         this.saving.set(false);
-        this.notice.set('Anticipo registrado. Tu cita quedó confirmada.');
+        this.notice.set('Avisamos al negocio. Tu cita queda confirmada cuando revise el pago.');
       },
       error: () => {
         this.saving.set(false);

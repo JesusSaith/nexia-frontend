@@ -98,7 +98,11 @@
       }
       @if (item.status === 'awaiting_deposit' && item.payment_url) {
         <a class="btn btn-primary mt-4 justify-center" [href]="item.payment_url" target="_blank" rel="noopener">Pagar anticipo</a>
-        <button type="button" class="btn btn-secondary mt-2 w-full" [disabled]="saving()" (click)="markPaid()">Ya pagué</button>
+        @if (item.paid_claim) {
+          <p class="mt-2 text-sm text-ink-soft">Ya avisaste que pagaste. Tu horario sigue apartado mientras el negocio lo revisa.</p>
+        } @else {
+          <button type="button" class="btn btn-secondary mt-2 w-full" [disabled]="saving()" (click)="markPaid()">Ya pagué</button>
+        }
       }
       @if (item.status === 'scheduled' && !item.is_past && !item.client_confirmed) {
         <button type="button" class="btn btn-primary mt-4 w-full" [disabled]="saving()" (click)="confirmVisit()">Sí voy</button>

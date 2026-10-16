@@ -487,7 +487,7 @@
           <img [src]="pop.appointment.payment_proof" alt="Comprobante" class="mt-1 max-h-48 w-full rounded-lg object-contain" />
         </div>
       } @else if (pop.appointment.status === 'awaiting_deposit') {
-        <p class="text-xs text-muted">Aún no sube el comprobante.</p>
+        <p class="text-xs text-muted">{{ pop.appointment.paid_claim ? 'Dice que pagó con tu enlace de pago. Revisa tu cuenta antes de aceptar.' : 'Aún no sube el comprobante.' }}</p>
       }
       @if (pop.appointment.status === 'awaiting_deposit') {
         <div class="flex flex-col gap-2">

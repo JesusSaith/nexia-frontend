@@ -705,6 +705,9 @@ export class AgendaPageComponent {
       if (item.payment_proof) {
         return 'Comprobante listo';
       }
+      if (item.paid_claim) {
+        return 'Dice que pagó';
+      }
       const created = item.created_at ? new Date(item.created_at) : null;
       const amount = item.deposit_amount ? ` $${item.deposit_amount}` : '';
       if (created && !Number.isNaN(created.getTime())) {

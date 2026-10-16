@@ -32,6 +32,8 @@ export interface ManagedAppointment {
   payment_url?: string | null;
   needs_approval?: boolean;
   spei_check?: boolean;
+  /** Dijo "Ya pagué": el negocio revisa y confirma. */
+  paid_claim?: boolean;
 }
 
 export interface DueClient {

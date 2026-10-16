@@ -55,7 +55,7 @@ export class HomePageComponent {
       const when = `${item.client_name} · ${item.service_name} · ${this.slotLabel(item.starts_at)}`;
       if (item.needs_approval && (item.status === 'scheduled' || item.status === 'awaiting_deposit')) {
         rows.push({ id: item.id, title: 'Aprobar solicitud', detail: when, action: 'Responder', tone: 'badge-warn' });
-      } else if (item.status === 'awaiting_deposit' && item.payment_proof) {
+      } else if (item.status === 'awaiting_deposit' && (item.payment_proof || item.paid_claim)) {
         rows.push({ id: item.id, title: 'Revisar comprobante', detail: when, action: 'Revisar', tone: 'badge-info' });
       } else if (item.status === 'awaiting_deposit') {
         rows.push({ id: item.id, title: 'Falta el anticipo', detail: when, action: 'Ver', tone: 'badge-warn' });

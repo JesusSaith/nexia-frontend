@@ -56,6 +56,8 @@ export interface Appointment {
   discount_percent?: number | null;
   /** Llegó por la página con "aprobar citas a mano": el horario está apartado, falta el sí de la dueña. */
   needs_approval?: boolean;
+  /** La clienta dijo "Ya pagué" con el enlace de pago; falta revisar y aceptar. */
+  paid_claim?: boolean;
 }
 
 export interface AppointmentQuery {
