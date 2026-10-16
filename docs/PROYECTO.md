@@ -271,6 +271,9 @@ El sistema de diseño está en `src/styles.css`. Usa **siempre** estos nombres y
 - **Formularios del panel:** `.label` + `.input`, `.chip` / `.chip-on` (opciones rápidas) y `.switch` (interruptor con `role="switch"` y `aria-checked`). En login y registro: `.field`, `.field-label`, `.field-input`, `.field-hint` y `.field-error`.
 - **Botones y etiquetas:** `.btn` con `btn-primary`, `btn-secondary`, `btn-ghost`, `btn-danger` y `btn-whatsapp`; `.badge-ok`, `-warn`, `-bad`, `-info` y `-neutral`; `.empty` (pantalla vacía) y `.nums` (números alineados).
 - **Menú lateral:** `.nx-rail`, `.nx-rail-link`, `.nx-rail-on` y tokens `--nx-rail-*`.
+- **Ayudas bajo demanda:** en un formulario con `class="nx-quiet"` (Configuración), la ayuda de cada campo (`span.field-hint` junto al campo) se esconde y aparece al enfocarlo; la etiqueta lleva un ⓘ. Los errores, los avisos y las descripciones de interruptores (`p.field-hint`) se ven siempre. Si una ayuda debe verse siempre, usa `p` en lugar de `span`.
+- **Avisos en páginas públicas:** usan los mismos tokens que el panel (`badge-ok`, `-warn`, `-info`, `--nx-bad-fg`, `bg-accent-soft`), no colores sueltos de Tailwind (`rose-50`, `amber-50`, `emerald-700`…).
+- **Espacio:** 24 px entre tarjetas (`gap-6`, `mb-6`) en Inicio; 16 px entre secciones de Configuración. Las cifras que se buscan con la mirada van más grandes: horas en la lista del día (`text-base`), monto al cobrar (`text-lg`) y montos de Reportes (`text-base font-semibold`).
 - **Huecos:** para tarjetas de alturas distintas lado a lado, usa columnas independientes (`grid items-start` con un `flex flex-col gap-4` por columna), no una rejilla de filas.
 - **Modo oscuro:** solo con tokens; no agregues `bg-white`. Los menús desplegables viven fuera del panel, así que también deben usar `bg-surface`.
 - **Confirmaciones:** el servicio `Confirm` (`src/app/shared/components/confirm/`). No usar `window.confirm`.
@@ -413,5 +416,7 @@ Pruebas al cerrar el día: backend 40, frontend 26, todas pasando.
 | backend, frontend | `4641384`, `295a8da` | **En pausa:** WhatsApp automático y anticipo con Banxico quedan comentados y ocultos (`FUTURE_PHASE_WHATSAPP`, `FUTURE_PHASE_SPEI`; `SPEI_CHECK=false`). "Les toca volver" manual sigue activo. |
 
 | frontend | `97f81fd` | **Lectura más cómoda:** letra base de 15 px, ayudas y etiquetas de 14 px, títulos de tarjeta sin mayúsculas, gris con contraste suficiente, fondo del panel más claro, controles de 44 px y anillo de enfoque. |
+
+| frontend | `782f129` | **Pantallas más limpias:** ayudas de Configuración bajo demanda (ⓘ), avisos de la página de reservas y de la cita con los tokens del sistema, más espacio entre tarjetas en Inicio y cifras más grandes en Agenda, Cobro y Reportes. |
 
 Pruebas: backend 48 (1 omitida a propósito: el webhook en pausa), frontend 30, todas pasando.
