@@ -27,6 +27,8 @@ export interface BusinessBrand {
   /** Métodos que acepta (efectivo, transferencia, tarjeta); el backend responde los tres si no eligió. */
   payment_methods?: string[];
   approve_bookings?: boolean;
+  /** Hay CLABE válida: la clienta puede confirmar el anticipo con Banxico. */
+  spei_check?: boolean;
   promo_text?: string | null;
   promo_until?: string | null;
   gallery?: string[];

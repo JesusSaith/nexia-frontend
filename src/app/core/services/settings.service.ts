@@ -69,6 +69,13 @@ export interface BusinessSettings {
   closures: Closure[];
   payment_methods: string[];
   approve_bookings: boolean;
+  auto_reminders: boolean;
+  reminder_hours: number;
+  auto_return: boolean;
+  /** El servidor tiene conectada la API de WhatsApp; sin ella lo automático no sale. */
+  whatsapp_ready: boolean;
+  /** Hay CLABE válida: Banxico confirma los anticipos solo. */
+  spei_check: boolean;
   promo_text: string | null;
   promo_until: string | null;
   gallery: string[];
@@ -109,6 +116,9 @@ export interface ProfileUpdate {
   closures?: Closure[];
   payment_methods?: string[];
   approve_bookings?: boolean;
+  auto_reminders?: boolean;
+  reminder_hours?: number;
+  auto_return?: boolean;
   promo_text?: string | null;
   promo_until?: string | null;
   gallery?: string[];

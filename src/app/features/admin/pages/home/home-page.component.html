@@ -133,6 +133,27 @@
       </section>
     }
 
+    @if (dueShown().length) {
+      <section class="card mb-4">
+        <div class="card-head">
+          <span class="sec-icon"><mat-icon>event_repeat</mat-icon></span>
+          <h2 class="card-title">Les toca volver</h2>
+        </div>
+        <p class="field-hint">Según cada cuánto vienen por cada servicio. El mensaje lleva el primer horario libre con quien la atendió.</p>
+        <ul class="mt-2 divide-y divide-line">
+          @for (row of dueShown(); track row.appointment_id) {
+            <li class="flex items-center gap-3 py-2.5" [class.opacity-60]="row.invited">
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-sm font-medium text-ink">{{ row.client_name }} · {{ row.service_name }}</p>
+                <p class="field-hint truncate">{{ row.invited ? 'Ya la invitaste' : dueLabel(row) }}</p>
+              </div>
+              <a class="btn btn-whatsapp h-8! shrink-0 px-3!" [href]="dueWhatsapp(row)" target="_blank" rel="noopener" (click)="markInvited(row)">{{ row.invited ? 'Otra vez' : 'Invitar' }}</a>
+            </li>
+          }
+        </ul>
+      </section>
+    }
+
     @if (todos().length) {
       <section class="card mb-4">
         <div class="card-head">

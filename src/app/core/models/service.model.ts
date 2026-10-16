@@ -11,6 +11,8 @@ export interface Service {
   image_url?: string | null;
   questions?: string | null;
   capacity?: number;
+  /** Cada cuántos días suele volver la clienta ("Te toca"); vacío = se calcula del historial. */
+  return_days?: number | null;
 }
 
 export interface ServiceWrite {
@@ -25,6 +27,7 @@ export interface ServiceWrite {
   image_url?: string | null;
   questions?: string | null;
   capacity?: number;
+  return_days?: number | null;
 }
 
 export type ServiceUpdate = Partial<ServiceWrite>;

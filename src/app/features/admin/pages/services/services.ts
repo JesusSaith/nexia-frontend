@@ -81,6 +81,7 @@ export class ServicesPageComponent {
     image_url: new FormControl('', { nonNullable: true }),
     questions: new FormControl('', { nonNullable: true }),
     capacity: new FormControl('1', { nonNullable: true }),
+    returnDays: new FormControl('', { nonNullable: true }),
   });
 
   private readonly formEvents = toSignal(this.form.events, { initialValue: undefined });
@@ -191,6 +192,7 @@ export class ServicesPageComponent {
       image_url: '',
       questions: '',
       capacity: '1',
+      returnDays: '',
     });
     this.openEditor();
   }
@@ -212,6 +214,7 @@ export class ServicesPageComponent {
       image_url: service.image_url ?? '',
       questions: service.questions ?? '',
       capacity: String(service.capacity ?? 1),
+      returnDays: service.return_days ? String(service.return_days) : '',
     });
     this.openEditor();
   }
@@ -243,6 +246,7 @@ export class ServicesPageComponent {
       image_url: raw.image_url || null,
       questions: raw.questions.trim() || null,
       capacity: Number(raw.capacity) || 1,
+      return_days: Number(raw.returnDays) >= 7 ? Math.min(Math.round(Number(raw.returnDays)), 365) : null,
     };
     const current = this.editing();
     const request = current

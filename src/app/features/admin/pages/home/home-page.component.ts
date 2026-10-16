@@ -17,7 +17,7 @@ import { DashboardStats } from '@core/models/dashboard.model';
 import { Review } from '@core/models/review.model';
 import { AppointmentsService } from '@core/services/appointments.service';
 import { AuthService } from '@core/services/auth.service';
-import { BookingService } from '@core/services/booking.service';
+import { BookingService, DueClient } from '@core/services/booking.service';
 import { DashboardService } from '@core/services/dashboard.service';
 import { ServicesService } from '@core/services/services.service';
 import { StaffService } from '@core/services/staff.service';
@@ -260,7 +260,15 @@ export class HomePageComponent {
     return this.dayFormat.format(date);
   }
 
+  private loadDue(): void {
+    this.bookingApi
+      .getDueClients()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({ next: (rows) => this.dueClients.set(rows), error: () => this.dueClients.set([]) });
+  }
+
   private loadOpenings(): void {
+    this.loadDue();
     const slug = this.auth.currentUser()?.slug;
     if (!slug) {
       return;
@@ -291,6 +299,36 @@ export class HomePageComponent {
           .pipe(takeUntilDestroyed(this.destroyRef))
           .subscribe((rows) => this.openings.set(rows.filter((row) => row.slots.length > 0)));
       });
+  }
+
+  /** "Te toca": a quién le toca volver; las ya invitadas van al final. */
+  protected readonly dueClients = signal<DueClient[]>([]);
+  protected readonly dueShown = computed(() => [...this.dueClients()].sort((left, right) => Number(left.invited) - Number(right.invited)).slice(0, 6));
+
+  protected dueWhatsapp(row: DueClient): string {
+    const slug = this.auth.currentUser()?.slug ?? '';
+    const when = row.suggested ? new Date(row.suggested) : null;
+    return whatsappLink(row.client_phone, this.copy.message('due', {
+      nombre: firstName(row.client_name),
+      servicio: row.service_name,
+      negocio: this.shopName(),
+      dia: row.suggested ? longDay(row.suggested.slice(0, 10)) : '',
+      hora: when ? when.toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' }) : '',
+      enlace: slug ? `${location.origin}/${slug}/book` : '',
+    }));
+  }
+
+  protected dueLabel(row: DueClient): string {
+    if (row.days_late > 0) {
+      return `Le tocaba hace ${row.days_late} d · viene cada ${row.every_days} d`;
+    }
+    return row.due_on === inputDate(new Date()) ? `Le toca hoy · viene cada ${row.every_days} d` : `Le toca pronto · viene cada ${row.every_days} d`;
+  }
+
+  /** Al abrir el WhatsApp queda marcada como invitada (deja de estar arriba de la lista). */
+  protected markInvited(row: DueClient): void {
+    this.dueClients.update((rows) => rows.map((item) => (item.appointment_id === row.appointment_id ? { ...item, invited: true } : item)));
+    this.bookingApi.markInvited(row.appointment_id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ error: () => undefined });
   }
 
   protected birthdayWhatsapp(client: { full_name: string; phone: string }): string {

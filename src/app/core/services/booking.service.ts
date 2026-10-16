@@ -31,6 +31,23 @@ export interface ManagedAppointment {
   cancel_policy?: string | null;
   payment_url?: string | null;
   needs_approval?: boolean;
+  spei_check?: boolean;
+}
+
+export interface DueClient {
+  appointment_id: number;
+  client_name: string;
+  client_phone: string;
+  service_id: number;
+  service_name: string;
+  staff_id: number;
+  last_visit: string;
+  every_days: number;
+  due_on: string;
+  days_late: number;
+  invited: boolean;
+  /** Primer horario libre con la misma colaboradora desde el día que le toca. */
+  suggested: string | null;
 }
 
 export interface PrivacyNotice {
@@ -153,6 +170,15 @@ export class BookingService {
     return this.http.get<ClientRow[]>(`${this.apiBaseUrl}/clients`);
   }
 
+  /** "Te toca": clientas a las que ya les toca volver (backend: app/core/returns.py). */
+  getDueClients(): Observable<DueClient[]> {
+    return this.http.get<DueClient[]>(`${this.apiBaseUrl}/clients/due`);
+  }
+
+  markInvited(appointmentId: number): Observable<void> {
+    return this.http.post<void>(`${this.apiBaseUrl}/clients/due/${appointmentId}/invited`, {});
+  }
+
   /** Descuento por clienta frecuente que tendría la próxima visita con ese teléfono. */
   getLoyalty(
     slug: string,
@@ -179,6 +205,11 @@ export class BookingService {
 
   acceptPrice(token: string): Observable<ManagedAppointment> {
     return this.http.post<ManagedAppointment>(`${this.apiBaseUrl}/public/appointments/${token}/accept-price`, {});
+  }
+
+  /** Banxico (CEP) confirma la transferencia con la clave de rastreo; si cuadra, la cita queda pagada. */
+  verifySpei(token: string, body: { bank: string; tracking: string; day: string; amount: number }): Observable<ManagedAppointment> {
+    return this.http.post<ManagedAppointment>(`${this.apiBaseUrl}/public/appointments/${token}/spei`, body);
   }
 
   uploadPaymentProof(token: string, image: string): Observable<ManagedAppointment> {

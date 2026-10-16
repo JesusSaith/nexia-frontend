@@ -260,6 +260,18 @@
         </div>
         <div>
           <span class="flex items-center gap-1 text-sm text-ink-soft">
+            Vuelven cada (días)
+            <details class="relative">
+              <summary class="flex cursor-pointer list-none text-muted [&::-webkit-details-marker]:hidden" aria-label="Para qué sirve">
+                <mat-icon class="h-4.5! w-4.5! text-[18px]!">info</mat-icon>
+              </summary>
+              <p class="absolute right-0 z-10 mt-1 w-60 rounded-lg border border-line bg-surface p-3 text-xs font-normal text-ink-soft shadow">Cada cuánto suele regresar una clienta por este servicio (por ejemplo 21 para uñas). Con eso Nexia te dice a quién le toca volver. Si lo dejas vacío, se calcula con tu historial.</p>
+            </details>
+          </span>
+          <input formControlName="returnDays" type="number" min="7" max="365" placeholder="Automático" class="nums mt-1 h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" />
+        </div>
+        <div>
+          <span class="flex items-center gap-1 text-sm text-ink-soft">
             Preguntas al reservar
             <details class="relative">
               <summary class="flex cursor-pointer list-none text-muted [&::-webkit-details-marker]:hidden" aria-label="Para qué sirven las preguntas">

@@ -153,6 +153,20 @@ export class SettingsPageComponent {
   protected readonly paymentMethodOptions = PAYMENT_METHODS;
   protected readonly paymentMethods = signal<ReadonlySet<string>>(new Set(PAYMENT_METHODS.map((item) => item.value)));
   protected readonly approveBookings = signal(false);
+  protected readonly autoReminders = signal(false);
+  protected readonly reminderHours = signal(24);
+  protected readonly autoReturn = signal(false);
+  protected readonly whatsappReady = signal(false);
+  protected readonly reminderOptions = [
+    { value: 24, label: '1 día antes' },
+    { value: 12, label: '12 h antes' },
+    { value: 3, label: '3 h antes' },
+  ];
+  /** CLABE de 18 dígitos con dígito verificador correcto (mismo cálculo que app/core/spei.py). */
+  protected readonly clabeOk = computed(() => {
+    this.values();
+    return validClabe(this.form.controls.depositAccount.value);
+  });
   protected readonly methodsText = computed(() => methodsSentence([...this.paymentMethods()]));
   protected readonly loyaltyEvery = signal<number | null>(null);
   protected readonly loyaltyPercent = signal<number | null>(null);
@@ -208,6 +222,9 @@ export class SettingsPageComponent {
       closures: this.closures(),
       payment_methods: PAYMENT_METHODS.map((item) => item.value).filter((value) => this.paymentMethods().has(value)),
       approve_bookings: this.approveBookings(),
+      auto_reminders: this.autoReminders(),
+      reminder_hours: this.reminderHours(),
+      auto_return: this.autoReturn(),
       promo_text: this.promo().trim().slice(0, 80) || null,
       promo_until: this.promo().trim() ? this.promoUntil() || null : null,
       gallery: this.photos(),
@@ -334,7 +351,7 @@ export class SettingsPageComponent {
       ].join(' · '),
       promociones: offers.length ? offers.join(' · ') : 'Sin promociones',
       pausa: [this.pauseBookings() ? 'En pausa' : 'Tomando citas', this.upcomingClosures().length ? `${this.upcomingClosures().length} cierre${this.upcomingClosures().length === 1 ? '' : 's'} por venir` : 'sin cierres'].join(' · '),
-      mensajes: this.customizedCount() ? `${this.customizedCount()} personalizado${this.customizedCount() === 1 ? '' : 's'} de ${MESSAGE_TEMPLATES.length}` : 'Todos con el texto de fábrica',
+      mensajes: (this.autoReminders() || this.autoReturn() ? 'Automáticos encendidos · ' : '') + (this.customizedCount() ? `${this.customizedCount()} personalizado${this.customizedCount() === 1 ? '' : 's'} de ${MESSAGE_TEMPLATES.length}` : 'Todos con el texto de fábrica'),
       avisos: this.emailAlerts().size ? `${this.emailAlerts().size} de ${ALERT_OPTIONS.length} encendidos · a ${this.accountEmail()}` : 'Apagados: solo los ves en Inicio',
       privacidad: payload.privacy_notice ? 'Aviso de privacidad propio' : 'Aviso genérico de Nexia',
     };
@@ -827,6 +844,10 @@ export class SettingsPageComponent {
     this.closureError.set('');
     this.paymentMethods.set(new Set(settings.payment_methods?.length ? settings.payment_methods : PAYMENT_METHODS.map((item) => item.value)));
     this.approveBookings.set(Boolean(settings.approve_bookings));
+    this.autoReminders.set(Boolean(settings.auto_reminders));
+    this.reminderHours.set(settings.reminder_hours || 24);
+    this.autoReturn.set(Boolean(settings.auto_return));
+    this.whatsappReady.set(Boolean(settings.whatsapp_ready));
     this.loyaltyEvery.set(settings.loyalty_every ?? null);
     this.loyaltyPercent.set(settings.loyalty_percent ?? null);
     this.coupons.set(parseCoupons(settings.coupons));
@@ -872,7 +893,7 @@ const FIELD_SECTION: Record<string, SectionId> = {
   min_notice_hours: 'reservas', max_days_ahead: 'reservas', buffer_minutes: 'reservas', cancel_hours: 'reservas', timezone: 'reservas', resources: 'reservas', cancel_policy: 'reservas',
   deposit_amount: 'anticipo', deposit_percent: 'anticipo', deposit_account: 'anticipo', deposit_hold_hours: 'anticipo', payment_url: 'anticipo',
   promo_text: 'promociones', promo_until: 'promociones', loyalty_every: 'promociones', loyalty_percent: 'promociones', coupons: 'promociones',
-  message_templates: 'mensajes', bookings_paused: 'pausa', closures: 'pausa', payment_methods: 'anticipo', approve_bookings: 'reservas', email_alerts: 'avisos', privacy_notice: 'privacidad',
+  message_templates: 'mensajes', auto_reminders: 'mensajes', reminder_hours: 'mensajes', auto_return: 'mensajes', bookings_paused: 'pausa', closures: 'pausa', payment_methods: 'anticipo', approve_bookings: 'reservas', email_alerts: 'avisos', privacy_notice: 'privacidad',
 };
 
 function sectionOfError(error: unknown): SectionId | null {
@@ -951,6 +972,16 @@ function parseCoupons(raw: string | null | undefined): BusinessCoupon[] {
 function todayIso(): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+function validClabe(value: string): boolean {
+  const digits = value.replace(/\D/g, '');
+  if (digits.length !== 18) {
+    return false;
+  }
+  const weights = [3, 7, 1];
+  const sum = [...digits.slice(0, 17)].reduce((total, digit, index) => total + ((Number(digit) * weights[index % 3]) % 10), 0);
+  return (10 - (sum % 10)) % 10 === Number(digits[17]);
 }
 
 function addDays(iso: string, days: number): string {

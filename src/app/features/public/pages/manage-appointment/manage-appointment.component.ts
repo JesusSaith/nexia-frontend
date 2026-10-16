@@ -6,11 +6,12 @@ import { ActivatedRoute } from '@angular/router';
 import { AvailabilitySlot } from '@core/models/appointment.model';
 import { ReviewsService } from '@core/services/reviews.service';
 import { BookingService, ManagedAppointment } from '@core/services/booking.service';
+import { SpeiCheckComponent } from '@shared/components/spei-check/spei-check';
 import { DateFieldComponent } from '@shared/components/when-field/when-field';
 
 @Component({
   selector: 'app-manage-appointment',
-  imports: [DateFieldComponent],
+  imports: [DateFieldComponent, SpeiCheckComponent],
   templateUrl: './manage-appointment.component.html',
   styleUrl: './manage-appointment.component.css',
 })
@@ -27,7 +28,7 @@ export class ManageAppointmentComponent {
   });
   private readonly clock = new Intl.DateTimeFormat('es-MX', { hour: '2-digit', minute: '2-digit' });
 
-  private readonly token = this.route.snapshot.paramMap.get('token') ?? '';
+  protected readonly tokenValue = this.route.snapshot.paramMap.get('token') ?? '';
   protected readonly slug = this.route.snapshot.paramMap.get('businessSlug') ?? '';
 
   protected readonly appointment = signal<ManagedAppointment | null>(null);
@@ -116,7 +117,7 @@ export class ManageAppointmentComponent {
         }
         this.saving.set(true);
         this.bookingApi
-          .uploadPaymentProof(this.token, data)
+          .uploadPaymentProof(this.tokenValue, data)
           .pipe(takeUntilDestroyed(this.destroyRef))
           .subscribe({
             next: (appointment) => {
@@ -139,7 +140,7 @@ export class ManageAppointmentComponent {
   protected acceptPrice(): void {
     this.saving.set(true);
     this.bookingApi
-      .acceptPrice(this.token)
+      .acceptPrice(this.tokenValue)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (appointment) => {
@@ -156,7 +157,7 @@ export class ManageAppointmentComponent {
 
   protected markPaid(): void {
     this.saving.set(true);
-    this.bookingApi.markPaid(this.token).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    this.bookingApi.markPaid(this.tokenValue).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (appointment) => {
         this.appointment.set(appointment);
         this.saving.set(false);
@@ -169,10 +170,15 @@ export class ManageAppointmentComponent {
     });
   }
 
+  protected onSpei(appointment: ManagedAppointment): void {
+    this.appointment.set(appointment);
+    this.notice.set('¡Listo! Banxico confirmó tu transferencia y tu cita quedó pagada.');
+  }
+
   protected confirmVisit(): void {
     this.saving.set(true);
     this.bookingApi
-      .confirmManagedAppointment(this.token)
+      .confirmManagedAppointment(this.tokenValue)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (appointment) => {
@@ -194,7 +200,7 @@ export class ManageAppointmentComponent {
     }
     this.saving.set(true);
     this.bookingApi
-      .cancelManagedAppointment(this.token)
+      .cancelManagedAppointment(this.tokenValue)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (appointment) => {
@@ -219,7 +225,7 @@ export class ManageAppointmentComponent {
     const [newDate, clock] = slot.split('T');
     this.saving.set(true);
     this.bookingApi
-      .rescheduleManagedAppointment(this.token, {
+      .rescheduleManagedAppointment(this.tokenValue, {
         new_date: newDate,
         new_time: clock.slice(0, 5),
         staff_id: current.staff_id,
@@ -240,13 +246,13 @@ export class ManageAppointmentComponent {
   }
 
   private load(): void {
-    if (!this.token) {
+    if (!this.tokenValue) {
       this.isLoading.set(false);
       this.errorMessage.set('Este enlace no es válido.');
       return;
     }
     this.bookingApi
-      .getManagedAppointment(this.token)
+      .getManagedAppointment(this.tokenValue)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (appointment) => {

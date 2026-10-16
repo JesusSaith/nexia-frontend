@@ -322,6 +322,11 @@
               <label class="block sm:col-span-2">
                 <span class="label">Cuenta o CLABE para recibirlo</span>
                 <input class="input nums" formControlName="depositAccount" placeholder="CLABE, número de tarjeta o referencia" [class.input-invalid]="depositWarning()" />
+                @if (clabeOk()) {
+                  <span class="mt-1 flex items-center gap-1 text-xs text-[var(--nx-ok-fg)]"><mat-icon class="h-4! w-4! text-[16px]!">verified</mat-icon>Con tu CLABE, Banxico confirma los anticipos solos: la clienta pone su clave de rastreo y la cita queda pagada.</span>
+                } @else {
+                  <span class="field-hint mt-1 block">Si pones tu CLABE (18 dígitos), los anticipos se confirman solos con Banxico.</span>
+                }
               </label>
             </div>
             <div>
@@ -423,6 +428,39 @@
         <details id="sec-mensajes" class="card group scroll-mt-6 p-0!" [open]="isOpen('mensajes')" (toggle)="onToggle('mensajes', $event)">
           <ng-container *ngTemplateOutlet="head; context: { $implicit: 'mensajes' }" />
           <div class="flex flex-col gap-3 p-4 sm:p-5">
+            <!-- Envío automático por la API oficial de WhatsApp. -->
+            <div class="rounded-xl border border-line">
+              <div class="flex items-start gap-3 border-b border-line px-4 py-3">
+                <mat-icon class="mt-0.5 shrink-0" [class.text-[var(--nx-ok-fg)]]="whatsappReady()" [class.text-muted]="!whatsappReady()">{{ whatsappReady() ? 'check_circle' : 'link_off' }}</mat-icon>
+                <div class="min-w-0">
+                  <p class="text-sm font-semibold text-ink">Envío automático</p>
+                  <p class="field-hint">
+                    {{ whatsappReady() ? 'Salen solos desde el número de WhatsApp de Nexia, sin que abras el panel.' : 'Aún no está conectada la API de WhatsApp en el servidor. Puedes dejarlos encendidos: empiezan a salir en cuanto se conecte.' }}
+                  </p>
+                </div>
+              </div>
+              <div class="flex items-center justify-between gap-4 px-4 py-3">
+                <div>
+                  <p class="text-sm font-medium text-ink">Recordatorio con "Confirmo / Cambiar"</p>
+                  <p class="field-hint">La clienta confirma con un toque y se marca en tu agenda. "Cambiar" le manda su enlace para moverla.</p>
+                </div>
+                <button type="button" role="switch" class="switch" [attr.aria-checked]="autoReminders()" (click)="autoReminders.set(!autoReminders())" aria-label="Recordatorio automático"><span></span></button>
+              </div>
+              @if (autoReminders()) {
+                <div class="flex flex-wrap gap-2 px-4 pb-3">
+                  @for (option of reminderOptions; track option.value) {
+                    <button type="button" class="chip" [class.chip-on]="reminderHours() === option.value" (click)="reminderHours.set(option.value)">{{ option.label }}</button>
+                  }
+                </div>
+              }
+              <div class="flex items-center justify-between gap-4 border-t border-line px-4 py-3">
+                <div>
+                  <p class="text-sm font-medium text-ink">"Te toca volver"</p>
+                  <p class="field-hint">El día que le toca según cada cuánto viene por su servicio, le llega una invitación con tu enlace. Una sola vez por visita.</p>
+                </div>
+                <button type="button" role="switch" class="switch" [attr.aria-checked]="autoReturn()" (click)="autoReturn.set(!autoReturn())" aria-label="Invitación automática a volver"><span></span></button>
+              </div>
+            </div>
             <p class="text-sm text-ink-soft">
               Así se escriben los mensajes que mandas desde el panel. Las palabras entre llaves, como <code class="rounded bg-canvas px-1">{{ '{' }}nombre{{ '}' }}</code>, se cambian solas por los datos de cada cita. Si un dato falta, su línea no se manda.
             </p>

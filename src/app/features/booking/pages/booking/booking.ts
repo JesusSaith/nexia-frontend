@@ -16,6 +16,7 @@ import { catchError, map } from 'rxjs/operators';
 
 import { businessWords } from '@core/business-words';
 import { methodsSentence } from '@core/payment-methods';
+import { SpeiCheckComponent } from '@shared/components/spei-check/spei-check';
 import { closureOn, closureSpan, liveOffer, nextClosure, noteOf } from '@core/shop-note';
 import { Appointment, AvailabilitySlot } from '@core/models/appointment.model';
 import { BusinessBrand, PublicService, PublicStaff } from '@core/models/business.model';
@@ -56,6 +57,7 @@ function phoneDigits(control: AbstractControl): ValidationErrors | null {
 @Component({
   selector: 'app-booking',
   imports: [
+    SpeiCheckComponent,
     ReactiveFormsModule,
     MatProgressSpinnerModule,
     PickFieldComponent,

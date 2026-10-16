@@ -22,7 +22,8 @@ export type MessageKey =
   | 'waitlist'
   | 'share_link'
   | 'approved'
-  | 'declined';
+  | 'declined'
+  | 'due';
 
 export type MessageVars = Partial<Record<MessageVar, string>>;
 
@@ -82,6 +83,13 @@ export const MESSAGE_TEMPLATES: readonly MessageTemplate[] = [
     where: 'Agenda → al rechazar una cita (si apruebas a mano)',
     vars: ['nombre', 'dia', 'hora', 'enlace'],
     text: 'Hola {nombre}, lo sentimos: no podemos atenderte el {dia} a las {hora}. Si quieres, elige otro horario aquí:\n{enlace}',
+  },
+  {
+    key: 'due',
+    label: 'Te toca volver',
+    where: 'Inicio → Les toca volver',
+    vars: ['nombre', 'servicio', 'negocio', 'dia', 'hora', 'enlace'],
+    text: '¡Hola {nombre}! 👋 Ya te toca tu {servicio} en {negocio}.\n¿Te acomoda el {dia} a las {hora}?\nReserva aquí o elige otro horario: {enlace}',
   },
   {
     key: 'deposit_ok',
