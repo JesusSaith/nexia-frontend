@@ -70,16 +70,18 @@ Ruta: `/:negocio/book`. Código: `src/app/features/booking/pages/booking/`.
 - El calendario abre en el primer día con lugares, y salta al mes siguiente si el actual está lleno.
 - Las horas aparecen agrupadas en Mañana, Tarde y Noche. Al tocar una, avanza al paso 3.
 - Si el día no tiene lugares, puede anotarse en la **lista de espera**.
-- Si el negocio está **en pausa** o **cerrado por vacaciones**, la página lo dice y no deja reservar esos días (la API también lo bloquea).
+- Si el negocio está **en pausa** o tiene un **cierre** ese día (vacaciones, puente o festivo), la página lo dice y no deja reservar (la API también lo bloquea). Arriba de la página se avisa el próximo cierre solo si empieza en los siguientes 30 días.
 
 ### Paso 3. Datos
 - Teléfono (10 dígitos), nombre, y correo o nota de forma opcional.
 - **Servicios con precio variable (cotización):** campo "Qué necesitas" y hasta 3 **fotos de referencia**, que se comprimen en el celular.
-- **Desglose de dinero:** cuánto paga hoy de anticipo, cuánto en la cita y el total, más la política de cancelación.
+- **Desglose de dinero:** cuánto paga hoy de anticipo, cuánto en la cita y el total, **qué métodos de pago acepta el negocio** ("Aceptamos efectivo y tarjeta") y la política de cancelación.
+- Si el negocio **aprueba las citas a mano**, se avisa que revisará la solicitud y confirmará por WhatsApp.
 - Aviso de privacidad, y un campo oculto que delata a los bots (*honeypot*).
 - Si es clienta frecuente, sus datos ya aparecen llenos (se guardan en su navegador), con un botón "No soy yo" para borrarlos.
 
 ### Confirmación
+- Si el negocio aprueba a mano: "Recibimos tu solicitud", con el horario ya apartado. La página de la cita muestra lo mismo hasta que la dueña responde.
 - Botón de WhatsApp con un mensaje completo para el negocio: servicio, día, hora, colaboradora, nombre, notas, fotos y anticipo.
 - **"Agregar a mi calendario":** Google Calendar o archivo `.ics`.
 - Enlace para ver, cambiar o cancelar la cita (`/:negocio/manage/:token`).
@@ -102,8 +104,8 @@ Ruta: `/:negocio/book`. Código: `src/app/features/booking/pages/booking/`.
 
 | Pestaña | Para qué sirve |
 |---|---|
-| **Inicio** | Indicadores del día con ícono de color (citas, sin confirmar, anticipos pendientes), lista "Pon tu negocio en marcha" con los avisos importantes, **recordatorios de mañana uno por uno por WhatsApp**, pendientes, cumpleaños, citas de hoy y de mañana, avisos, más pedidos del mes y paquetes. Las tarjetas van en dos columnas independientes, sin huecos. |
-| **Agenda** | Vistas Mes, Semana y Día (en celular abre en Día), con un color por colaboradora. Permite crear una cita (busca a la clienta por nombre o teléfono), **cambiar día u hora**, **cobrar y completar** con monto y método de pago, pedir la opinión, marcar "no llegó" o cancelar, repetir cada 3 o 4 semanas, bloquear horarios, marcar días libres y compartir una imagen con la disponibilidad del mes. |
+| **Inicio** | Indicadores del día con ícono de color (citas, sin confirmar, anticipos pendientes), lista "Pon tu negocio en marcha" con los avisos importantes, **recordatorios de mañana uno por uno por WhatsApp**, pendientes (incluye "Aprobar solicitud"), cumpleaños, citas de hoy y de mañana, avisos, más pedidos del mes y paquetes. Las tarjetas van en dos columnas independientes, sin huecos. |
+| **Agenda** | Vistas Mes, Semana y Día (en celular abre en Día), con un color por colaboradora. Permite crear una cita (busca a la clienta por nombre o teléfono), **aprobar o rechazar** las solicitudes "Por aprobar", **cambiar día u hora**, **cobrar y completar** con monto y método de pago (solo los que acepta el negocio, más "Paquete"), pedir la opinión, marcar "no llegó" o cancelar, repetir cada 3 o 4 semanas, bloquear horarios, marcar días libres y compartir una imagen con la disponibilidad del mes. |
 | **Clientes** | Fichas unificadas por teléfono, mejores clientas, las que más cancelan, **"Dejaron de venir"** (más de 45 días) con WhatsApp para invitarlas a volver, historial con el estado de cada visita, notas internas y botones de Llamar y WhatsApp. |
 | **Reportes** | Ingresos por día, semana, mes o rango, **cómo te pagaron** (efectivo, transferencia, tarjeta o paquete), gastos fijos y variables, comisiones por colaboradora, meta de ganancia y exportación a Excel o PDF. |
 | **Servicios** | Precio, duración, foto, categoría, precio variable, anticipo propio, cupo y preguntas para la clienta. Si solo están los sugeridos del registro (apagados), un aviso explica que hay que revisarlos y activarlos. |
@@ -114,22 +116,28 @@ Ruta: `/:negocio/book`. Código: `src/app/features/booking/pages/booking/`.
 
 ### Configuración (`/admin/settings`)
 - **Franja de estado arriba:** "Tu página está recibiendo reservas", "Tu página no está tomando citas" o "Cierras del 20 al 27 oct", con un interruptor y el botón **"Ver mi página"**.
+- **La pausa se aplica al momento:** el interruptor (arriba o en Pausa y vacaciones) guarda solo `bookings_paused`, sin arrastrar otros cambios pendientes, y avisa con un mensaje.
+- **Llegar directo a lo que falta:** `/admin/settings?sec=anticipo` abre y baja a esa sección. Los avisos de Inicio y Mi negocio usan esa dirección.
 - **Nueve secciones**, cada una con un **resumen visible aunque esté cerrada** (por ejemplo, "$200 · 3 h para pagar · falta la cuenta"):
   1. **Tu negocio:** nombre, tipo, descripción, WhatsApp (10 dígitos), dirección y redes.
   2. **Apariencia:** logo, color de marca con vista previa y fotos del trabajo (hasta 3). Del logo solo se **sugiere** un color; no se cambia solo.
-  3. **Reglas de reserva:** opciones rápidas en vez de números sueltos (anticipación, días a futuro, tiempo entre citas, hasta cuándo cancelar), mensaje sobre cancelaciones, zona horaria y salas o equipos.
-  4. **Anticipo y pagos:** monto fijo, porcentaje para servicios por cotizar, cuenta o CLABE, tiempo para pagarlo y enlace de pago. **Avisa si falta la CLABE**, porque sin ella el anticipo no se cobra.
+  3. **Reglas de reserva:** opciones rápidas en vez de números sueltos (anticipación, días a futuro, tiempo entre citas, hasta cuándo cancelar), **aprobar cada cita a mano**, mensaje sobre cancelaciones, zona horaria y salas o equipos.
+  4. **Anticipo y pagos:** **métodos de pago que acepta** (efectivo, transferencia, tarjeta; al menos uno), monto fijo, porcentaje para servicios por cotizar, cuenta o CLABE, tiempo para pagarlo y enlace de pago. **Avisa si falta la CLABE**, porque sin ella el anticipo no se cobra.
   5. **Promociones:** anuncio en la página (con fecha de fin), premio por visitas y cupones.
   6. **Mensajes de WhatsApp:** ver más abajo.
-  7. **Pausa y vacaciones:** "No tomar citas por ahora" y un cierre con fechas.
+  7. **Pausa, vacaciones y festivos:** "No tomar citas por ahora" y una **lista de cierres** (un día o un periodo, con nombre). Sugiere los **días festivos de México** de los próximos 12 meses (oficiales, Semana Santa, Día de Muertos, 12 de diciembre…), uno por uno o "Cerrar todos", y permite limpiar los cierres que ya pasaron.
   8. **Avisos por correo:** qué avisos le llegan a la dueña (ver más abajo).
   9. **Privacidad y datos:** aviso de privacidad propio y "Descargar copia".
 - **Un solo guardado:** todo va en una petición (`PATCH /api/settings/business`).
 - **Barra de cambios:** solo aparece si hay algo por guardar ("3 cambios sin guardar · Descartar · Guardar cambios"). Si intentas salir de la pantalla o cerrar la pestaña con cambios, pregunta antes.
-- **Errores:** al guardar con errores, la pantalla te lleva a la primera sección con problemas. En escritorio, un índice lateral salta a cada sección y marca las que tienen errores o les falta un dato.
+- **Errores:** al guardar con errores, la pantalla te lleva a la primera sección con problemas; si el error viene del servidor, abre la sección del campo que falló. En escritorio hay un índice lateral, y en celular una fila de chips deslizable; ambos marcan las secciones con errores o con un dato faltante.
+- **Nada se descarta sin avisar:** cupón sin código, repetido o con un porcentaje fuera de rango; premio por visitas incompleto; anuncio con fecha ya pasada; anticipo negativo; foto que ya no cabe. Cada caso muestra su error y bloquea el guardado.
+- **Fotos:** botón para quitar (visible también en celular) y flecha para cambiar el orden; la primera es la que más se ve.
+- **Facebook:** basta con el nombre de la página; se guarda como `facebook.com/nombre`.
+- **Contador de cambios:** cambiar el color cuenta como un solo cambio (el fondo derivado ya no suma).
 
 ### Mensajes de WhatsApp
-- **De dónde salen:** los 13 mensajes que la dueña manda desde el panel (recordatorio, cita agendada, anticipo recibido, comprobante ilegible, cotización, escribirle por su cita, citas repetidas, pedir opinión, cumpleaños, te extrañamos, ofrecer horario libre, lista de espera y compartir enlace) salen de plantillas en `src/app/core/message-templates.ts`.
+- **De dónde salen:** los 15 mensajes que la dueña manda desde el panel (recordatorio, cita agendada, solicitud aprobada, solicitud rechazada, anticipo recibido, comprobante ilegible, cotización, escribirle por su cita, citas repetidas, pedir opinión, cumpleaños, te extrañamos, ofrecer horario libre, lista de espera y compartir enlace) salen de plantillas en `src/app/core/message-templates.ts`.
 - **Cómo se editan:** en Configuración, con botones para insertar variables (`{nombre}`, `{servicio}`, `{dia}`, `{hora}`, `{equipo}`, `{enlace}`…), vista previa tipo burbuja de WhatsApp y "Volver al de fábrica". El backend guarda solo los que cambian (`businesses.message_templates`) y no los expone en la página pública.
 - **Reglas al llenarlos:**
   - `{nombre}` vacío se quita y se acomoda la puntuación ("¡Hola!");
@@ -153,11 +161,29 @@ Ruta: `/:negocio/book`. Código: `src/app/features/booking/pages/booking/`.
   - **para poder reservar:** servicios activos, equipo, horarios y compartir el enlace;
   - **para dar confianza:** logo, descripción, dirección e Instagram;
   - **avisos:** "falta tu CLABE" o "tu página está en pausa". Se muestran en Inicio aunque se haya ocultado la lista.
+- Cada paso trae `section` (la sección de Configuración donde se resuelve), y el enlace se arma con `?sec=…`.
 - **"Comparte tu enlace"** se guarda en el negocio (`link_shared`), no en el navegador.
+
+### Métodos de pago
+- Se guardan en `businesses.payment_methods` (JSON); vacío significa los tres. Lógica en `app/core/payment_methods.py` y `src/app/core/payment-methods.ts`.
+- **Paquete** no se elige: es pagar con visitas de un paquete y siempre aparece al cobrar.
+- Reportes agrupa por el método con que se cobró cada cita, con las mismas etiquetas; si un método se desactiva, sus cobros pasados siguen apareciendo.
+
+### Cierres y días festivos
+- Se guardan en `businesses.closures` (JSON `[{from, to, label}]`, hasta 40, ordenados). Los cierres de un día son festivos; los de varios días, vacaciones.
+- Al arrancar, `init_db` pasa el cierre único viejo (`closed_from`/`closed_to`) a la lista con el nombre "Vacaciones".
+- Los festivos se calculan en el navegador (`src/app/core/holidays.ts`, Semana Santa con el algoritmo de Pascua); el backend solo guarda lo que la dueña eligió.
+
+### Aprobar citas a mano
+- Interruptor en Reglas de reserva (`businesses.approve_bookings`). Con él encendido, cada reserva de la página se crea con `needs_approval = true`: **el horario queda apartado** (nadie más lo toma) y el aviso dice "pidió … · falta que la apruebes".
+- En Agenda: **Aprobar** (`POST /api/appointments/{id}/approve`) abre el WhatsApp "Solicitud aprobada"; **Rechazar** cancela la cita (con "Deshacer") y abre el WhatsApp "Solicitud rechazada" con el enlace para reservar otro horario.
+- Si la reserva también pide anticipo, ambos procesos van por separado: aprobar no marca el anticipo como recibido.
+- Las citas que crea la dueña nunca quedan por aprobar.
 
 ### Ciclo de una cita
 ```
 Reserva (clienta o dueña)
+  ├─ si el negocio aprueba a mano → needs_approval ── Aprobar / Rechazar (cancela)
   ├─ con anticipo → awaiting_deposit ── comprobante ── la dueña acepta ──┐
   └─ sin anticipo → scheduled ←────────────────────────────────────────┘
         ├─ recordatorio (Inicio) → la clienta confirma (client_confirmed)
@@ -195,7 +221,7 @@ Reserva (clienta o dueña)
 - **Tokens separados:** un enlace de recuperación no sirve como sesión, ni una sesión como enlace de recuperación.
 - **Enlaces en correos:** se arman con la dirección desde la que se abrió la app solo si es de confianza (`app/core/origins.py`): en local, cualquier `localhost`; en producción, únicamente `FRONTEND_URL`. Así nadie puede mandarte un enlace de recuperación a un sitio falso.
 - **CORS:** en producción solo se acepta el dominio de `FRONTEND_URL`; en desarrollo, cualquier puerto de `localhost`.
-- **Pausa y vacaciones:** la API también los respeta (disponibilidad, reservas y cambios de cita de la clienta) con `app/core/shop_note.py`. Las citas que crea la dueña no se bloquean.
+- **Pausa y cierres:** la API también los respeta (disponibilidad, reservas y cambios de cita de la clienta) con `app/core/shop_note.py`. Las citas que crea la dueña no se bloquean.
 - **Validaciones en la API:** teléfono de 10 dígitos, enlace de pago con `https://`, fechas de cierre completas y en orden, fotos solo como imágenes pequeñas (hasta 3), mensajes de hasta 1000 caracteres.
 - **Privacidad:** aviso por negocio; las fotos de referencia se borran a los 30 días; los datos de la clienta se recuerdan solo en su propio dispositivo; los mensajes personalizados de la dueña no salen en la página pública.
 - **Monitoreo opcional:** si se define `SENTRY_DSN` en el `.env` (requiere instalar `sentry-sdk`), los errores llegan a Sentry.
@@ -250,7 +276,8 @@ npx ng test --watch=false
   | `mailer.py`, `emails.py` | Envío con Resend y textos de los correos |
   | `alerts.py` | Avisos por correo y resumen diario |
   | `readiness.py` | Qué le falta al negocio |
-  | `shop_note.py` | Pausa y cierre |
+  | `shop_note.py` | Pausa y lista de cierres |
+  | `payment_methods.py` | Métodos de pago que acepta el negocio |
   | `catalog.py` | Giros, etiqueta del personal y servicios sugeridos |
   | `messages.py` | Claves de los mensajes de WhatsApp |
 
@@ -285,10 +312,11 @@ npx ng test --watch=false
 - Recorrer en el navegador: el registro en celular, recuperar contraseña con un correo real y los menús del selector de hora en modo oscuro.
 
 **Siguientes mejoras de Configuración** (en este orden)
-1. **Métodos de pago que acepta el negocio:** hoy "efectivo, transferencia, tarjeta" está fijo en Agenda. Que al cobrar solo salgan los que acepta, que la página de reservas lo diga y que Reportes los agrupe igual.
-2. **Varios cierres y días festivos:** una lista en lugar de un solo periodo de vacaciones, con días festivos de México sugeridos.
-3. **Regla para clientas que faltan:** pedir anticipo de forma automática a quien falta seguido.
-4. **Enlace personalizado:** poder cambiar el slug, sin romper el enlace anterior (QR impresos).
+1. **Regla para clientas que faltan:** pedir anticipo de forma automática a quien falta seguido.
+2. **Enlace personalizado:** poder cambiar el slug, sin romper el enlace anterior (QR impresos).
+3. **Vista previa en vivo** de la página de reservas dentro de Configuración (logo, color, anuncio y fotos antes de guardar).
+4. **Tope de citas por día** (por negocio o por colaboradora) y **qué pasa con el anticipo si la clienta cancela**.
+5. **Mensajes agrupados** por momento (antes de la cita, después, para atraer clientas).
 
 **Corto plazo**
 - **Asistente de 3 pasos después del registro** ("¿Atiendes tú?", horario base, activar servicios), usando la lista de `readiness`.
@@ -297,7 +325,7 @@ npx ng test --watch=false
 - Pasar el límite de intentos a Redis si algún día hay varios servidores.
 - Que la agenda use la zona horaria del negocio y no la del navegador (hoy coinciden casi siempre).
 
-**Según lo que pidan los primeros negocios** (ya hechos: notas por visita, propinas, venta de productos al cobrar, cupones, premio por visitas, cumpleaños, PWA, modo oscuro, avisos por correo y mensajes editables)
+**Según lo que pidan los primeros negocios** (ya hechos: notas por visita, propinas, venta de productos al cobrar, cupones, premio por visitas, cumpleaños, PWA, modo oscuro, avisos por correo, mensajes editables, métodos de pago, cierres con festivos y aprobar citas a mano)
 - Formularios de ingreso y consentimiento (consultorios, spas, tatuajes).
 - Clases con cupo visible ("quedan 3 lugares").
 - Paquetes y membresías a la venta desde la página de reservas.
@@ -327,3 +355,14 @@ npx ng test --watch=false
 | frontend | `7748e79` | **Mensajes de WhatsApp editables** con variables y vista previa; textos unificados, fechas legibles y prefijo 52 en todos los números. |
 
 Pruebas al cerrar el día: backend 40, frontend 26, todas pasando.
+
+### 16 de octubre de 2026
+
+| Repositorio | Commit | Qué cambió |
+|---|---|---|
+| backend | `5fcdf90` | `readiness.py`: cada paso dice qué sección de Configuración abrir (`section`). |
+| backend | `5fcdf90` | **Métodos de pago** (`payment_methods`), **lista de cierres** (`closures`, con migración del cierre único) y **aprobar citas a mano** (`approve_bookings`, `appointments.needs_approval`, `POST /appointments/{id}/approve`); 2 mensajes nuevos (`approved`, `declined`). |
+| frontend | `261f727` | **Métodos de pago** en Configuración, Agenda, página de reservas y Reportes; **cierres y festivos de México** sugeridos; **aprobar o rechazar** solicitudes en Agenda e Inicio, con avisos a la clienta en la confirmación y en su página de cita. |
+| frontend | `261f727` | **Configuración, flujo y arreglos:** avisos que abren su sección (`?sec=`), pausa instantánea, chips de secciones en celular, validación visible de cupones, premio por visitas, anuncio y anticipo, fotos con quitar y reordenar, Facebook normalizado, errores del servidor que llevan a su sección, el color cuenta como un cambio. |
+
+Pruebas: backend 43, frontend 30, todas pasando.
