@@ -10,6 +10,8 @@ export interface AvailabilitySlot {
 
 export interface AppointmentCreate {
   service_id: number;
+  /** Opción del servicio elegida (variante). */
+  variant?: string | null;
   staff_id: number;
   starts_at: string;
   client_name: string;

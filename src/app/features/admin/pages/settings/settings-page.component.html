@@ -175,24 +175,128 @@
               </div>
             </div>
 
-            <div>
-              <span class="label">Color de tu marca</span>
-              <div class="flex flex-wrap items-center gap-3">
-                <input type="color" class="h-10 w-14 cursor-pointer rounded-lg border border-line-strong bg-surface p-1" formControlName="primaryColor" aria-label="Elegir color" />
-                <input class="input nums w-28 uppercase" formControlName="primaryColor" maxlength="7" aria-label="Código del color" />
+            <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_240px]">
+              <div class="flex flex-col gap-5">
+                @if (logoPalette().length) {
+                  <div>
+                    <span class="label">Colores de tu logo</span>
+                    <p class="field-hint mb-2">Toca un color y elige dónde usarlo.</p>
+                    <div class="flex flex-wrap gap-3">
+                      @for (color of logoPalette(); track color) {
+                        <details class="relative" #pick>
+                          <summary class="block h-11 w-11 cursor-pointer list-none rounded-full border-2 border-surface shadow [&::-webkit-details-marker]:hidden" [style.background]="color" [attr.aria-label]="'Color ' + color"></summary>
+                          <div class="absolute left-0 z-20 mt-1 flex w-40 flex-col rounded-xl border border-line bg-surface p-1 shadow-lg">
+                            <button type="button" class="row-hover min-h-11 rounded-lg px-3 text-left text-sm" (click)="pick.open = false; assignColor(color, 'primary')">Para botones</button>
+                            <button type="button" class="row-hover min-h-11 rounded-lg px-3 text-left text-sm" (click)="pick.open = false; assignColor(color, 'accent')">Para detalles</button>
+                            <button type="button" class="row-hover min-h-11 rounded-lg px-3 text-left text-sm" (click)="pick.open = false; assignColor(color, 'canvas')">Para el fondo</button>
+                          </div>
+                        </details>
+                      }
+                    </div>
+                  </div>
+                } @else if (logoUrl()) {
+                  <p class="field-hint">Vuelve a subir el logo para sacar sus colores.</p>
+                }
+
+                <div class="grid gap-3 sm:grid-cols-3">
+                  <label class="block"><span class="label">Botones</span>
+                    <span class="flex items-center gap-2">
+                      <input type="color" class="h-11 w-12 shrink-0 cursor-pointer rounded-lg border border-line-strong bg-surface p-1" formControlName="primaryColor" aria-label="Color de los botones" />
+                      <input class="input nums uppercase" formControlName="primaryColor" maxlength="7" aria-label="Código del color de los botones" />
+                    </span>
+                  </label>
+                  <label class="block"><span class="label">Detalles</span>
+                    <span class="flex items-center gap-2">
+                      <input type="color" class="h-11 w-12 shrink-0 cursor-pointer rounded-lg border border-line-strong bg-surface p-1" [value]="accentColor() || form.controls.primaryColor.value" (input)="accentColor.set($any($event.target).value)" aria-label="Color de los detalles" />
+                      <button type="button" class="btn btn-ghost px-2! text-sm" (click)="accentColor.set(null)">{{ accentColor() ? 'Igual que botones' : 'Igual que botones ✓' }}</button>
+                    </span>
+                  </label>
+                  <label class="block"><span class="label">Fondo</span>
+                    <span class="flex items-center gap-2">
+                      <input type="color" class="h-11 w-12 shrink-0 cursor-pointer rounded-lg border border-line-strong bg-surface p-1" [value]="canvasColor() || '#ffffff'" (input)="canvasColor.set($any($event.target).value)" aria-label="Color de fondo" />
+                      <button type="button" class="btn btn-ghost px-2! text-sm" (click)="canvasColor.set('#ffffff')">Blanco</button>
+                    </span>
+                  </label>
+                </div>
                 @if (suggestedColor(); as suggested) {
-                  <button type="button" class="chip gap-2" (click)="useSuggestedColor()">
-                    <span class="h-4 w-4 rounded-full border border-line" [style.background]="suggested"></span>
-                    Usar el color del logo
+                  <button type="button" class="chip gap-2 self-start" (click)="useSuggestedColor()">
+                    <span class="h-4 w-4 rounded-full border border-line" [style.background]="suggested"></span>Usar el color del logo en botones
                   </button>
                 }
+                @if (lowContrast()) {
+                  <p class="flex items-start gap-2 rounded-xl px-3 py-2 text-sm badge-warn"><mat-icon class="h-5! w-5! shrink-0 text-[20px]!">warning</mat-icon>Este color se ve poco sobre el fondo. Prueba uno más oscuro o cambia el fondo. El texto de los botones ya se pone {{ buttonText() === '#ffffff' ? 'blanco' : 'oscuro' }} para que se lea.</p>
+                }
+
+                <div>
+                  <span class="label">Temas listos</span>
+                  <div class="flex flex-wrap gap-2">
+                    @for (preset of themePresets(); track preset.key) {
+                      <button type="button" class="chip h-11! gap-2" [class.chip-on]="canvasColor() === preset.canvas && headerStyle() === preset.header" (click)="applyPreset(preset)">
+                        <span class="h-5 w-5 rounded-full border border-line" [style.background]="preset.canvas"></span>{{ preset.label }}
+                      </button>
+                    }
+                  </div>
+                </div>
+
+                <div class="grid gap-4 sm:grid-cols-2">
+                  <div><span class="label">Forma de los botones</span>
+                    <div class="flex flex-wrap gap-2">
+                      @for (option of shapeOptions; track option.v) {
+                        <button type="button" class="chip h-11!" [class.chip-on]="buttonShape() === option.v" (click)="buttonShape.set(option.v)">{{ option.l }}</button>
+                      }
+                    </div>
+                  </div>
+                  <div><span class="label">Relleno</span>
+                    <div class="flex flex-wrap gap-2">
+                      <button type="button" class="chip h-11!" [class.chip-on]="buttonFill() === 'solid'" (click)="buttonFill.set('solid')">Sólido</button>
+                      <button type="button" class="chip h-11!" [class.chip-on]="buttonFill() === 'outline'" (click)="buttonFill.set('outline')">Contorno</button>
+                    </div>
+                  </div>
+                  <div><span class="label">Letra</span>
+                    <div class="flex flex-wrap gap-2">
+                      @for (option of fontOptions; track option.v) {
+                        <button type="button" class="chip h-11!" [class.chip-on]="fontStyle() === option.v" [style.font-family]="fontStacks[option.v]" (click)="fontStyle.set(option.v)">{{ option.l }}</button>
+                      }
+                    </div>
+                  </div>
+                  <div><span class="label">Encabezado</span>
+                    <div class="flex flex-wrap gap-2">
+                      @for (option of headerOptions; track option.v) {
+                        <button type="button" class="chip h-11!" [class.chip-on]="headerStyle() === option.v" (click)="headerStyle.set(option.v)">{{ option.l }}</button>
+                      }
+                    </div>
+                  </div>
+                </div>
               </div>
-              <!-- Vista previa: así se ven los botones y etiquetas en la página de reservas. -->
-              <div class="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-canvas p-3">
-                <span class="text-xs text-muted">Vista previa</span>
-                <span class="btn h-9! text-white" [style.background]="form.controls.primaryColor.value">Reservar cita</span>
-                <span class="chip chip-on">Corte de cabello</span>
-                <span class="badge" [style.background]="form.controls.primaryColor.value + '1a'" [style.color]="form.controls.primaryColor.value">Disponible</span>
+
+              <!-- Vista previa en vivo: la página de reservas con lo que se va eligiendo. -->
+              <div class="flex justify-center lg:block">
+                <div class="w-60 overflow-hidden rounded-[2rem] border-[8px] border-ink shadow-lg" [style.background]="canvasColor() || '#ffffff'" [style.font-family]="fontStacks[fontStyle()]" aria-label="Vista previa de tu página">
+                  @if (headerStyle() === 'cover' && photos()[0]) {
+                    <img [src]="photos()[0]" alt="" class="h-16 w-full object-cover" />
+                  }
+                  <div class="flex items-center gap-2 px-3 py-3" [style.background]="headerStyle() === 'color' ? form.controls.primaryColor.value : headerStyle() === 'plain' ? 'transparent' : 'color-mix(in srgb, ' + form.controls.primaryColor.value + ' 12%, white)'" [style.color]="headerStyle() === 'color' ? buttonText() : '#1c1a19'">
+                    @if (logoSrc(); as src) {
+                      <img [src]="src" alt="" class="h-9 w-9 rounded-lg bg-white object-contain p-0.5" />
+                    }
+                    <span class="truncate text-sm font-semibold">{{ form.controls.name.value || 'Tu negocio' }}</span>
+                  </div>
+                  <div class="flex flex-col gap-2 p-3 text-[13px] text-[#1c1a19]">
+                    <div class="rounded-xl border bg-white px-3 py-2" [style.border-color]="accentColor() || form.controls.primaryColor.value" [style.box-shadow]="'inset 0 0 0 1px ' + (accentColor() || form.controls.primaryColor.value)">
+                      <span class="block font-medium">Servicio de ejemplo</span>
+                      <span class="block text-[#6b645e]">45 min · $350</span>
+                    </div>
+                    <div class="flex gap-1.5">
+                      <span class="rounded-full px-2.5 py-1 text-xs font-medium" [style.background]="accentColor() || form.controls.primaryColor.value" [style.color]="buttonText()">10:00</span>
+                      <span class="rounded-full border border-[#d6d1ca] bg-white px-2.5 py-1 text-xs">11:30</span>
+                    </div>
+                    <span class="mt-1 block py-2.5 text-center text-sm font-semibold"
+                      [style.border-radius]="radius[buttonShape()]"
+                      [style.background]="buttonFill() === 'solid' ? form.controls.primaryColor.value : 'transparent'"
+                      [style.color]="buttonFill() === 'solid' ? buttonText() : form.controls.primaryColor.value"
+                      [style.box-shadow]="buttonFill() === 'outline' ? 'inset 0 0 0 2px ' + form.controls.primaryColor.value : null">Reservar cita</span>
+                  </div>
+                </div>
               </div>
             </div>
 

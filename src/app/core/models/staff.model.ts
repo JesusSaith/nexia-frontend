@@ -10,6 +10,10 @@ export interface Staff {
   bio?: string | null;
   slot_times?: string | null;
   commission_percent?: number;
+  goal?: number | null;
+  color?: string | null;
+  tier_amount?: number | null;
+  tier_percent?: number | null;
   service_ids?: number[];
 }
 
@@ -21,6 +25,11 @@ export interface StaffWrite {
   avatar_url?: string | null;
   bio?: string | null;
   commission_percent?: number;
+  /** Meta de venta del mes y comisión escalonada (desde tier_amount vendido, cobra tier_percent). */
+  goal?: number | null;
+  color?: string | null;
+  tier_amount?: number | null;
+  tier_percent?: number | null;
   is_active?: boolean;
 }
 

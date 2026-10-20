@@ -2,69 +2,227 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatIconModule } from '@angular/material/icon';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { RouterLink } from '@angular/router';
-import { forkJoin, of } from 'rxjs';
-import { catchError, map, switchMap } from 'rxjs/operators';
+import { Observable, forkJoin, of } from 'rxjs';
+import { catchError, map } from 'rxjs/operators';
 
-import { Appointment, AvailabilitySlot } from '@core/models/appointment.model';
-import { SchedulesService } from '@core/services/schedules.service';
+import { Appointment } from '@core/models/appointment.model';
+import { Service } from '@core/models/service.model';
 import { BusinessCopy } from '@core/business-copy';
 import { firstName, longDay, whatsappLink } from '@core/message-templates';
 import { ReadinessStep, SettingsService } from '@core/services/settings.service';
 import { Confirm } from '@shared/components/confirm/confirm';
-import { DashboardStats } from '@core/models/dashboard.model';
-import { Review } from '@core/models/review.model';
 import { AppointmentsService } from '@core/services/appointments.service';
 import { AuthService } from '@core/services/auth.service';
 import { BookingService, DueClient } from '@core/services/booking.service';
 import { DashboardService } from '@core/services/dashboard.service';
 import { ServicesService } from '@core/services/services.service';
-import { StaffService } from '@core/services/staff.service';
-import { PackagesService, VisitPackage } from '@core/services/packages.service';
-import { ReviewsService } from '@core/services/reviews.service';
+import { ShopService } from '@core/services/shop.service';
+
+type Notice = { id: number; message: string; created_at: string };
 
 @Component({
   selector: 'app-home-page',
-  imports: [MatIconModule, MatProgressSpinnerModule, RouterLink],
+  imports: [MatIconModule, RouterLink],
   templateUrl: './home-page.component.html',
 })
 export class HomePageComponent {
-  private readonly reviewsApi = inject(ReviewsService);
   private readonly dashboardApi = inject(DashboardService);
   private readonly appointmentsApi = inject(AppointmentsService);
   private readonly auth = inject(AuthService);
   private readonly copy = inject(BusinessCopy);
   private readonly bookingApi = inject(BookingService);
-  private readonly staffApi = inject(StaffService);
   private readonly servicesApi = inject(ServicesService);
-  private readonly schedulesApi = inject(SchedulesService);
   private readonly settingsApi = inject(SettingsService);
+  private readonly shopApi = inject(ShopService);
   private readonly confirm = inject(Confirm);
+  private readonly destroyRef = inject(DestroyRef);
   protected readonly demoLoaded = signal(false);
   protected readonly demoBusy = signal(false);
 
-  /** Lo que hay que resolver hoy, cada cosa con su acción. */
+  private readonly timeFormat = new Intl.DateTimeFormat('es-MX', { hour: '2-digit', minute: '2-digit' });
+  private readonly dayFormat = new Intl.DateTimeFormat('es-MX', { weekday: 'short', day: 'numeric', month: 'short' });
+  private readonly pesosFormat = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
+  protected readonly todayLabel = new Intl.DateTimeFormat('es-MX', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
+
+  protected readonly isLoading = signal(true);
+  protected readonly loadError = signal<string | null>(null);
+  protected readonly booked = signal<Appointment[]>([]);
+  protected readonly services = signal<Service[]>([]);
+  protected readonly notices = signal<Notice[]>([]);
+  /** Hora actual, al minuto: mueve "Ahora" y "Siguiente" en la lista de hoy. */
+  protected readonly now = signal(Date.now());
+
+  /** Lo que hay que resolver, cada cosa con su acción. */
   protected readonly todos = computed(() => {
     const today = inputDate(new Date());
-    const rows: { id: number; title: string; detail: string; action: string; tone: string }[] = [];
+    const rows: { id: number; day: string; title: string; detail: string; action: string; tone: string }[] = [];
     for (const item of this.booked()) {
-      if (item.starts_at.slice(0, 10) < today) {
+      const day = item.starts_at.slice(0, 10);
+      if (day < today) {
         continue;
       }
       const when = `${item.client_name} · ${item.service_name} · ${this.slotLabel(item.starts_at)}`;
       if (item.needs_approval && (item.status === 'scheduled' || item.status === 'awaiting_deposit')) {
-        rows.push({ id: item.id, title: 'Aprobar solicitud', detail: when, action: 'Responder', tone: 'badge-warn' });
+        rows.push({ id: item.id, day, title: 'Aprobar solicitud', detail: when, action: 'Responder', tone: 'badge-warn' });
       } else if (item.status === 'awaiting_deposit' && (item.payment_proof || item.paid_claim)) {
-        rows.push({ id: item.id, title: 'Revisar comprobante', detail: when, action: 'Revisar', tone: 'badge-info' });
+        rows.push({ id: item.id, day, title: 'Revisar comprobante', detail: when, action: 'Revisar', tone: 'badge-info' });
       } else if (item.status === 'awaiting_deposit') {
-        rows.push({ id: item.id, title: 'Falta el anticipo', detail: when, action: 'Ver', tone: 'badge-warn' });
-      } else if (item.status === 'scheduled' && !item.client_confirmed && item.starts_at.slice(0, 10) === today) {
-        rows.push({ id: item.id, title: 'Sin confirmar hoy', detail: when, action: 'Ver', tone: 'badge-neutral' });
+        rows.push({ id: item.id, day, title: 'Falta el anticipo', detail: when, action: 'Ver', tone: 'badge-warn' });
       }
     }
-    return rows.slice(0, 8);
+    return rows;
   });
+  protected readonly todosShown = signal(5);
+
+  // Citas de hoy: las cobradas se quedan (atenuadas) para que se vea el avance del día.
+  protected readonly today = computed(() => {
+    const day = inputDate(new Date());
+    return this.booked().filter((item) => (item.status === 'scheduled' || item.status === 'completed') && item.starts_at.slice(0, 10) === day);
+  });
+  protected readonly todayDone = computed(() => this.today().filter((item) => item.status === 'completed').length);
+  /** La que se está atendiendo (empezó y no ha terminado) y la que sigue. */
+  protected readonly current = computed(() => {
+    const now = this.now();
+    return this.today().find((item) => {
+      if (item.status !== 'scheduled') {
+        return false;
+      }
+      const start = parseLocal(item.starts_at).getTime();
+      return start <= now && now < start + this.minutes(item) * 60_000;
+    })?.id ?? null;
+  });
+  protected readonly next = computed(() => {
+    const now = this.now();
+    return this.today().find((item) => item.status === 'scheduled' && parseLocal(item.starts_at).getTime() > now)?.id ?? null;
+  });
+
+  /** Los números de arriba. */
+  protected readonly dayBrief = computed(() => {
+    const open = this.today().filter((item) => item.status === 'scheduled');
+    return {
+      visits: this.today().length,
+      due: open.reduce((sum, item) => sum + this.rest(item), 0),
+      unconfirmed: open.filter((item) => !item.client_confirmed).length,
+      todos: this.todos().length,
+    };
+  });
+
+  protected readonly tomorrow = computed(() => {
+    const day = inputDate(addDays(new Date(), 1));
+    return this.booked().filter((item) => item.status === 'scheduled' && item.starts_at.slice(0, 10) === day);
+  });
+  /** Citas ya recordadas hoy (por id), para ir una por una sin repetir. */
+  protected readonly reminded = signal<number[]>(readReminded());
+  protected readonly pendingReminders = computed(() =>
+    this.tomorrow().filter(
+      (item) => (item.client_phone ?? '').replace(/\D/g, '').length >= 8 && !item.client_confirmed && !this.reminded().includes(item.id),
+    ),
+  );
+
+  // birthday lo agrega el backend en GET /api/clients; se tipa opcional aquí sin tocar booking.service.ts.
+  protected readonly clients = signal<{ id: number; full_name: string; phone: string; birthday?: string | null }[]>([]);
+  protected readonly birthdays = computed(() => {
+    const now = new Date();
+    const today = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    return this.clients().filter((client) => client.birthday?.slice(5, 10) === today);
+  });
+
+  /** "Te toca": a quién le toca volver; las ya invitadas van al final. */
+  protected readonly dueClients = signal<DueClient[]>([]);
+  protected readonly dueShown = computed(() => [...this.dueClients()].sort((left, right) => Number(left.invited) - Number(right.invited)).slice(0, 6));
+
+  /** Avisos que salen de los números: semana arriba o abajo, huecos, faltas, productos por acabarse. */
+  protected readonly alerts = signal<{ tone: string; text: string; link: string }[]>([]);
+
+  /** Lo cobrado esta semana (lunes a hoy) contra los mismos días de la semana pasada. */
+  protected readonly week = signal<{ total: number; count: number; change: number | null } | null>(null);
+
+  protected readonly noticePage = signal(0);
+  protected readonly pagedNotices = computed(() => {
+    const start = this.noticePage() * NOTICES_PER_PAGE;
+    return this.notices().slice(start, start + NOTICES_PER_PAGE);
+  });
+  protected readonly noticePages = computed(() => Math.max(1, Math.ceil(this.notices().length / NOTICES_PER_PAGE)));
+
+  /** Pasos para dejar el negocio listo. Oculta la lista, los avisos (p. ej. falta la CLABE) se siguen viendo. */
+  protected readonly setup = signal<ReadinessStep[]>([]);
+  protected readonly setupHidden = signal(readFlag('nexia-setup-hidden'));
+  protected readonly setupShown = computed(() =>
+    this.setupHidden() ? this.setup().filter((step) => step.group === 'aviso' && !step.done) : this.setup(),
+  );
+  protected readonly setupLeft = computed(() => this.setup().filter((step) => !step.done).length);
+  /** Falta algo para poder reservar (servicios, equipo u horario): se ofrece el asistente. */
+  protected readonly needsWizard = computed(() => this.setup().some((step) => step.group === 'arranque' && step.key !== 'share' && !step.done));
+
+  constructor() {
+    this.settingsApi.demoStatus().pipe(catchError(() => of({ loaded: false }))).subscribe((row) => this.demoLoaded.set(row.loaded));
+    this.settingsApi
+      .getReadiness()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (ready) => this.setup.set(ready.steps.filter((step) => step.group !== 'perfil')),
+        error: () => this.setup.set([]),
+      });
+    this.load();
+    this.loadExtras();
+    const timer = setInterval(() => this.now.set(Date.now()), 60_000);
+    this.destroyRef.onDestroy(() => clearInterval(timer));
+  }
+
+  /** Solo las citas son indispensables; lo demás, si falla, se queda vacío sin tumbar la página. */
+  protected load(): void {
+    this.isLoading.set(true);
+    this.loadError.set(null);
+    forkJoin({
+      appointments: this.appointmentsApi.getAppointments({ start_date: inputDate(new Date()), end_date: inputDate(addDays(new Date(), 21)) }),
+      services: this.servicesApi.getServices().pipe(catchError(() => of([] as Service[]))),
+      notices: this.dashboardApi.getNotices().pipe(catchError(() => of([] as Notice[]))),
+    })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: ({ appointments, services, notices }) => {
+          this.booked.set(appointments);
+          this.services.set(services);
+          this.notices.set(notices);
+          this.isLoading.set(false);
+        },
+        error: (error: unknown) => {
+          this.isLoading.set(false);
+          this.loadError.set(readError(error, 'No pudimos cargar el inicio.'));
+        },
+      });
+  }
+
+  private loadExtras(): void {
+    this.bookingApi
+      .getDueClients()
+      .pipe(catchError(() => of([] as DueClient[])), takeUntilDestroyed(this.destroyRef))
+      .subscribe((rows) => this.dueClients.set(rows));
+    this.bookingApi
+      .getClients()
+      .pipe(catchError(() => of([])), takeUntilDestroyed(this.destroyRef))
+      .subscribe((rows) => this.clients.set(rows));
+    this.shopApi
+      .alerts()
+      .pipe(catchError(() => of([])), takeUntilDestroyed(this.destroyRef))
+      .subscribe((rows) => this.alerts.set(rows));
+    const today = new Date();
+    const monday = addDays(today, -((today.getDay() + 6) % 7));
+    const total = (start: Date, end: Date): Observable<{ total: number; count: number } | null> =>
+      this.shopApi.report(inputDate(start), inputDate(end)).pipe(
+        map((report) => ({ total: report.total, count: report.completed_count })),
+        catchError(() => of(null)),
+      );
+    forkJoin({ now: total(monday, today), before: total(addDays(monday, -7), addDays(today, -7)) })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(({ now, before }) => {
+        if (now) {
+          const change = before && before.total > 0 ? Math.round(((now.total - before.total) / before.total) * 100) : null;
+          this.week.set({ ...now, change });
+        }
+      });
+  }
 
   protected async toggleDemo(): Promise<void> {
     const loaded = this.demoLoaded();
@@ -83,14 +241,6 @@ export class HomePageComponent {
       error: () => this.demoBusy.set(false),
     });
   }
-  /** Pasos para dejar el negocio listo; desaparece al completarlos o al ocultarla. */
-  protected readonly setup = signal<ReadinessStep[]>([]);
-  protected readonly setupHidden = signal(readFlag('nexia-setup-hidden'));
-  /** Falta algo para poder reservar (servicios, equipo u horario): se ofrece el asistente. */
-  protected readonly needsWizard = computed(() => this.setup().some((step) => step.group === 'arranque' && step.key !== 'share' && !step.done));
-  protected readonly setupLeft = computed(() => this.setup().filter((step) => !step.done).length);
-  /** Un aviso (p. ej. falta la CLABE) se muestra aunque la lista se haya ocultado. */
-  protected readonly setupWarnings = computed(() => this.setup().some((step) => step.group === 'aviso'));
 
   protected hideSetup(): void {
     this.setupHidden.set(true);
@@ -101,211 +251,38 @@ export class HomePageComponent {
     }
   }
 
-  /** La misma lista que Mi negocio: lo que impide reservar y lo que está mal configurado. */
-  private loadSetup(): void {
-    this.settingsApi
-      .getReadiness()
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (ready) => this.setup.set(ready.steps.filter((step) => step.group !== 'perfil')),
-        error: () => this.setup.set([]),
-      });
-  }
-  private readonly packagesApi = inject(PackagesService);
-  private readonly destroyRef = inject(DestroyRef);
-  protected readonly packages = signal<VisitPackage[]>([]);
-  protected readonly packageName = signal('');
-  protected readonly packagePhone = signal('');
-  protected readonly packageVisits = signal(5);
-  private readonly timeFormat = new Intl.DateTimeFormat('es-MX', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-  private readonly dayFormat = new Intl.DateTimeFormat('es-MX', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-  });
-
-  protected readonly reviews = signal<Review[]>([]);
-  protected readonly upcoming = signal<Appointment[]>([]);
-  protected readonly booked = signal<Appointment[]>([]);
-  protected readonly notices = signal<{ id: number; message: string; created_at: string }[]>([]);
-  protected readonly noticePage = signal(0);
-  protected readonly pagedNotices = computed(() => {
-    const start = this.noticePage() * 10;
-    return this.notices().slice(start, start + 10);
-  });
-  protected readonly noticePages = computed(() => Math.max(1, Math.ceil(this.notices().length / 10)));
-  protected readonly openings = signal<{ staff: string; slots: AvailabilitySlot[] }[]>([]);
-  // birthday lo agrega el backend en GET /api/clients; se tipa opcional aquí sin tocar booking.service.ts.
-  protected readonly clients = signal<{ id: number; full_name: string; phone: string; birthday?: string | null }[]>([]);
-  protected readonly birthdays = computed(() => {
-    const now = new Date();
-    const today = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    return this.clients().filter((client) => client.birthday?.slice(5, 10) === today);
-  });
-  protected readonly offerId = signal<number | null>(null);
-  protected readonly clientPicks = computed(() => this.clients().map((client) => ({ value: client.id, label: client.full_name })));
-  protected readonly tomorrow = computed(() => {
-    const day = inputDate(addDays(new Date(), 1));
-    return this.booked().filter((item) => item.status === 'scheduled' && item.starts_at.slice(0, 10) === day);
-  });
-  protected readonly readyReminders = computed(() =>
-    this.tomorrow().filter((item) => (item.client_phone ?? '').replace(/\D/g, '').length >= 8),
-  );
-  /** Citas ya recordadas hoy (por id), para ir una por una sin repetir. */
-  protected readonly reminded = signal<number[]>(readReminded());
-  protected readonly pendingReminders = computed(() =>
-    this.readyReminders().filter((item) => !item.client_confirmed && !this.reminded().includes(item.id)),
-  );
-  protected readonly todayVisits = computed(() => {
-    const day = inputDate(new Date());
-    return this.booked().filter((item) => item.status === 'scheduled' && item.starts_at.slice(0, 10) === day);
-  });
-  protected readonly stats = signal<DashboardStats | null>(null);
-  protected readonly todayLabel = new Intl.DateTimeFormat('es-MX', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
-
-  /** Lo que la dueña tiene que atender hoy, en una línea. */
-  protected readonly dayBrief = computed(() => {
-    const today = inputDate(new Date());
-    const visits = this.todayVisits();
-    return {
-      visits: visits.length,
-      unconfirmed: visits.filter((item) => !item.client_confirmed).length,
-      deposits: this.booked().filter((item) => item.status === 'awaiting_deposit' && item.starts_at.slice(0, 10) >= today).length,
-    };
-  });
-  protected readonly isLoading = signal(true);
-  protected readonly loadError = signal<string | null>(null);
-  protected readonly stars = [1, 2, 3, 4, 5];
-
-  constructor() {
-    this.settingsApi.demoStatus().pipe(catchError(() => of({ loaded: false }))).subscribe((row) => this.demoLoaded.set(row.loaded));
-    if (!this.setupHidden()) {
-      this.loadSetup();
-    }
-    const start = inputDate(new Date());
-    const end = inputDate(addDays(new Date(), 21));
-    forkJoin({
-      reviews: this.reviewsApi.getReviews(),
-      stats: this.dashboardApi.getStats(),
-      appointments: this.appointmentsApi.getAppointments({ start_date: start, end_date: end }),
-      notices: this.dashboardApi.getNotices(),
-      packages: this.packagesApi.list().pipe(catchError(() => of([] as VisitPackage[]))),
-    })
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: ({ reviews, stats, appointments, notices, packages }) => {
-          const now = Date.now() - 30 * 60 * 1000;
-          this.reviews.set(reviews);
-          this.notices.set(notices);
-          this.packages.set(packages);
-          this.booked.set(appointments);
-          this.stats.set(stats);
-          this.upcoming.set(
-            appointments
-              .filter((item) => item.status === 'scheduled' && parseLocal(item.starts_at).getTime() >= now)
-              .slice(0, 6),
-          );
-          this.isLoading.set(false);
-          this.loadOpenings();
-        },
-        error: (error: unknown) => {
-          this.isLoading.set(false);
-          this.loadError.set(readError(error, 'No pudimos cargar el inicio.'));
-        },
-      });
+  /** "/admin/settings?sec=promos" → ruta y parámetros para routerLink. */
+  protected linkOf(link: string): { path: string; query: Record<string, string> } {
+    const [path, query] = link.split('?');
+    return { path, query: Object.fromEntries(new URLSearchParams(query ?? '')) };
   }
 
-  protected savePackage(): void {
-    const name = this.packageName().trim();
-    const phone = this.packagePhone().trim();
-    const visits = Number(this.packageVisits());
-    if (!name || !phone || !visits) {
-      return;
-    }
-    this.packagesApi.create(name, phone, visits).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((row) => {
-      this.packages.update((items) => [row, ...items]);
-      this.packageName.set('');
-      this.packagePhone.set('');
-    });
+  protected scrollTo(id: string): void {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  protected replyReview(review: Review, event: Event): void {
-    event.preventDefault();
-    const reply = String(new FormData(event.target as HTMLFormElement).get('reply') ?? '').trim();
-    if (!reply) {
-      return;
-    }
-    this.reviewsApi.reply(review.id, reply).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((updated) => {
-      this.reviews.update((rows) => rows.map((row) => (row.id === updated.id ? updated : row)));
-    });
+  protected pesos(amount: number): string {
+    return this.pesosFormat.format(amount);
   }
 
-  protected initial(name: string): string {
-    return name.trim().charAt(0).toUpperCase() || '·';
+  /** Lo que falta cobrar en la cita: precio (o cotización) menos el anticipo. */
+  private rest(item: Appointment): number {
+    const total = item.quoted_price ?? this.services().find((row) => row.id === item.service_id)?.price ?? 0;
+    return Math.max(0, total - (item.deposit_amount ?? 0));
   }
 
-  protected when(value: string): string {
-    const date = parseLocal(value);
-    const days = Math.floor((startOfDay(new Date()).getTime() - startOfDay(date).getTime()) / 86400000);
-    if (days <= 0) {
-      return 'Hoy';
-    }
-    if (days === 1) {
-      return 'Ayer';
-    }
-    if (days < 7) {
-      return `Hace ${days} d`;
-    }
-    return this.dayFormat.format(date);
+  private minutes(item: Appointment): number {
+    return this.services().find((row) => row.id === item.service_id)?.duration_minutes || 60;
   }
 
-  private loadDue(): void {
-    this.bookingApi
-      .getDueClients()
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({ next: (rows) => this.dueClients.set(rows), error: () => this.dueClients.set([]) });
+  /** Ya terminó y no se ha cobrado: el botón Cobrar se vuelve el principal. */
+  protected overdue(item: Appointment): boolean {
+    return item.status === 'scheduled' && parseLocal(item.starts_at).getTime() + this.minutes(item) * 60_000 <= this.now();
   }
 
-  private loadOpenings(): void {
-    this.loadDue();
-    const slug = this.auth.currentUser()?.slug;
-    if (!slug) {
-      return;
-    }
-    const day = inputDate(addDays(new Date(), 1));
-    forkJoin({
-      staff: this.staffApi.getStaff(),
-      services: this.servicesApi.getServices(),
-      clients: this.bookingApi.getClients(),
-    })
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(({ staff, services, clients }) => {
-        this.clients.set(clients);
-        this.offerId.set(clients[0]?.id ?? null);
-        const service = services.find((item) => item.is_active);
-        const people = staff.filter((item) => item.is_active).slice(0, 3);
-        if (!service || people.length === 0) {
-          return;
-        }
-        forkJoin(
-          people.map((member) =>
-            this.bookingApi.getAvailability(slug, service.id, member.id, day).pipe(
-              map((slots) => ({ staff: member.full_name, slots: slots.slice(0, 3) })),
-              catchError(() => of({ staff: member.full_name, slots: [] as AvailabilitySlot[] })),
-            ),
-          ),
-        )
-          .pipe(takeUntilDestroyed(this.destroyRef))
-          .subscribe((rows) => this.openings.set(rows.filter((row) => row.slots.length > 0)));
-      });
+  protected confirmWhatsapp(item: Appointment): string {
+    return this.remind(item, 'hoy');
   }
-
-  /** "Te toca": a quién le toca volver; las ya invitadas van al final. */
-  protected readonly dueClients = signal<DueClient[]>([]);
-  protected readonly dueShown = computed(() => [...this.dueClients()].sort((left, right) => Number(left.invited) - Number(right.invited)).slice(0, 6));
 
   protected dueWhatsapp(row: DueClient): string {
     const slug = this.auth.currentUser()?.slug ?? '';
@@ -339,15 +316,6 @@ export class HomePageComponent {
 
   private shopName(): string {
     return this.auth.currentUser()?.businessName ?? '';
-  }
-
-  protected offer(slot: string, staff: string): void {
-    const client = this.clients().find((item) => item.id === this.offerId()) ?? this.clients()[0];
-    if (!client) {
-      return;
-    }
-    const text = this.copy.message('opening', { nombre: firstName(client.full_name), hora: this.timeFormat.format(parseLocal(slot)), equipo: staff });
-    window.open(whatsappLink(client.phone, text), '_blank', 'noopener');
   }
 
   /**
@@ -431,6 +399,8 @@ export class HomePageComponent {
     return sameDay ? `Hoy · ${time}` : `${this.dayFormat.format(date)} · ${time}`;
   }
 }
+
+const NOTICES_PER_PAGE = 8;
 
 function inputDate(date: Date): string {
   const month = String(date.getMonth() + 1).padStart(2, '0');

@@ -1,13 +1,15 @@
 <main class="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8" [class.pb-40]="summary() && !confirmation()">
   <header class="flex flex-col gap-3 overflow-hidden rounded-2xl border bg-white" style="border-color: color-mix(in srgb, var(--booking-primary, var(--primary)) 28%, white)">
     <!-- Portada: la primera foto del trabajo, con un degradado del color de la marca para que el texto se lea. -->
-    @if (gallery()[0]; as cover) {
+    @if (headerStyle() === 'cover' && gallery()[0]; as cover) {
       <div class="relative h-28 sm:h-36" aria-hidden="true">
         <img [src]="cover" alt="" class="h-full w-full object-cover" />
         <span class="absolute inset-0" style="background: linear-gradient(to bottom, transparent 55%, color-mix(in srgb, var(--booking-primary, var(--primary)) 12%, white))"></span>
       </div>
     }
-    <div class="flex items-center gap-4 px-5 py-5" style="background: color-mix(in srgb, var(--booking-primary, var(--primary)) 12%, white)">
+    <div class="flex items-center gap-4 px-5 py-5"
+      [style.background]="headerStyle() === 'color' ? 'var(--booking-primary)' : headerStyle() === 'plain' ? 'white' : 'color-mix(in srgb, var(--booking-primary, var(--primary)) 12%, white)'"
+      [style.color]="headerStyle() === 'color' ? 'var(--booking-on)' : null">
       @if (brand()?.logo_url && !logoFailed()) {
         <img [src]="brand()!.logo_url" [alt]="brand()?.name || ''" class="h-16 w-16 rounded-2xl bg-white object-contain p-1" (error)="logoFailed.set(true)" />
       } @else {
@@ -23,6 +25,9 @@
         }
         @if (brand()?.address) {
           <p class="text-sm text-ink-soft">{{ brand()?.address }}</p>
+        }
+        @if (brand()?.hours?.length) {
+          <p class="text-sm text-ink-soft">Horario: {{ brand()?.hours?.join(' · ') }}</p>
         }
       </div>
     </div>
@@ -174,8 +179,15 @@
                     <span class="block text-xs text-muted">{{ service.category }}</span>
                   }
                   <span class="block font-medium">{{ service.name }}</span>
+                  @if (service.featured) {
+                    <span class="mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium text-white" style="background: var(--booking-primary, var(--primary))">El más pedido</span>
+                  }
                   <span class="mt-1 block text-sm text-ink-soft">
-                    {{ service.duration_minutes }} min · {{ service.variable_price ? 'Precio según lo que pidas' : formatPrice(service.price) }}
+                    @if ((service.variants ?? []).length) {
+                      Desde {{ formatPrice(minVariant(service)) }} · {{ (service.variants ?? []).length }} opciones
+                    } @else {
+                      {{ service.duration_minutes }} min · {{ service.variable_price ? 'Precio según lo que pidas' : formatPrice(service.price) }}
+                    }
                   </span>
                   @if (service.description) {
                     <span class="mt-1 block text-sm text-muted">{{ service.description }}</span>
@@ -184,6 +196,21 @@
               </button>
             }
           </div>
+          @if (selectedService(); as picked) {
+            @if ((picked.variants ?? []).length) {
+              <div class="mt-5">
+                <p class="text-sm font-medium">Elige una opción</p>
+                <div class="mt-2 grid gap-2 sm:grid-cols-3">
+                  @for (option of picked.variants ?? []; track option.name) {
+                    <button type="button" class="choice-card px-3 py-2 text-left" [class.choice-selected]="selectedVariant() === option.name" (click)="selectedVariant.set(option.name); selectedSlot.set(null)">
+                      <span class="block text-sm font-medium">{{ option.name }}</span>
+                      <span class="block text-xs text-muted">{{ option.duration_minutes }} min · {{ formatPrice(option.price) }}</span>
+                    </button>
+                  }
+                </div>
+              </div>
+            }
+          }
           @if (selectedService() && services().length > 1) {
             <div class="mt-5">
               <p class="text-sm font-medium">¿Sumas otro servicio?</p>

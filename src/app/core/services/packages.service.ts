@@ -29,4 +29,12 @@ export class PackagesService {
       visits,
     });
   }
+
+  update(id: number, remaining: number): Observable<VisitPackage> {
+    return this.http.patch<VisitPackage>(`${this.apiBaseUrl}/packages/${id}`, { remaining });
+  }
+
+  remove(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiBaseUrl}/packages/${id}`);
+  }
 }

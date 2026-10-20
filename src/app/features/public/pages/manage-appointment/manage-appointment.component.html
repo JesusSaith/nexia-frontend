@@ -22,6 +22,10 @@
         <div class="mt-4 rounded-2xl bg-canvas p-4">
           @if (reviewState() === 'sent') {
             <p class="text-sm font-medium">¡Gracias por tu opinión! </p>
+            @if (rating() >= 4 && item.google_review_url) {
+              <p class="mt-2 text-sm text-ink-soft">¿Nos ayudas a que más personas nos encuentren? Deja tu opinión también en Google; toma un minuto.</p>
+              <a class="btn btn-primary mt-3 w-full" [href]="item.google_review_url" target="_blank" rel="noopener">Opinar en Google</a>
+            }
           } @else {
             <p class="text-sm font-medium">¿Cómo te fue?</p>
             <div class="mt-2 flex gap-1" role="radiogroup" aria-label="Calificación">

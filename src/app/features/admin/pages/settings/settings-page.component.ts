@@ -15,6 +15,7 @@ import { Holiday, upcomingHolidays } from '@core/holidays';
 import { PAYMENT_METHODS, methodsSentence } from '@core/payment-methods';
 import { BusinessSettings, ProfileUpdate, SettingsService } from '@core/services/settings.service';
 import { Toasts } from '@core/toasts';
+import { ButtonFill, ButtonShape, FONT_STACKS, FontStyle, HeaderStyle, SHAPE_RADIUS, ThemePreset, contrast, presets, textOn, tint } from '@core/theme';
 import { Confirm } from '@shared/components/confirm/confirm';
 import { PickFieldComponent } from '@shared/components/when-field/when-field';
 
@@ -137,6 +138,50 @@ export class SettingsPageComponent {
   // Lo que no es un control del formulario (fotos, cupones, pausa…) vive en signals.
   protected readonly logoUrl = signal<string | null>(null);
   protected readonly suggestedColor = signal<string | null>(null);
+  /** Colores principales del logo (para asignarlos a botones, detalles o fondo). */
+  protected readonly logoPalette = signal<string[]>([]);
+  // Tema de la página de reservas
+  protected readonly accentColor = signal<string | null>(null);
+  protected readonly canvasColor = signal<string | null>(null);
+  protected readonly buttonShape = signal<ButtonShape>('pill');
+  protected readonly buttonFill = signal<ButtonFill>('solid');
+  protected readonly fontStyle = signal<FontStyle>('modern');
+  protected readonly headerStyle = signal<HeaderStyle>('cover');
+  protected readonly themePresets = computed(() => {
+    this.values();
+    return presets(this.form.controls.primaryColor.value);
+  });
+  protected readonly fontStacks = FONT_STACKS;
+  protected readonly shapeOptions: { v: ButtonShape; l: string }[] = [{ v: 'pill', l: 'Píldora' }, { v: 'rounded', l: 'Redondeado' }, { v: 'square', l: 'Recto' }];
+  protected readonly fontOptions: { v: FontStyle; l: string }[] = [{ v: 'modern', l: 'Moderna' }, { v: 'elegant', l: 'Elegante' }, { v: 'warm', l: 'Cálida' }];
+  protected readonly headerOptions: { v: HeaderStyle; l: string }[] = [{ v: 'cover', l: 'Con portada' }, { v: 'color', l: 'De color' }, { v: 'plain', l: 'Liso' }];
+  protected readonly radius = SHAPE_RADIUS;
+  /** Texto de los botones (blanco u oscuro, el que se lea) y aviso si el color casi no se ve sobre el fondo. */
+  protected readonly buttonText = computed(() => {
+    this.values();
+    return textOn(this.form.controls.primaryColor.value);
+  });
+  protected readonly lowContrast = computed(() => {
+    this.values();
+    return contrast(this.form.controls.primaryColor.value, this.canvasColor() || '#ffffff') < 2.2;
+  });
+
+  protected applyPreset(preset: ThemePreset): void {
+    this.canvasColor.set(preset.canvas);
+    this.headerStyle.set(preset.header);
+  }
+
+  /** Asigna un color del logo a botones, detalles o fondo. */
+  protected assignColor(color: string, target: 'primary' | 'accent' | 'canvas'): void {
+    if (target === 'primary') {
+      this.form.controls.primaryColor.setValue(color);
+      this.form.controls.primaryColor.markAsDirty();
+    } else if (target === 'accent') {
+      this.accentColor.set(color);
+    } else {
+      this.canvasColor.set(tint(color, 0.9));
+    }
+  }
   protected readonly uploading = signal(false);
   protected readonly photoNotice = signal('');
   protected readonly pausing = signal(false);
@@ -204,7 +249,12 @@ export class SettingsPageComponent {
       facebook: facebookUrl(value.facebook),
       logo_url: this.logoUrl(),
       primary_color: color,
-      canvas_color: colorChanged ? lighten(color, 0.9) : (saved?.canvas_color ?? null),
+      canvas_color: this.canvasColor() ?? (colorChanged ? lighten(color, 0.9) : (saved?.canvas_color ?? null)),
+      accent_color: this.accentColor(),
+      button_shape: this.buttonShape(),
+      button_fill: this.buttonFill(),
+      font_style: this.fontStyle(),
+      header_style: this.headerStyle(),
       min_notice_hours: numberOr(value.minNoticeHours, 0),
       max_days_ahead: numberOr(value.maxDaysAhead, 90),
       buffer_minutes: numberOr(value.bufferMinutes, 0),
@@ -246,7 +296,7 @@ export class SettingsPageComponent {
       return 0;
     }
     const current = this.payload();
-    return (Object.keys(current) as (keyof ProfileUpdate)[]).filter((key) => key !== 'canvas_color' && JSON.stringify(current[key]) !== JSON.stringify(saved[key])).length;
+    return (Object.keys(current) as (keyof ProfileUpdate)[]).filter((key) => JSON.stringify(current[key]) !== JSON.stringify(saved[key])).length;
   });
 
   /** Error del cierre que se está agregando (no bloquea el guardado: aún no está en la lista). */
@@ -674,7 +724,9 @@ export class SettingsPageComponent {
         return;
       }
       this.logoUrl.set(data);
-      const color = colorsFrom(ctx.getImageData(0, 0, size, size))[0] ?? null;
+      const palette = colorsFrom(ctx.getImageData(0, 0, size, size));
+      this.logoPalette.set(palette);
+      const color = palette[0] ?? null;
       this.suggestedColor.set(color && color.toLowerCase() !== this.form.controls.primaryColor.value.toLowerCase() ? color : null);
     };
     img.onerror = () => {
@@ -837,6 +889,12 @@ export class SettingsPageComponent {
     this.suggestedColor.set(null);
     this.photoNotice.set('');
     this.photos.set(settings.gallery ?? []);
+    this.accentColor.set(settings.accent_color ?? null);
+    this.canvasColor.set(settings.canvas_color ?? null);
+    this.buttonShape.set((settings.button_shape as ButtonShape) || 'pill');
+    this.buttonFill.set((settings.button_fill as ButtonFill) || 'solid');
+    this.fontStyle.set((settings.font_style as FontStyle) || 'modern');
+    this.headerStyle.set((settings.header_style as HeaderStyle) || 'cover');
     this.promo.set(settings.promo_text ?? '');
     this.promoUntil.set(settings.promo_until ?? '');
     this.pauseBookings.set(Boolean(settings.bookings_paused));
@@ -889,7 +947,7 @@ export class SettingsPageComponent {
 /** Campo del backend → sección donde se corrige. */
 const FIELD_SECTION: Record<string, SectionId> = {
   name: 'negocio', phone: 'negocio', description: 'negocio', address: 'negocio', instagram: 'negocio', facebook: 'negocio', business_kind: 'negocio',
-  logo_url: 'apariencia', primary_color: 'apariencia', gallery: 'apariencia',
+  logo_url: 'apariencia', primary_color: 'apariencia', gallery: 'apariencia', canvas_color: 'apariencia', accent_color: 'apariencia', button_shape: 'apariencia', button_fill: 'apariencia', font_style: 'apariencia', header_style: 'apariencia',
   min_notice_hours: 'reservas', max_days_ahead: 'reservas', buffer_minutes: 'reservas', cancel_hours: 'reservas', timezone: 'reservas', resources: 'reservas', cancel_policy: 'reservas',
   deposit_amount: 'anticipo', deposit_percent: 'anticipo', deposit_account: 'anticipo', deposit_hold_hours: 'anticipo', payment_url: 'anticipo',
   promo_text: 'promociones', promo_until: 'promociones', loyalty_every: 'promociones', loyalty_percent: 'promociones', coupons: 'promociones',

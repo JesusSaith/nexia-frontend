@@ -175,8 +175,10 @@ export class DashboardPageComponent {
       { label: 'Ticket promedio', icon: 'receipt_long', value: this.money(now.average_ticket), delta: change(now.average_ticket, before?.average_ticket) },
     ];
   });
+  /** Contra qué se compara: el periodo anterior o el mismo periodo del año pasado. */
+  protected readonly compareTo = signal<'prev' | 'year'>('prev');
   protected readonly versus = computed(() =>
-    this.period() === 'day' ? 'vs. ayer' : this.period() === 'week' ? 'vs. semana pasada' : this.period() === 'month' ? 'vs. mes pasado' : 'vs. periodo anterior',
+    this.compareTo() === 'year' ? 'vs. hace un año' : this.period() === 'day' ? 'vs. ayer' : this.period() === 'week' ? 'vs. semana pasada' : this.period() === 'month' ? 'vs. mes pasado' : 'vs. periodo anterior',
   );
   /** Sin nada en el periodo: se muestra un aviso en lugar de una fila de $0.00. */
   protected readonly isEmpty = computed(() => {
@@ -292,10 +294,23 @@ export class DashboardPageComponent {
         amount: item.amount,
       }));
     }
+    // Lo cobrado día por día sale del reporte; si no viene, de la tendencia del resumen.
+    const daily = books?.daily ?? [];
+    if (daily.length > 1) {
+      return daily.map((day) => ({ label: this.dayLabel(day.date), amount: this.metric() === 'revenue' ? day.total : day.count }));
+    }
     return this.points().map((point) => ({
       label: this.dayLabel(point.date),
       amount: this.metric() === 'revenue' ? point.revenue : point.count,
     }));
+  });
+  /** El periodo de comparación, día por día, alineado con el actual (día 1 con día 1). */
+  protected readonly prevSeries = computed(() => {
+    if (this.view() !== 'income') {
+      return [];
+    }
+    const length = this.series().length;
+    return (this.previous()?.daily ?? []).slice(0, length).map((day) => (this.metric() === 'revenue' ? day.total : day.count));
   });
   protected readonly headline = computed(() => {
     const total = this.series().reduce((sum, point) => sum + point.amount, 0);
@@ -350,7 +365,8 @@ export class DashboardPageComponent {
     if (points.length === 0) {
       return null;
     }
-    const max = Math.max(this.metric() === 'count' ? 4 : 100, ...points.map((point) => point.amount)) * 1.15;
+    const before = this.prevSeries();
+    const max = Math.max(this.metric() === 'count' ? 4 : 100, ...points.map((point) => point.amount), ...before) * 1.15;
     const left = 58;
     const top = 12;
     const plotW = 570;
@@ -376,8 +392,155 @@ export class DashboardPageComponent {
     const labels = points
       .map((point, index) => ({ x: points.length === 1 ? left + plotW / 2 : left + (index / (points.length - 1)) * plotW, label: point.label, index }))
       .filter((point) => point.index % step === 0 || point.index === points.length - 1);
-    return { line, area: `${line} L${spots.at(-1)!.x.toFixed(1)},${base} L${spots[0].x.toFixed(1)},${base} Z`, ticks, labels, base };
+    const prevLine = before.length > 1 && points.length > 1
+      ? before.map((amount, index) => `${index ? 'L' : 'M'}${(left + (index / (points.length - 1)) * plotW).toFixed(1)},${yOf(amount).toFixed(1)}`).join(' ')
+      : null;
+    return { prevLine, line, area: `${line} L${spots.at(-1)!.x.toFixed(1)},${base} L${spots[0].x.toFixed(1)},${base} Z`, ticks, labels, base, spots, slot: points.length > 1 ? plotW / (points.length - 1) : plotW };
   });
+
+  /** Punto de la gráfica que se tocó: muestra su monto exacto. */
+  protected readonly pointAt = signal<number | null>(null);
+  protected readonly pointInfo = computed(() => {
+    const index = this.pointAt();
+    const chart = this.area();
+    const points = this.series();
+    if (index === null || !chart || !points[index]) {
+      return null;
+    }
+    const value = this.view() === 'income' && this.metric() === 'count' ? String(points[index].amount) : this.money(points[index].amount);
+    return { ...chart.spots[index], label: points[index].label, value };
+  });
+
+  /** Tabla por colaboradora: lo que deja por hora trabajada, ocupación, propinas, faltas y cuántas clientas regresan. */
+  protected readonly staffTable = computed(() =>
+    (this.books()?.staff ?? []).map((person) => {
+      const worked = Math.max(0, (person.open_hours ?? 0) - person.free_hours);
+      return {
+        ...person,
+        perHour: worked > 0 ? person.income / worked : 0,
+        returnShare: person.clients ? Math.round(((person.returning ?? 0) / person.clients) * 100) : null,
+      };
+    }),
+  );
+
+  /** Faltas y cancelaciones sobre todas las citas que debían ocurrir en el periodo. */
+  protected readonly misses = computed(() => {
+    const row = this.books();
+    if (!row) {
+      return null;
+    }
+    const lost = (row.cancelled_count ?? 0) + (row.no_show_count ?? 0);
+    const due = row.completed_count + lost;
+    return { cancelled: row.cancelled_count ?? 0, noShow: row.no_show_count ?? 0, rate: due ? Math.round((lost / due) * 100) : 0, money: row.missed_amount };
+  });
+
+  /** Clientas: re-reserva, valor promedio, descuentos y de dónde llegan las citas. */
+  protected readonly loyalty = computed(() => {
+    const row = this.books();
+    if (!row) {
+      return null;
+    }
+    const sources = row.by_source ?? {};
+    const made = Object.values(sources).reduce((sum, value) => sum + value, 0);
+    return {
+      rebook: row.completed_count ? Math.round(((row.rebooked ?? 0) / row.completed_count) * 100) : null,
+      value: row.client_value ?? 0,
+      discounts: row.discount_count ?? 0,
+      discountAmount: row.discount_amount ?? 0,
+      page: made ? Math.round(((sources['page'] ?? 0) / made) * 100) : null,
+      made,
+      known: (sources['page'] ?? 0) + (sources['admin'] ?? 0),
+      lead: row.lead_days ?? null,
+    };
+  });
+
+  /** Últimos 12 meses en barras. */
+  protected readonly yearBars = computed(() => {
+    const months = this.books()?.months ?? [];
+    const max = Math.max(1, ...months.map((item) => item.total));
+    const name = new Intl.DateTimeFormat('es-MX', { month: 'short' });
+    return months.map((item) => ({
+      ...item,
+      label: name.format(new Date(`${item.month}-15T12:00:00`)).replace('.', ''),
+      height: Math.max(item.total > 0 ? 4 : 1, Math.round((item.total / max) * 100)),
+    }));
+  });
+  protected readonly yearTotal = computed(() => (this.books()?.months ?? []).reduce((sum, item) => sum + item.total, 0));
+
+  /** Gastos por categoría: % de los ingresos y cambio contra el periodo anterior. */
+  protected readonly categoryRows = computed(() => {
+    const row = this.books();
+    const before = this.previous()?.by_category ?? {};
+    const labels = Object.fromEntries(this.categoryPicks.map((item) => [item.value, item.label]));
+    return Object.entries(row?.by_category ?? {})
+      .filter(([, amount]) => amount > 0)
+      .map(([key, amount]) => ({
+        label: labels[key] ?? key,
+        amount,
+        share: row && row.total > 0 ? Math.round((amount / row.total) * 100) : null,
+        delta: amount - (before[key] ?? 0),
+      }))
+      .sort((left, right) => right.amount - left.amount);
+  });
+
+  /** Pago (o abono) de comisión: se guarda el total pagado del periodo. */
+  protected readonly payDraft = signal<Record<number, string>>({});
+
+  protected typePay(staffId: number, value: string): void {
+    this.payDraft.update((draft) => ({ ...draft, [staffId]: value }));
+  }
+
+  protected pay(person: { staff_id: number; commission: number; paid: number }): void {
+    const typed = Number(this.payDraft()[person.staff_id] ?? this.owed(person.commission, person.paid));
+    if (!(typed > 0)) {
+      return;
+    }
+    this.markPaid(person.staff_id, Math.min(person.commission, person.paid + typed), true);
+    this.payDraft.update((draft) => ({ ...draft, [person.staff_id]: '' }));
+  }
+
+  /** Recibo para mandarle por WhatsApp: periodo, citas, comisión, propinas y lo pagado. */
+  protected receipt(person: { staff_name: string; visits: number; income: number; percent: number; commission: number; paid: number; tips?: number }): string {
+    const text = [
+      `Hola ${person.staff_name.split(' ')[0]}, este es tu resumen del ${this.rangeStart()} al ${this.rangeEnd()}:`,
+      `• Citas: ${person.visits}`,
+      `• Vendiste: ${this.money(person.income)}`,
+      `• Comisión (${person.percent}%): ${this.money(person.commission - (person.tips ?? 0))}`,
+      person.tips ? `• Propinas: ${this.money(person.tips)}` : '',
+      `• Total: ${this.money(person.commission)}`,
+      `• Pagado: ${this.money(person.paid)}`,
+      `• Pendiente: ${this.money(this.owed(person.commission, person.paid))}`,
+    ].filter(Boolean).join('\n');
+    return `https://wa.me/?text=${encodeURIComponent(text)}`;
+  }
+
+  /** CSV del año para el contador: por mes, ingresos por método y gastos por categoría. */
+  protected downloadAccounting(): void {
+    const year = new Date().getFullYear();
+    this.shop
+      .accounting(year)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((months) => {
+        const methods = [...new Set(months.flatMap((row) => Object.keys(row.by_method)))];
+        const categories = [...new Set(months.flatMap((row) => Object.keys(row.by_category)))];
+        const catLabels = Object.fromEntries(this.categoryPicks.map((item) => [item.value, item.label]));
+        const head = ['Mes', ...methods.map((key) => `Cobrado ${METHOD_LABELS[key] ?? key}`), 'Servicios', 'Productos', 'Ingresos', ...categories.map((key) => `Gasto ${catLabels[key] ?? key}`), 'Gastos', 'Comisiones', 'Propinas (aparte)', 'Ganancia'];
+        const rows = months.map((row) => [
+          row.month, ...methods.map((key) => row.by_method[key] ?? 0), row.service_income, row.product_income, row.total,
+          ...categories.map((key) => row.by_category[key] ?? 0), row.expenses, row.commissions, row.tips, row.profit,
+        ]);
+        const csv = [head, ...rows].map((line) => line.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' }));
+        link.download = `contador-${year}.csv`;
+        link.click();
+        URL.revokeObjectURL(link.href);
+      });
+  }
+
+  protected percentOf(part: number, whole: number): number {
+    return whole > 0 ? Math.round((part / whole) * 100) : 0;
+  }
 
   constructor() {
     // El corte de caja se carga al abrir su pestaña.
@@ -419,7 +582,12 @@ export class DashboardPageComponent {
       }
       this.rangeStart.set(start);
       this.rangeEnd.set(end);
-      const prev = this.period() === 'range' ? previousSpan(start, end) : previousRange(this.period(), today);
+      const prev =
+        this.compareTo() === 'year'
+          ? { start: yearAgo(start), end: yearAgo(end) }
+          : this.period() === 'range'
+            ? previousSpan(start, end)
+            : previousRange(this.period(), today);
       const prices = new Map(this.catalog().map((service) => [service.id, service.price]));
       const trend = [...(this.summary()?.month_trend ?? []), ...(this.summary()?.week_trend ?? [])];
       forkJoin({
@@ -430,6 +598,7 @@ export class DashboardPageComponent {
         .pipe(takeUntilDestroyed(this.destroyRef))
         .subscribe(({ current, previous, days }) => {
           this.books.set(current);
+          this.pointAt.set(null);
           this.previous.set(previous);
           this.rangePoints.set(this.period() === 'range' ? dailyCut(start, end, trend, days, prices) : []);
         });
@@ -542,7 +711,7 @@ export class DashboardPageComponent {
   }
 
   protected kpiTone(delta: { up: boolean | null }): string {
-    return delta.up === null ? 'text-muted' : delta.up ? 'text-[var(--nx-ok-fg)]' : 'text-[var(--nx-bad-fg)]';
+    return delta.up === null ? 'text-muted' : delta.up ? 'text-(--nx-ok-fg)' : 'text-(--nx-bad-fg)';
   }
 
 
@@ -783,6 +952,11 @@ function change(now: number, before: number | null | undefined): { text: string;
     return { text: 'Igual', up: null };
   }
   return { text: `${percent > 0 ? '↑' : '↓'} ${Math.abs(percent)}%`, up: percent > 0 };
+}
+
+function yearAgo(day: string): string {
+  const [year, month, date] = day.split('-').map(Number);
+  return `${year - 1}-${String(month).padStart(2, '0')}-${String(month === 2 && date === 29 ? 28 : date).padStart(2, '0')}`;
 }
 
 function previousSpan(start: string, end: string): { start: string; end: string } {

@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, TemplateRef, computed, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
@@ -9,7 +9,9 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { RouterLink } from '@angular/router';
 import { forkJoin, of, switchMap, tap } from 'rxjs';
+import { catchError, map } from 'rxjs/operators';
 
 import { BusinessCopy } from '@core/business-copy';
 import { Toasts } from '@core/toasts';
@@ -17,12 +19,20 @@ import { Service } from '@core/models/service.model';
 import { Staff, StaffWrite } from '@core/models/staff.model';
 import { ServicesService } from '@core/services/services.service';
 import { StaffService } from '@core/services/staff.service';
+import { ScheduleItem } from '@core/models/schedule.model';
+import { AppointmentsService } from '@core/services/appointments.service';
+import { SchedulesService } from '@core/services/schedules.service';
+import { ShopService, CommissionRow } from '@core/services/shop.service';
+import { STAFF_PALETTE, staffColorOf } from '@core/staff-colors';
+import { Confirm } from '@shared/components/confirm/confirm';
 
 type StaffSection = 'info' | 'services' | 'account';
 
 @Component({
   selector: 'app-staff-page',
   imports: [
+    RouterLink,
+    FormsModule,
     ReactiveFormsModule,
     MatButtonModule,
     MatCheckboxModule,
@@ -39,6 +49,29 @@ export class StaffPageComponent {
   protected readonly copy = inject(BusinessCopy);
   private readonly servicesApi = inject(ServicesService);
   private readonly toasts = inject(Toasts);
+  private readonly schedulesApi = inject(SchedulesService);
+  private readonly appointmentsApi = inject(AppointmentsService);
+  private readonly shopApi = inject(ShopService);
+  private readonly confirm = inject(Confirm);
+  protected readonly palette = STAFF_PALETTE;
+  /** Horario de cada quien y sus números del mes. */
+  protected readonly schedules = signal<Map<number, ScheduleItem[]>>(new Map());
+  protected readonly month = signal<Map<number, CommissionRow>>(new Map());
+  /** Quién no puede recibir citas y por qué. */
+  protected readonly problems = computed(() => {
+    const rows = this.staff().filter((member) => member.is_active);
+    return {
+      noSchedule: rows.filter((member) => !this.hasSchedule(member.id)).length,
+      noServices: rows.filter((member) => !(member.service_ids ?? []).length).length,
+    };
+  });
+  protected readonly undoOff = signal<Staff | null>(null);
+  private undoTimer: ReturnType<typeof setTimeout> | null = null;
+  // Vacaciones de una persona
+  protected readonly vacationFor = signal<Staff | null>(null);
+  protected vacationFrom = '';
+  protected vacationTo = '';
+  protected readonly vacationError = signal<string | null>(null);
   private readonly destroyRef = inject(DestroyRef);
   private readonly dialog = inject(MatDialog);
   private readonly editor = viewChild.required<TemplateRef<unknown>>('editor');
@@ -78,6 +111,10 @@ export class StaffPageComponent {
     avatar_url: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(180000)] }),
     bio: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(2000)] }),
     commission_percent: new FormControl('0', { nonNullable: true }),
+    goal: new FormControl('', { nonNullable: true }),
+    tier_amount: new FormControl('', { nonNullable: true }),
+    tier_percent: new FormControl('', { nonNullable: true }),
+    color: new FormControl('', { nonNullable: true }),
     account_email: new FormControl('', {
       nonNullable: true,
       validators: [Validators.email, Validators.maxLength(255)],
@@ -155,6 +192,10 @@ export class StaffPageComponent {
       avatar_url: '',
       bio: '',
       commission_percent: '0',
+      goal: '',
+      tier_amount: '',
+      tier_percent: '',
+      color: '',
       account_email: '',
       account_password: '',
     });
@@ -175,6 +216,10 @@ export class StaffPageComponent {
       avatar_url: member.avatar_url ?? '',
       bio: member.bio ?? '',
       commission_percent: String(member.commission_percent ?? 0),
+      goal: member.goal ? String(member.goal) : '',
+      tier_amount: member.tier_amount ? String(member.tier_amount) : '',
+      tier_percent: member.tier_percent ? String(member.tier_percent) : '',
+      color: member.color ?? '',
       account_email: '',
       account_password: '',
     });
@@ -278,6 +323,10 @@ export class StaffPageComponent {
       avatar_url: raw.avatar_url.trim() || null,
       bio: raw.bio.trim() || null,
       commission_percent: Math.min(100, Math.max(0, Number(raw.commission_percent) || 0)),
+      goal: Number(raw.goal) > 0 ? Number(raw.goal) : null,
+      tier_amount: Number(raw.tier_amount) > 0 ? Number(raw.tier_amount) : null,
+      tier_percent: Number(raw.tier_percent) > 0 ? Math.min(100, Number(raw.tier_percent)) : null,
+      color: /^#[0-9a-fA-F]{6}$/.test(raw.color) ? raw.color : null,
     };
     const current = this.editing();
     const serviceIds = this.selectedServices();
@@ -319,6 +368,114 @@ export class StaffPageComponent {
           this.isSaving.set(false);
           this.formError.set(readError(error, 'No pudimos guardar al colaborador.'));
         },
+      });
+  }
+
+  /** Desactivar avisa cuántas citas próximas tiene (no se cancelan solas) y se puede deshacer. */
+  protected async deactivate(member: Staff): Promise<void> {
+    const today = new Date();
+    const day = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const upcoming = await new Promise<number>((resolve) =>
+      this.appointmentsApi
+        .getAppointments({ staff_id: member.id, start_date: day(today), end_date: day(new Date(today.getTime() + 120 * 86_400_000)) })
+        .pipe(catchError(() => of([])))
+        .subscribe((rows) => resolve(rows.filter((row) => row.status === 'scheduled' || row.status === 'awaiting_deposit').length)),
+    );
+    const ok = await this.confirm.ask({
+      title: `¿Desactivar a ${member.full_name}?`,
+      message: upcoming
+        ? `Tiene ${upcoming} ${upcoming === 1 ? 'cita próxima' : 'citas próximas'}: no se cancelan solas. Muévelas a otra persona en la Agenda. Desde ahora no recibe reservas nuevas.`
+        : 'Deja de aparecer en tu página y no recibe reservas nuevas. Su historial se queda.',
+      confirm: 'Desactivar',
+      danger: true,
+    });
+    if (!ok) {
+      return;
+    }
+    this.toggleActive(member);
+    if (this.undoTimer) {
+      clearTimeout(this.undoTimer);
+    }
+    this.undoOff.set(member);
+    this.undoTimer = setTimeout(() => this.undoOff.set(null), 6000);
+  }
+
+  protected undoDeactivate(): void {
+    const member = this.undoOff();
+    this.undoOff.set(null);
+    if (member) {
+      this.toggleActive({ ...member, is_active: false });
+    }
+  }
+
+  protected hasSchedule(staffId: number): boolean {
+    return (this.schedules().get(staffId) ?? []).some((row) => row.is_active);
+  }
+
+  /** "Lun a vie 9:00–18:00", "Lun, mié y sáb 10:00–19:00", o "Sin horario". */
+  protected scheduleLabel(staffId: number): string {
+    const rows = (this.schedules().get(staffId) ?? []).filter((row) => row.is_active).sort((a, b) => a.day_of_week - b.day_of_week);
+    if (!rows.length) {
+      return 'Sin horario propio';
+    }
+    const names = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+    const days = rows.map((row) => row.day_of_week);
+    const run = days.every((value, index) => index === 0 || value === days[index - 1] + 1);
+    const label = run && days.length > 2 ? `${names[days[0]]} a ${names[days.at(-1)!].toLowerCase()}` : days.map((value) => names[value]).join(', ');
+    const hours = new Set(rows.map((row) => `${row.start_time.slice(0, 5)}–${row.end_time.slice(0, 5)}`));
+    return hours.size === 1 ? `${label} · ${[...hours][0]}` : `${label} · horario variable`;
+  }
+
+  protected colorOf(staffId: number): string {
+    return staffColorOf(this.staff(), staffId);
+  }
+
+  protected money(amount: number): string {
+    return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(amount);
+  }
+
+  // Servicios del formulario: todos/ninguno y por categoría
+  protected readonly serviceGroups = computed(() => {
+    const groups = new Map<string, Service[]>();
+    for (const service of this.activeServices()) {
+      const key = service.category || 'Sin categoría';
+      groups.set(key, [...(groups.get(key) ?? []), service]);
+    }
+    return [...groups.entries()].map(([name, items]) => ({ name, items }));
+  });
+
+  protected selectAll(all: boolean): void {
+    this.selectedServices.set(all ? this.activeServices().map((item) => item.id) : []);
+  }
+
+  protected openVacation(member: Staff): void {
+    this.vacationFor.set(member);
+    this.vacationFrom = '';
+    this.vacationTo = '';
+    this.vacationError.set(null);
+  }
+
+  /** Bloquea cada día del periodo para esa persona (se ve en la Agenda como "Vacaciones"). */
+  protected saveVacation(): void {
+    const member = this.vacationFor();
+    const from = this.vacationFrom;
+    const to = this.vacationTo || from;
+    if (!member || !from || to < from) {
+      this.vacationError.set('Elige desde y hasta (el fin no puede ser antes del inicio).');
+      return;
+    }
+    const days: string[] = [];
+    for (let cursor = new Date(`${from}T12:00:00`); cursor <= new Date(`${to}T12:00:00`) && days.length < 62; cursor.setDate(cursor.getDate() + 1)) {
+      days.push(`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`);
+    }
+    forkJoin(days.map((date) => this.appointmentsApi.createBlock({ staff_id: member.id, starts_at: `${date}T00:00:00`, ends_at: `${date}T23:59:00`, note: 'Vacaciones' })))
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.vacationFor.set(null);
+          this.toasts.show(`${member.full_name.split(' ')[0]} de vacaciones: ${days.length} ${days.length === 1 ? 'día bloqueado' : 'días bloqueados'}.`);
+        },
+        error: () => this.vacationError.set('No pudimos guardar las vacaciones.'),
       });
   }
 
@@ -383,12 +540,27 @@ export class StaffPageComponent {
           this.staff.set(staff);
           this.services.set(services);
           this.isLoading.set(false);
+          this.loadExtras(staff);
         },
         error: (error: unknown) => {
           this.isLoading.set(false);
           this.loadError.set(readError(error, 'No pudimos cargar el equipo.'));
         },
       });
+  }
+
+  private loadExtras(staff: Staff[]): void {
+    if (staff.length) {
+      forkJoin(staff.map((member) => this.schedulesApi.getStaffSchedule(member.id).pipe(catchError(() => of([] as ScheduleItem[])), map((rows) => [member.id, rows] as const))))
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe((rows) => this.schedules.set(new Map(rows)));
+    }
+    const now = new Date();
+    const day = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    this.shopApi
+      .report(day(new Date(now.getFullYear(), now.getMonth(), 1)), day(now))
+      .pipe(catchError(() => of(null)), takeUntilDestroyed(this.destroyRef))
+      .subscribe((report) => this.month.set(new Map((report?.staff ?? []).map((row) => [row.staff_id, row]))));
   }
 
   private fieldError(

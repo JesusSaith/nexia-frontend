@@ -38,6 +38,11 @@ export interface BusinessSettings {
   business_kind?: string | null;
   primary_color?: string | null;
   canvas_color?: string | null;
+  accent_color?: string | null;
+  button_shape?: string | null;
+  button_fill?: string | null;
+  font_style?: string | null;
+  header_style?: string | null;
   logo_url: string | null;
   phone: string;
   email: string;
@@ -56,6 +61,7 @@ export interface BusinessSettings {
   cancel_policy: string | null;
   resources: string | null;
   payment_url: string | null;
+  google_review_url?: string | null;
   privacy_notice?: string | null;
   loyalty_every?: number | null;
   loyalty_percent?: number | null;
@@ -90,6 +96,11 @@ export interface ProfileUpdate {
   logo_url?: string | null;
   primary_color?: string | null;
   canvas_color?: string | null;
+  accent_color?: string | null;
+  button_shape?: string | null;
+  button_fill?: string | null;
+  font_style?: string | null;
+  header_style?: string | null;
   phone: string;
   address: string | null;
   instagram: string | null;
@@ -106,6 +117,7 @@ export interface ProfileUpdate {
   cancel_policy?: string | null;
   resources?: string | null;
   payment_url?: string | null;
+  google_review_url?: string | null;
   privacy_notice?: string | null;
   loyalty_every?: number | null;
   loyalty_percent?: number | null;
@@ -158,6 +170,11 @@ export class SettingsService {
 
   updateProfile(data: Partial<ProfileUpdate>): Observable<BusinessSettings> {
     return this.http.patch<BusinessSettings>(`${this.apiBaseUrl}/settings/business`, data);
+  }
+
+  /** Cambia el enlace (/salon-ana); el anterior sigue funcionando. */
+  changeSlug(slug: string): Observable<BusinessSettings> {
+    return this.http.put<BusinessSettings>(`${this.apiBaseUrl}/settings/slug`, { slug });
   }
 
   updateHours(hours: BusinessHour[]): Observable<BusinessHour[]> {

@@ -5,9 +5,15 @@
       <p>Precio, duración y lo que ofreces.</p>
     </div>
     <div class="flex flex-wrap gap-2">
-      <button class="btn btn-secondary" type="button" (click)="openCategory()">
-        <mat-icon>create_new_folder</mat-icon>
-        Nueva categoría
+      @if (services().length) {
+        <button class="btn btn-ghost" type="button" (click)="raising.set(!raising())">
+          <mat-icon>trending_up</mat-icon>
+          <span class="hidden sm:inline">Subir precios</span>
+        </button>
+      }
+      <button class="btn btn-secondary" type="button" (click)="managingCategories.set(!managingCategories())">
+        <mat-icon>folder</mat-icon>
+        <span class="hidden sm:inline">Categorías</span>
       </button>
       <button class="btn btn-primary" type="button" (click)="openCreate(categoryFilter())">
         <mat-icon>add</mat-icon>
@@ -17,7 +23,56 @@
   </header>
 
   @if (loadError(); as message) {
-    <p role="alert" class="mb-4 text-sm text-red-700">{{ message }}</p>
+    <p role="alert" class="field-error mb-4">{{ message }}</p>
+  }
+
+  @if (raising()) {
+    <form class="card mb-4 grid gap-3 sm:grid-cols-[8rem_1fr_auto] sm:items-end" (submit)="$event.preventDefault(); applyRaise()">
+      <label class="block">
+        <span class="label">Cambio (%)</span>
+        <input class="input nums" name="percent" type="number" step="1" [(ngModel)]="raisePercent" />
+      </label>
+      <label class="block">
+        <span class="label">A qué servicios</span>
+        <select class="input" name="category" [(ngModel)]="raiseCategory">
+          <option value="">Todos</option>
+          @for (name of categories(); track name) {
+            <option [value]="name">{{ name }}</option>
+          }
+        </select>
+      </label>
+      <div class="flex gap-2">
+        <button type="submit" class="btn btn-primary">Aplicar</button>
+        <button type="button" class="btn btn-ghost" (click)="raising.set(false)">Cancelar</button>
+      </div>
+      <p class="field-hint sm:col-span-3">Usa un número negativo para bajar. Se redondea a pesos e incluye las opciones de cada servicio.</p>
+    </form>
+  }
+
+  @if (managingCategories()) {
+    <section class="card mb-4">
+      <div class="card-head">
+        <span class="sec-icon"><mat-icon>folder</mat-icon></span>
+        <h2 class="card-title">Categorías</h2>
+      </div>
+      <ul class="mt-2 divide-y divide-line">
+        @for (row of categoryRows(); track row.id) {
+          <li class="flex items-center gap-3 py-3">
+            <input class="input flex-1" [value]="row.name" [attr.aria-label]="'Nombre de ' + row.name" (change)="renameCategory(row, $any($event.target).value)" />
+            <span class="nums w-24 shrink-0 text-right text-sm text-muted">{{ countIn(row.name) }} servicios</span>
+            <button type="button" class="btn btn-ghost w-11! px-0! text-(--nx-bad-fg)" [attr.aria-label]="'Borrar ' + row.name" (click)="removeCategory(row)"><mat-icon>delete</mat-icon></button>
+          </li>
+        }
+      </ul>
+      <form class="mt-3 flex gap-2" (submit)="$event.preventDefault(); saveCategory()">
+        <input class="input flex-1" name="newCategory" placeholder="Nueva categoría" [value]="categoryName()" (input)="categoryName.set($any($event.target).value)" />
+        <button type="submit" class="btn btn-secondary" [disabled]="isSaving()">Agregar</button>
+      </form>
+      @if (categoryError(); as message) {
+        <p class="field-error mt-1">{{ message }}</p>
+      }
+      <p class="field-hint mt-2">Al renombrar, sus servicios se mueven solos. Al borrar, los servicios se quedan sin categoría.</p>
+    </section>
   }
 
   @if (isLoading()) {
@@ -27,99 +82,110 @@
     </div>
   } @else if (services().length === 0 && categories().length === 0) {
     <div class="empty">
-      <mat-icon>content_cut</mat-icon>
+      <mat-icon>category</mat-icon>
       <p class="font-medium text-ink">Aún no tienes servicios</p>
       <p>Agrega lo que ofreces con su precio y duración. Las categorías son opcionales.</p>
       <button type="button" class="btn btn-primary" (click)="openCreate(categoryFilter())">Agregar el primero</button>
     </div>
   } @else {
-    @if (categories().length) {
-      <div class="-mx-4 mb-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-        <div class="inline-flex rounded-lg border border-line-strong bg-surface p-0.5" role="tablist" aria-label="Categoría">
-          <button
-            type="button"
-            role="tab"
-            class="h-9 whitespace-nowrap rounded-md px-3 text-sm font-medium transition-colors"
-            [class.bg-ink]="!categoryFilter()"
-            [class.text-white]="!categoryFilter()"
-            [class.text-ink-soft]="!!categoryFilter()"
-            [attr.aria-selected]="!categoryFilter()"
-            (click)="categoryFilter.set('')"
-          >Todas</button>
+    <!-- Categorías y búsqueda: con aire entre chips y su número de servicios. -->
+    <div class="card mb-4 flex flex-col gap-3 p-4! sm:flex-row sm:items-center">
+      @if (categories().length) {
+        <div class="flex flex-1 flex-wrap gap-2" role="tablist" aria-label="Categoría">
+          <button type="button" role="tab" class="chip h-10! gap-2 px-4!" [class.chip-on]="!categoryFilter()" [attr.aria-selected]="!categoryFilter()" (click)="categoryFilter.set('')">
+            Todas <span class="nums rounded-full bg-canvas px-1.5 text-xs text-muted">{{ services().length }}</span>
+          </button>
           @for (name of categories(); track name) {
-            <button
-              type="button"
-              role="tab"
-              class="h-9 whitespace-nowrap rounded-md px-3 text-sm font-medium transition-colors"
-              [class.bg-ink]="categoryFilter() === name"
-              [class.text-white]="categoryFilter() === name"
-              [class.text-ink-soft]="categoryFilter() !== name"
-              [attr.aria-selected]="categoryFilter() === name"
-              (click)="categoryFilter.set(name)"
-            >{{ name }}</button>
+            <button type="button" role="tab" class="chip h-10! gap-2 px-4!" [class.chip-on]="categoryFilter() === name" [attr.aria-selected]="categoryFilter() === name" (click)="categoryFilter.set(name)">
+              {{ name }} <span class="nums rounded-full bg-canvas px-1.5 text-xs text-muted">{{ countIn(name) }}</span>
+            </button>
           }
         </div>
-      </div>
-    }
+      } @else {
+        <p class="flex-1 text-sm text-muted">Agrupa tus servicios en categorías desde el botón "Categorías".</p>
+      }
+      @if (services().length > 8) {
+        <label class="relative block w-full sm:w-64 sm:shrink-0">
+          <span class="sr-only">Buscar servicio</span>
+          <mat-icon class="pointer-events-none absolute left-3 top-1/2 h-5! w-5! -translate-y-1/2 text-[20px]! text-muted">search</mat-icon>
+          <input class="input pl-10!" type="search" placeholder="Buscar servicio" [value]="query()" (input)="query.set($any($event.target).value)" />
+        </label>
+      }
+    </div>
     @if (onlySuggested()) {
       <p class="badge-info mb-3 flex items-start gap-2 rounded-xl px-3 py-2.5 text-sm">
         <mat-icon class="h-5! w-5! shrink-0 text-[20px]!" aria-hidden="true">lightbulb</mat-icon>
-        <span>Te dejamos servicios típicos de tu giro. Ajusta precio y duración, activa los que ofreces y borra los que no. Mientras estén inactivos, tus clientas no los ven.</span>
+        <span>Te dejamos servicios típicos de tu giro. Ajusta precio y duración, activa los que ofreces y borra los que no (menú ⋯). Mientras estén pausados, tus clientas no los ven.</span>
       </p>
     }
     @if (visible().length === 0) {
       <div class="empty">
         <mat-icon>category</mat-icon>
-        <p>Esta categoría todavía no tiene servicios.</p>
+        <p>{{ query() ? 'Ningún servicio coincide.' : 'Esta categoría todavía no tiene servicios.' }}</p>
         <button class="btn btn-secondary" type="button" (click)="openCreate(categoryFilter())">Agregar servicio</button>
       </div>
     } @else {
       <ul class="card divide-y divide-line overflow-hidden px-0! py-0!">
         <li class="card-head bg-canvas px-4 py-3 sm:px-5">
-          <span class="sec-icon"><mat-icon>content_cut</mat-icon></span>
+          <span class="sec-icon"><mat-icon>list_alt</mat-icon></span>
           <div>
             <h2 class="card-title">{{ categoryFilter() || 'Todos los servicios' }}</h2>
-            <p class="text-sm text-muted"><span class="nums">{{ visible().length }}</span> {{ visible().length === 1 ? 'servicio' : 'servicios' }}</p>
+            <p class="text-sm text-muted"><span class="nums">{{ visible().length }}</span> {{ visible().length === 1 ? 'servicio' : 'servicios' }}{{ canOrder() ? ' · en el orden de tu página' : '' }}</p>
           </div>
         </li>
-        @for (row of visible(); track row.id) {
-          <li class="row-hover flex items-center gap-3 px-4 py-3 sm:px-5" [class.opacity-60]="!row.is_active">
-            @if (row.image_url) {
-              <img class="h-12 w-12 shrink-0 rounded-lg object-cover" [src]="row.image_url" [alt]="row.name" />
-            } @else {
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-base font-semibold text-accent" aria-hidden="true">{{ row.name.slice(0, 1) }}</div>
+        @for (row of visible(); track row.id; let first = $first; let last = $last) {
+          @let people = staffFor(row);
+          @let tag = profitTag(row);
+          <li class="flex items-center gap-3 px-4 py-3 sm:px-5" [class.opacity-60]="!row.is_active">
+            @if (canOrder()) {
+              <span class="flex shrink-0 flex-col">
+                <button type="button" class="grid h-6 w-8 place-items-center rounded text-muted hover:text-ink disabled:opacity-30" [disabled]="first" [attr.aria-label]="'Subir ' + row.name" (click)="move(row, -1)"><mat-icon class="h-5! w-5! text-[20px]!">expand_less</mat-icon></button>
+                <button type="button" class="grid h-6 w-8 place-items-center rounded text-muted hover:text-ink disabled:opacity-30" [disabled]="last" [attr.aria-label]="'Bajar ' + row.name" (click)="move(row, 1)"><mat-icon class="h-5! w-5! text-[20px]!">expand_more</mat-icon></button>
+              </span>
             }
-            <div class="min-w-0 flex-1">
-              <div class="flex items-center gap-2">
-                <p class="truncate text-sm font-medium text-ink">{{ row.name }}</p>
-                <span class="badge shrink-0" [class.badge-ok]="row.is_active" [class.badge-neutral]="!row.is_active">{{ row.is_active ? 'Activo' : 'Inactivo' }}</span>
-              </div>
-              <p class="mt-0.5 truncate text-xs text-muted">
-                @if (row.category) {
-                  <span>{{ row.category }} · </span>
-                }
-                {{ row.description || 'Sin descripción' }}
-              </p>
-              <p class="mt-1 text-xs text-ink-soft sm:hidden">
-                <span class="nums">{{ row.duration_minutes }} min</span> · <span class="nums font-medium text-ink">{{ formatPrice(row.price) }}</span>
-              </p>
-            </div>
-            <div class="hidden shrink-0 text-right sm:block">
-              <p class="nums text-sm font-medium text-ink">{{ formatPrice(row.price) }}</p>
-              <p class="nums text-xs text-muted">{{ row.duration_minutes }} min</p>
-            </div>
-            <div class="flex shrink-0 items-center">
-              <button class="btn btn-ghost w-10! px-0!" type="button" aria-label="Editar" (click)="openEdit(row)">
-                <mat-icon>edit</mat-icon>
-              </button>
-              @if (pendingId() === row.id) {
-                <span class="flex h-10 w-10 items-center justify-center"><mat-spinner diameter="20" /></span>
+            <button type="button" class="row-hover -my-2 flex min-w-0 flex-1 items-center gap-3 rounded-lg py-2 text-left" (click)="openEdit(row)">
+              @if (row.image_url) {
+                <img class="h-12 w-12 shrink-0 rounded-lg object-cover" [src]="row.image_url" [alt]="row.name" />
               } @else {
-                <button class="btn btn-ghost w-10! px-0!" type="button" (click)="toggleActive(row)" [attr.aria-label]="row.is_active ? 'Desactivar' : 'Activar'">
-                  <mat-icon>{{ row.is_active ? 'toggle_on' : 'toggle_off' }}</mat-icon>
-                </button>
+                <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-base font-semibold text-accent" aria-hidden="true">{{ row.name.slice(0, 1) }}</span>
               }
-            </div>
+              <span class="min-w-0 flex-1">
+                <span class="flex flex-wrap items-center gap-1.5">
+                  <span class="truncate text-sm font-medium text-ink">{{ row.name }}</span>
+                  @if (!row.is_active) {
+                    <span class="badge badge-neutral">Pausado</span>
+                  }
+                  @if (row.featured) {
+                    <span class="badge badge-info">Destacado</span>
+                  }
+                  @if (tag) {
+                    <span class="badge {{ tag.tone }}">{{ tag.text }}</span>
+                  }
+                </span>
+                <span class="nums mt-0.5 block truncate text-sm text-muted">
+                  {{ row.duration_minutes }} min · {{ row.variable_price ? 'Precio variable' : formatPrice(row.price) }}{{ (row.variants ?? []).length ? ' · ' + (row.variants ?? []).length + ' opciones' : '' }}
+                </span>
+                @if (row.is_active && people.length === 0) {
+                  <span class="mt-0.5 flex items-center gap-1 text-sm text-(--nx-warn-fg)"><mat-icon class="h-4! w-4! text-[16px]!">warning</mat-icon>Nadie lo hace: asígnalo en Equipo</span>
+                } @else if (people.length) {
+                  <span class="mt-0.5 block truncate text-sm text-muted">Lo hace: {{ people.join(', ') }}</span>
+                }
+              </span>
+            </button>
+            @if (pendingId() === row.id) {
+              <span class="flex h-11 w-11 items-center justify-center"><mat-spinner diameter="20" /></span>
+            } @else {
+              <button class="btn btn-secondary hidden shrink-0 sm:inline-flex" type="button" (click)="toggleActive(row)">{{ row.is_active ? 'Pausar' : 'Activar' }}</button>
+            }
+            <details class="relative shrink-0" #more>
+              <summary class="btn btn-ghost w-11! list-none px-0! [&::-webkit-details-marker]:hidden" aria-label="Más acciones"><mat-icon>more_horiz</mat-icon></summary>
+              <div class="absolute right-0 z-20 mt-1 flex w-48 flex-col rounded-xl border border-line bg-surface p-1 shadow-lg">
+                <button type="button" class="row-hover min-h-11 rounded-lg px-3 text-left text-sm text-ink sm:hidden" (click)="more.open = false; toggleActive(row)">{{ row.is_active ? 'Pausar' : 'Activar' }}</button>
+                <button type="button" class="row-hover min-h-11 rounded-lg px-3 text-left text-sm text-ink" (click)="more.open = false; openEdit(row)">Editar</button>
+                <button type="button" class="row-hover min-h-11 rounded-lg px-3 text-left text-sm text-ink" (click)="more.open = false; duplicate(row)">Duplicar</button>
+                <button type="button" class="row-hover min-h-11 rounded-lg px-3 text-left text-sm text-(--nx-bad-fg)" (click)="more.open = false; remove(row)">Borrar</button>
+              </div>
+            </details>
           </li>
         }
       </ul>
@@ -127,10 +193,17 @@
   }
 </section>
 
+@if (undoPause(); as row) {
+  <div class="fixed inset-x-4 top-4 z-50 mx-auto flex max-w-sm items-center justify-between gap-3 rounded-lg bg-ink px-4 py-2 text-sm text-surface md:bottom-4 md:top-auto" role="status">
+    <span class="truncate">Pausado: ya no se ve en tu página · {{ row.name }}</span>
+    <button type="button" class="min-h-11 shrink-0 px-2 font-semibold underline" (click)="undoPaused()">Deshacer</button>
+  </div>
+}
+
 <ng-template #editor>
   <form class="flex max-h-[92vh] flex-col bg-surface" [formGroup]="form" (ngSubmit)="save()">
     <header class="flex items-center justify-between gap-2 border-b border-line px-4 py-3">
-      <button type="button" class="btn btn-ghost w-10! px-0!" aria-label="Cerrar" (click)="closeForm()">
+      <button type="button" class="btn btn-ghost w-11! px-0!" aria-label="Cerrar" (click)="closeForm()">
         <mat-icon>close</mat-icon>
       </button>
       <h2 class="truncate text-base font-semibold text-ink">{{ dialogTitle() }}</h2>
@@ -139,151 +212,182 @@
       </button>
     </header>
     <div class="grid gap-6 overflow-y-auto px-4 py-5 md:grid-cols-[minmax(0,1fr)_260px] md:px-6">
-      <div class="flex flex-col gap-4">
-        <label class="block">
-          <span class="text-sm text-ink-soft">Nombre</span>
-          <input class="mt-1 h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" formControlName="name" />
-        </label>
-        <div>
-          <span class="text-sm text-ink-soft">Categoría</span>
-          <div class="mt-1 flex h-10 items-center rounded-lg border border-line-strong bg-surface px-3 text-sm focus-within:border-ink">
-            <app-pick-field class="block w-full" formControlName="category" [options]="categoryPicks()" [bare]="true" />
-          </div>
-        </div>
-        @if (nameError()) {
-          <p class="text-sm text-red-700">{{ nameError() }}</p>
-        }
-        <label class="block">
-          <span class="text-sm text-ink-soft">Descripción para el cliente</span>
-          <textarea class="mt-1 w-full resize-none rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-ink" rows="4" formControlName="description"></textarea>
-        </label>
-        <div class="grid grid-cols-2 gap-3">
+      <div class="flex flex-col gap-5">
+        <!-- Lo básico -->
+        <fieldset class="flex flex-col gap-3">
+          <legend class="card-title mb-2">Lo básico</legend>
           <label class="block">
-            <span class="text-sm text-ink-soft">Precio</span>
-            <input class="nums mt-1 h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" type="number" min="0" step="0.01" formControlName="price" />
+            <span class="label">Nombre</span>
+            <input class="input" formControlName="name" />
+          </label>
+          @if (nameError()) {
+            <p class="field-error">{{ nameError() }}</p>
+          }
+          <label class="block">
+            <span class="label">Categoría</span>
+            <app-pick-field class="block" formControlName="category" [options]="categoryPicks()" />
+          </label>
+          <label class="block">
+            <span class="label">Descripción para la clienta</span>
+            <textarea class="input resize-none" rows="3" formControlName="description"></textarea>
           </label>
           <div>
-            <span class="flex items-center gap-1 text-sm text-ink-soft">
-              Anticipo
-              <details class="relative">
-                <summary class="flex cursor-pointer list-none text-muted [&::-webkit-details-marker]:hidden" aria-label="Para qué sirve el anticipo">
-                  <mat-icon class="h-4! w-4! text-[16px]!">info</mat-icon>
-                </summary>
-                <p class="absolute right-0 z-10 mt-1 w-56 rounded-lg border border-line bg-surface p-3 text-xs font-normal text-ink-soft shadow">Si lo dejas vacío, se usa el anticipo del negocio, el de Configuración.</p>
-              </details>
-            </span>
-            <input class="nums mt-1 h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" type="number" min="0" step="0.01" formControlName="deposit_amount" placeholder="El del negocio" />
-          </div>
-        </div>
-        @if (priceError()) {
-          <p class="text-sm text-red-700">{{ priceError() }}</p>
-        }
-        <div>
-          <span class="text-sm text-ink-soft">Foto del servicio</span>
-          <div class="mt-1 flex items-center gap-3">
-            <button type="button" class="shrink-0" aria-label="Subir foto del servicio" (click)="photoInput.click()">
-              @if (photoPreview(); as photo) {
-                <img class="h-20 w-20 rounded-lg object-cover" [src]="photo" alt="" />
-              } @else {
-                <span class="flex h-20 w-20 items-center justify-center rounded-lg border border-dashed border-line-strong text-muted">
-                  <mat-icon>add_photo_alternate</mat-icon>
-                </span>
-              }
-            </button>
-            <div class="flex flex-col items-start gap-1">
-              <button type="button" class="btn btn-secondary" (click)="photoInput.click()">{{ photoPreview() ? 'Cambiar foto' : 'Subir foto' }}</button>
-              @if (photoPreview()) {
-                <button type="button" class="btn btn-ghost" (click)="clearPhoto()">Quitar foto</button>
-              }
+            <span class="label">Foto</span>
+            <div class="flex items-center gap-3">
+              <button type="button" class="shrink-0" aria-label="Subir foto del servicio" (click)="photoInput.click()">
+                @if (photoPreview(); as photo) {
+                  <img class="h-20 w-20 rounded-lg object-cover" [src]="photo" alt="" />
+                } @else {
+                  <span class="flex h-20 w-20 items-center justify-center rounded-lg border border-dashed border-line-strong text-muted">
+                    <mat-icon>add_photo_alternate</mat-icon>
+                  </span>
+                }
+              </button>
+              <div class="flex flex-col items-start gap-1">
+                <button type="button" class="btn btn-secondary" (click)="photoInput.click()">{{ photoPreview() ? 'Cambiar foto' : 'Subir foto' }}</button>
+                @if (photoPreview()) {
+                  <button type="button" class="btn btn-ghost" (click)="clearPhoto()">Quitar foto</button>
+                }
+              </div>
+              <input #photoInput class="hidden" type="file" accept="image/*" (change)="pickPhoto($event)" />
             </div>
-            <input #photoInput class="hidden" type="file" accept="image/*" (change)="pickPhoto($event)" />
           </div>
-        </div>
-      </div>
-      <div class="flex flex-col gap-5 border-t border-line pt-5 md:border-t-0 md:border-l md:pt-0 md:pl-6">
-        <div>
-          <span class="text-sm text-ink-soft">Estado</span>
-          <div class="mt-1 inline-flex rounded-lg border border-line-strong bg-surface p-0.5" role="group" aria-label="Estado">
-            <button
-              type="button"
-              class="h-9 rounded-md px-3 text-sm font-medium transition-colors"
-              [class.bg-ink]="form.controls.is_active.value"
-              [class.text-white]="form.controls.is_active.value"
-              [class.text-ink-soft]="!form.controls.is_active.value"
-              [attr.aria-pressed]="form.controls.is_active.value"
-              (click)="form.controls.is_active.setValue(true)"
-            >Activo</button>
-            <button
-              type="button"
-              class="h-9 rounded-md px-3 text-sm font-medium transition-colors"
-              [class.bg-ink]="!form.controls.is_active.value"
-              [class.text-white]="!form.controls.is_active.value"
-              [class.text-ink-soft]="form.controls.is_active.value"
-              [attr.aria-pressed]="!form.controls.is_active.value"
-              (click)="form.controls.is_active.setValue(false)"
-            >Pausado</button>
+        </fieldset>
+
+        <!-- Precio -->
+        <fieldset class="flex flex-col gap-3 border-t border-line pt-4">
+          <legend class="card-title mb-2">Precio</legend>
+          <div class="grid grid-cols-2 gap-3">
+            <label class="block">
+              <span class="label">Precio</span>
+              <input class="input nums" type="number" min="0" step="0.01" inputmode="decimal" formControlName="price" />
+            </label>
+            <label class="block">
+              <span class="label">Anticipo</span>
+              <input class="input nums" type="number" min="0" step="0.01" inputmode="decimal" formControlName="deposit_amount" placeholder="El del negocio" />
+            </label>
           </div>
-        </div>
-        <div>
-          <span class="text-sm text-ink-soft">Duración</span>
-          <label class="mt-1 flex h-10 items-center gap-2 rounded-lg border border-line-strong bg-surface px-3 focus-within:border-ink">
-            <input class="nums w-full bg-transparent text-sm text-ink outline-none" type="number" min="1" step="1" formControlName="duration_minutes" />
-            <span class="text-xs text-muted">min</span>
+          @if (priceError()) {
+            <p class="field-error">{{ priceError() }}</p>
+          }
+          <label class="flex min-h-11 items-start gap-2 text-sm text-ink">
+            <input class="mt-0.5 h-5 w-5" type="checkbox" formControlName="variable_price" />
+            <span>El precio cambia según lo que pidan <span class="block text-muted">La clienta describe lo que quiere y tú confirmas el costo.</span></span>
           </label>
+          <label class="block">
+            <span class="label">Material por servicio ($)</span>
+            <input formControlName="supplyCost" type="number" min="0" inputmode="decimal" placeholder="0" class="input nums" />
+            <span class="field-hint">Lo que gastas en tinte, cera, etc. Reportes lo resta para mostrar lo que te deja.</span>
+          </label>
+        </fieldset>
+
+        <!-- Opciones (variantes) -->
+        <fieldset class="flex flex-col gap-2 border-t border-line pt-4">
+          <legend class="card-title mb-1">Opciones</legend>
+          <p class="field-hint">Por ejemplo cabello corto, medio y largo, cada una con su precio y duración. La clienta elige una al reservar.</p>
+          @for (option of variants(); track $index; let index = $index) {
+            <div class="grid grid-cols-[minmax(0,1fr)_6rem_5.5rem_auto] items-end gap-2">
+              <label class="block"><span class="label">Opción</span>
+                <input class="input" [value]="option.name" placeholder="Largo" (input)="setVariant(index, 'name', $any($event.target).value)" />
+              </label>
+              <label class="block"><span class="label">Precio</span>
+                <input class="input nums px-2!" type="number" min="0" [value]="option.price" (input)="setVariant(index, 'price', $any($event.target).value)" />
+              </label>
+              <label class="block"><span class="label">Min</span>
+                <input class="input nums px-2!" type="number" min="1" [value]="option.duration_minutes" (input)="setVariant(index, 'duration_minutes', $any($event.target).value)" />
+              </label>
+              <button type="button" class="btn btn-ghost w-11! px-0!" [attr.aria-label]="'Quitar opción ' + (option.name || index + 1)" (click)="removeVariant(index)"><mat-icon>close</mat-icon></button>
+            </div>
+          }
+          <button type="button" class="btn btn-ghost self-start" (click)="addVariant()"><mat-icon>add</mat-icon>Agregar opción</button>
+        </fieldset>
+      </div>
+
+      <div class="flex flex-col gap-5 border-t border-line pt-5 md:border-t-0 md:border-l md:pt-0 md:pl-6">
+        <!-- Vista previa: así lo ve la clienta -->
+        <div>
+          <span class="label">Así se ve en tu página</span>
+          <div class="flex gap-3 rounded-xl border border-line bg-canvas p-3">
+            @if (photoPreview(); as photo) {
+              <img class="h-14 w-14 shrink-0 rounded-lg object-cover" [src]="photo" alt="" />
+            }
+            <span class="min-w-0">
+              @if (form.controls.category.value) {
+                <span class="block text-xs text-muted">{{ form.controls.category.value }}</span>
+              }
+              <span class="block truncate font-medium text-ink">{{ form.controls.name.value || 'Nombre del servicio' }}</span>
+              <span class="nums block text-sm text-ink-soft">{{ form.controls.duration_minutes.value || '—' }} min · {{ form.controls.variable_price.value ? 'Precio según lo que pidas' : formatPrice(+form.controls.price.value || 0) }}</span>
+              @if (form.controls.featured.value) {
+                <span class="badge badge-info mt-1">El más pedido</span>
+              }
+            </span>
+          </div>
+        </div>
+
+        <div>
+          <span class="label">Estado</span>
+          <div class="inline-flex rounded-lg border border-line-strong bg-surface p-0.5" role="group" aria-label="Estado">
+            <button type="button" class="h-10 rounded-md px-3 text-sm font-medium" [class.bg-ink]="form.controls.is_active.value" [class.text-surface]="form.controls.is_active.value" [class.text-ink-soft]="!form.controls.is_active.value" [attr.aria-pressed]="form.controls.is_active.value" (click)="form.controls.is_active.setValue(true)">Activo</button>
+            <button type="button" class="h-10 rounded-md px-3 text-sm font-medium" [class.bg-ink]="!form.controls.is_active.value" [class.text-surface]="!form.controls.is_active.value" [class.text-ink-soft]="form.controls.is_active.value" [attr.aria-pressed]="!form.controls.is_active.value" (click)="form.controls.is_active.setValue(false)">Pausado</button>
+          </div>
+          <label class="mt-2 flex min-h-11 items-center gap-2 text-sm text-ink">
+            <input class="h-5 w-5" type="checkbox" formControlName="featured" />
+            Destacarlo ("El más pedido")
+          </label>
+        </div>
+
+        <!-- Tiempo -->
+        <div>
+          <span class="label">Duración (min)</span>
+          <input class="input nums" type="number" min="1" step="1" formControlName="duration_minutes" />
+          <div class="mt-2 flex flex-wrap gap-1.5">
+            @for (minutes of durationPicks; track minutes) {
+              <button type="button" class="chip h-9! px-3!" [class.chip-on]="+form.controls.duration_minutes.value === minutes" (click)="form.controls.duration_minutes.setValue('' + minutes)">{{ minutes }}</button>
+            }
+          </div>
           @if (durationError()) {
-            <p class="mt-2 text-sm text-red-700">{{ durationError() }}</p>
+            <p class="field-error mt-2">{{ durationError() }}</p>
           }
         </div>
-        <div class="flex items-start gap-2">
-          <label class="flex flex-1 items-start gap-2 text-sm text-ink-soft">
-            <input class="mt-0.5" type="checkbox" formControlName="variable_price" />
-            <span>El precio cambia según lo que pidan</span>
-          </label>
-          <details class="relative shrink-0">
-            <summary class="flex cursor-pointer list-none text-muted [&::-webkit-details-marker]:hidden" aria-label="Para qué sirve el precio variable">
-              <mat-icon class="h-4.5! w-4.5! text-[18px]!">info</mat-icon>
-            </summary>
-            <p class="absolute right-0 z-10 mt-1 w-60 rounded-lg border border-line bg-surface p-3 text-xs text-ink-soft shadow">Actívalo si el precio no es fijo, como un diseño a medida. El cliente describe lo que quiere y tú confirmas el costo después. Si lo dejas apagado, se cobra el precio de la izquierda.</p>
-          </details>
-        </div>
-        <div>
-          <span class="flex items-center gap-1 text-sm text-ink-soft">
-            Cupo de la misma hora
-            <details class="relative">
-              <summary class="flex cursor-pointer list-none text-muted [&::-webkit-details-marker]:hidden" aria-label="Para qué sirve el cupo">
-                <mat-icon class="h-4.5! w-4.5! text-[18px]!">info</mat-icon>
-              </summary>
-              <p class="absolute right-0 z-10 mt-1 w-60 rounded-lg border border-line bg-surface p-3 text-xs font-normal text-ink-soft shadow">Cuántas citas caben en el mismo horario. 1 es una persona a la vez. Súbelo si varias pueden atenderse juntas, por ejemplo una clase.</p>
-            </details>
-          </span>
-          <input formControlName="capacity" type="number" min="1" max="100" class="nums mt-1 h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" />
-        </div>
-        <div>
-          <span class="flex items-center gap-1 text-sm text-ink-soft">
-            Vuelven cada (días)
-            <details class="relative">
-              <summary class="flex cursor-pointer list-none text-muted [&::-webkit-details-marker]:hidden" aria-label="Para qué sirve">
-                <mat-icon class="h-4.5! w-4.5! text-[18px]!">info</mat-icon>
-              </summary>
-              <p class="absolute right-0 z-10 mt-1 w-60 rounded-lg border border-line bg-surface p-3 text-xs font-normal text-ink-soft shadow">Cada cuánto suele regresar una clienta por este servicio (por ejemplo 21 para uñas). Con eso Nexia te dice a quién le toca volver. Si lo dejas vacío, se calcula con tu historial.</p>
-            </details>
-          </span>
-          <input formControlName="returnDays" type="number" min="7" max="365" placeholder="Automático" class="nums mt-1 h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" />
-        </div>
-        <div>
-          <span class="flex items-center gap-1 text-sm text-ink-soft">
-            Preguntas al reservar
-            <details class="relative">
-              <summary class="flex cursor-pointer list-none text-muted [&::-webkit-details-marker]:hidden" aria-label="Para qué sirven las preguntas">
-                <mat-icon class="h-4.5! w-4.5! text-[18px]!">info</mat-icon>
-              </summary>
-              <p class="absolute right-0 z-10 mt-1 w-60 rounded-lg border border-line bg-surface p-3 text-xs font-normal text-ink-soft shadow">El cliente las ve al reservar y responde ahí. Escribe una pregunta por línea. Si lo dejas vacío, no se le pregunta nada.</p>
-            </details>
-          </span>
-          <textarea formControlName="questions" rows="3" class="mt-1 w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-ink" placeholder="Una pregunta por línea"></textarea>
-        </div>
+
+        <details class="rounded-xl border border-line">
+          <summary class="flex min-h-11 cursor-pointer items-center px-3 text-sm font-medium text-ink-soft">Opciones avanzadas</summary>
+          <div class="flex flex-col gap-4 px-3 pb-3">
+            <label class="block">
+              <span class="label">Limpieza al terminar (min)</span>
+              <input formControlName="cleanup" type="number" min="0" max="240" placeholder="0" class="input nums" />
+              <span class="field-hint">Tiempo para dejar todo listo; nadie más puede reservar ahí.</span>
+            </label>
+            <div>
+              <span class="label">Espera dentro del servicio</span>
+              <div class="grid grid-cols-2 gap-2">
+                <label class="block"><span class="field-hint">Empieza al min</span>
+                  <input formControlName="waitStart" type="number" min="1" placeholder="30" class="input nums" />
+                </label>
+                <label class="block"><span class="field-hint">Dura (min)</span>
+                  <input formControlName="waitMinutes" type="number" min="0" placeholder="40" class="input nums" />
+                </label>
+              </div>
+              <span class="field-hint">Por ejemplo mientras actúa un tinte: en ese rato se puede atender a otra clienta.</span>
+            </div>
+            <label class="block">
+              <span class="label">Cupo a la misma hora</span>
+              <input formControlName="capacity" type="number" min="1" max="100" class="input nums" />
+              <span class="field-hint">1 es una persona a la vez. Súbelo para clases o grupos.</span>
+            </label>
+            <label class="block">
+              <span class="label">Vuelven cada (días)</span>
+              <input formControlName="returnDays" type="number" min="7" max="365" placeholder="Automático" class="input nums" />
+              <span class="field-hint">Para "Les toca volver". Vacío: se calcula con tu historial.</span>
+            </label>
+            <label class="block">
+              <span class="label">Preguntas al reservar</span>
+              <textarea formControlName="questions" rows="3" class="input" placeholder="Una pregunta por línea"></textarea>
+            </label>
+          </div>
+        </details>
         @if (formError(); as message) {
-          <p role="alert" class="text-sm text-red-700">{{ message }}</p>
+          <p role="alert" class="field-error">{{ message }}</p>
         }
       </div>
     </div>
@@ -294,11 +398,11 @@
   <form class="flex flex-col gap-4 bg-surface p-5" (ngSubmit)="saveCategory()">
     <h2 class="text-base font-semibold text-ink">Nueva categoría</h2>
     <label class="block">
-      <span class="text-sm text-ink-soft">Nombre</span>
-      <input class="mt-1 h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" [value]="categoryName()" (input)="categoryName.set($any($event.target).value)" />
+      <span class="label">Nombre</span>
+      <input class="input" [value]="categoryName()" (input)="categoryName.set($any($event.target).value)" />
     </label>
     @if (categoryError(); as message) {
-      <p class="text-sm text-red-700">{{ message }}</p>
+      <p class="field-error">{{ message }}</p>
     }
     <div class="flex justify-end">
       <button type="submit" class="btn btn-primary" [disabled]="isSaving()">

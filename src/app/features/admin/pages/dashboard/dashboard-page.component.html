@@ -1,6 +1,6 @@
 <section>
   @if (loadError(); as message) {
-    <p role="alert" class="text-sm text-red-700">{{ message }}</p>
+    <p role="alert" class="field-error">{{ message }}</p>
   } @else if (isLoading()) {
     <div class="animate-pulse space-y-4" aria-label="Cargando">
       <div class="h-8 w-48 rounded-lg bg-line"></div>
@@ -24,6 +24,7 @@
           <button type="button" class="row-hover rounded-lg px-3 py-2 text-left text-sm text-ink" (click)="downloads.open = false; downloadExcel(false)">Excel de este periodo</button>
           <button type="button" class="row-hover rounded-lg px-3 py-2 text-left text-sm text-ink" (click)="downloads.open = false; downloadExcel(true)">Excel con todo</button>
           <button type="button" class="row-hover rounded-lg px-3 py-2 text-left text-sm text-ink" (click)="downloads.open = false; downloadPdf()">PDF de este periodo</button>
+          <button type="button" class="row-hover rounded-lg px-3 py-2 text-left text-sm text-ink" (click)="downloads.open = false; downloadAccounting()">Para el contador (año, por mes)</button>
         </div>
       </details>
     </header>
@@ -31,7 +32,7 @@
     @if (books(); as alert) {
       @if (alert.deposits_expired > 0) {
         <p class="card mb-4 flex items-center gap-3 py-3! text-sm text-ink" role="status">
-          <mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-amber-700">schedule</mat-icon>
+          <mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-(--nx-warn-fg)">schedule</mat-icon>
           <span>Se acabó el tiempo de {{ alert.deposits_expired }} anticipo{{ alert.deposits_expired === 1 ? '' : 's' }} y la cita sigue sin marcarse como pagada.</span>
         </p>
       }
@@ -52,9 +53,9 @@
             <button
               type="button"
               role="tab"
-              class="h-9 whitespace-nowrap rounded-md px-3 text-sm font-medium transition-colors"
+              class="h-10 whitespace-nowrap rounded-md px-3 text-sm font-medium transition-colors"
               [class.bg-ink]="view() === tab.id"
-              [class.text-white]="view() === tab.id"
+              [class.text-surface]="view() === tab.id"
               [class.text-ink-soft]="view() !== tab.id"
               [attr.aria-selected]="view() === tab.id"
               (click)="view.set(tab.id)"
@@ -68,9 +69,9 @@
           <button
             type="button"
             role="tab"
-            class="h-9 rounded-md px-3 text-sm font-medium transition-colors"
+            class="h-10 rounded-md px-3 text-sm font-medium transition-colors"
             [class.bg-ink]="period() === item.id"
-            [class.text-white]="period() === item.id"
+            [class.text-surface]="period() === item.id"
             [class.text-ink-soft]="period() !== item.id"
             [attr.aria-selected]="period() === item.id"
             (click)="period.set(item.id)"
@@ -80,13 +81,21 @@
       }
     </div>
 
+    @if (view() !== 'cash') {
+      <div class="mb-4 flex items-center gap-2 text-sm text-muted">
+        <span>Comparar con:</span>
+        <button type="button" class="chip h-10!" [class.chip-on]="compareTo() === 'prev'" (click)="compareTo.set('prev')">Periodo anterior</button>
+        <button type="button" class="chip h-10!" [class.chip-on]="compareTo() === 'year'" (click)="compareTo.set('year')">Hace un año</button>
+      </div>
+    }
+
     @if (period() === 'range' && view() !== 'cash') {
       <div class="mb-4 grid grid-cols-2 gap-2 sm:flex">
         <label class="text-sm text-ink-soft">Desde
-          <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" type="date" [value]="customStart()" (change)="customStart.set($any($event.target).value)" aria-label="Desde" />
+          <input class="input mt-1" type="date" [value]="customStart()" (change)="customStart.set($any($event.target).value)" aria-label="Desde" />
         </label>
         <label class="text-sm text-ink-soft">Hasta
-          <input class="mt-1 block h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" type="date" [value]="customEnd()" (change)="customEnd.set($any($event.target).value)" aria-label="Hasta" />
+          <input class="input mt-1" type="date" [value]="customEnd()" (change)="customEnd.set($any($event.target).value)" aria-label="Hasta" />
         </label>
       </div>
     }
@@ -118,6 +127,54 @@
             </p>
             <a routerLink="/admin/agenda" class="text-sm font-medium text-accent hover:underline">Ver huecos en la agenda</a>
           </div>
+        }
+        <!-- Lo que te queda va arriba: es la pregunta principal de esta pantalla. -->
+        @if (books(); as row) {
+      <div class="mb-4">
+        <article class="card card-tint h-full">
+          <div class="card-head">
+            <span class="sec-icon"><mat-icon>account_balance_wallet</mat-icon></span>
+            <div>
+              <h2 class="card-title">Resultado</h2>
+              <p class="text-sm text-muted">Ingresos del periodo, menos gastos y comisiones.</p>
+            </div>
+          </div>
+          <ul class="mt-2 divide-y divide-line text-sm">
+            <li class="flex items-center justify-between gap-3 py-2.5">
+              <div><p class="text-ink">Ingresos</p><p class="text-xs text-muted">Citas completadas</p></div>
+              <span class="nums text-right font-medium text-ink">{{ money(row.total) }}</span>
+            </li>
+            <li class="flex items-center justify-between gap-3 py-2.5">
+              <div><p class="text-ink">Gastos</p><p class="text-xs text-muted">Fijos y variables</p></div>
+              <span class="nums text-right font-medium text-ink-soft">− {{ money(row.expense_fixed + row.expense_variable) }}</span>
+            </li>
+            <li class="flex items-center justify-between gap-3 py-2.5">
+              <div><p class="text-ink">Comisiones</p><p class="text-xs text-muted">Parte del equipo</p></div>
+              <span class="nums text-right font-medium text-ink-soft">− {{ money(row.commission_total) }}</span>
+            </li>
+            <li class="flex items-center justify-between gap-3 py-2.5">
+              <div><p class="font-semibold text-ink">Ganancia</p><p class="text-xs text-muted">Lo que queda</p></div>
+              <span class="nums text-right text-lg font-semibold text-accent">{{ money(row.profit) }}</span>
+            </li>
+          </ul>
+          <p class="mt-2 text-sm text-muted">Te quedas con <span class="nums font-medium text-ink">{{ margin() }}%</span> de lo que entra.</p>
+          @if (breakEven(); as point) {
+            <div class="mt-4 rounded-xl border border-line bg-surface p-4">
+              <p class="text-sm text-ink">
+                <strong>Punto de equilibrio:</strong> para cubrir gastos y comisiones necesitas <strong class="nums">{{ money(point.need) }}</strong>
+                @if (point.visits) {
+                  (≈ <span class="nums">{{ point.visits }}</span> citas)
+                }
+                en este periodo.
+              </p>
+              <div class="mt-2 h-2 overflow-hidden rounded-full bg-canvas" role="meter" [attr.aria-valuenow]="point.percent" aria-valuemin="0" aria-valuemax="100" aria-label="Avance al punto de equilibrio">
+                <div class="h-full rounded-full transition-all" [style.background]="point.covered ? 'var(--nx-ok-fg)' : 'var(--color-accent)'" [style.width.%]="point.percent"></div>
+              </div>
+              <p class="nums mt-1 text-sm" [style.color]="point.covered ? 'var(--nx-ok-fg)' : 'var(--color-muted)'">{{ point.covered ? 'Ya cubriste tus gastos: lo que entre de aquí en adelante es ganancia.' : 'Te faltan ' + money(point.left) + ' para no perder.' }}</p>
+            </div>
+          }
+        </article>
+      </div>
         }
       }
     }
@@ -250,17 +307,35 @@
             <svg viewBox="0 0 640 210" class="mt-2 h-48 w-full sm:h-56" role="img" [attr.aria-label]="legend()">
               @for (tick of chart.ticks; track tick.y) {
                 <line x1="58" x2="628" [attr.y1]="tick.y" [attr.y2]="tick.y" stroke="var(--color-line)" />
-                <text x="52" [attr.y]="tick.y + 4" text-anchor="end" fill="var(--color-muted)" font-size="11">{{ tick.label }}</text>
+                <text x="52" [attr.y]="tick.y + 4" text-anchor="end" fill="var(--color-muted)" font-size="13">{{ tick.label }}</text>
               }
               <path [attr.d]="chart.area" fill="var(--color-accent)" fill-opacity="0.1" />
+              @if (chart.prevLine) {
+                <path [attr.d]="chart.prevLine" fill="none" stroke="var(--color-muted)" stroke-width="1.5" stroke-dasharray="5 4" stroke-linejoin="round" />
+              }
               <path [attr.d]="chart.line" fill="none" stroke="var(--color-accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+              @for (spot of chart.spots; track $index) {
+                <rect [attr.x]="spot.x - chart.slot / 2" y="12" [attr.width]="chart.slot" height="160" fill="transparent" class="cursor-pointer" (click)="pointAt.set($index)" (mouseenter)="pointAt.set($index)" />
+              }
+              @if (pointInfo(); as info) {
+                <line [attr.x1]="info.x" [attr.x2]="info.x" y1="12" y2="172" stroke="var(--color-line-strong)" stroke-dasharray="3 3" />
+                <circle [attr.cx]="info.x" [attr.cy]="info.y" r="4.5" fill="var(--color-accent)" stroke="var(--color-surface)" stroke-width="2" />
+              }
               @for (label of chart.labels; track label.x) {
-                <text [attr.x]="label.x" y="198" text-anchor="middle" fill="var(--color-muted)" font-size="11">{{ label.label }}</text>
+                <text [attr.x]="label.x" y="198" text-anchor="middle" fill="var(--color-muted)" font-size="13">{{ label.label }}</text>
               }
             </svg>
-            <p class="mt-1 flex items-center gap-2 text-xs text-muted">
+            <p class="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted">
               <span class="inline-block h-0.5 w-5 bg-accent"></span>
               {{ legend() }}
+              @if (chart.prevLine) {
+                <span class="ml-2 inline-block w-5 border-t-2 border-dashed border-muted"></span>{{ compareTo() === 'year' ? 'Hace un año' : 'Periodo anterior' }}
+              }
+              @if (pointInfo(); as info) {
+                <span class="nums ml-auto font-medium text-ink">{{ info.label }}: {{ info.value }}</span>
+              } @else {
+                <span class="ml-auto">Toca la gráfica para ver cada día</span>
+              }
             </p>
           }
         </article>
@@ -283,6 +358,27 @@
               </span>
             </div>
           </div>
+          @if (categoryRows().length) {
+            <article class="card">
+              <div class="card-head">
+                <span class="sec-icon"><mat-icon>percent</mat-icon></span>
+                <div>
+                  <h2 class="card-title">Cuánto de lo que entra se va en cada cosa</h2>
+                  <p class="text-sm text-muted">Y cómo cambió contra el periodo anterior.</p>
+                </div>
+              </div>
+              <ul class="mt-2 divide-y divide-line text-sm">
+                @for (cat of categoryRows(); track cat.label) {
+                  <li class="flex items-center gap-3 py-2.5">
+                    <span class="min-w-0 flex-1 truncate text-ink">{{ cat.label }}</span>
+                    <span class="nums w-24 text-right text-muted">{{ cat.share === null ? '—' : cat.share + '% de ingresos' }}</span>
+                    <span class="nums w-20 text-right" [style.color]="cat.delta > 0 ? 'var(--nx-bad-fg)' : cat.delta < 0 ? 'var(--nx-ok-fg)' : 'var(--color-muted)'">{{ cat.delta > 0 ? '↑ ' + money(cat.delta) : cat.delta < 0 ? '↓ ' + money(-cat.delta) : 'igual' }}</span>
+                    <span class="nums w-24 text-right font-semibold text-ink">{{ money(cat.amount) }}</span>
+                  </li>
+                }
+              </ul>
+            </article>
+          }
         }
       </div>
 
@@ -354,8 +450,8 @@
                 @for (person of shifts(); track person.staff_id) {
                   <li class="py-3">
                     <p class="font-medium text-ink">{{ person.staff_name }}</p>
-                    <p class="nums text-muted">{{ person.visits }} citas · ticket {{ money(person.ticket) }} · {{ person.free_hours }} h libres</p>
-                    <p class="text-xs text-muted">{{ deltaText(person.incomeDelta) }}</p>
+                    <p class="nums text-muted">{{ person.visits }} citas · ticket {{ money(person.ticket) }} · ocupación {{ person.occupancy }}%</p>
+                    <p class="text-sm text-muted">{{ deltaText(person.incomeDelta) }}</p>
                   </li>
                 }
               </ul>
@@ -365,15 +461,25 @@
                   <li class="flex items-start justify-between gap-3 py-3">
                     <div class="min-w-0">
                       <p class="font-medium text-ink">{{ person.staff_name }}</p>
-                      <p class="nums text-muted">{{ person.percent }}% · pagado {{ money(person.paid) }} · debe {{ money(owed(person.commission, person.paid)) }}</p>
+                      <p class="nums text-muted">{{ person.percent }}% · {{ money(person.commission) }}{{ person.tips ? ' (incluye ' + money(person.tips) + ' de propinas)' : '' }}</p>
+                      <p class="nums text-muted">Pagado {{ money(person.paid) }} · debe <span class="font-medium" [class.text-ink]="owed(person.commission, person.paid) > 0">{{ money(owed(person.commission, person.paid)) }}</span></p>
                       @if (person.hadCommission) {
-                        <p class="mt-0.5 text-xs text-muted">{{ deltaText(person.commissionDelta) }}</p>
+                        <p class="mt-0.5 text-sm text-muted">{{ deltaText(person.commissionDelta) }}</p>
                       }
                     </div>
-                    @if (person.commission > 0) {
-                      <button type="button" class="btn shrink-0 h-8! px-3! text-xs" [class.btn-primary]="person.paid <= 0" [class.btn-secondary]="person.paid > 0" (click)="markPaid(person.staff_id, person.commission, person.paid <= 0)">{{ person.paid > 0 ? 'Quitar pago' : 'Marcar pagada' }}</button>
-                    }
                   </li>
+                  @if (person.commission > 0) {
+                    <li class="flex flex-wrap items-center gap-2 border-t-0! pb-3">
+                      @if (owed(person.commission, person.paid) > 0) {
+                        <input class="input nums w-28!" type="number" min="0" inputmode="decimal" [attr.aria-label]="'Monto a pagar a ' + person.staff_name" [value]="payDraft()[person.staff_id] ?? owed(person.commission, person.paid)" (input)="typePay(person.staff_id, $any($event.target).value)" />
+                        <button type="button" class="btn btn-primary" (click)="pay(person)">Pagar</button>
+                      }
+                      <a class="btn btn-whatsapp px-3!" [href]="receipt(person)" target="_blank" rel="noopener" aria-label="Mandar recibo por WhatsApp"><mat-icon>receipt_long</mat-icon></a>
+                      @if (person.paid > 0) {
+                        <button type="button" class="btn btn-ghost" (click)="markPaid(person.staff_id, 0, false)">Quitar pagos</button>
+                      }
+                    </li>
+                  }
                 }
               </ul>
             }
@@ -385,13 +491,23 @@
               <span class="sec-icon"><mat-icon>add_card</mat-icon></span>
               <h2 class="card-title">Agregar gasto</h2>
             </div>
-            <div class="mt-3 grid gap-2">
-              <input class="h-10 rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" placeholder="Renta, luz, insumos…" aria-label="Concepto" [value]="expenseName()" (input)="expenseName.set($any($event.target).value)" />
-              <input class="nums h-10 rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" type="number" min="0" placeholder="Monto" aria-label="Monto" [value]="expenseAmount()" (input)="expenseAmount.set($any($event.target).value)" />
-              <app-pick-field [options]="categoryPicks" [valueIn]="expenseCategory()" (picked)="expenseCategory.set($any($event))" />
-              <app-pick-field [options]="kindPicks" [valueIn]="expenseKind()" (picked)="expenseKind.set($any($event))" />
+            <div class="mt-3 grid gap-3">
+              <label class="block"><span class="label">Concepto</span>
+                <input class="input" placeholder="Renta, luz, insumos…" [value]="expenseName()" (input)="expenseName.set($any($event.target).value)" />
+              </label>
+              <label class="block"><span class="label">Monto</span>
+                <input class="input nums" type="number" min="0" inputmode="decimal" [value]="expenseAmount()" (input)="expenseAmount.set($any($event.target).value)" />
+              </label>
+              <label class="block"><span class="label">Categoría</span>
+                <app-pick-field class="block" [options]="categoryPicks" [valueIn]="expenseCategory()" (picked)="expenseCategory.set($any($event))" />
+              </label>
+              <label class="block"><span class="label">Tipo</span>
+                <app-pick-field class="block" [options]="kindPicks" [valueIn]="expenseKind()" (picked)="expenseKind.set($any($event))" />
+              </label>
               @if (expenseKind() === 'fixed') {
-                <app-pick-field [options]="cadencePicks" [valueIn]="expenseCadence()" (picked)="expenseCadence.set($any($event))" />
+                <label class="block"><span class="label">Cada cuándo</span>
+                  <app-pick-field class="block" [options]="cadencePicks" [valueIn]="expenseCadence()" (picked)="expenseCadence.set($any($event))" />
+                </label>
               }
               <button type="button" class="btn btn-primary" (click)="addExpense()">{{ editingExpense() ? 'Guardar' : 'Agregar gasto' }}</button>
             </div>
@@ -401,12 +517,12 @@
                   <li class="flex items-center gap-3 py-2.5">
                     <div class="min-w-0 flex-1">
                       <p class="truncate font-medium text-ink">{{ item.name }}</p>
-                      <p class="text-xs text-muted">{{ item.kind === 'fixed' ? (item.cadence === 'week' ? 'Semanal' : item.cadence === 'day' ? 'Por día' : 'Mensual') : 'Variable' }}</p>
+                      <p class="text-sm text-muted">{{ item.kind === 'fixed' ? (item.cadence === 'week' ? 'Semanal' : item.cadence === 'day' ? 'Por día' : 'Mensual') : 'Variable' }}{{ item.day ? ' · ' + (item.kind === 'fixed' ? 'desde ' : '') + item.day : '' }}</p>
                     </div>
                     <span class="nums shrink-0 text-right text-base font-semibold text-ink">{{ money(item.amount) }}</span>
                     <span class="flex shrink-0">
-                      <button type="button" class="btn btn-ghost h-8! w-8! px-0!" aria-label="Editar" (click)="editExpense(item)"><mat-icon class="h-4! w-4! text-[16px]!">edit</mat-icon></button>
-                      <button type="button" class="btn btn-ghost h-8! w-8! px-0!" aria-label="Quitar" (click)="removeExpense(item.id)"><mat-icon class="h-4! w-4! text-[16px]!">delete</mat-icon></button>
+                      <button type="button" class="btn btn-ghost w-11! px-0!" aria-label="Editar" (click)="editExpense(item)"><mat-icon>edit</mat-icon></button>
+                      <button type="button" class="btn btn-ghost w-11! px-0!" aria-label="Quitar" (click)="removeExpense(item.id)"><mat-icon>delete</mat-icon></button>
                     </span>
                   </li>
                 }
@@ -560,50 +676,122 @@
         </article>
       </div>
 
-      <div class="mt-4">
-        <article class="card card-tint h-full">
+      <!-- Para decidir: qué servicio deja más por hora, cuánto se pierde en faltas, si regresan y cómo va el año. -->
+      <div class="mt-4 grid items-start gap-4 lg:grid-cols-2">
+        <article class="card lg:col-span-2">
           <div class="card-head">
-            <span class="sec-icon"><mat-icon>account_balance_wallet</mat-icon></span>
+            <span class="sec-icon"><mat-icon>price_check</mat-icon></span>
             <div>
-              <h2 class="card-title">Resultado</h2>
-              <p class="text-sm text-muted">Ingresos del periodo, menos gastos y comisiones.</p>
+              <h2 class="card-title">Lo que deja cada servicio</h2>
+              <p class="text-sm text-muted">Después de comisiones, y por cada hora de trabajo. Ordenado por lo que deja por hora.</p>
             </div>
           </div>
-          <ul class="mt-2 divide-y divide-line text-sm">
-            <li class="flex items-center justify-between gap-3 py-2.5">
-              <div><p class="text-ink">Ingresos</p><p class="text-xs text-muted">Citas completadas</p></div>
-              <span class="nums text-right font-medium text-ink">{{ money(row.total) }}</span>
-            </li>
-            <li class="flex items-center justify-between gap-3 py-2.5">
-              <div><p class="text-ink">Gastos</p><p class="text-xs text-muted">Fijos y variables</p></div>
-              <span class="nums text-right font-medium text-ink-soft">− {{ money(row.expense_fixed + row.expense_variable) }}</span>
-            </li>
-            <li class="flex items-center justify-between gap-3 py-2.5">
-              <div><p class="text-ink">Comisiones</p><p class="text-xs text-muted">Parte del equipo</p></div>
-              <span class="nums text-right font-medium text-ink-soft">− {{ money(row.commission_total) }}</span>
-            </li>
-            <li class="flex items-center justify-between gap-3 py-2.5">
-              <div><p class="font-semibold text-ink">Ganancia</p><p class="text-xs text-muted">Lo que queda</p></div>
-              <span class="nums text-right text-lg font-semibold text-accent">{{ money(row.profit) }}</span>
-            </li>
-          </ul>
-          <p class="mt-2 text-sm text-muted">Te quedas con <span class="nums font-medium text-ink">{{ margin() }}%</span> de lo que entra.</p>
-          @if (breakEven(); as point) {
-            <div class="mt-4 rounded-xl border border-line bg-surface p-4">
-              <p class="text-sm text-ink">
-                <strong>Punto de equilibrio:</strong> para cubrir gastos y comisiones necesitas <strong class="nums">{{ money(point.need) }}</strong>
-                @if (point.visits) {
-                  (≈ <span class="nums">{{ point.visits }}</span> citas)
-                }
-                en este periodo.
-              </p>
-              <div class="mt-2 h-2 overflow-hidden rounded-full bg-canvas" role="meter" [attr.aria-valuenow]="point.percent" aria-valuemin="0" aria-valuemax="100" aria-label="Avance al punto de equilibrio">
-                <div class="h-full rounded-full transition-all" [class.bg-[var(--nx-ok-fg)]]="point.covered" [class.bg-accent]="!point.covered" [style.width.%]="point.percent"></div>
-              </div>
-              <p class="nums mt-1 text-sm" [class.text-[var(--nx-ok-fg)]]="point.covered" [class.text-muted]="!point.covered">{{ point.covered ? 'Ya cubriste tus gastos: lo que entre de aquí en adelante es ganancia.' : 'Te faltan ' + money(point.left) + ' para no perder.' }}</p>
+          @if ((row.service_stats ?? []).length) {
+            <div class="mt-3 overflow-x-auto">
+              <table class="w-full min-w-[34rem] text-sm">
+                <thead>
+                  <tr class="text-left text-muted">
+                    <th class="py-2 font-normal">Servicio</th>
+                    <th class="py-2 text-right font-normal">Citas</th>
+                    <th class="py-2 text-right font-normal">Ingreso</th>
+                    <th class="py-2 text-right font-normal">Comisión</th>
+                    <th class="py-2 text-right font-normal">Material</th>
+                    <th class="py-2 text-right font-normal">Te deja</th>
+                    <th class="py-2 text-right font-normal">Por hora</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-line">
+                  @for (item of row.service_stats ?? []; track item.name; let first = $first) {
+                    <tr>
+                      <td class="py-2.5 text-ink">{{ item.name }}@if (first && (row.service_stats ?? []).length > 1) { <span class="badge badge-ok ml-1">Más rentable</span> }</td>
+                      <td class="nums py-2.5 text-right text-muted">{{ item.count }}</td>
+                      <td class="nums py-2.5 text-right text-ink-soft">{{ money(item.income) }}</td>
+                      <td class="nums py-2.5 text-right text-muted">− {{ money(item.commission) }}</td>
+                      <td class="nums py-2.5 text-right text-muted">{{ item.supplies ? '− ' + money(item.supplies) : '—' }}</td>
+                      <td class="nums py-2.5 text-right text-ink">{{ money(item.profit) }}</td>
+                      <td class="nums py-2.5 text-right font-semibold text-ink">{{ money(item.per_hour) }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
             </div>
+            <p class="mt-2 text-sm text-muted">El material se pone en cada servicio (Servicios → Material por servicio). Un servicio que deja poco por hora es candidato a subir de precio.</p>
+          } @else {
+            <p class="py-6 text-sm text-muted">Sin citas completadas en este periodo.</p>
           }
         </article>
+
+        @if (misses(); as lost) {
+          <article class="card">
+            <div class="card-head">
+              <span class="sec-icon"><mat-icon>event_busy</mat-icon></span>
+              <h2 class="card-title">Faltas y cancelaciones</h2>
+            </div>
+            <p class="nums mt-3 text-3xl font-semibold tracking-tight" [style.color]="lost.rate >= 15 ? 'var(--nx-bad-fg)' : 'var(--color-ink)'">{{ lost.rate }}%</p>
+            <p class="text-sm text-muted">de las citas no se hicieron · <span class="nums">{{ money(lost.money) }}</span> que no entró</p>
+            <div class="mt-3 grid grid-cols-2 gap-3 text-sm">
+              <div><p class="nums text-lg font-semibold text-ink">{{ lost.cancelled }}</p><p class="text-muted">Cancelaron</p></div>
+              <div><p class="nums text-lg font-semibold text-ink">{{ lost.noShow }}</p><p class="text-muted">No llegaron</p></div>
+            </div>
+            @if (lost.rate >= 15) {
+              <p class="mt-3 text-sm text-ink-soft">Es alto. Pide anticipo a quien cancela seguido (Clientes → Cancelan seguido).</p>
+            }
+          </article>
+        }
+
+        @if (loyalty(); as info) {
+          <article class="card">
+            <div class="card-head">
+              <span class="sec-icon"><mat-icon>favorite</mat-icon></span>
+              <h2 class="card-title">Que regresen</h2>
+            </div>
+            <dl class="mt-3 grid grid-cols-2 gap-x-3 gap-y-3 text-sm">
+              <div>
+                <dt class="text-muted">Salen con su siguiente cita</dt>
+                <dd class="nums text-lg font-semibold text-ink">{{ info.rebook === null ? '—' : info.rebook + '%' }}</dd>
+              </div>
+              <div>
+                <dt class="text-muted">Gasta una clienta (en total)</dt>
+                <dd class="nums text-lg font-semibold text-ink">{{ money(info.value) }}</dd>
+              </div>
+              <div>
+                <dt class="text-muted">Reservan por tu página</dt>
+                <dd class="nums text-lg font-semibold text-ink">{{ info.known ? info.page + '%' : '—' }}</dd>
+              </div>
+              <div>
+                <dt class="text-muted">Reservan con anticipación</dt>
+                <dd class="nums text-lg font-semibold text-ink">{{ info.lead === null ? '—' : info.lead < 1 ? 'el mismo día' : info.lead + ' días' }}</dd>
+              </div>
+              <div class="col-span-2">
+                <dt class="text-muted">Cupones y premios usados</dt>
+                <dd class="nums font-semibold text-ink">{{ info.discounts }} · {{ money(info.discountAmount) }} de descuento</dd>
+              </div>
+            </dl>
+            @if (info.rebook !== null && info.rebook < 40) {
+              <p class="mt-3 text-sm text-ink-soft">Al cobrar, ofrece agendar la siguiente cita ("Repetir en 3 o 4 semanas" en la ficha).</p>
+            }
+          </article>
+        }
+
+        @if (yearBars().length) {
+          <article class="card lg:col-span-2">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div class="card-head">
+                <span class="sec-icon"><mat-icon>calendar_month</mat-icon></span>
+                <h2 class="card-title">Últimos 12 meses</h2>
+              </div>
+              <span class="nums text-sm text-muted">{{ money(yearTotal()) }} en el año</span>
+            </div>
+            <div class="mt-4 flex h-40 items-end gap-1.5" role="img" aria-label="Ingresos por mes">
+              @for (bar of yearBars(); track bar.month; let last = $last) {
+                <div class="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1" [attr.title]="bar.label + ': ' + money(bar.total)">
+                  <div class="w-full rounded-t" [style.height.%]="bar.height" [style.background]="last ? 'var(--color-accent)' : 'color-mix(in srgb, var(--color-accent) 35%, transparent)'"></div>
+                  <span class="text-xs text-muted">{{ bar.label }}</span>
+                </div>
+              }
+            </div>
+          </article>
+        }
       </div>
     }
 
@@ -662,7 +850,7 @@
           <div class="stat">
             <span class="stat-icon" [class.stat-bad]="team().owed > 0" [class.stat-ok]="!(team().owed > 0)"><mat-icon>pending_actions</mat-icon></span>
             <span class="min-w-0">
-              <span class="stat-value block" [class.text-red-700]="team().owed > 0" [class.text-ink]="!(team().owed > 0)">{{ money(team().owed) }}</span>
+              <span class="stat-value block" [class.text-(--nx-bad-fg)]="team().owed > 0" [class.text-ink]="!(team().owed > 0)">{{ money(team().owed) }}</span>
               <span class="stat-label block">Por pagar</span>
               <span class="mt-0.5 block text-xs text-muted">Lo que el negocio aún debe</span>
             </span>
@@ -677,6 +865,61 @@
           </div>
         }
       </div>
+      @if (view() === 'staff' && staffTable().length) {
+        <article class="card mt-4">
+          <div class="card-head">
+            <span class="sec-icon"><mat-icon>table_chart</mat-icon></span>
+            <div>
+              <h2 class="card-title">Comparar {{ copy.text().people.toLowerCase() }}</h2>
+              <p class="text-sm text-muted">"Por hora" es lo que vendió entre las horas que trabajó con cita. "Regresan" son clientas que ya habían venido antes.</p>
+            </div>
+          </div>
+          <div class="mt-3 overflow-x-auto">
+            <table class="w-full min-w-[44rem] text-sm">
+              <thead>
+                <tr class="text-left text-muted">
+                  <th class="py-2 font-normal">{{ copy.text().person }}</th>
+                  <th class="py-2 text-right font-normal">Vendió</th>
+                  <th class="py-2 text-right font-normal">Citas</th>
+                  <th class="py-2 text-right font-normal">Ticket</th>
+                  <th class="py-2 text-right font-normal">Ocupación</th>
+                  <th class="py-2 text-right font-normal">Por hora</th>
+                  <th class="py-2 text-right font-normal">Propinas</th>
+                  <th class="py-2 text-right font-normal">Faltas / cancel.</th>
+                  <th class="py-2 text-right font-normal">Regresan</th>
+                  <th class="py-2 font-normal">Meta del mes</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-line">
+                @for (person of staffTable(); track person.staff_id) {
+                  <tr>
+                    <td class="py-2.5 font-medium text-ink">{{ person.staff_name }}</td>
+                    <td class="nums py-2.5 text-right font-semibold text-ink">{{ money(person.income) }}</td>
+                    <td class="nums py-2.5 text-right text-ink-soft">{{ person.visits }}</td>
+                    <td class="nums py-2.5 text-right text-ink-soft">{{ money(person.ticket) }}</td>
+                    <td class="nums py-2.5 text-right text-ink-soft">{{ person.occupancy }}%</td>
+                    <td class="nums py-2.5 text-right text-ink-soft">{{ person.perHour ? money(person.perHour) : '—' }}</td>
+                    <td class="nums py-2.5 text-right text-ink-soft">{{ money(person.tips ?? 0) }}</td>
+                    <td class="nums py-2.5 text-right" [style.color]="(person.no_shows ?? 0) + (person.cancels ?? 0) > 2 ? 'var(--nx-bad-fg)' : 'var(--color-ink-soft)'">{{ person.no_shows ?? 0 }} / {{ person.cancels ?? 0 }}</td>
+                    <td class="nums py-2.5 text-right text-ink-soft">{{ person.returnShare === null ? '—' : person.returnShare + '%' }}</td>
+                    <td class="min-w-36 py-2.5 pl-3">
+                      @if (person.goal) {
+                        <div class="h-1.5 overflow-hidden rounded-full bg-canvas"><div class="h-full rounded-full bg-accent" [style.width.%]="percentOf(person.income, person.goal) > 100 ? 100 : percentOf(person.income, person.goal)"></div></div>
+                        <span class="nums text-sm text-muted">{{ percentOf(person.income, person.goal) }}% de {{ money(person.goal) }}</span>
+                      } @else {
+                        <span class="text-sm text-muted">—</span>
+                      }
+                      @if (person.tier_reached) {
+                        <span class="badge badge-ok mt-1">Subió a {{ person.percent }}%</span>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </article>
+      }
     }
 
     @if (pickerOpen()) {
@@ -684,7 +927,7 @@
         <div class="card w-full max-w-lg p-4! shadow-xl" role="dialog" aria-label="Tipo de métrica" (click)="$event.stopPropagation()">
           <div class="mb-2 flex items-center justify-between">
             <h2 class="card-title">Tipo de métrica</h2>
-            <button type="button" class="btn btn-ghost h-8! w-8! px-0!" (click)="pickerOpen.set(false)" aria-label="Cerrar"><mat-icon>close</mat-icon></button>
+            <button type="button" class="btn btn-ghost w-11! px-0!" (click)="pickerOpen.set(false)" aria-label="Cerrar"><mat-icon>close</mat-icon></button>
           </div>
           <div class="divide-y divide-line">
             @for (item of metrics; track item.id) {

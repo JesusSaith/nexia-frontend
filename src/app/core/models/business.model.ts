@@ -1,4 +1,12 @@
 export interface BusinessBrand {
+  /** Horario general, p. ej. ["Lun a vie · 09:00–18:00"]. */
+  hours?: string[];
+  accent_color?: string | null;
+  button_shape?: string | null;
+  button_fill?: string | null;
+  font_style?: string | null;
+  header_style?: string | null;
+  google_review_url?: string | null;
   name: string;
   logo_url: string | null;
   primary_color: string;
@@ -78,6 +86,9 @@ export interface PublicService {
   image_url?: string | null;
   questions?: string | null;
   capacity?: number;
+  featured?: boolean;
+  /** Opciones con su precio y duración; la clienta elige una. */
+  variants?: { name: string; price: number; duration_minutes: number }[];
 }
 
 export interface PublicStaff {

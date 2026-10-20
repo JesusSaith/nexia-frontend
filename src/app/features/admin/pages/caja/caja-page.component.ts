@@ -4,7 +4,7 @@ import { forkJoin } from 'rxjs';
 
 import { ShopProduct, ShopService, StockMove } from '@core/services/shop.service';
 
-// FUTURE_PHASE_INVENTORY: pantalla de compras, ventas e IVA. La ruta está apagada.
+// Pantalla de compras, ventas e IVA (ruta /admin/caja).
 @Component({
   selector: 'app-caja-page',
   template: `

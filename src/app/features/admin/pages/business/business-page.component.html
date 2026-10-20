@@ -10,253 +10,258 @@
   </div>
 } @else if (brand(); as shop) {
   <div class="text-ink">
-    @if (toast(); as message) {
-      <p class="card mb-4 flex items-center gap-3 py-3! text-sm text-ink" role="status">
-        <mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">info</mat-icon>
-        {{ message }}
-      </p>
-    }
     <header class="page-head">
       <div class="flex min-w-0 items-center gap-4">
-        @if (logoPreview()) {
-          <img [src]="logoPreview()" [alt]="shop.name" class="h-14 w-14 shrink-0 rounded-xl border border-line bg-surface object-cover" />
+        @if (shop.logo_url) {
+          <img [src]="shop.logo_url" [alt]="shop.name" class="h-14 w-14 shrink-0 rounded-xl border border-line bg-surface object-cover" />
         } @else {
-          <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-line bg-accent-soft text-lg font-semibold text-accent">
-            {{ shop.name.slice(0, 1) }}
-          </span>
+          <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-line bg-accent-soft text-lg font-semibold text-accent">{{ shop.name.slice(0, 1) }}</span>
         }
         <div class="min-w-0">
           <h1 class="truncate">{{ shop.name }}</h1>
-          @if (shop.description) {
-            <p class="max-w-xl">{{ shop.description }}</p>
-          } @else {
-            <p>Tu enlace, código QR y datos de contacto.</p>
-          }
+          <p>Tu enlace, cómo te encuentran y qué opinan de ti.</p>
         </div>
       </div>
-      @if (isOwner()) {
-        <a class="btn btn-secondary" routerLink="/admin/settings">
-          <mat-icon>settings</mat-icon>
-          Configuración
-        </a>
-      }
+      <button type="button" class="btn btn-secondary" (click)="showPreview.set(!showPreview())">
+        <mat-icon>smartphone</mat-icon>
+        {{ showPreview() ? 'Cerrar vista previa' : 'Ver como clienta' }}
+      </button>
     </header>
 
-    <!-- Indicadores -->
+    @if (error(); as message) {
+      <p role="alert" class="field-error mb-4">{{ message }}</p>
+    }
+
+    <!-- Presencia: lo que dice cómo le va al enlace, no lo que ya está en Inicio. -->
     <div class="mb-4 grid grid-cols-3 gap-3">
       <div class="stat">
-        <span class="stat-icon stat-accent"><mat-icon>event</mat-icon></span>
-        <span class="min-w-0">
-          <span class="stat-value block">{{ todayCount() ?? '—' }}</span>
-          <span class="stat-label block">Citas hoy</span>
-        </span>
-      </div>
-      <div class="stat min-w-0">
-        <span class="stat-icon stat-info"><mat-icon>schedule</mat-icon></span>
-        <span class="min-w-0">
-          <span class="stat-value block truncate">{{ nextLabel() }}</span>
-          <span class="stat-label block">Próxima</span>
-        </span>
+        <span class="stat-icon stat-accent hidden sm:grid"><mat-icon>public</mat-icon></span>
+        <span class="min-w-0"><span class="stat-value block">{{ presence()?.page ?? '—' }}</span><span class="stat-label block">Reservas por tu página este mes</span></span>
       </div>
       <div class="stat">
-        <span class="stat-icon stat-ok"><mat-icon>groups</mat-icon></span>
-        <span class="min-w-0">
-          <span class="stat-value block">{{ teamCount() ?? '—' }}</span>
-          <span class="stat-label block">En el equipo</span>
-        </span>
+        <span class="stat-icon stat-info hidden sm:grid"><mat-icon>bolt</mat-icon></span>
+        <span class="min-w-0"><span class="stat-value block">{{ presence()?.share === null || presence() === null ? '—' : presence()!.share + '%' }}</span><span class="stat-label block">Llegan solas, sin capturarlas</span></span>
+      </div>
+      <div class="stat">
+        <span class="stat-icon stat-ok hidden sm:grid"><mat-icon>star</mat-icon></span>
+        <span class="min-w-0"><span class="stat-value block">{{ rating() ?? '—' }}</span><span class="stat-label block">{{ reviews().length }} {{ reviews().length === 1 ? 'opinión' : 'opiniones' }}</span></span>
       </div>
     </div>
 
-    <!-- Dos columnas independientes (no una rejilla 2x2) para que una tarjeta corta no deje hueco debajo.
-         Flex en vez de grid: si una columna queda vacía (empty:hidden), la otra ocupa todo el ancho. -->
+    @if (showPreview() && preview(); as src) {
+      <!-- La página de reservas tal como la ve la clienta, en un marco de celular. -->
+      <div class="mb-4 flex justify-center">
+        <div class="h-[680px] w-[360px] max-w-full overflow-hidden rounded-[2.5rem] border-[10px] border-ink bg-surface shadow-xl">
+          <iframe [src]="src" title="Vista previa de tu página de reservas" class="h-full w-full"></iframe>
+        </div>
+      </div>
+    }
+
     <div class="flex flex-col gap-4 lg:flex-row lg:items-start">
-      <div class="flex min-w-0 flex-col gap-4 empty:hidden lg:flex-[2]">
+      <div class="flex min-w-0 flex-col gap-4 lg:flex-[2]">
+        @if (gaps().length > 0) {
+          <section class="card">
+            <div class="card-head">
+              <span class="sec-icon"><mat-icon>task_alt</mat-icon></span>
+              <div class="min-w-0">
+                <h2 class="card-title">{{ readyToShare() ? 'Completa tu perfil' : 'Antes de compartir' }}</h2>
+                <p class="text-sm text-muted">{{ readyToShare() ? 'Da más confianza a quien te visita.' : 'Para que puedan reservar, falta esto:' }}</p>
+              </div>
+            </div>
+            <ul class="mt-2 divide-y divide-line">
+              @for (step of gaps(); track step.label) {
+                <li>
+                  <a class="row-hover -mx-2 flex min-h-11 items-center gap-3 rounded-lg px-2 text-sm" [routerLink]="step.path" [queryParams]="step.section ? { sec: step.section } : null">
+                    <mat-icon class="h-5! w-5! shrink-0 text-[20px]!" [style.color]="step.group === 'aviso' ? 'var(--nx-warn-fg)' : 'var(--color-line-strong)'">{{ step.group === 'aviso' ? 'warning' : 'radio_button_unchecked' }}</mat-icon>
+                    <span class="min-w-0 flex-1 text-ink">{{ step.label }}</span>
+                    <mat-icon class="shrink-0 text-muted">chevron_right</mat-icon>
+                  </a>
+                </li>
+              }
+            </ul>
+          </section>
+        }
+
         @if (readyToShare() && bookingUrl()) {
           <section class="card card-tint">
             <div class="card-head">
               <span class="sec-icon"><mat-icon>link</mat-icon></span>
               <div class="min-w-0">
                 <h2 class="card-title">Tu enlace de reservas</h2>
-                <p class="text-sm text-muted">Así entra quien quiere agendar contigo.</p>
+                <p class="text-sm text-muted">Al pegarlo en WhatsApp o Instagram se ve con tu logo y nombre.</p>
               </div>
             </div>
-            <input readonly [value]="shareUrl().split('?')[0]" aria-label="Enlace de reservas" class="mt-4 h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink" />
+            <input readonly [value]="shareUrl()" aria-label="Enlace de reservas" class="input mt-4" />
             <div class="mt-3 flex flex-wrap gap-2">
-              <button type="button" class="btn btn-primary" (click)="copyLink()">
-                <mat-icon>{{ copied() ? 'check' : 'content_copy' }}</mat-icon>
-                {{ copied() ? 'Copiado' : 'Copiar enlace' }}
+              <button type="button" class="btn btn-primary" (click)="copyText('link', shareUrl())">
+                <mat-icon>{{ copied() === 'link' ? 'check' : 'content_copy' }}</mat-icon>{{ copied() === 'link' ? 'Copiado' : 'Copiar enlace' }}
               </button>
-              <a class="btn btn-whatsapp" [href]="whatsappHref()" target="_blank" rel="noopener" (click)="markShared()">
-                Enviar por WhatsApp
-              </a>
-              <a class="btn btn-ghost" [href]="bookingUrl()" target="_blank" rel="noopener">
-                <mat-icon>open_in_new</mat-icon>
-                Ver página pública
-              </a>
+              <a class="btn btn-whatsapp" [href]="whatsappHref()" target="_blank" rel="noopener" (click)="markShared()">Enviar por WhatsApp</a>
+              <a class="btn btn-ghost" [href]="bookingUrl()" target="_blank" rel="noopener"><mat-icon>open_in_new</mat-icon>Abrir</a>
             </div>
+            @if (isOwner()) {
+              <details class="mt-4 border-t border-line pt-3">
+                <summary class="flex min-h-11 cursor-pointer items-center text-sm font-medium text-ink-soft">Personalizar el enlace</summary>
+                <form class="mt-2 flex flex-wrap items-end gap-2" (submit)="$event.preventDefault(); saveSlug()">
+                  <label class="block min-w-0 flex-1"><span class="label">{{ bookingUrl().split('/').slice(0, 3).join('/') }}/</span>
+                    <input class="input" name="slug" maxlength="60" [(ngModel)]="newSlug" />
+                  </label>
+                  <button type="submit" class="btn btn-secondary">Cambiar</button>
+                </form>
+                <p class="field-hint mt-1">El enlace anterior y los QR que ya imprimiste siguen funcionando.</p>
+                @if (slugError(); as message) {
+                  <p class="field-error mt-1">{{ message }}</p>
+                }
+              </details>
+            }
           </section>
-        }
 
-        @if (gaps().length > 0) {
+          <!-- Kit para compartir: textos listos, guías y botón para la web. -->
           <section class="card">
-            <div class="flex items-start justify-between gap-3">
-              <div class="card-head min-w-0">
-                <span class="sec-icon"><mat-icon>task_alt</mat-icon></span>
-                <div class="min-w-0">
-                  <h2 class="card-title">{{ readyToShare() ? 'Completa tu perfil' : 'Antes de compartir' }}</h2>
-                  <p class="text-sm text-muted">{{ readyToShare() ? 'Completa tu perfil para dar más confianza a tus clientes' : 'Para compartir el enlace, falta esto' }}</p>
-                </div>
+            <div class="card-head">
+              <span class="sec-icon"><mat-icon>campaign</mat-icon></span>
+              <div>
+                <h2 class="card-title">Comparte tu enlace</h2>
+                <p class="text-sm text-muted">Textos listos para copiar y pegar.</p>
               </div>
-              <span class="badge shrink-0" [class.badge-info]="readyToShare()" [class.badge-warn]="!readyToShare()"><span class="nums">{{ gaps().length }}</span> pendiente{{ gaps().length === 1 ? '' : 's' }}</span>
             </div>
-            <ul class="mt-3 divide-y divide-line">
-              @for (item of gaps(); track item) {
-                <li class="flex items-center gap-3 py-2.5 text-sm text-ink">
-                  <mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-line-strong">radio_button_unchecked</mat-icon>
-                  <span class="min-w-0 flex-1">{{ item }}</span>
+            <ul class="mt-3 flex flex-col gap-3">
+              @for (item of kit(); track item.key) {
+                <li class="rounded-xl border border-line p-3">
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="text-sm font-medium text-ink">{{ item.label }}</span>
+                    <button type="button" class="btn btn-ghost px-3!" (click)="copyText(item.key, item.text)">
+                      <mat-icon>{{ copied() === item.key ? 'check' : 'content_copy' }}</mat-icon>{{ copied() === item.key ? 'Copiado' : 'Copiar' }}
+                    </button>
+                  </div>
+                  <p class="mt-1 whitespace-pre-line text-sm text-ink-soft">{{ item.text }}</p>
                 </li>
               }
             </ul>
-            <a [routerLink]="nextStep().path" [queryParams]="nextStep().section ? { sec: nextStep().section } : null" class="btn btn-primary mt-3">
-              Completar
-              <mat-icon>chevron_right</mat-icon>
-            </a>
+            <div class="mt-4 flex flex-col gap-2 border-t border-line pt-3">
+              <details>
+                <summary class="flex min-h-11 cursor-pointer items-center text-sm font-medium text-ink">Botón "Reservar" en Google Maps</summary>
+                <ol class="ml-5 list-decimal text-sm text-ink-soft">
+                  <li>Entra a tu Perfil de Negocio de Google (busca tu negocio en Google estando en tu cuenta).</li>
+                  <li>Toca "Editar perfil" → "Reservas" o "Vínculos de citas".</li>
+                  <li>Pega tu enlace y guarda. Puede tardar unos días en aparecer.</li>
+                </ol>
+              </details>
+              <details>
+                <summary class="flex min-h-11 cursor-pointer items-center text-sm font-medium text-ink">Botón "Reservar" en Instagram</summary>
+                <ol class="ml-5 list-decimal text-sm text-ink-soft">
+                  <li>En tu perfil toca "Editar perfil" → "Botones de acción" (o "Agregar enlace").</li>
+                  <li>Elige "Reservar" o "Enlace" y pega tu enlace.</li>
+                  <li>Pon también el texto de la bio de arriba.</li>
+                </ol>
+              </details>
+              <details>
+                <summary class="flex min-h-11 cursor-pointer items-center text-sm font-medium text-ink">Fijar el enlace en WhatsApp Business</summary>
+                <ol class="ml-5 list-decimal text-sm text-ink-soft">
+                  <li>Ajustes → Herramientas para la empresa → Perfil: pega tu enlace en "Sitio web".</li>
+                  <li>Herramientas → Mensaje de bienvenida: usa la "Respuesta automática" de arriba.</li>
+                </ol>
+              </details>
+              <details>
+                <summary class="flex min-h-11 cursor-pointer items-center text-sm font-medium text-ink">Botón para tu sitio web</summary>
+                <p class="mt-1 text-sm text-ink-soft">Pega este código donde quieras el botón (o pásaselo a quien hace tu página):</p>
+                <textarea readonly class="input mt-2 font-mono text-xs!" rows="3" [value]="widget()"></textarea>
+                <button type="button" class="btn btn-ghost mt-1 px-3!" (click)="copyText('widget', widget())"><mat-icon>{{ copied() === 'widget' ? 'check' : 'content_copy' }}</mat-icon>{{ copied() === 'widget' ? 'Copiado' : 'Copiar código' }}</button>
+              </details>
+            </div>
           </section>
         }
+
+        <!-- Opiniones: promedio, recientes y responder. -->
+        <section class="card">
+          <div class="card-head">
+            <span class="sec-icon"><mat-icon>reviews</mat-icon></span>
+            <div>
+              <h2 class="card-title">Opiniones</h2>
+              <p class="text-sm text-muted">Las dejan tus clientas desde su enlace de la cita, después de cobrarla.</p>
+            </div>
+          </div>
+          @if (reviews().length === 0) {
+            <p class="py-4 text-sm text-muted">Aún no hay opiniones. Pídelas desde la Agenda al cobrar.</p>
+          } @else {
+            <ul class="mt-2 divide-y divide-line">
+              @for (review of reviews().slice(0, 6); track review.id) {
+                <li class="py-3 text-sm">
+                  <p class="flex items-center gap-2"><span class="text-(--nx-warn-fg)" [attr.aria-label]="review.rating + ' estrellas'">{{ stars(review.rating) }}</span><span class="font-medium text-ink">{{ review.client_name }}</span></p>
+                  <p class="mt-1 text-ink-soft">{{ review.comment }}</p>
+                  @if (review.reply) {
+                    <p class="mt-2 rounded-lg bg-canvas px-3 py-2 text-ink-soft"><span class="font-medium text-ink">Tu respuesta:</span> {{ review.reply }}</p>
+                  } @else {
+                    <form class="mt-2 flex gap-2" (submit)="$event.preventDefault(); sendReply(review)">
+                      <input class="input flex-1" [attr.aria-label]="'Responder a ' + review.client_name" placeholder="Responder…" [value]="replyDraft()[review.id] ?? ''" (input)="typeReply(review.id, $any($event.target).value)" />
+                      <button type="submit" class="btn btn-secondary">Responder</button>
+                    </form>
+                  }
+                </li>
+              }
+            </ul>
+          }
+          @if (isOwner()) {
+            <form class="mt-3 border-t border-line pt-3" (submit)="$event.preventDefault(); saveGoogle()">
+              <label class="block"><span class="label">Enlace para opinar en Google</span>
+                <input class="input" name="google" placeholder="https://g.page/r/…/review" [(ngModel)]="googleUrl" (input)="googleSaved.set(false)" />
+              </label>
+              <p class="field-hint mt-1">Quien te califica con 4 o 5 estrellas verá un botón para opinar también en Google. Lo encuentras en tu Perfil de Negocio → "Pedir opiniones".</p>
+              <button type="submit" class="btn btn-secondary mt-2">{{ googleSaved() ? 'Guardado' : 'Guardar enlace' }}</button>
+            </form>
+          }
+        </section>
       </div>
 
-      <div class="flex min-w-0 flex-col gap-4 empty:hidden lg:flex-1">
-        @if (readyToShare() && bookingUrl()) {
+      <div class="flex min-w-0 flex-col gap-4 lg:flex-1">
+        @if (readyToShare() && qr()) {
           <section class="card">
             <div class="card-head">
               <span class="sec-icon"><mat-icon>qr_code_2</mat-icon></span>
               <div class="min-w-0">
                 <h2 class="card-title">Código QR</h2>
-                <p class="text-sm text-muted">Imprímelo o ponlo en tu mostrador.</p>
+                <p class="text-sm text-muted">Para tu mostrador, espejo o tarjetas.</p>
               </div>
             </div>
-            <img class="mx-auto mt-4 h-36 w-36 rounded-lg border border-line bg-surface p-1" [src]="'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + bookingUrl()" alt="QR para reservar" />
+            <img class="mx-auto mt-4 h-40 w-40 rounded-lg border border-line bg-white p-1" [src]="qr()" alt="QR para reservar" />
+            <div class="mt-3 flex flex-col gap-2">
+              <button type="button" class="btn btn-secondary w-full" (click)="downloadQr()"><mat-icon>download</mat-icon>Descargar QR</button>
+              <button type="button" class="btn btn-secondary w-full" (click)="printPoster('letter')"><mat-icon>print</mat-icon>Cartel tamaño carta</button>
+              <button type="button" class="btn btn-ghost w-full" (click)="printPoster('half')"><mat-icon>print</mat-icon>Cartel media carta</button>
+            </div>
           </section>
         }
 
-        @if (shop.phone || shop.email || shop.address || link(shop.instagram, 'instagram') || link(shop.facebook, 'facebook') || link(shop.website, 'web') || (shop.slug && readyToShare())) {
-          <section class="card">
-            <div class="card-head">
-              <span class="sec-icon"><mat-icon>contact_phone</mat-icon></span>
-              <h2 class="card-title">Contacto</h2>
-            </div>
-            <ul class="mt-3 divide-y divide-line text-sm">
-              @if (shop.phone) {
-                <li class="flex items-center gap-3 py-2.5"><mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">call</mat-icon><span class="nums min-w-0 truncate text-ink">{{ shop.phone }}</span></li>
-              }
-              @if (shop.email) {
-                <li class="flex items-center gap-3 py-2.5"><mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">mail</mat-icon><span class="min-w-0 truncate text-ink">{{ shop.email }}</span></li>
-              }
-              @if (shop.address) {
-                <li class="flex items-center gap-3 py-2.5"><mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">location_on</mat-icon><span class="min-w-0 text-ink">{{ shop.address }}</span></li>
-              }
+        <section class="card">
+          <div class="card-head">
+            <span class="sec-icon"><mat-icon>contact_phone</mat-icon></span>
+            <h2 class="card-title">Cómo te encuentran</h2>
+          </div>
+          <ul class="mt-3 divide-y divide-line text-sm">
+            @if (shop.hours?.length) {
+              <li class="flex items-start gap-3 py-2.5"><mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">schedule</mat-icon><span class="nums min-w-0 flex-1 text-ink">@for (line of shop.hours ?? []; track line) { <span class="block">{{ line }}</span> }</span><a class="text-sm font-medium text-ink-soft hover:text-ink" routerLink="/admin/schedules">Editar</a></li>
+            }
+            <li class="flex items-center gap-3 py-2.5"><mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">call</mat-icon><span class="nums min-w-0 flex-1 truncate" [class.text-ink]="shop.phone" [class.text-muted]="!shop.phone">{{ shop.phone || 'Sin WhatsApp' }}</span><a class="text-sm font-medium text-ink-soft hover:text-ink" routerLink="/admin/settings" [queryParams]="{ sec: 'negocio' }">Editar</a></li>
+            <li class="flex items-center gap-3 py-2.5"><mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">location_on</mat-icon><span class="min-w-0 flex-1" [class.text-ink]="shop.address" [class.text-muted]="!shop.address">{{ shop.address || 'Sin dirección' }}</span><a class="text-sm font-medium text-ink-soft hover:text-ink" routerLink="/admin/settings" [queryParams]="{ sec: 'negocio' }">Editar</a></li>
+            <li class="flex items-center gap-3 py-2.5"><mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">photo_camera</mat-icon>
               @if (link(shop.instagram, 'instagram'); as url) {
-                <li class="py-2.5"><a class="flex items-center gap-3 font-medium text-ink-soft hover:text-ink" [href]="url" target="_blank" rel="noopener"><mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">photo_camera</mat-icon>Instagram</a></li>
+                <a class="min-w-0 flex-1 truncate font-medium text-ink-soft hover:text-ink" [href]="url" target="_blank" rel="noopener">Instagram</a>
+              } @else {
+                <span class="min-w-0 flex-1 text-muted">Sin Instagram</span>
               }
-              @if (link(shop.facebook, 'facebook'); as url) {
-                <li class="py-2.5"><a class="flex items-center gap-3 font-medium text-ink-soft hover:text-ink" [href]="url" target="_blank" rel="noopener"><mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">thumb_up</mat-icon>Facebook</a></li>
-              }
-              @if (link(shop.website, 'web'); as url) {
-                <li class="py-2.5"><a class="flex items-center gap-3 font-medium text-ink-soft hover:text-ink" [href]="url" target="_blank" rel="noopener"><mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">language</mat-icon>Sitio web</a></li>
-              }
-              @if (shop.slug && readyToShare()) {
-                <li class="py-2.5"><a class="flex items-center gap-3 font-medium text-ink-soft hover:text-ink" [href]="bookingUrl()" target="_blank" rel="noopener"><mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">event_available</mat-icon>Reservas</a></li>
-              }
-            </ul>
-          </section>
-        }
+              <a class="text-sm font-medium text-ink-soft hover:text-ink" routerLink="/admin/settings" [queryParams]="{ sec: 'negocio' }">Editar</a>
+            </li>
+            @if (link(shop.facebook, 'facebook'); as url) {
+              <li class="py-2.5"><a class="flex items-center gap-3 font-medium text-ink-soft hover:text-ink" [href]="url" target="_blank" rel="noopener"><mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">thumb_up</mat-icon>Facebook</a></li>
+            }
+            @if (link(shop.website, 'web'); as url) {
+              <li class="py-2.5"><a class="flex items-center gap-3 font-medium text-ink-soft hover:text-ink" [href]="url" target="_blank" rel="noopener"><mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">language</mat-icon>Sitio web</a></li>
+            }
+          </ul>
+        </section>
       </div>
     </div>
   </div>
-
-  <!-- La edición vive en /admin/settings. Este bloque era el mismo formulario. -->
-  @if (false && configuring()) {
-    <form class="card mt-6 grid gap-3 p-5! sm:grid-cols-2 md:p-6!" [formGroup]="form" (ngSubmit)="save()">
-      <h2 class="sm:col-span-2 text-lg font-semibold">Personalización</h2>
-      <mat-form-field appearance="outline">
-        <mat-label>Nombre</mat-label>
-        <input matInput formControlName="name" />
-      </mat-form-field>
-      <mat-form-field appearance="outline">
-        <mat-label>Teléfono</mat-label>
-        <input matInput formControlName="phone" />
-      </mat-form-field>
-      <mat-form-field appearance="outline" class="sm:col-span-2">
-        <mat-label>Descripción</mat-label>
-        <textarea matInput rows="2" formControlName="description"></textarea>
-      </mat-form-field>
-      <mat-form-field appearance="outline" class="sm:col-span-2">
-        <mat-label>Dirección</mat-label>
-        <input matInput formControlName="address" />
-      </mat-form-field>
-      <div
-        class="sm:col-span-2 flex cursor-pointer flex-col items-center gap-2 rounded-2xl border-2 border-dashed px-4 py-8 text-center"
-        [style.border-color]="'var(--primary)'"
-        [style.background]="dragging() ? 'color-mix(in srgb, var(--primary) 14%, white)' : 'color-mix(in srgb, var(--primary) 6%, white)'"
-        (click)="logoPicker.click()"
-        (dragover)="onDrag($event, true)"
-        (dragleave)="onDrag($event, false)"
-        (drop)="onDrop($event)"
-      >
-        @if (logoPreview()) {
-          <img [src]="logoPreview()" alt="" class="h-16 w-16 rounded-2xl object-cover" />
-        } @else {
-          <mat-icon>add_photo_alternate</mat-icon>
-        }
-        <p class="text-sm font-medium">Arrastra tu logo aquí</p>
-        <p class="text-xs text-muted">o haz clic para elegirlo</p>
-        <input #logoPicker class="hidden" type="file" accept="image/*" (change)="onLogo($event)" (click)="$event.stopPropagation()" />
-      </div>
-      @if (palette().length) {
-        <div class="sm:col-span-2 flex flex-wrap items-center gap-2">
-          <span class="text-sm">Colores del logo</span>
-          @for (color of palette(); track color) {
-            <button
-              type="button"
-              class="btn btn-secondary w-8"
-              [style.background]="color"
-              [attr.aria-label]="'Usar ' + color"
-              (click)="useColor(color)"
-            ></button>
-          }
-        </div>
-      }
-      <mat-form-field appearance="outline">
-        <mat-label>Instagram</mat-label>
-        <input matInput formControlName="instagram" placeholder="@tunegocio" />
-      </mat-form-field>
-      <mat-form-field appearance="outline">
-        <mat-label>Facebook</mat-label>
-        <input matInput formControlName="facebook" />
-      </mat-form-field>
-      <mat-form-field appearance="outline" class="sm:col-span-2">
-        <mat-label>Sitio web</mat-label>
-        <input matInput formControlName="website" />
-      </mat-form-field>
-      <label class="flex items-center gap-2 text-sm">
-        Acento
-        <input type="color" formControlName="primary_color" />
-      </label>
-      <label class="flex items-center gap-2 text-sm">
-        Fondo
-        <input type="color" formControlName="canvas_color" />
-      </label>
-      @if (error(); as message) {
-        <p class="sm:col-span-2 text-sm text-red-700" role="alert">{{ message }}</p>
-      }
-      @if (saved()) {
-        <p class="sm:col-span-2 text-sm text-emerald-700">Configuración guardada.</p>
-      }
-      <div>
-        <button class="btn btn-primary" type="submit" [disabled]="isSaving()">
-          {{ isSaving() ? 'Guardando…' : 'Guardar' }}
-        </button>
-      </div>
-    </form>
-  }
+} @else if (error(); as message) {
+  <p role="alert" class="field-error">{{ message }}</p>
 }

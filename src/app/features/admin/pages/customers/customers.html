@@ -4,208 +4,163 @@
       <h1>Clientes</h1>
       <p>Quien reserva con el mismo teléfono queda en una sola ficha.</p>
     </div>
-    <a routerLink="/admin/negocio" class="btn btn-primary">
-      <mat-icon class="h-5! w-5! text-[20px]!">share</mat-icon>
-      Compartir enlace
-    </a>
+    <div class="flex flex-wrap gap-2">
+      @if (clients().length) {
+        <button type="button" class="btn btn-ghost" aria-label="Descargar lista" (click)="exportCsv()">
+          <mat-icon>download</mat-icon>
+          <span class="hidden sm:inline">Descargar</span>
+        </button>
+      }
+      <label class="btn btn-ghost cursor-pointer" [class.opacity-50]="importing()" aria-label="Importar desde CSV">
+        <mat-icon>upload</mat-icon>
+        <span class="hidden sm:inline">{{ importing() ? 'Importando…' : 'Importar' }}</span>
+        <input type="file" accept=".csv,text/csv" class="sr-only" [disabled]="importing()" (change)="importCsv($event)" />
+      </label>
+      <button type="button" class="btn btn-primary" (click)="adding.set(!adding())">
+        <mat-icon>person_add</mat-icon>
+        Agregar cliente
+      </button>
+    </div>
   </header>
 
+  @if (adding()) {
+    <form class="card mb-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end" (submit)="addClient($event)">
+      <label class="block">
+        <span class="label">Nombre</span>
+        <input class="input" name="name" autocomplete="off" [(ngModel)]="newName" />
+      </label>
+      <label class="block">
+        <span class="label">WhatsApp</span>
+        <input class="input nums" name="phone" type="tel" inputmode="numeric" placeholder="10 dígitos" [(ngModel)]="newPhone" />
+      </label>
+      <div class="flex gap-2">
+        <button type="submit" class="btn btn-primary">Guardar</button>
+        <button type="button" class="btn btn-ghost" (click)="adding.set(false)">Cancelar</button>
+      </div>
+      @if (addError(); as message) {
+        <p class="field-error sm:col-span-3" role="alert">{{ message }}</p>
+      }
+    </form>
+  }
+
+  @if (importNote(); as note) {
+    <p class="card card-tint mb-4 flex items-center justify-between gap-3 py-2! text-sm" role="status">
+      <span>{{ note }} El CSV necesita columnas de nombre y teléfono; correo y cumpleaños son opcionales.</span>
+      <button type="button" class="btn btn-ghost" (click)="importNote.set(null)">Cerrar</button>
+    </p>
+  }
+
   @if (loadError(); as message) {
-    <p role="alert" class="text-sm text-red-700">{{ message }}</p>
-  } @else if (clients().length === 0) {
+    <p role="alert" class="field-error">{{ message }}</p>
+  } @else if (loaded() && clients().length === 0) {
     <div class="empty">
       <mat-icon>person_search</mat-icon>
-      <p class="font-medium text-ink">Aún no tienes clientas</p>
-      <p>Se agregan solas cuando alguien reserva o cuando creas una cita.</p>
+      <p class="font-medium text-ink">Aún no tienes clientes</p>
+      <p>Se agregan solos cuando alguien reserva o cuando creas una cita. También puedes agregarlos a mano.</p>
       <a routerLink="/admin/negocio" class="btn btn-secondary">Compartir mi enlace de reservas</a>
     </div>
-  } @else {
-    <!-- Indicadores -->
-    <div class="mb-4 grid grid-cols-3 gap-3">
-      <div class="stat">
-        <span class="stat-icon stat-accent"><mat-icon>groups</mat-icon></span>
-        <span>
-          <span class="stat-value block">{{ clients().length }}</span>
-          <span class="stat-label block">Clientes</span>
-        </span>
-      </div>
-      <div class="stat">
-        <span class="stat-icon" [class.stat-warn]="missing().length" [class.stat-ok]="!missing().length"><mat-icon>person_off</mat-icon></span>
-        <span>
-          <span class="stat-value block">{{ missing().length }}</span>
-          <span class="stat-label block">Dejaron de venir</span>
-        </span>
-      </div>
-      <div class="stat">
-        <span class="stat-icon" [class.stat-bad]="cancellers().length" [class.stat-ok]="!cancellers().length"><mat-icon>event_busy</mat-icon></span>
-        <span>
-          <span class="stat-value block">{{ cancellers().length }}</span>
-          <span class="stat-label block">Cancelan seguido</span>
-        </span>
-      </div>
-    </div>
-
-    @if (birthdays().length) {
-      <section class="card card-tint mb-4" aria-label="Cumpleaños de hoy">
-        <div class="card-head text-sm">
-          <span class="sec-icon"><mat-icon>cake</mat-icon></span>
-          <span class="min-w-0 flex-1">
-            <span class="block font-medium text-ink">Cumpleaños de hoy (<span class="nums">{{ birthdays().length }}</span>)</span>
-            <span class="block text-muted">Mándales una felicitación por WhatsApp.</span>
+  } @else if (loaded()) {
+    <!-- Filtros como tarjetas: cada una dice cuántas hay y, al tocarla, filtra la lista. -->
+    <div class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6" role="tablist" aria-label="Filtrar clientes">
+      @for (chip of chips; track chip.key) {
+        @let on = filter() === chip.key;
+        <button
+          type="button"
+          role="tab"
+          class="stat text-left"
+          [style.border-color]="on ? 'var(--color-accent)' : null"
+          [style.background]="on ? 'var(--color-accent-soft)' : null"
+          [attr.aria-selected]="on"
+          (click)="filter.set(chip.key)"
+        >
+          <span class="stat-icon" [class]="counts()[chip.key] ? chip.tone : 'stat-ok'"><mat-icon>{{ chip.icon }}</mat-icon></span>
+          <span class="min-w-0">
+            <span class="stat-value block">{{ counts()[chip.key] }}</span>
+            <span class="stat-label block truncate">{{ chip.label }}</span>
           </span>
-        </div>
-        <ul class="mt-3 divide-y divide-line">
-          @for (row of birthdays(); track row.id) {
-            <li class="row-hover -mx-2 flex items-center gap-3 rounded-lg px-2 py-3">
-              <button type="button" class="flex min-w-0 flex-1 items-center gap-3 text-left" (click)="open(row.id)">
-                <span class="avatar">{{ initials(row.full_name) }}</span>
-                <span class="min-w-0 flex-1">
-                  <span class="block truncate text-sm font-medium text-ink">{{ row.full_name }}</span>
-                  <span class="nums block truncate text-sm text-muted">{{ row.phone }}</span>
-                </span>
-              </button>
-              <a class="btn btn-whatsapp shrink-0" [href]="birthdayWish(row)" target="_blank" rel="noopener">Felicitar</a>
-            </li>
-          }
-        </ul>
-      </section>
-    }
-
-    @if (missing().length) {
-      <details class="card mb-4">
-        <summary class="card-head cursor-pointer text-sm">
-          <span class="stat-icon stat-warn h-9! w-9! rounded-xl!"><mat-icon>schedule</mat-icon></span>
-          <span class="min-w-0 flex-1">
-            <span class="block font-medium text-ink">Dejaron de venir (<span class="nums">{{ missing().length }}</span>)</span>
-            <span class="block text-muted">Invítalas a volver por WhatsApp.</span>
-          </span>
-          <mat-icon class="h-5! w-5! text-[20px]! text-muted">expand_more</mat-icon>
-        </summary>
-        <ul class="mt-3 divide-y divide-line">
-          @for (row of missing(); track row.id) {
-            <li class="flex items-center gap-3 py-3">
-              <span class="avatar">{{ initials(row.full_name) }}</span>
-              <div class="min-w-0 flex-1">
-                <p class="truncate text-sm font-medium text-ink">{{ row.full_name }}</p>
-                <p class="truncate text-sm text-muted">Última visita hace <span class="nums">{{ daysAway(row.last_visit) }}</span> días</p>
-              </div>
-              <a class="btn btn-whatsapp shrink-0" [href]="missYou(row)" target="_blank" rel="noopener">WhatsApp</a>
-            </li>
-          }
-        </ul>
-      </details>
-    }
-
-    <!-- Sin items-start: las dos tarjetas miden lo mismo y el vacío de la corta queda centrado dentro, no como hueco. -->
-    <div class="mb-4 grid gap-4 lg:grid-cols-2">
-      <section class="card flex flex-col">
-        <div class="card-head">
-          <span class="sec-icon"><mat-icon>workspace_premium</mat-icon></span>
-          <div>
-            <h2 class="card-title">Mejores clientes</h2>
-            <p class="text-sm text-muted">Los 10 que más han dejado</p>
-          </div>
-        </div>
-        @if (best().length === 0) {
-          <div class="flex flex-1 flex-col items-center justify-center gap-2 py-8 text-center text-sm text-muted">
-            <mat-icon class="text-muted">star_outline</mat-icon>
-            <p>Todavía no hay visitas completadas.</p>
-          </div>
-        } @else {
-          <ol class="mt-2 divide-y divide-line">
-            @for (client of best(); track client.id; let index = $index) {
-              <li>
-                <button type="button" class="row-hover -mx-2 flex w-[calc(100%+1rem)] items-center gap-3 rounded-lg px-2 py-3 text-left" (click)="open(client.id)">
-                  <span class="nums w-4 shrink-0 text-sm text-muted">{{ index + 1 }}</span>
-                  <span class="avatar">{{ initials(client.full_name) }}</span>
-                  <span class="min-w-0 flex-1">
-                    <span class="block truncate text-sm font-medium text-ink">{{ client.full_name }}</span>
-                    <span class="block text-sm text-muted"><span class="nums">{{ client.visit_count }}</span> {{ client.visit_count === 1 ? 'visita' : 'visitas' }}</span>
-                  </span>
-                  <span class="nums shrink-0 text-sm font-semibold text-ink">{{ spent(client.total_spent) }}</span>
-                </button>
-              </li>
-            }
-          </ol>
-        }
-      </section>
-      <section class="card flex flex-col">
-        <div class="card-head">
-          <span class="sec-icon"><mat-icon>event_busy</mat-icon></span>
-          <div>
-            <h2 class="card-title">Más cancelan</h2>
-            <p class="text-sm text-muted">Los 10 con más citas canceladas</p>
-          </div>
-        </div>
-        @if (cancellers().length === 0) {
-          <div class="flex flex-1 flex-col items-center justify-center gap-2 py-8 text-center text-sm text-muted">
-            <span class="stat-icon stat-ok"><mat-icon>verified</mat-icon></span>
-            <p>Nadie ha cancelado.</p>
-          </div>
-        } @else {
-          <ol class="mb-3 mt-2 divide-y divide-line">
-            @for (client of cancellers(); track client.id; let index = $index) {
-              <li>
-                <button type="button" class="row-hover -mx-2 flex w-[calc(100%+1rem)] items-center gap-3 rounded-lg px-2 py-3 text-left" (click)="open(client.id)">
-                  <span class="nums w-4 shrink-0 text-sm text-muted">{{ index + 1 }}</span>
-                  <span class="avatar">{{ initials(client.full_name) }}</span>
-                  <span class="min-w-0 flex-1 truncate text-sm font-medium text-ink">{{ client.full_name }}</span>
-                  <span class="badge badge-bad shrink-0"><span class="nums">{{ client.cancel_count }}</span> {{ client.cancel_count === 1 ? 'cancelación' : 'cancelaciones' }}</span>
-                </button>
-              </li>
-            }
-          </ol>
-          <!-- mt-auto: el consejo baja al fondo cuando la otra tarjeta es más alta, así no queda espacio en blanco. -->
-          <p class="card-tint mt-auto flex items-start gap-2 rounded-xl border px-3 py-2.5 text-sm text-ink-soft">
-            <mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-accent" aria-hidden="true">lightbulb</mat-icon>
-            <span>Si alguien cancela seguido, pídele anticipo para apartar su lugar.</span>
-          </p>
-        }
-      </section>
+        </button>
+      }
     </div>
 
     <section class="card">
-      <div class="flex flex-wrap items-center justify-between gap-3">
-        <div class="card-head">
-          <span class="sec-icon"><mat-icon>contacts</mat-icon></span>
-          <h2 class="card-title">Todos los clientes</h2>
+      <label class="relative block">
+        <span class="sr-only">Buscar cliente</span>
+        <mat-icon class="pointer-events-none absolute left-3 top-1/2 h-5! w-5! -translate-y-1/2 text-[20px]! text-muted">search</mat-icon>
+        <input class="input pl-10!" type="search" placeholder="Buscar por nombre o teléfono" [ngModel]="query()" (ngModelChange)="query.set($event)" />
+      </label>
+
+      @if (allTags().length) {
+        <div class="mt-3 flex flex-wrap gap-2" aria-label="Filtrar por etiqueta">
+          @for (tag of allTags(); track tag) {
+            <button type="button" class="chip h-11!" [class.chip-on]="tagFilter() === tag" [attr.aria-pressed]="tagFilter() === tag" (click)="tagFilter.set(tagFilter() === tag ? null : tag)">
+              <mat-icon class="mr-1 h-4! w-4! text-[16px]!">sell</mat-icon>{{ tag }}
+            </button>
+          }
         </div>
-        <label class="relative block w-full sm:max-w-xs">
-          <span class="sr-only">Buscar cliente</span>
-          <mat-icon class="pointer-events-none absolute left-3 top-1/2 h-5! w-5! -translate-y-1/2 text-[20px]! text-muted">search</mat-icon>
-          <input
-            class="h-10 w-full rounded-lg border border-line-strong bg-surface pl-10 pr-3 text-sm outline-none focus:border-ink"
-            type="search"
-            placeholder="Buscar por nombre o teléfono"
-            [ngModel]="query()"
-            (ngModelChange)="query.set($event)"
-          />
-        </label>
-      </div>
+      }
+
+      @if (filter() !== 'best' && filter() !== 'missing' && filter() !== 'birthday') {
+        <div class="mt-2 flex items-center gap-2 text-sm text-muted">
+          <span>Ordenar:</span>
+          @for (option of sorts; track option.key) {
+            <button type="button" class="min-h-11 rounded-md px-2" [class.font-semibold]="sort() === option.key" [class.text-ink]="sort() === option.key" (click)="sort.set(option.key)">{{ option.label }}</button>
+          }
+        </div>
+      }
+      @if (filter() === 'cancel') {
+        <p class="card-tint mt-2 flex items-start gap-2 rounded-xl border px-3 py-2.5 text-sm text-ink-soft">
+          <mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-accent" aria-hidden="true">lightbulb</mat-icon>
+          <span>Dos o más cancelaciones o faltas. Pídeles anticipo para apartar su lugar.</span>
+        </p>
+      } @else if (filter() === 'missing') {
+        <p class="field-hint mt-2">Más de 45 días sin venir y sin cita próxima. Las que llevan más tiempo van primero.</p>
+      }
+
       @if (visible().length === 0) {
-        <p class="py-8 text-center text-sm text-muted">Ningún cliente coincide con esa búsqueda.</p>
+        <p class="py-8 text-center text-sm text-muted">Nadie coincide con esa búsqueda.</p>
       } @else {
         <ul class="mt-2 divide-y divide-line">
           @for (client of visible(); track client.id) {
-            <li>
-              <button type="button" class="row-hover -mx-2 flex w-[calc(100%+1rem)] items-center gap-3 rounded-lg px-2 py-3 text-left" (click)="open(client.id)">
+            <li class="flex items-center gap-2">
+              <button type="button" class="row-hover -mx-2 flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-3 text-left" (click)="open(client.id)">
                 <span class="avatar">{{ initials(client.full_name) }}</span>
                 <span class="min-w-0 flex-1">
                   <span class="block truncate text-sm font-medium text-ink">{{ client.full_name }}</span>
-                  <span class="block truncate text-sm text-muted"><span class="nums">{{ client.phone }}</span>@if (client.email) { · {{ client.email }} }</span>
+                  <span class="block truncate text-sm text-muted">
+                    @if (filter() === 'birthday') {
+                      <span class="text-(--nx-info-fg)">{{ birthdayLabel(client) }}</span>
+                    } @else if (client.next_visit) {
+                      <span class="text-(--nx-info-fg)">Próxima: {{ nextLabel(client.next_visit) }}</span>
+                    } @else if (client.last_visit) {
+                      Última visita: {{ ago(client.last_visit).toLowerCase() }}
+                    } @else {
+                      <span class="nums">{{ client.phone }}</span>
+                    }
+                  </span>
                 </span>
                 <span class="flex shrink-0 flex-col items-end gap-1">
                   @if (client.visit_count > 0) {
                     <span class="nums text-sm font-semibold text-ink">{{ spent(client.total_spent) }}</span>
-                    <span class="text-xs text-muted"><span class="nums">{{ client.visit_count }}</span> {{ client.visit_count === 1 ? 'visita' : 'visitas' }}</span>
+                    <span class="nums text-sm text-muted">{{ client.visit_count }} {{ client.visit_count === 1 ? 'visita' : 'visitas' }}</span>
                   } @else {
                     <span class="badge badge-info">Primera vez</span>
                   }
-                  @if (client.cancel_count > 0) {
-                    <span class="badge badge-warn"><span class="nums">{{ client.cancel_count }}</span> {{ client.cancel_count === 1 ? 'cancelación' : 'cancelaciones' }}</span>
+                  @if (isCanceller(client)) {
+                    <span class="badge badge-warn"><span class="nums">{{ client.cancel_count + (client.no_show_count ?? 0) }}</span> cancel./faltas</span>
+                  }
+                  @if (packLeft(client); as left) {
+                    <span class="badge badge-ok">Paquete: {{ left }}</span>
+                  }
+                  @for (tag of (client.tags ?? []).slice(0, 2); track tag) {
+                    <span class="badge badge-neutral">{{ tag }}</span>
                   }
                 </span>
               </button>
+              @if (filter() === 'missing') {
+                <a class="btn btn-whatsapp shrink-0 px-3!" [href]="missYou(client)" target="_blank" rel="noopener">Invitar</a>
+              } @else if (filter() === 'birthday') {
+                <a class="btn btn-whatsapp shrink-0 px-3!" [href]="birthdayWish(client)" target="_blank" rel="noopener">Felicitar</a>
+              }
             </li>
           }
         </ul>
@@ -215,74 +170,166 @@
 </section>
 
 @if (card(); as person) {
-  <div class="fixed inset-0 z-30 bg-ink/20" (click)="close()"></div>
-  <aside class="fixed inset-y-0 right-0 z-40 flex w-full max-w-md flex-col gap-4 overflow-auto border-l border-line bg-surface p-5 shadow-xl">
-    <div class="flex items-start gap-3">
-      <span class="avatar h-11! w-11! text-sm!">{{ initials(person.full_name) }}</span>
-      <div class="min-w-0 flex-1">
-        <h2 class="truncate text-lg font-semibold text-ink">{{ person.full_name }}</h2>
-        <p class="nums text-sm text-muted">{{ person.phone }}</p>
+  <div class="fixed inset-0 z-30 bg-ink/20" (click)="close()" aria-hidden="true"></div>
+  <aside class="fixed inset-y-0 right-0 z-40 flex w-full max-w-md flex-col gap-4 overflow-auto border-l border-line bg-surface p-5 shadow-xl" role="dialog" aria-modal="true" [attr.aria-label]="'Ficha de ' + person.full_name">
+    @if (editing()) {
+      <form class="flex flex-col gap-3" (submit)="$event.preventDefault(); saveEdit()">
+        <label class="block">
+          <span class="label">Nombre</span>
+          <input class="input" name="editName" [(ngModel)]="editName" />
+        </label>
+        <label class="block">
+          <span class="label">WhatsApp</span>
+          <input class="input nums" name="editPhone" type="tel" inputmode="numeric" [(ngModel)]="editPhone" />
+        </label>
+        @if (editError(); as message) {
+          <p class="field-error" role="alert">{{ message }}</p>
+        }
+        <div class="flex gap-2">
+          <button type="submit" class="btn btn-primary">Guardar</button>
+          <button type="button" class="btn btn-ghost" (click)="editing.set(false)">Cancelar</button>
+        </div>
+      </form>
+    } @else {
+      <div class="flex items-start gap-3">
+        <span class="avatar h-11! w-11! text-sm!">{{ initials(person.full_name) }}</span>
+        <div class="min-w-0 flex-1">
+          <h2 class="truncate text-lg font-semibold text-ink">{{ person.full_name }}</h2>
+          <p class="nums text-sm text-muted">{{ person.phone }}</p>
+        </div>
+        <button type="button" class="btn btn-ghost w-11! shrink-0 px-0!" aria-label="Editar nombre y teléfono" (click)="startEdit()">
+          <mat-icon>edit</mat-icon>
+        </button>
+        <button type="button" class="btn btn-ghost w-11! shrink-0 px-0!" aria-label="Cerrar" (click)="close()">
+          <mat-icon>close</mat-icon>
+        </button>
       </div>
-      <button type="button" class="btn btn-ghost h-9! w-9! px-0!" aria-label="Cerrar" (click)="close()">
-        <mat-icon>close</mat-icon>
+    }
+
+    <div class="grid grid-cols-2 gap-2">
+      <a class="btn btn-whatsapp" [href]="chat(person.phone)" target="_blank" rel="noopener">WhatsApp</a>
+      <a class="btn btn-secondary" [href]="tel(person.phone)">
+        <mat-icon>call</mat-icon>
+        Llamar
+      </a>
+      <button type="button" class="btn btn-primary col-span-2" (click)="newAppointment()">
+        <mat-icon>{{ lastVisit() ? 'replay' : 'add' }}</mat-icon>
+        {{ lastVisit() ? 'Nueva cita (como la última)' : 'Nueva cita' }}
       </button>
     </div>
-    @if (digits(person.phone); as phone) {
-      <div class="grid grid-cols-2 gap-2">
-        <a class="btn btn-whatsapp" [href]="'https://wa.me/' + (phone.length === 10 ? '52' + phone : phone)" target="_blank" rel="noopener">WhatsApp</a>
-        <a class="btn btn-secondary" [href]="'tel:' + phone">
-          <mat-icon>call</mat-icon>
-          Llamar
+    @if (profile(); as info) {
+      @if (info.next; as next) {
+        <a class="card card-tint row-hover flex items-center gap-3 py-3!" routerLink="/admin/agenda" [queryParams]="{ cita: next.id, dia: next.starts_at.slice(0, 10) }">
+          <span class="sec-icon"><mat-icon>event</mat-icon></span>
+          <span class="min-w-0 flex-1">
+            <span class="block text-sm font-medium text-ink">Próxima cita · {{ visitWhen(next.starts_at) }}</span>
+            <span class="block truncate text-sm text-muted">{{ next.service_name }} con {{ next.staff_name }}</span>
+          </span>
+          <mat-icon class="text-muted">chevron_right</mat-icon>
         </a>
+      } @else if (info.due; as due) {
+        <p class="card-tint flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm text-ink-soft">
+          <mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-accent" aria-hidden="true">event_repeat</mat-icon>
+          {{ dueLabel(due) }} · viene cada {{ info.every }} días
+        </p>
+      }
+      @if (info.service || info.ticket) {
+        <dl class="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+          @if (info.service) {
+            <div><dt class="text-muted">Pide más</dt><dd class="truncate font-medium text-ink">{{ info.service }}</dd></div>
+          }
+          @if (info.staff) {
+            <div><dt class="text-muted">La atiende</dt><dd class="truncate font-medium text-ink">{{ info.staff }}</dd></div>
+          }
+          @if (info.ticket) {
+            <div><dt class="text-muted">Ticket promedio</dt><dd class="nums font-medium text-ink">{{ spent(info.ticket) }}</dd></div>
+          }
+          @if (info.every) {
+            <div><dt class="text-muted">Viene cada</dt><dd class="nums font-medium text-ink">{{ info.every }} días</dd></div>
+          }
+        </dl>
+      }
+    }
+
+    <div>
+      <span class="label">Etiquetas</span>
+      <div class="flex flex-wrap items-center gap-2">
+        @for (tag of person.tags ?? []; track tag) {
+          <span class="chip chip-on gap-1 pr-1!">
+            {{ tag }}
+            <button type="button" class="grid h-8 w-8 place-items-center rounded-full" [attr.aria-label]="'Quitar ' + tag" (click)="removeTag(tag)"><mat-icon class="h-4! w-4! text-[16px]!">close</mat-icon></button>
+          </span>
+        }
+        <form class="flex gap-2" (submit)="$event.preventDefault(); addTag()">
+          <input class="input h-11! w-36!" name="newTag" maxlength="30" placeholder="VIP, alergia…" [(ngModel)]="newTag" />
+          <button type="submit" class="btn btn-secondary px-3!" aria-label="Agregar etiqueta"><mat-icon>add</mat-icon></button>
+        </form>
       </div>
-    }
+    </div>
 
-    @if (lastVisit(); as visit) {
-      <button type="button" class="btn btn-secondary w-full" (click)="repeatLast()">
-        <mat-icon>replay</mat-icon>
-        Repetir la última cita
-      </button>
-      <p class="-mt-3 truncate text-xs text-muted">{{ visit.service_name }} con {{ visit.staff_name }}</p>
-    }
+    <div class="grid grid-cols-3 gap-2">
+      <div class="rounded-xl border border-line px-3 py-2">
+        <p class="stat-label">Visitas</p>
+        <p class="nums text-lg font-semibold text-ink">{{ person.visit_count }}</p>
+      </div>
+      <div class="rounded-xl border border-line px-3 py-2">
+        <p class="stat-label">No llegó</p>
+        <p class="nums text-lg font-semibold" [class]="person.no_show_count ? 'text-(--nx-bad-fg)' : 'text-ink'">{{ person.no_show_count }}</p>
+      </div>
+      <div class="rounded-xl border border-line px-3 py-2">
+        <p class="stat-label">En total</p>
+        <p class="nums truncate text-lg font-semibold text-ink">{{ spent(person.total_spent) }}</p>
+      </div>
+    </div>
 
-    <label class="flex flex-col gap-1 text-sm text-ink-soft">
-      Cumpleaños (opcional)
-      <input
-        class="h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-ink"
-        type="date"
-        [value]="person.birthday ?? ''"
-        (change)="saveBirthday($any($event.target).value)"
-      />
-      @if (birthdayError(); as message) {
-        <span class="text-sm text-red-700" role="alert">{{ message }}</span>
-      } @else if (birthdaySaved()) {
-        <span class="text-xs text-emerald-700">Cumpleaños guardado.</span>
+    <section class="card">
+      <div class="card-head">
+        <span class="sec-icon"><mat-icon>card_membership</mat-icon></span>
+        <h3 class="card-title">Paquetes</h3>
+      </div>
+      @for (pack of cardPacks(); track pack.id) {
+        <div class="mt-2 flex items-center gap-2 text-sm">
+          <span class="min-w-0 flex-1 text-ink"><span class="nums font-semibold">{{ pack.remaining }}</span> de {{ pack.total }} visitas</span>
+          <button type="button" class="btn btn-secondary w-11! px-0!" aria-label="Una visita menos" [disabled]="pack.remaining === 0" (click)="stepPackage(pack, -1)"><mat-icon>remove</mat-icon></button>
+          <button type="button" class="btn btn-secondary w-11! px-0!" aria-label="Una visita más" [disabled]="pack.remaining >= pack.total" (click)="stepPackage(pack, 1)"><mat-icon>add</mat-icon></button>
+          <button type="button" class="btn btn-ghost w-11! px-0! text-(--nx-bad-fg)" aria-label="Quitar paquete" (click)="removePackage(pack)"><mat-icon>delete</mat-icon></button>
+        </div>
+      }
+      <div class="mt-3 flex items-end gap-2">
+        <label class="block w-24">
+          <span class="label">Visitas</span>
+          <input class="input nums" type="number" min="1" [(ngModel)]="packVisits" />
+        </label>
+        <button type="button" class="btn btn-secondary" (click)="addPackage()">Agregar paquete</button>
+      </div>
+      <p class="field-hint mt-2">Se descuenta una visita al cobrar con "Paquete".</p>
+      @if (packError(); as message) {
+        <p class="field-error mt-1" role="alert">{{ message }}</p>
+      }
+    </section>
+
+    <label class="block">
+      <span class="label">Cumpleaños (opcional)</span>
+      <input class="input" type="date" [value]="person.birthday ?? ''" (change)="saveBirthday($any($event.target).value)" />
+      @if (birthdayState() === 'error') {
+        <span class="field-error" role="alert">No pudimos guardar el cumpleaños.</span>
+      } @else if (birthdayState() === 'saved') {
+        <span class="field-hint text-(--nx-ok-fg)">Cumpleaños guardado.</span>
       }
     </label>
 
-    <div class="grid grid-cols-2 gap-3">
-      <div class="stat">
-        <span class="stat-icon stat-accent"><mat-icon>event_available</mat-icon></span>
-        <span>
-          <span class="stat-value block">{{ person.visit_count }}</span>
-          <span class="stat-label block">Visitas</span>
-        </span>
-      </div>
-      <div class="stat">
-        <span class="stat-icon" [class.stat-bad]="person.no_show_count" [class.stat-ok]="!person.no_show_count"><mat-icon>person_off</mat-icon></span>
-        <span>
-          <span class="stat-value block" [class.text-red-700]="person.no_show_count">{{ person.no_show_count }}</span>
-          <span class="stat-label block">No llegó</span>
-        </span>
-      </div>
-      <div class="stat col-span-2">
-        <span class="stat-icon stat-ok"><mat-icon>payments</mat-icon></span>
-        <span>
-          <span class="stat-value block">{{ spent(person.total_spent) }}</span>
-          <span class="stat-label block">En total</span>
-        </span>
-      </div>
-    </div>
+    <label class="block">
+      <span class="label">Notas internas</span>
+      <textarea class="input" rows="3" placeholder="Solo las ves tú" [ngModel]="notes()" (ngModelChange)="notes.set($event)" (blur)="saveNotes()"></textarea>
+      <span class="field-hint" [style.color]="notesState() === 'error' ? 'var(--nx-bad-fg)' : null">
+        @switch (notesState()) {
+          @case ('saving') { Guardando… }
+          @case ('saved') { Notas guardadas. }
+          @case ('error') { No pudimos guardar las notas. }
+          @default { Se guardan solas al salir del campo. }
+        }
+      </span>
+    </label>
 
     <section class="card">
       <div class="card-head">
@@ -293,11 +340,14 @@
         <p class="py-6 text-center text-sm text-muted">Sin visitas todavía.</p>
       } @else {
         <ul class="mt-2 divide-y divide-line">
-          @for (visit of person.visits; track visit.starts_at + visit.service_name) {
+          @for (visit of person.visits.slice(0, historyShown()); track visit.starts_at + visit.service_name) {
             <li class="flex items-start justify-between gap-3 py-3 text-sm">
               <span class="min-w-0">
                 <span class="block truncate font-medium text-ink">{{ visit.service_name }}</span>
                 <span class="block truncate text-muted"><span class="nums">{{ visitWhen(visit.starts_at) }}</span> · {{ visit.staff_name }}</span>
+                @if (visit.visit_note) {
+                  <span class="mt-1 block whitespace-pre-line rounded-lg bg-canvas px-2 py-1 text-ink-soft">{{ visit.visit_note }}</span>
+                }
               </span>
               <span class="flex shrink-0 flex-col items-end gap-1">
                 <span class="nums" [class.line-through]="visit.status === 'cancelled' || visit.status === 'no_show'" [class.text-muted]="visit.status !== 'completed'" [class.text-ink]="visit.status === 'completed'">{{ spent(visit.price) }}</span>
@@ -305,31 +355,34 @@
                   @case ('completed') { <span class="badge badge-ok">Cobrada</span> }
                   @case ('cancelled') { <span class="badge badge-neutral">Cancelada</span> }
                   @case ('no_show') { <span class="badge badge-bad">No llegó</span> }
-                  @default { <span class="badge badge-info">Próxima</span> }
+                  @case ('awaiting_deposit') { <span class="badge badge-warn">Falta anticipo</span> }
+                  @default {
+                    @if (isPast(visit.starts_at)) {
+                      <span class="badge badge-warn">Sin cobrar</span>
+                    } @else {
+                      <span class="badge badge-info">Próxima</span>
+                    }
+                  }
                 }
               </span>
             </li>
           }
         </ul>
+        @if (person.visits.length > historyShown()) {
+          <button type="button" class="btn btn-ghost mt-1 w-full" (click)="historyShown.set(person.visits.length)">Ver {{ person.visits.length - historyShown() }} más</button>
+        }
       }
     </section>
 
-    <section class="card flex flex-col gap-3">
-      <label class="flex flex-col gap-1 text-sm text-ink-soft">
-        Notas internas
-        <textarea class="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-ink" rows="3" [ngModel]="notes()" (ngModelChange)="notes.set($event)"></textarea>
-      </label>
-      <div class="flex items-center justify-between gap-3">
-        @if (saved()) {
-          <p class="flex items-center gap-1 text-sm text-emerald-700">
-            <mat-icon class="h-5! w-5! text-[18px]!">check_circle</mat-icon>
-            Notas guardadas.
-          </p>
-        } @else {
-          <span></span>
-        }
-        <button type="button" class="btn btn-primary" (click)="saveNotes()">Guardar notas</button>
-      </div>
-    </section>
+    <div class="border-t border-line pt-4">
+      <button type="button" class="btn btn-ghost w-full text-(--nx-bad-fg)" (click)="deleteClient()">
+        <mat-icon>delete</mat-icon>
+        Borrar sus datos
+      </button>
+      <p class="field-hint mt-1 text-center">Si te lo pide, la ley te obliga a borrar sus datos.</p>
+      @if (deleteError(); as message) {
+        <p class="field-error mt-1 text-center" role="alert">{{ message }}</p>
+      }
+    </div>
   </aside>
 }

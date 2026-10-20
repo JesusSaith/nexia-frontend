@@ -10,6 +10,7 @@ export interface ManagedAppointment {
   client_name?: string;
   business_name: string;
   business_slug: string;
+  google_review_url?: string | null;
   logo_url?: string | null;
   primary_color?: string | null;
   service_id: number;
@@ -68,10 +69,13 @@ export interface ClientCard {
   notes: string | null;
   birthday?: string | null;
   internal_notes: string | null;
+  tags?: string[];
   visit_count: number;
   no_show_count: number;
   total_spent: number;
   visits: {
+    id?: number | null;
+    visit_note?: string | null;
     starts_at: string;
     service_id?: number | null;
     service_name: string;
@@ -92,6 +96,12 @@ export interface ClientRow {
   visit_count: number;
   total_spent: number;
   cancel_count: number;
+  no_show_count?: number;
+  /** Última visita cobrada (AAAA-MM-DD). */
+  last_visit?: string | null;
+  /** Próxima cita agendada, hora local del negocio. */
+  next_visit?: string | null;
+  tags?: string[];
 }
 
 @Injectable({ providedIn: 'root' })
@@ -126,8 +136,9 @@ export class BookingService {
     date: string,
     extra: number[] = [],
     resource: string | null = null,
+    variant: string | null = null,
   ): Observable<AvailabilitySlot[]> {
-    const params = availabilityParams(serviceId, staffId, extra, resource).set('date', date);
+    const params = availabilityParams(serviceId, staffId, extra, resource, variant).set('date', date);
     return this.http.get<AvailabilitySlot[]>(`${this.apiBaseUrl}/businesses/${slug}/availability`, {
       params,
     });
@@ -141,8 +152,9 @@ export class BookingService {
     month: string,
     extra: number[] = [],
     resource: string | null = null,
+    variant: string | null = null,
   ): Observable<string[]> {
-    const params = availabilityParams(serviceId, staffId, extra, resource).set('month', month);
+    const params = availabilityParams(serviceId, staffId, extra, resource, variant).set('month', month);
     return this.http.get<string[]>(`${this.apiBaseUrl}/businesses/${slug}/availability/days`, { params });
   }
 
@@ -166,6 +178,26 @@ export class BookingService {
   /** Guarda (o borra con null) el cumpleaños AAAA-MM-DD sin tocar las notas internas. */
   saveClientBirthday(id: number, birthday: string | null): Observable<ClientCard> {
     return this.http.patch<ClientCard>(`${this.apiBaseUrl}/clients/${id}`, { birthday });
+  }
+
+  /** Corregir nombre o teléfono de la ficha. */
+  updateClient(id: number, data: { full_name?: string; phone?: string; tags?: string[] }): Observable<ClientCard> {
+    return this.http.patch<ClientCard>(`${this.apiBaseUrl}/clients/${id}`, data);
+  }
+
+  /** Agregar a mano a alguien que aún no ha reservado. */
+  createClient(data: { full_name: string; phone: string; email?: string | null }): Observable<ClientCard> {
+    return this.http.post<ClientCard>(`${this.apiBaseUrl}/clients`, data);
+  }
+
+  /** Alta en lote desde un CSV; el backend salta teléfonos inválidos o repetidos. */
+  importClients(rows: { full_name: string; phone: string; email?: string | null; birthday?: string | null }[]): Observable<{ created: number; skipped: number }> {
+    return this.http.post<{ created: number; skipped: number }>(`${this.apiBaseUrl}/clients/import`, { rows });
+  }
+
+  /** Borra sus datos (derechos ARCO); sus citas pasadas quedan anónimas. */
+  deleteClient(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiBaseUrl}/clients/${id}`);
   }
 
   getClients(): Observable<ClientRow[]> {
@@ -270,8 +302,12 @@ function availabilityParams(
   staffId: number | null,
   extra: number[],
   resource: string | null,
+  variant: string | null = null,
 ): HttpParams {
   let params = new HttpParams().set('service_id', serviceId);
+  if (variant) {
+    params = params.set('variant', variant);
+  }
   if (staffId !== null) {
     params = params.set('staff_id', staffId);
   }

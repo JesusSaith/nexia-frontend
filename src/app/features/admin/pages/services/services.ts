@@ -1,16 +1,21 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, TemplateRef, computed, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { finalize, forkJoin } from 'rxjs';
+import { finalize, forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 
-import { Service, ServiceWrite } from '@core/models/service.model';
+import { Service, ServiceVariant, ServiceWrite } from '@core/models/service.model';
+import { Staff } from '@core/models/staff.model';
+import { ShopService } from '@core/services/shop.service';
+import { StaffService } from '@core/services/staff.service';
+import { Confirm } from '@shared/components/confirm/confirm';
 import { Toasts } from '@core/toasts';
 import { ServicesService } from '@core/services/services.service';
 import { PickFieldComponent } from '@shared/components/when-field/when-field';
@@ -18,6 +23,7 @@ import { PickFieldComponent } from '@shared/components/when-field/when-field';
 @Component({
   selector: 'app-services-page',
   imports: [
+    FormsModule,
     ReactiveFormsModule,
     PickFieldComponent,
     MatButtonModule,
@@ -32,6 +38,9 @@ import { PickFieldComponent } from '@shared/components/when-field/when-field';
 export class ServicesPageComponent {
   private readonly servicesApi = inject(ServicesService);
   private readonly toasts = inject(Toasts);
+  private readonly staffApi = inject(StaffService);
+  private readonly shopApi = inject(ShopService);
+  private readonly confirm = inject(Confirm);
   private readonly destroyRef = inject(DestroyRef);
   private readonly dialog = inject(MatDialog);
   private readonly editor = viewChild.required<TemplateRef<unknown>>('editor');
@@ -44,6 +53,21 @@ export class ServicesPageComponent {
 
   protected readonly services = signal<Service[]>([]);
   protected readonly catalog = signal<string[]>([]);
+  /** Categorías con id, para renombrar y borrar. */
+  protected readonly categoryRows = signal<{ id: number; name: string }[]>([]);
+  protected readonly staff = signal<Staff[]>([]);
+  /** Lo que deja cada servicio por hora (últimos 90 días), por nombre. */
+  protected readonly profit = signal<Map<string, number>>(new Map());
+  protected readonly query = signal('');
+  protected readonly managingCategories = signal(false);
+  protected readonly raising = signal(false);
+  protected raisePercent = '10';
+  protected raiseCategory = '';
+  /** Variantes del servicio que se edita. */
+  protected readonly variants = signal<ServiceVariant[]>([]);
+  /** "Pausado · Deshacer" durante 6 segundos. */
+  protected readonly undoPause = signal<Service | null>(null);
+  private undoTimer: ReturnType<typeof setTimeout> | null = null;
   protected readonly categoryFilter = signal('');
   protected readonly categoryName = signal('');
   protected readonly categoryError = signal<string | null>(null);
@@ -82,7 +106,13 @@ export class ServicesPageComponent {
     questions: new FormControl('', { nonNullable: true }),
     capacity: new FormControl('1', { nonNullable: true }),
     returnDays: new FormControl('', { nonNullable: true }),
+    supplyCost: new FormControl('', { nonNullable: true }),
+    featured: new FormControl(false, { nonNullable: true }),
+    cleanup: new FormControl('', { nonNullable: true }),
+    waitStart: new FormControl('', { nonNullable: true }),
+    waitMinutes: new FormControl('', { nonNullable: true }),
   });
+  protected readonly durationPicks = [30, 45, 60, 90, 120];
 
   private readonly formEvents = toSignal(this.form.events, { initialValue: undefined });
 
@@ -98,9 +128,34 @@ export class ServicesPageComponent {
 
   protected readonly visible = computed(() => {
     const name = this.categoryFilter();
-    const rows = this.services();
-    return name ? rows.filter((row) => row.category === name) : rows;
+    const term = this.query().trim().toLowerCase();
+    return this.services().filter((row) => (!name || row.category === name) && (!term || row.name.toLowerCase().includes(term)));
   });
+  /** Ordenar solo tiene sentido viendo todos, sin buscar. */
+  protected readonly canOrder = computed(() => !this.categoryFilter() && !this.query().trim());
+
+  /** Quién hace cada servicio (Equipo → servicios de cada colaboradora). */
+  protected staffFor(service: Service): string[] {
+    return this.staff().filter((member) => member.is_active && (member.service_ids ?? []).includes(service.id)).map((member) => member.full_name.split(' ')[0]);
+  }
+
+  /** "Más rentable" / "Deja poco" según lo que dejó por hora en los últimos 90 días. */
+  protected profitTag(service: Service): { text: string; tone: string } | null {
+    const map = this.profit();
+    const value = map.get(service.name);
+    if (value === undefined || map.size < 2) {
+      return null;
+    }
+    const values = [...map.values()].sort((a, b) => a - b);
+    const median = values[Math.floor(values.length / 2)];
+    if (value === values.at(-1)) {
+      return { text: `Más rentable · ${this.formatPrice(value)}/h`, tone: 'badge-ok' };
+    }
+    if (value < median * 0.6) {
+      return { text: `Deja poco: ${this.formatPrice(value)}/h`, tone: 'badge-warn' };
+    }
+    return { text: `${this.formatPrice(value)}/h`, tone: 'badge-neutral' };
+  }
 
   protected readonly dialogTitle = computed(() =>
     this.editing() ? 'Editar servicio' : 'Crear servicio',
@@ -193,7 +248,13 @@ export class ServicesPageComponent {
       questions: '',
       capacity: '1',
       returnDays: '',
+      supplyCost: '',
+      featured: false,
+      cleanup: '',
+      waitStart: '',
+      waitMinutes: '',
     });
+    this.variants.set([]);
     this.openEditor();
   }
 
@@ -215,7 +276,13 @@ export class ServicesPageComponent {
       questions: service.questions ?? '',
       capacity: String(service.capacity ?? 1),
       returnDays: service.return_days ? String(service.return_days) : '',
+      supplyCost: service.supply_cost ? String(service.supply_cost) : '',
+      featured: Boolean(service.featured),
+      cleanup: service.cleanup_minutes ? String(service.cleanup_minutes) : '',
+      waitStart: service.wait_minutes && service.wait_start ? String(service.wait_start) : '',
+      waitMinutes: service.wait_minutes ? String(service.wait_minutes) : '',
     });
+    this.variants.set([...(service.variants ?? [])]);
     this.openEditor();
   }
 
@@ -247,7 +314,18 @@ export class ServicesPageComponent {
       questions: raw.questions.trim() || null,
       capacity: Number(raw.capacity) || 1,
       return_days: Number(raw.returnDays) >= 7 ? Math.min(Math.round(Number(raw.returnDays)), 365) : null,
+      supply_cost: Number(raw.supplyCost) > 0 ? Number(raw.supplyCost) : null,
+      featured: raw.featured,
+      cleanup_minutes: Math.max(0, Math.round(Number(raw.cleanup) || 0)),
+      wait_start: Number(raw.waitMinutes) > 0 && Number(raw.waitStart) > 0 ? Math.round(Number(raw.waitStart)) : null,
+      wait_minutes: Number(raw.waitStart) > 0 ? Math.max(0, Math.round(Number(raw.waitMinutes) || 0)) : 0,
+      variants: this.variants().filter((row) => row.name.trim()).map((row) => ({ ...row, name: row.name.trim() })),
     };
+    const minutes = Number(raw.duration_minutes);
+    if ((payload.wait_minutes ?? 0) > 0 && (payload.wait_start ?? 0) + (payload.wait_minutes ?? 0) >= minutes) {
+      this.formError.set('La espera tiene que terminar antes de que acabe el servicio.');
+      return;
+    }
     const current = this.editing();
     const request = current
       ? this.servicesApi.updateService(current.id, payload)
@@ -267,9 +345,12 @@ export class ServicesPageComponent {
     });
   }
 
-  protected toggleActive(service: Service): void {
+  protected toggleActive(service: Service, undo = false): void {
     if (this.pendingId() !== null) {
       return;
+    }
+    if (service.is_active && !undo) {
+      this.offerUndo(service);
     }
 
     this.pendingId.set(service.id);
@@ -303,6 +384,149 @@ export class ServicesPageComponent {
         next: (updated) => this.replaceService(service, updated),
         error: onError,
       });
+  }
+
+  private offerUndo(service: Service): void {
+    if (this.undoTimer) {
+      clearTimeout(this.undoTimer);
+    }
+    this.undoPause.set(service);
+    this.undoTimer = setTimeout(() => this.undoPause.set(null), 6000);
+  }
+
+  protected undoPaused(): void {
+    const service = this.undoPause();
+    this.undoPause.set(null);
+    if (service) {
+      this.toggleActive({ ...service, is_active: false }, true);
+    }
+  }
+
+  protected async remove(service: Service): Promise<void> {
+    const ok = await this.confirm.ask({
+      title: `¿Borrar "${service.name}"?`,
+      message: 'Desaparece de tu lista y de tu página. Si ya tiene citas no se puede borrar: en ese caso, páusalo.',
+      confirm: 'Borrar',
+      danger: true,
+    });
+    if (!ok) {
+      return;
+    }
+    this.servicesApi
+      .removeService(service.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.services.update((rows) => rows.filter((row) => row.id !== service.id));
+          this.toasts.show('Servicio borrado.');
+        },
+        error: (error: HttpErrorResponse) => this.loadError.set(typeof error.error?.detail === 'string' ? error.error.detail : 'No pudimos borrar el servicio.'),
+      });
+  }
+
+  protected duplicate(service: Service): void {
+    this.servicesApi
+      .duplicateService(service.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (copy) => {
+          this.load(true);
+          this.openEdit(copy);
+          this.toasts.show('Copia creada (pausada). Ajústala y actívala.');
+        },
+        error: () => this.loadError.set('No pudimos duplicar el servicio.'),
+      });
+  }
+
+  /** Sube o baja un lugar en la página de reservas. */
+  protected move(service: Service, step: -1 | 1): void {
+    const rows = [...this.services()];
+    const index = rows.findIndex((row) => row.id === service.id);
+    const target = index + step;
+    if (index < 0 || target < 0 || target >= rows.length) {
+      return;
+    }
+    [rows[index], rows[target]] = [rows[target], rows[index]];
+    this.services.set(rows);
+    this.servicesApi.orderServices(rows.map((row) => row.id)).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ error: () => this.load(true) });
+  }
+
+  protected applyRaise(): void {
+    const percent = Number(this.raisePercent);
+    if (!percent) {
+      return;
+    }
+    this.servicesApi
+      .raisePrices(percent, this.raiseCategory || null)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (rows) => {
+          this.raising.set(false);
+          this.load(true);
+          this.toasts.show(`Se ${percent > 0 ? 'subieron' : 'bajaron'} ${rows.length} precios ${Math.abs(percent)}%.`);
+        },
+        error: () => this.loadError.set('No pudimos cambiar los precios.'),
+      });
+  }
+
+  protected async renameCategory(row: { id: number; name: string }, value: string): Promise<void> {
+    const name = value.trim();
+    if (!name || name === row.name) {
+      return;
+    }
+    this.servicesApi
+      .renameCategory(row.id, name)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          if (this.categoryFilter() === row.name) {
+            this.categoryFilter.set(name);
+          }
+          this.load(true);
+        },
+        error: (error: HttpErrorResponse) => this.loadError.set(typeof error.error?.detail === 'string' ? error.error.detail : 'No pudimos renombrar la categoría.'),
+      });
+  }
+
+  protected async removeCategory(row: { id: number; name: string }): Promise<void> {
+    const count = this.services().filter((item) => item.category === row.name).length;
+    const ok = await this.confirm.ask({
+      title: `¿Borrar la categoría "${row.name}"?`,
+      message: count ? `Sus ${count} servicios se quedan, pero sin categoría.` : 'No tiene servicios.',
+      confirm: 'Borrar categoría',
+      danger: true,
+    });
+    if (!ok) {
+      return;
+    }
+    this.servicesApi
+      .deleteCategory(row.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        if (this.categoryFilter() === row.name) {
+          this.categoryFilter.set('');
+        }
+        this.load(true);
+      });
+  }
+
+  protected countIn(name: string): number {
+    return this.services().filter((item) => item.category === name).length;
+  }
+
+  // Variantes
+  protected addVariant(): void {
+    const price = Number(this.form.controls.price.value) || 0;
+    const minutes = Number(this.form.controls.duration_minutes.value) || 60;
+    this.variants.update((rows) => [...rows, { name: '', price, duration_minutes: minutes }]);
+  }
+
+  protected setVariant(index: number, key: keyof ServiceVariant, value: string): void {
+    this.variants.update((rows) => rows.map((row, at) => (at === index ? { ...row, [key]: key === 'name' ? value : Number(value) || 0 } : row)));
+  }
+
+  protected removeVariant(index: number): void {
+    this.variants.update((rows) => rows.filter((_, at) => at !== index));
   }
 
   private replaceService(current: Service, updated: Service | void): void {
@@ -387,6 +611,14 @@ export class ServicesPageComponent {
       this.isLoading.set(true);
     }
     this.loadError.set(null);
+    const today = new Date();
+    const from = new Date(today.getTime() - 90 * 86_400_000);
+    const day = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    this.staffApi.getStaff().pipe(catchError(() => of([] as Staff[])), takeUntilDestroyed(this.destroyRef)).subscribe((rows) => this.staff.set(rows));
+    this.shopApi
+      .report(day(from), day(today))
+      .pipe(catchError(() => of(null)), takeUntilDestroyed(this.destroyRef))
+      .subscribe((report) => this.profit.set(new Map((report?.service_stats ?? []).map((row) => [row.name, row.per_hour]))));
     forkJoin({
       services: this.servicesApi.getServices(),
       categories: this.servicesApi.getCategories(),
@@ -399,6 +631,7 @@ export class ServicesPageComponent {
         next: ({ services, categories }) => {
           this.services.set(services);
           this.catalog.set(categories.map((item) => item.name));
+          this.categoryRows.set(categories);
         },
         error: (error: HttpErrorResponse) => {
           this.loadError.set(this.messageFor(error, 'No pudimos cargar los servicios.'));

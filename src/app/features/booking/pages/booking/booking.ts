@@ -1,4 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { ButtonShape, FONT_STACKS, FontStyle, SHAPE_RADIUS, textOn } from '@core/theme';
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import {
@@ -67,6 +68,12 @@ function phoneDigits(control: AbstractControl): ValidationErrors | null {
   host: {
     '[style.--booking-primary]': 'primaryColor()',
     '[style.--page-canvas]': 'canvasColor()',
+    '[style.--booking-on]': 'onPrimary()',
+    '[style.--booking-accent]': 'accentColor()',
+    '[style.--booking-radius]': 'buttonRadius()',
+    '[style.font-family]': 'fontFamily()',
+    '[class.fill-outline]': "brand()?.button_fill === 'outline'",
+    '[class.shape-custom]': "(brand()?.button_shape || 'pill') !== 'pill'",
   },
 })
 export class Booking {
@@ -140,6 +147,8 @@ export class Booking {
   protected readonly categoryFilter = signal('');
   protected readonly staff = signal<PublicStaff[]>([]);
   protected readonly selectedService = signal<PublicService | null>(null);
+  /** Opción elegida del servicio (si tiene); cambia precio y duración. */
+  protected readonly selectedVariant = signal<string | null>(null);
   protected readonly selectedStaff = signal<PublicStaff | null>(null);
   /** "Cualquiera disponible": el horario elegido define quién atiende. */
   protected readonly anyStaff = signal(false);
@@ -232,6 +241,15 @@ export class Booking {
   protected readonly payMethods = computed(() => methodsSentence(this.brand()?.payment_methods));
   protected readonly offer = computed(() => liveOffer(this.shopNote(), todayInputValue()));
   protected readonly primaryColor = computed(() => safeColor(this.brand()?.primary_color));
+  /** Tema elegido en Configuración → Apariencia. */
+  protected readonly onPrimary = computed(() => textOn(this.primaryColor()));
+  protected readonly accentColor = computed(() => {
+    const value = this.brand()?.accent_color;
+    return value && /^#[0-9a-f]{6}$/i.test(value) ? value : this.primaryColor();
+  });
+  protected readonly buttonRadius = computed(() => SHAPE_RADIUS[(this.brand()?.button_shape as ButtonShape) || 'pill'] ?? '999px');
+  protected readonly fontFamily = computed(() => FONT_STACKS[(this.brand()?.font_style as FontStyle) || 'modern'] ?? null);
+  protected readonly headerStyle = computed(() => this.brand()?.header_style || 'cover');
   protected readonly canvasColor = computed(() => {
     const value = this.brand()?.canvas_color;
     return value && /^#[0-9a-f]{6}$/i.test(value) ? value : null;
@@ -248,13 +266,18 @@ export class Booking {
     });
   });
   protected readonly canChooseSchedule = computed(
-    () => this.selectedService() !== null && (this.selectedStaff() !== null || this.anyStaff()),
+    () =>
+      this.selectedService() !== null &&
+      (!(this.selectedService()?.variants ?? []).length || this.selectedVariant() !== null) &&
+      (this.selectedStaff() !== null || this.anyStaff()),
   );
   protected readonly chosenServices = computed(() => {
-    const main = this.selectedService();
-    if (!main) {
+    const picked = this.selectedService();
+    if (!picked) {
       return [];
     }
+    const option = (picked.variants ?? []).find((item) => item.name === this.selectedVariant());
+    const main = option ? { ...picked, name: `${picked.name} · ${option.name}`, price: option.price, duration_minutes: option.duration_minutes } : picked;
     const extras = this.services().filter((service) => this.extraIds().includes(service.id));
     return [main, ...extras];
   });
@@ -365,13 +388,20 @@ export class Booking {
     return this.dateFormat.format(parsed);
   }
 
+  protected minVariant(service: PublicService): number {
+    return Math.min(...(service.variants ?? []).map((item) => item.price));
+  }
+
   protected selectService(service: PublicService): void {
+    if (this.selectedService()?.id !== service.id) {
+      this.selectedVariant.set(null);
+    }
     this.selectedService.set(service);
     this.selectedSlot.set(null);
     this.extraIds.update((ids) => ids.filter((id) => id !== service.id));
     this.settleStaff();
-    // Sin extras que ofrecer ni colaboradora que elegir, no hay nada más que decidir aquí.
-    if (this.services().length === 1 && this.canChooseSchedule()) {
+    // Sin extras que ofrecer, opciones ni colaboradora que elegir, no hay nada más que decidir aquí.
+    if (this.services().length === 1 && !(service.variants ?? []).length && this.canChooseSchedule()) {
       this.goToSchedule();
     }
   }
@@ -441,7 +471,7 @@ export class Booking {
     const staffId = this.selectedStaff()?.id ?? null;
     forkJoin(
       picks.map((day) =>
-        this.bookingApi.getAvailability(this.slug, service.id, staffId, day, this.extraIds(), this.resource()).pipe(
+        this.bookingApi.getAvailability(this.slug, service.id, staffId, day, this.extraIds(), this.resource(), this.selectedVariant()).pipe(
           map((rows) => rows[0] ?? null),
           catchError(() => of(null)),
         ),
@@ -684,7 +714,7 @@ export class Booking {
       this.slotsError.set(null);
     }
     this.bookingApi
-      .getAvailableDays(this.slug, service.id, this.selectedStaff()?.id ?? null, this.date().slice(0, 7), this.extraIds(), this.resource())
+      .getAvailableDays(this.slug, service.id, this.selectedStaff()?.id ?? null, this.date().slice(0, 7), this.extraIds(), this.resource(), this.selectedVariant())
       .pipe(
         catchError(() => of([] as string[])),
         takeUntilDestroyed(this.destroyRef),
@@ -833,6 +863,7 @@ export class Booking {
     this.bookingApi
       .createAppointment(this.slug, {
         service_id: service.id,
+        variant: this.selectedVariant(),
         staff_id: staffId,
         starts_at: startsAt,
         client_name,
@@ -1115,6 +1146,11 @@ export class Booking {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: ({ brand, services, staff }) => {
+          // Entró por un enlace anterior (QR viejo): se pasa al enlace actual.
+          if (brand.slug && brand.slug !== this.slug) {
+            location.replace(location.pathname.replace(`/${this.slug}/`, `/${brand.slug}/`) + location.search);
+            return;
+          }
           this.brand.set(brand);
           document.title = brand.name;
           this.services.set(services);
@@ -1152,7 +1188,7 @@ export class Booking {
     this.slotsError.set(null);
 
     this.bookingApi
-      .getAvailability(this.slug, service.id, this.selectedStaff()?.id ?? null, date, this.extraIds(), this.resource())
+      .getAvailability(this.slug, service.id, this.selectedStaff()?.id ?? null, date, this.extraIds(), this.resource(), this.selectedVariant())
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (slots) => {

@@ -16,6 +16,7 @@ import { forkJoin, interval, of } from 'rxjs';
 import { catchError, distinctUntilChanged, map, switchMap } from 'rxjs/operators';
 
 import { BusinessCopy } from '@core/business-copy';
+import { staffColorOf } from '@core/staff-colors';
 import { ALL_METHODS, PAYMENT_METHODS } from '@core/payment-methods';
 import { MessageVars, firstName, longDay, whatsappLink } from '@core/message-templates';
 import { Toasts } from '@core/toasts';
@@ -49,9 +50,11 @@ interface SelectedAppointment {
   history: string[];
 }
 
+// Rango de la cuadrícula si aún no hay horarios; luego se ajusta a los horarios y citas.
 const DAY_START_MINUTES = 8 * 60;
 const DAY_END_MINUTES = 20 * 60;
 const SLOT_MINUTES = 30;
+const VIEW_KEY = 'nexia-agenda-view';
 const SLOT_HEIGHT = 28;
 const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 const STATUS_LABELS: Record<AppointmentStatus, string> = {
@@ -61,11 +64,6 @@ const STATUS_LABELS: Record<AppointmentStatus, string> = {
   no_show: 'No llegó',
   awaiting_deposit: 'Falta el anticipo',
 };
-
-const SLOTS = Array.from(
-  { length: (DAY_END_MINUTES - DAY_START_MINUTES) / SLOT_MINUTES },
-  (_, index) => DAY_START_MINUTES + index * SLOT_MINUTES,
-);
 
 @Component({
   selector: 'app-agenda-page',
@@ -130,13 +128,14 @@ export class AgendaPageComponent {
     { id: 'day', label: 'Día' },
   ];
   protected readonly weekdayLabels = WEEKDAY_LABELS;
-  protected readonly slots = SLOTS;
-  protected readonly gridHeight = SLOTS.length * SLOT_HEIGHT;
 
   protected readonly isStaff = this.auth.isStaff;
   protected readonly focus = signal<'missed' | 'deposit' | null>(null);
-  // En celular el mes solo muestra puntitos: abrir en el día.
-  protected readonly currentView = signal<CalendarView>(typeof window !== 'undefined' && window.innerWidth < 768 ? 'day' : 'month');
+  // Abre en la última vista elegida; la primera vez, Día en celular y Semana en escritorio.
+  protected readonly currentView = signal<CalendarView>(readView() ?? (typeof window !== 'undefined' && window.innerWidth < 768 ? 'day' : 'week'));
+  /** Hora actual, al minuto: línea de "ahora" en Día y Semana. */
+  protected readonly now = signal(Date.now());
+  private scrolledToNow = false;
   protected readonly openTimes = signal<string[]>([]);
   protected readonly holdHours = signal(3);
   protected readonly depositRules = signal<{ account: string | null; amount: number | null; percent: number | null }>({
@@ -159,7 +158,6 @@ export class AgendaPageComponent {
   protected readonly blocking = signal(false);
   protected readonly blockSaving = signal(false);
   protected readonly blockError = signal<string | null>(null);
-  protected readonly blockNotice = signal<string | null>(null);
   private readonly agendaApi = inject(AgendaService);
   protected readonly blockStaff = computed(() =>
     this.staff()
@@ -275,6 +273,121 @@ export class AgendaPageComponent {
     return { start: toInputDate(weeks[0][0]), end: toInputDate(last[6]) };
   });
 
+  /**
+   * Horas que abarca la cuadrícula: del turno más temprano al más tarde del equipo visible,
+   * ampliado si hay citas fuera de turno. Así una cita a las 7:00 o a las 21:00 no se encima.
+   */
+  private readonly dayBounds = computed(() => {
+    let start = Infinity;
+    let end = -Infinity;
+    for (const member of this.visibleStaff()) {
+      for (const row of this.schedules().get(member.id) ?? []) {
+        if (row.is_active) {
+          start = Math.min(start, minutesOf(row.start_time));
+          end = Math.max(end, minutesOf(row.end_time));
+        }
+      }
+    }
+    for (const item of this.appointments()) {
+      const begin = parseTimestamp(item.starts_at);
+      const minutes = begin.getHours() * 60 + begin.getMinutes();
+      start = Math.min(start, minutes);
+      end = Math.max(end, minutes + this.durationMinutes(item));
+    }
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
+      return { start: DAY_START_MINUTES, end: DAY_END_MINUTES };
+    }
+    return { start: Math.floor(start / 60) * 60, end: Math.min(24 * 60, Math.ceil(end / 60) * 60) };
+  });
+  protected readonly slots = computed(() => {
+    const { start, end } = this.dayBounds();
+    return Array.from({ length: (end - start) / SLOT_MINUTES }, (_, index) => start + index * SLOT_MINUTES);
+  });
+  protected readonly gridHeight = computed(() => this.slots().length * SLOT_HEIGHT);
+
+  /**
+   * Citas que coinciden en hora van lado a lado: cada una recibe su carril dentro del grupo.
+   * En Semana se agrupa por día (todo el equipo en una columna); en Día, por día y colaboradora.
+   */
+  private readonly lanes = computed(() => {
+    const byDay = new Map<string, Appointment[]>();
+    const byStaff = new Map<string, Appointment[]>();
+    for (const item of this.appointments()) {
+      const day = item.starts_at.slice(0, 10);
+      byDay.set(day, [...(byDay.get(day) ?? []), item]);
+      byStaff.set(`${day}|${item.staff_id}`, [...(byStaff.get(`${day}|${item.staff_id}`) ?? []), item]);
+    }
+    const week = new Map<number, { lane: number; lanes: number }>();
+    const day = new Map<number, { lane: number; lanes: number }>();
+    byDay.forEach((items) => this.packLanes(items, week));
+    byStaff.forEach((items) => this.packLanes(items, day));
+    return { week, day };
+  });
+
+  private packLanes(items: Appointment[], out: Map<number, { lane: number; lanes: number }>): void {
+    const spans = items
+      .map((item) => {
+        const start = parseTimestamp(item.starts_at).getTime();
+        return { id: item.id, start, end: start + this.durationMinutes(item) * 60_000 };
+      })
+      .sort((left, right) => left.start - right.start || left.end - right.end);
+    let group: { id: number; lane: number }[] = [];
+    let laneEnds: number[] = [];
+    let groupEnd = -Infinity;
+    const close = () => group.forEach((row) => out.set(row.id, { lane: row.lane, lanes: laneEnds.length }));
+    for (const span of spans) {
+      if (span.start >= groupEnd) {
+        close();
+        group = [];
+        laneEnds = [];
+      }
+      let lane = laneEnds.findIndex((end) => end <= span.start);
+      if (lane === -1) {
+        lane = laneEnds.length;
+        laneEnds.push(span.end);
+      } else {
+        laneEnds[lane] = span.end;
+      }
+      group.push({ id: span.id, lane });
+      groupEnd = Math.max(groupEnd, span.end);
+    }
+    close();
+  }
+
+  /** Posición horizontal de la cita dentro de su columna. */
+  protected laneStyle(item: Appointment, view: 'week' | 'day'): { left: string; width: string } {
+    const row = this.lanes()[view].get(item.id) ?? { lane: 0, lanes: 1 };
+    return { left: `calc(${(row.lane / row.lanes) * 100}% + 2px)`, width: `calc(${100 / row.lanes}% - 4px)` };
+  }
+
+  /** Línea de "ahora" si el día se ve en pantalla. */
+  protected nowTop(day: Date): string | null {
+    const now = new Date(this.now());
+    if (toInputDate(day) !== toInputDate(now)) {
+      return null;
+    }
+    const { start, end } = this.dayBounds();
+    const minutes = now.getHours() * 60 + now.getMinutes();
+    if (minutes < start || minutes > end) {
+      return null;
+    }
+    return `${((minutes - start) / (end - start)) * 100}%`;
+  }
+
+  /** Marca de "ahora" en la columna de horas (sirve también para bajar la pantalla hasta ahí). */
+  protected gutterNow(): string | null {
+    const today = new Date(this.now());
+    if (this.currentView() === 'day') {
+      return this.nowTop(this.cursor());
+    }
+    return this.weekDays().some((day) => toInputDate(day) === toInputDate(today)) ? this.nowTop(today) : null;
+  }
+
+  /** Posición vertical de una hora (minutos del día) en la cuadrícula. */
+  protected hourTop(minutes: number): number {
+    return ((minutes - this.dayBounds().start) / SLOT_MINUTES) * SLOT_HEIGHT;
+  }
+
   constructor() {
     const estado = this.route.snapshot.queryParamMap.get('estado');
     if (estado === 'missed' || estado === 'deposit') {
@@ -351,6 +464,7 @@ export class AgendaPageComponent {
     interval(20000)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
+        this.now.set(Date.now());
         if (this.ownStaffReady()) {
           this.loadAppointments(this.range(), this.staffId(), this.serviceId(), true);
         }
@@ -383,6 +497,12 @@ export class AgendaPageComponent {
   protected setView(view: CalendarView): void {
     this.currentView.set(view);
     this.selected.set(null);
+    this.scrolledToNow = false;
+    try {
+      localStorage.setItem(VIEW_KEY, view);
+    } catch {
+      // Sin almacenamiento, la próxima vez abre en la vista de siempre.
+    }
   }
 
   protected shift(direction: -1 | 1): void {
@@ -400,6 +520,7 @@ export class AgendaPageComponent {
   protected goToday(): void {
     this.cursor.set(startOfDay(new Date()));
     this.selected.set(null);
+    this.scrolledToNow = false;
   }
 
   protected onService(value: number | ''): void {
@@ -689,12 +810,14 @@ export class AgendaPageComponent {
     this.previewUrl.set(link.href);
   }
 
-  protected serviceColor(id: number): string {
-    return ['#b76e79', '#57534e', '#3f6212', '#1d4ed8', '#b45309', '#6d28d9'][Math.abs(id) % 6];
+  /** Mes: un punto por colaboradora con citas ese día (mismo color que en Semana y Día). */
+  protected staffDots(day: Date): number[] {
+    return [...new Set(this.activeOn(day).map((item) => item.staff_id))].slice(0, 4);
   }
 
-  protected serviceDots(day: Date): number[] {
-    return [...new Set(this.appointmentsOn(day).map((item) => item.service_id))].slice(0, 3);
+  /** Citas que siguen en pie (sin canceladas ni faltas), para contar en el mes. */
+  protected activeOn(day: Date): Appointment[] {
+    return this.appointmentsOn(day).filter((item) => item.status !== 'cancelled' && item.status !== 'no_show');
   }
 
   protected mark(item: Appointment): string {
@@ -823,14 +946,6 @@ export class AgendaPageComponent {
     });
   }
 
-  protected preview(day: Date): Appointment[] {
-    return this.appointmentsOn(day).slice(0, 3);
-  }
-
-  protected hiddenCount(day: Date): number {
-    return Math.max(0, this.appointmentsOn(day).length - 3);
-  }
-
   protected formatTime(value: string): string {
     const parsed = parseTimestamp(value);
     return Number.isNaN(parsed.getTime()) ? value : this.timeFormat.format(parsed);
@@ -852,34 +967,69 @@ export class AgendaPageComponent {
     return appointment.client_confirmed ? 'badge badge-info' : 'badge badge-neutral';
   }
 
-  protected statusClass(status: AppointmentStatus): string {
-    if (status === 'completed') {
-      return 'bg-emerald-100 text-emerald-900';
-    }
-    if (status === 'awaiting_deposit') {
-      return 'bg-amber-100 text-amber-950';
-    }
-    if (status === 'cancelled' || status === 'no_show') {
-      return 'bg-slate-200 text-slate-500 line-through';
-    }
-    return 'bg-rose-100 text-rose-900';
-  }
-
-  protected dayOff(): void {
-    const staffId = this.staffId() ?? this.staff()[0]?.id;
-    if (staffId == null) {
+  /**
+   * Cierra el día que se está viendo: para la colaboradora del filtro o, sin filtro, para todo el equipo.
+   * Avisa si ya hay citas (no se cancelan solas) y se puede deshacer.
+   */
+  protected async dayOff(): Promise<void> {
+    const day = this.cursor();
+    const date = this.dayKey(day);
+    const members = this.visibleStaff();
+    if (!members.length) {
       return;
     }
-    const date = this.dayKey(this.cursor());
-    this.appointmentsApi
-      .createBlock({ staff_id: staffId, starts_at: `${date}T08:00:00`, ends_at: `${date}T20:00:00`, note: 'Día libre' })
+    const who = members.length === 1 ? members[0].full_name : 'todo el equipo';
+    const booked = this.appointmentsOn(day).filter(
+      (item) => members.some((member) => member.id === item.staff_id) && (item.status === 'scheduled' || item.status === 'awaiting_deposit'),
+    ).length;
+    const ok = await this.confirm.ask({
+      title: `¿Día libre para ${who}?`,
+      message: booked
+        ? `El ${longDay(date)} ya hay ${booked} ${booked === 1 ? 'cita' : 'citas'}. No se cancelan solas: muévelas o cancélalas y avisa a cada clienta.`
+        : `El ${longDay(date)} nadie podrá reservar con ${members.length === 1 ? members[0].full_name : 'tu equipo'}.`,
+      confirm: 'Cerrar el día',
+    });
+    if (!ok) {
+      return;
+    }
+    forkJoin(
+      members.map((member) =>
+        this.appointmentsApi.createBlock({ staff_id: member.id, starts_at: `${date}T00:00:00`, ends_at: `${date}T23:59:00`, note: 'Día libre' }),
+      ),
+    )
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: () => {
-          this.blockNotice.set('Día libre');
+        next: (rows) => {
+          this.offerBlockUndo(`Día libre · ${who}`, rows.map((row) => row.id));
           this.loadAppointments(this.range(), this.staffId(), this.serviceId());
         },
-        error: (error: unknown) => this.blockError.set(readError(error, 'No pudimos cerrar el día.')),
+        error: (error: unknown) => this.loadError.set(readError(error, 'No pudimos cerrar el día.')),
+      });
+  }
+
+  /** "Día libre · Deshacer" durante 6 segundos; deshacer borra los bloqueos recién creados. */
+  protected readonly blockUndo = signal<{ label: string; ids: number[] } | null>(null);
+  private blockUndoTimer: ReturnType<typeof setTimeout> | null = null;
+
+  private offerBlockUndo(label: string, ids: number[]): void {
+    if (this.blockUndoTimer) {
+      clearTimeout(this.blockUndoTimer);
+    }
+    this.blockUndo.set({ label, ids });
+    this.blockUndoTimer = setTimeout(() => this.blockUndo.set(null), 6000);
+  }
+
+  protected undoBlocks(): void {
+    const row = this.blockUndo();
+    if (!row) {
+      return;
+    }
+    this.blockUndo.set(null);
+    forkJoin(row.ids.map((id) => this.agendaApi.deleteBlock(id).pipe(catchError(() => of(null)))))
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.toasts.show('Se abrió el día otra vez.');
+        this.loadAppointments(this.range(), this.staffId(), this.serviceId());
       });
   }
 
@@ -1000,7 +1150,7 @@ export class AgendaPageComponent {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((rows) => {
         const failed = rows.filter((row) => row === null).length;
-        this.blockNotice.set(
+        this.toasts.show(
           failed ? `Se crearon ${3 - failed} de 3 citas. ${failed} no se pudieron (horario ocupado o fuera de horario); revísalas en la agenda.` : 'Se crearon las 3 citas.',
         );
         this.closeAppointment();
@@ -1040,7 +1190,7 @@ export class AgendaPageComponent {
           next: () => {
             this.blockSaving.set(false);
             this.blocking.set(false);
-            this.blockNotice.set('Comida fija, de lunes a viernes');
+            this.toasts.show('Comida fija, de lunes a viernes');
             this.loadAppointments(this.range(), this.staffId(), this.serviceId());
           },
           error: (error: unknown) => {
@@ -1068,7 +1218,7 @@ export class AgendaPageComponent {
         next: () => {
           this.blockSaving.set(false);
           this.blocking.set(false);
-          this.blockNotice.set(days.length === 1 ? 'Horario bloqueado' : `Se bloquearon ${days.length} días`);
+          this.toasts.show(days.length === 1 ? 'Horario bloqueado' : `Se bloquearon ${days.length} días`);
           this.loadAppointments(this.range(), this.staffId(), this.serviceId());
         },
         error: (error: unknown) => {
@@ -1078,37 +1228,28 @@ export class AgendaPageComponent {
       });
   }
 
-  protected removeBlock(block: TimeBlock, event: Event): void {
+  /** Tocar un bloqueo muestra qué es y quién; quitarlo es una decisión aparte. */
+  protected async removeBlock(block: TimeBlock, event: Event): Promise<void> {
     event.stopPropagation();
-    if (block.rule_id) {
-      if (!confirm('¿Quitar esta comida de todos los días?')) {
-        return;
-      }
-      this.appointmentsApi
-        .deleteStanding(block.rule_id)
-        .pipe(takeUntilDestroyed(this.destroyRef))
-        .subscribe({
-          next: () => {
-            this.blockNotice.set('Comida fija eliminada');
-            this.loadAppointments(this.range(), this.staffId(), this.serviceId());
-          },
-          error: (error: unknown) => this.blockError.set(readError(error, 'No pudimos quitar el bloqueo.')),
-        });
+    const when = `${longDay(block.starts_at)} · ${this.formatTime(block.starts_at)} a ${this.formatTime(block.ends_at)} · ${block.staff_name}`;
+    const ok = await this.confirm.ask({
+      title: block.note || 'Horario bloqueado',
+      message: block.rule_id ? `${when}. Se repite de lunes a viernes; al quitarlo se quita de todos los días.` : `${when}.`,
+      confirm: block.rule_id ? 'Quitar de todos los días' : 'Quitar bloqueo',
+      cancel: 'Cerrar',
+      danger: true,
+    });
+    if (!ok) {
       return;
     }
-    if (!confirm('¿Eliminar este bloqueo y liberar el horario?')) {
-      return;
-    }
-    this.agendaApi
-      .deleteBlock(block.id)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: () => {
-          this.blockNotice.set('Bloqueo eliminado');
-          this.loadAppointments(this.range(), this.staffId(), this.serviceId());
-        },
-        error: (error: unknown) => this.blockError.set(readError(error, 'No pudimos quitar el bloqueo.')),
-      });
+    const request = block.rule_id ? this.appointmentsApi.deleteStanding(block.rule_id) : this.agendaApi.deleteBlock(block.id);
+    request.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => {
+        this.toasts.show(block.rule_id ? 'Comida fija eliminada.' : 'Bloqueo eliminado. El horario quedó libre.');
+        this.loadAppointments(this.range(), this.staffId(), this.serviceId());
+      },
+      error: (error: unknown) => this.loadError.set(readError(error, 'No pudimos quitar el bloqueo.')),
+    });
   }
 
   protected blocksOn(day: Date, staffId?: number): TimeBlock[] {
@@ -1123,17 +1264,16 @@ export class AgendaPageComponent {
     const end = parseTimestamp(endsAt);
     const startMinutes = start.getHours() * 60 + start.getMinutes();
     const endMinutes = end.getHours() * 60 + end.getMinutes();
-    const span = DAY_END_MINUTES - DAY_START_MINUTES;
-    const top = clamp(((startMinutes - DAY_START_MINUTES) / span) * 100, 0, 98);
-    const height = clamp(((endMinutes - startMinutes) / span) * 100, 4, 100 - top);
+    const bounds = this.dayBounds();
+    const span = bounds.end - bounds.start;
+    const top = clamp(((startMinutes - bounds.start) / span) * 100, 0, 98);
+    const height = clamp(((Math.min(endMinutes, bounds.end) - Math.max(startMinutes, bounds.start)) / span) * 100, 2, 100 - top);
     return { top: `${top}%`, height: `${height}%` };
   }
 
   /** Un color fijo por colaboradora (según su orden), para leer el día de un vistazo. */
   protected staffColor(staffId: number): string {
-    const palette = ['#2563eb', '#db2777', '#059669', '#d97706', '#7c3aed', '#0891b2', '#dc2626', '#4d7c0f'];
-    const index = Math.max(0, this.staff().findIndex((member) => member.id === staffId));
-    return palette[index % palette.length];
+    return staffColorOf(this.staff(), staffId);
   }
 
   protected staffTint(staffId: number): string {
@@ -1152,8 +1292,9 @@ export class AgendaPageComponent {
   protected blockStyle(appointment: Appointment): { top: string; height: string } {
     const start = parseTimestamp(appointment.starts_at);
     const minutes = start.getHours() * 60 + start.getMinutes();
-    const span = DAY_END_MINUTES - DAY_START_MINUTES;
-    const top = clamp(((minutes - DAY_START_MINUTES) / span) * 100, 0, 98);
+    const bounds = this.dayBounds();
+    const span = bounds.end - bounds.start;
+    const top = clamp(((minutes - bounds.start) / span) * 100, 0, 98);
     const height = clamp((this.durationMinutes(appointment) / span) * 100, 4, 100 - top);
     return { top: `${top}%`, height: `${height}%` };
   }
@@ -1163,9 +1304,10 @@ export class AgendaPageComponent {
     if (!window) {
       return null;
     }
-    const span = DAY_END_MINUTES - DAY_START_MINUTES;
-    const start = clamp(((window.start - DAY_START_MINUTES) / span) * 100, 0, 100);
-    const end = clamp(((window.end - DAY_START_MINUTES) / span) * 100, 0, 100);
+    const bounds = this.dayBounds();
+    const span = bounds.end - bounds.start;
+    const start = clamp(((window.start - bounds.start) / span) * 100, 0, 100);
+    const end = clamp(((window.end - bounds.start) / span) * 100, 0, 100);
     if (end <= start) {
       return null;
     }
@@ -1194,6 +1336,8 @@ export class AgendaPageComponent {
     });
     this.known.set(null);
     this.freshPhone.set(false);
+    this.guestQuery.set('');
+    this.guestOpen.set(false);
     if (this.guests().length === 0) {
       this.booking.getClients().pipe(takeUntilDestroyed(this.destroyRef)).subscribe((rows) => {
         this.guests.set(rows);
@@ -1278,7 +1422,8 @@ export class AgendaPageComponent {
     }
     const due = active
       .filter((item) => item.status !== 'completed')
-      .reduce((sum, item) => sum + (this.bill(item)?.rest ?? 0), 0);
+      // Sin anticipo ni cotización, bill() es null y se cobra el precio del servicio completo.
+      .reduce((sum, item) => sum + (this.bill(item)?.rest ?? this.services().find((row) => row.id === item.service_id)?.price ?? 0), 0);
     const visit = this.copy.text().visit.toLowerCase();
     const count = `${active.length} ${visit}${active.length === 1 ? '' : 's'}`;
     return due > 0 ? `${count} · ${this.pesosFormat.format(due)} por cobrar` : count;
@@ -1315,14 +1460,30 @@ export class AgendaPageComponent {
     return fixed || null;
   }
 
-  /** Al elegir un nombre de la lista, llena teléfono y correo de la clienta. */
-  protected pickGuest(name: string): void {
-    const found = this.guests().find((row) => row.full_name.trim().toLowerCase() === name.trim().toLowerCase());
-    if (!found) {
-      return;
+  /** Búsqueda de clientas por nombre o teléfono (datalist no funciona bien en iPhone). */
+  protected readonly guestQuery = signal('');
+  protected readonly guestOpen = signal(false);
+  protected readonly guestMatches = computed(() => {
+    const term = this.guestQuery().trim().toLowerCase();
+    if (term.length < 2) {
+      return [];
     }
-    this.form.patchValue({ client_phone: found.phone });
-    this.matchClient(found.phone);
+    const digits = term.replace(/\D/g, '');
+    return this.guests()
+      .filter((row) => row.full_name.toLowerCase().includes(term) || (digits.length >= 3 && row.phone.replace(/\D/g, '').includes(digits)))
+      .slice(0, 6);
+  });
+
+  protected typeGuest(value: string): void {
+    this.guestQuery.set(value);
+    this.guestOpen.set(true);
+  }
+
+  /** Al elegir de la lista, llena nombre y teléfono y muestra su historial. */
+  protected pickGuest(row: { full_name: string; phone: string }): void {
+    this.form.patchValue({ client_name: row.full_name, client_phone: row.phone });
+    this.matchClient(row.phone);
+    this.guestOpen.set(false);
   }
 
   /** Los que acepta el negocio (Configuración → Anticipo y pagos) más "Paquete", que siempre está. */
@@ -1345,12 +1506,21 @@ export class AgendaPageComponent {
   );
   protected readonly serviceCharge = computed(() => toAmount(this.chargeAmount()) ?? 0);
   protected readonly tipAmount = computed(() => toAmount(this.chargeTip()) ?? 0);
+  /**
+   * Anticipo que la clienta ya pagó (la cita está agendada, así que se recibió). El precio del servicio
+   * se guarda completo (final_price), pero en caja solo se cobra lo que falta.
+   */
+  protected readonly chargeDeposit = signal(0);
+  protected readonly dueNow = computed(
+    () => Math.max(0, Math.round((this.serviceCharge() - this.chargeDeposit()) * 100) / 100) + this.productsTotal() + this.tipAmount(),
+  );
   private productsLoaded = false;
 
   protected startCharge(appointment: Appointment): void {
     this.charging.set(appointment.id);
     this.moving.set(null);
     this.chargeAmount.set(String(this.bill(appointment)?.total ?? appointment.quoted_price ?? this.services().find((item) => item.id === appointment.service_id)?.price ?? ''));
+    this.chargeDeposit.set(appointment.status === 'scheduled' ? appointment.deposit_amount ?? 0 : 0);
     this.chargeMethod.set(this.payMethods()[0].value);
     this.chargeTip.set('');
     this.chargeNote.set('');
@@ -1575,11 +1745,6 @@ export class AgendaPageComponent {
     return whatsappLink(phone, this.copy.message('booked', { ...this.visitVars(appointment), enlace: this.manageLink(appointment) }));
   }
 
-  protected receiveDeposit(appointment: Appointment, event: Event): void {
-    event.stopPropagation();
-    this.setStatus(appointment, 'scheduled');
-  }
-
   /** Aprobar a mano: el horario ya estaba apartado; queda confirmada y sale el WhatsApp para avisarle. */
   protected approve(appointment: Appointment): void {
     if (this.pendingId() !== null) {
@@ -1647,12 +1812,64 @@ export class AgendaPageComponent {
   protected readonly moveStaff = signal(0);
   protected readonly moveError = signal<string | null>(null);
 
+  /** Horas libres para mover la cita (mismo servicio, día y colaboradora elegidos). */
+  protected readonly moveTimes = signal<string[]>([]);
+  private moveRequest = 0;
+
   protected startMove(appointment: Appointment): void {
     this.moving.set(appointment.id);
+    this.charging.set(null);
     this.moveDate.set(appointment.starts_at.slice(0, 10));
     this.moveTime.set(appointment.starts_at.slice(11, 16));
     this.moveStaff.set(appointment.staff_id);
     this.moveError.set(null);
+    this.loadMoveTimes(appointment);
+  }
+
+  protected pickMoveDate(appointment: Appointment, value: string): void {
+    this.moveDate.set(value);
+    this.moveTime.set('');
+    this.loadMoveTimes(appointment);
+  }
+
+  protected pickMoveStaff(appointment: Appointment, value: string | number | null): void {
+    if (typeof value !== 'number') {
+      return;
+    }
+    this.moveStaff.set(value);
+    this.moveTime.set('');
+    this.loadMoveTimes(appointment);
+  }
+
+  private loadMoveTimes(appointment: Appointment): void {
+    const slug = this.auth.currentUser()?.slug;
+    const request = ++this.moveRequest;
+    this.moveTimes.set([]);
+    if (!slug || !this.moveDate()) {
+      return;
+    }
+    this.booking
+      .getAvailability(slug, appointment.service_id, this.moveStaff(), this.moveDate())
+      .pipe(
+        map((rows) => rows.map((row) => row.starts_at.slice(11, 16))),
+        catchError(() => of([] as string[])),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((times) => {
+        if (request === this.moveRequest) {
+          this.moveTimes.set(times);
+        }
+      });
+  }
+
+  /** "lunes 20 de octubre · 10:00 a. m." para la ficha. */
+  protected whenLabel(value: string): string {
+    return `${longDay(value)} · ${this.formatTime(value)}`;
+  }
+
+  protected telHref(phone: string | null): string | null {
+    const digits = (phone ?? '').replace(/\D/g, '');
+    return digits ? `tel:${digits.length === 10 ? `+52${digits}` : `+${digits}`}` : null;
   }
 
   protected saveMove(appointment: Appointment): void {
@@ -1910,6 +2127,14 @@ export class AgendaPageComponent {
           if (!quiet && found && !this.citaOpened) {
             this.citaOpened = true;
             this.showAppointment({ appointment: found, x: 24, y: 88, maxHeight: 560, history: [] }, this.needsQuote(found));
+            // ?cobrar=1 (botón "Cobrar" de Inicio): la ficha abre ya en el cobro.
+            if (this.route.snapshot.queryParamMap.get('cobrar') && found.status === 'scheduled') {
+              this.startCharge(found);
+            }
+          } else if (!quiet && !this.scrolledToNow) {
+            // Al abrir hoy en Día o Semana, la pantalla baja sola a la hora actual.
+            this.scrolledToNow = true;
+            setTimeout(() => document.getElementById('now-line')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
           }
         },
         error: (error: unknown) => {
@@ -1941,6 +2166,15 @@ export class AgendaPageComponent {
       return null;
     }
     return { start: minutesOf(row.start_time), end: minutesOf(row.end_time) };
+  }
+}
+
+function readView(): CalendarView | null {
+  try {
+    const saved = localStorage.getItem(VIEW_KEY);
+    return saved === 'day' || saved === 'week' || saved === 'month' ? saved : null;
+  } catch {
+    return null;
   }
 }
 
