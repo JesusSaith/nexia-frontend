@@ -94,7 +94,7 @@ export class AgendaPageComponent {
   private openRequest = 0;
   /** ?cita=ID abre la ficha una sola vez (no en cada recarga). */
   private citaOpened = false;
-  /** Teléfono que llega por ?tel= para prellenar la nueva cita en cuanto carguen las clientas. */
+  /** Teléfono que llega por ?tel= para prellenar la nueva cita en cuanto carguen los clientes. */
   private pendingTel: string | null = null;
 
   protected photoIndexes(count: number): number[] {
@@ -529,7 +529,7 @@ export class AgendaPageComponent {
   }
 
   protected readonly clientNotice = signal<string | null>(null);
-  /** Tras cobrar: WhatsApp listo para pedir la opinión de la clienta. */
+  /** Tras cobrar: WhatsApp listo para pedir la opinión del cliente. */
   protected readonly reviewNotice = signal<{ name: string; href: string } | null>(null);
 
   protected pickFilterService(value: string | number | null): void {
@@ -907,7 +907,7 @@ export class AgendaPageComponent {
     return this.auth.currentUser()?.businessName ?? '';
   }
 
-  /** Enlace de la cita para la clienta (verla, confirmarla, cambiarla o cancelarla). */
+  /** Enlace de la cita para el cliente (verla, confirmarla, cambiarla o cancelarla). */
   private manageLink(appointment: Appointment): string {
     const slug = this.auth.currentUser()?.slug ?? '';
     return appointment.cancel_token && slug ? `${location.origin}/${slug}/manage/${appointment.cancel_token}` : '';
@@ -985,7 +985,7 @@ export class AgendaPageComponent {
     const ok = await this.confirm.ask({
       title: `¿Día libre para ${who}?`,
       message: booked
-        ? `El ${longDay(date)} ya hay ${booked} ${booked === 1 ? 'cita' : 'citas'}. No se cancelan solas: muévelas o cancélalas y avisa a cada clienta.`
+        ? `El ${longDay(date)} ya hay ${booked} ${booked === 1 ? 'cita' : 'citas'}. No se cancelan solas: muévelas o cancélalas y avisa a cada cliente.`
         : `El ${longDay(date)} nadie podrá reservar con ${members.length === 1 ? members[0].full_name : 'tu equipo'}.`,
       confirm: 'Cerrar el día',
     });
@@ -1048,7 +1048,7 @@ export class AgendaPageComponent {
     return whatsappLink(phone, text);
   }
 
-  /** Enlace directo al chat de la clienta. */
+  /** Enlace directo al chat del cliente. */
   protected chatHref(appointment: Appointment): string | null {
     const phone = waPhone(appointment.client_phone);
     if (!phone) {
@@ -1507,7 +1507,7 @@ export class AgendaPageComponent {
   protected readonly serviceCharge = computed(() => toAmount(this.chargeAmount()) ?? 0);
   protected readonly tipAmount = computed(() => toAmount(this.chargeTip()) ?? 0);
   /**
-   * Anticipo que la clienta ya pagó (la cita está agendada, así que se recibió). El precio del servicio
+   * Anticipo que el cliente ya pagó (la cita está agendada, así que se recibió). El precio del servicio
    * se guarda completo (final_price), pero en caja solo se cobra lo que falta.
    */
   protected readonly chargeDeposit = signal(0);
@@ -1888,7 +1888,7 @@ export class AgendaPageComponent {
           this.patchLocal(moved);
           this.closeAppointment();
           this.refreshQuietly();
-          this.toasts.show('Cita movida. Avísale a la clienta.');
+          this.toasts.show('Cita movida. Avísale al cliente.');
           this.clientNotice.set(this.clientWhatsapp(moved));
         },
         error: (error: unknown) => {

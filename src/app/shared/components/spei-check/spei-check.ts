@@ -6,7 +6,7 @@ import { ManagedAppointment, BookingService } from '@core/services/booking.servi
 import { SPEI_BANKS } from '@core/spei-banks';
 
 /**
- * "Ya transferí": la clienta pone banco, clave de rastreo, fecha y monto, y Banxico (CEP) confirma
+ * "Ya transferí": el cliente pone banco, clave de rastreo, fecha y monto, y Banxico (CEP) confirma
  * la transferencia. Si cuadra, la cita queda pagada sin que la dueña revise nada.
  */
 @Component({

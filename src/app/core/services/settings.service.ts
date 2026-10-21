@@ -47,6 +47,8 @@ export interface BusinessSettings {
   phone: string;
   email: string;
   address: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   instagram: string | null;
   facebook: string | null;
   cancel_hours: number | null;
@@ -75,6 +77,7 @@ export interface BusinessSettings {
   closures: Closure[];
   payment_methods: string[];
   approve_bookings: boolean;
+  uses_commissions?: boolean;
   auto_reminders: boolean;
   reminder_hours: number;
   auto_return: boolean;
@@ -103,6 +106,8 @@ export interface ProfileUpdate {
   header_style?: string | null;
   phone: string;
   address: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   instagram: string | null;
   facebook: string | null;
   cancel_hours: number | null;
@@ -128,6 +133,7 @@ export interface ProfileUpdate {
   closures?: Closure[];
   payment_methods?: string[];
   approve_bookings?: boolean;
+  uses_commissions?: boolean;
   auto_reminders?: boolean;
   reminder_hours?: number;
   auto_return?: boolean;

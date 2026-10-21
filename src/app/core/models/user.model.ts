@@ -28,5 +28,6 @@ export interface RegisterRequest {
   address?: string | null;
   instagram?: string | null;
   acceptTerms: boolean;
+  usesCommissions?: boolean;
   timezone?: string | null;
 }

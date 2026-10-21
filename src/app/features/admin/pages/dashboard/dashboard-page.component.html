@@ -36,7 +36,7 @@
           <span>Se acabó el tiempo de {{ alert.deposits_expired }} anticipo{{ alert.deposits_expired === 1 ? '' : 's' }} y la cita sigue sin marcarse como pagada.</span>
         </p>
       }
-      @if (team().owed > 0) {
+      @if (copy.commissions() && team().owed > 0) {
         <button type="button" class="card mb-4 flex w-full items-center gap-3 py-3! text-left text-sm text-ink hover:border-line-strong" (click)="view.set('commission')">
           <mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">payments</mat-icon>
           <span class="min-w-0 flex-1">Hay <span class="nums font-medium">{{ money(team().owed) }}</span> de comisión por pagar en este periodo.</span>
@@ -136,7 +136,7 @@
             <span class="sec-icon"><mat-icon>account_balance_wallet</mat-icon></span>
             <div>
               <h2 class="card-title">Resultado</h2>
-              <p class="text-sm text-muted">Ingresos del periodo, menos gastos y comisiones.</p>
+              <p class="text-sm text-muted">Ingresos del periodo, menos gastos{{ copy.commissions() ? ' y comisiones' : '' }}.</p>
             </div>
           </div>
           <ul class="mt-2 divide-y divide-line text-sm">
@@ -148,10 +148,12 @@
               <div><p class="text-ink">Gastos</p><p class="text-xs text-muted">Fijos y variables</p></div>
               <span class="nums text-right font-medium text-ink-soft">− {{ money(row.expense_fixed + row.expense_variable) }}</span>
             </li>
-            <li class="flex items-center justify-between gap-3 py-2.5">
-              <div><p class="text-ink">Comisiones</p><p class="text-xs text-muted">Parte del equipo</p></div>
-              <span class="nums text-right font-medium text-ink-soft">− {{ money(row.commission_total) }}</span>
-            </li>
+            @if (copy.commissions()) {
+              <li class="flex items-center justify-between gap-3 py-2.5">
+                <div><p class="text-ink">Comisiones</p><p class="text-xs text-muted">Parte del equipo</p></div>
+                <span class="nums text-right font-medium text-ink-soft">− {{ money(row.commission_total) }}</span>
+              </li>
+            }
             <li class="flex items-center justify-between gap-3 py-2.5">
               <div><p class="font-semibold text-ink">Ganancia</p><p class="text-xs text-muted">Lo que queda</p></div>
               <span class="nums text-right text-lg font-semibold text-accent">{{ money(row.profit) }}</span>
@@ -161,7 +163,7 @@
           @if (breakEven(); as point) {
             <div class="mt-4 rounded-xl border border-line bg-surface p-4">
               <p class="text-sm text-ink">
-                <strong>Punto de equilibrio:</strong> para cubrir gastos y comisiones necesitas <strong class="nums">{{ money(point.need) }}</strong>
+                <strong>Punto de equilibrio:</strong> para cubrir gastos{{ copy.commissions() ? ' y comisiones' : '' }} necesitas <strong class="nums">{{ money(point.need) }}</strong>
                 @if (point.visits) {
                   (≈ <span class="nums">{{ point.visits }}</span> citas)
                 }
@@ -683,7 +685,7 @@
             <span class="sec-icon"><mat-icon>price_check</mat-icon></span>
             <div>
               <h2 class="card-title">Lo que deja cada servicio</h2>
-              <p class="text-sm text-muted">Después de comisiones, y por cada hora de trabajo. Ordenado por lo que deja por hora.</p>
+              <p class="text-sm text-muted">{{ copy.commissions() ? 'Después de comisiones y material' : 'Después de material' }}, y por cada hora de trabajo. Ordenado por lo que deja por hora.</p>
             </div>
           </div>
           @if ((row.service_stats ?? []).length) {
@@ -694,7 +696,9 @@
                     <th class="py-2 font-normal">Servicio</th>
                     <th class="py-2 text-right font-normal">Citas</th>
                     <th class="py-2 text-right font-normal">Ingreso</th>
-                    <th class="py-2 text-right font-normal">Comisión</th>
+                    @if (copy.commissions()) {
+                      <th class="py-2 text-right font-normal">Comisión</th>
+                    }
                     <th class="py-2 text-right font-normal">Material</th>
                     <th class="py-2 text-right font-normal">Te deja</th>
                     <th class="py-2 text-right font-normal">Por hora</th>
@@ -706,7 +710,9 @@
                       <td class="py-2.5 text-ink">{{ item.name }}@if (first && (row.service_stats ?? []).length > 1) { <span class="badge badge-ok ml-1">Más rentable</span> }</td>
                       <td class="nums py-2.5 text-right text-muted">{{ item.count }}</td>
                       <td class="nums py-2.5 text-right text-ink-soft">{{ money(item.income) }}</td>
-                      <td class="nums py-2.5 text-right text-muted">− {{ money(item.commission) }}</td>
+                      @if (copy.commissions()) {
+                        <td class="nums py-2.5 text-right text-muted">− {{ money(item.commission) }}</td>
+                      }
                       <td class="nums py-2.5 text-right text-muted">{{ item.supplies ? '− ' + money(item.supplies) : '—' }}</td>
                       <td class="nums py-2.5 text-right text-ink">{{ money(item.profit) }}</td>
                       <td class="nums py-2.5 text-right font-semibold text-ink">{{ money(item.per_hour) }}</td>
@@ -751,7 +757,7 @@
                 <dd class="nums text-lg font-semibold text-ink">{{ info.rebook === null ? '—' : info.rebook + '%' }}</dd>
               </div>
               <div>
-                <dt class="text-muted">Gasta una clienta (en total)</dt>
+                <dt class="text-muted">Gasta un cliente (en total)</dt>
                 <dd class="nums text-lg font-semibold text-ink">{{ money(info.value) }}</dd>
               </div>
               <div>
@@ -871,7 +877,7 @@
             <span class="sec-icon"><mat-icon>table_chart</mat-icon></span>
             <div>
               <h2 class="card-title">Comparar {{ copy.text().people.toLowerCase() }}</h2>
-              <p class="text-sm text-muted">"Por hora" es lo que vendió entre las horas que trabajó con cita. "Regresan" son clientas que ya habían venido antes.</p>
+              <p class="text-sm text-muted">"Por hora" es lo que vendió entre las horas que trabajó con cita. "Regresan" son clientes que ya habían venido antes.</p>
             </div>
           </div>
           <div class="mt-3 overflow-x-auto">

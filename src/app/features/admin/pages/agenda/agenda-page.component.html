@@ -121,7 +121,7 @@
   }
   @if (clientNotice(); as href) {
     <p class="card card-tint mb-3 flex flex-wrap items-center justify-between gap-2 py-2! text-sm">
-      <span>Avísale a la clienta de su {{ copy.text().visit.toLowerCase() }}.</span>
+      <span>Avísale al cliente de su {{ copy.text().visit.toLowerCase() }}.</span>
       <span class="flex gap-2">
         <a class="btn btn-whatsapp" [href]="href" target="_blank" rel="noopener" (click)="clientNotice.set(null)">Enviar por WhatsApp</a>
         <button type="button" class="btn btn-ghost" (click)="clientNotice.set(null)">Cerrar</button>
@@ -803,7 +803,7 @@
         <p class="field-hint">El precio que cerraron por WhatsApp. Si lo dejas vacío, se usa el del servicio.</p>
         <label class="flex min-h-11 items-start gap-2 text-sm">
           <input type="checkbox" class="mt-0.5 h-5 w-5" formControlName="waive_deposit" />
-          <span>Sin anticipo. Es clienta de confianza.</span>
+          <span>Sin anticipo. Es cliente de confianza.</span>
         </label>
         @if (chargeHint(); as hint) {
           <p class="rounded-xl bg-accent-soft px-3 py-2 text-sm">{{ hint }}</p>

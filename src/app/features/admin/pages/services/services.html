@@ -115,7 +115,7 @@
     @if (onlySuggested()) {
       <p class="badge-info mb-3 flex items-start gap-2 rounded-xl px-3 py-2.5 text-sm">
         <mat-icon class="h-5! w-5! shrink-0 text-[20px]!" aria-hidden="true">lightbulb</mat-icon>
-        <span>Te dejamos servicios típicos de tu giro. Ajusta precio y duración, activa los que ofreces y borra los que no (menú ⋯). Mientras estén pausados, tus clientas no los ven.</span>
+        <span>Te dejamos servicios típicos de tu giro. Ajusta precio y duración, activa los que ofreces y borra los que no (menú ⋯). Mientras estén pausados, tus clientes no los ven.</span>
       </p>
     }
     @if (visible().length === 0) {
@@ -228,7 +228,7 @@
             <app-pick-field class="block" formControlName="category" [options]="categoryPicks()" />
           </label>
           <label class="block">
-            <span class="label">Descripción para la clienta</span>
+            <span class="label">Descripción para el cliente</span>
             <textarea class="input resize-none" rows="3" formControlName="description"></textarea>
           </label>
           <div>
@@ -272,19 +272,19 @@
           }
           <label class="flex min-h-11 items-start gap-2 text-sm text-ink">
             <input class="mt-0.5 h-5 w-5" type="checkbox" formControlName="variable_price" />
-            <span>El precio cambia según lo que pidan <span class="block text-muted">La clienta describe lo que quiere y tú confirmas el costo.</span></span>
+            <span>El precio cambia según lo que pidan <span class="block text-muted">El cliente describe lo que quiere y tú confirmas el costo.</span></span>
           </label>
           <label class="block">
             <span class="label">Material por servicio ($)</span>
             <input formControlName="supplyCost" type="number" min="0" inputmode="decimal" placeholder="0" class="input nums" />
-            <span class="field-hint">Lo que gastas en tinte, cera, etc. Reportes lo resta para mostrar lo que te deja.</span>
+            <span class="field-hint">Lo que gastas en material o insumos en cada servicio. Reportes lo resta para mostrar lo que te deja.</span>
           </label>
         </fieldset>
 
         <!-- Opciones (variantes) -->
         <fieldset class="flex flex-col gap-2 border-t border-line pt-4">
           <legend class="card-title mb-1">Opciones</legend>
-          <p class="field-hint">Por ejemplo cabello corto, medio y largo, cada una con su precio y duración. La clienta elige una al reservar.</p>
+          <p class="field-hint">Por ejemplo chico, mediano y grande, cada una con su precio y duración. El cliente elige una al reservar.</p>
           @for (option of variants(); track $index; let index = $index) {
             <div class="grid grid-cols-[minmax(0,1fr)_6rem_5.5rem_auto] items-end gap-2">
               <label class="block"><span class="label">Opción</span>
@@ -304,7 +304,7 @@
       </div>
 
       <div class="flex flex-col gap-5 border-t border-line pt-5 md:border-t-0 md:border-l md:pt-0 md:pl-6">
-        <!-- Vista previa: así lo ve la clienta -->
+        <!-- Vista previa: así lo ve el cliente -->
         <div>
           <span class="label">Así se ve en tu página</span>
           <div class="flex gap-3 rounded-xl border border-line bg-canvas p-3">
@@ -368,7 +368,7 @@
                   <input formControlName="waitMinutes" type="number" min="0" placeholder="40" class="input nums" />
                 </label>
               </div>
-              <span class="field-hint">Por ejemplo mientras actúa un tinte: en ese rato se puede atender a otra clienta.</span>
+              <span class="field-hint">Por ejemplo mientras actúa un producto o tratamiento: en ese rato se puede atender a otro cliente.</span>
             </div>
             <label class="block">
               <span class="label">Cupo a la misma hora</span>

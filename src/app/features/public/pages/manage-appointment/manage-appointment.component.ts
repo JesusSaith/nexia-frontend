@@ -8,10 +8,12 @@ import { ReviewsService } from '@core/services/reviews.service';
 import { BookingService, ManagedAppointment } from '@core/services/booking.service';
 // FUTURE_PHASE_SPEI: import { SpeiCheckComponent } from '@shared/components/spei-check/spei-check';
 import { DateFieldComponent } from '@shared/components/when-field/when-field';
+import { PlaceMap } from '@shared/components/place-map/place-map';
+import { canNavigate } from '@core/maps';
 
 @Component({
   selector: 'app-manage-appointment',
-  imports: [DateFieldComponent], // FUTURE_PHASE_SPEI: SpeiCheckComponent
+  imports: [DateFieldComponent, PlaceMap], // FUTURE_PHASE_SPEI: SpeiCheckComponent
   templateUrl: './manage-appointment.component.html',
   styleUrl: './manage-appointment.component.css',
 })
@@ -19,6 +21,7 @@ export class ManageAppointmentComponent {
   private readonly bookingApi = inject(BookingService);
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
+  protected readonly canNavigate = canNavigate;
   private readonly when = new Intl.DateTimeFormat('es-MX', {
     weekday: 'long',
     day: 'numeric',
@@ -39,7 +42,7 @@ export class ManageAppointmentComponent {
   protected readonly reviewState = signal<'idle' | 'sending' | 'sent'>('idle');
   protected readonly reviewError = signal<string | null>(null);
 
-  /** Después de la cita, la clienta deja su opinión desde el mismo enlace que ya tiene. */
+  /** Después de la cita, el cliente deja su opinión desde el mismo enlace que ya tiene. */
   protected sendReview(item: ManagedAppointment): void {
     const comment = this.opinion().trim();
     if (!comment) {
@@ -49,7 +52,7 @@ export class ManageAppointmentComponent {
     this.reviewState.set('sending');
     this.reviewError.set(null);
     this.reviewsApi
-      .createPublicReview(item.business_slug, { client_name: item.client_name || 'Clienta', rating: this.rating(), comment, photo_url: null })
+      .createPublicReview(item.business_slug, { client_name: item.client_name || 'Cliente', rating: this.rating(), comment, photo_url: null })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => this.reviewState.set('sent'),

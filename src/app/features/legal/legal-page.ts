@@ -5,7 +5,7 @@ import { LEGAL } from './legal-info';
 
 /**
  * Términos y Aviso de privacidad de Nexia como plataforma, para las dueñas que crean su cuenta.
- * Son una base razonable para la LFPDPPP, no asesoría legal. El aviso que ven las clientas de cada
+ * Son una base razonable para la LFPDPPP, no asesoría legal. El aviso que ven los clientes de cada
  * negocio es otro: /:slug/privacidad.
  */
 @Component({
@@ -27,7 +27,7 @@ import { LEGAL } from './legal-info';
 
           <h2>1. Qué es {{ legal.product }}</h2>
           <p>
-            Una herramienta para que tu negocio reciba citas en línea y administre su agenda, clientas, cobros y reportes.
+            Una herramienta para que tu negocio reciba citas en línea y administre su agenda, clientes, cobros y reportes.
             Tú decides tus servicios, precios, horarios y políticas; nosotros damos la plataforma.
           </p>
 
@@ -49,23 +49,23 @@ import { LEGAL } from './legal-info';
           </ul>
           <p>Podemos suspender una cuenta que incumpla estas reglas, avisándote cuando sea posible.</p>
 
-          <h2>4. Los datos de tus clientas</h2>
+          <h2>4. Los datos de tus clientes</h2>
           <p>
-            Tú eres responsable de los datos personales de tus clientas frente a ellas y frente a la ley. Nosotros los
+            Tú eres responsable de los datos personales de tus clientes frente a ellos y frente a la ley. Nosotros los
             guardamos y procesamos solo por cuenta tuya, para darte el servicio, y no los usamos para otro fin ni los vendemos.
             Tu página de reservas incluye un aviso de privacidad genérico que puedes reemplazar por el tuyo en Configuración.
           </p>
 
           <h2>5. Pagos y anticipos</h2>
           <p>
-            {{ legal.product }} no recibe ni procesa los pagos de tus clientas. Los anticipos y cobros se hacen directamente
-            entre ellas y tu negocio. Los reembolsos, aclaraciones y disputas son entre tu negocio y tu clienta.
+            {{ legal.product }} no recibe ni procesa los pagos de tus clientes. Los anticipos y cobros se hacen directamente
+            entre ellos y tu negocio. Los reembolsos, aclaraciones y disputas son entre tu negocio y tu cliente.
           </p>
 
           <h2>6. Mensajes de WhatsApp</h2>
           <p>
             Los botones de WhatsApp abren mensajes que tú envías desde tu propio teléfono. Debes respetar las políticas de
-            WhatsApp y escribir solo a clientas que te dieron su número.
+            WhatsApp y escribir solo a clientes que te dieron su número.
           </p>
 
           <h2>7. Precio del servicio</h2>
@@ -89,7 +89,7 @@ import { LEGAL } from './legal-info';
           <h2>10. Responsabilidad</h2>
           <p>
             {{ legal.product }} se ofrece tal como está. No respondemos por ganancias perdidas, citas no atendidas ni por
-            acuerdos entre tu negocio y tus clientas. En la medida que la ley lo permita, nuestra responsabilidad total se
+            acuerdos entre tu negocio y tus clientes. En la medida que la ley lo permita, nuestra responsabilidad total se
             limita a lo que nos hayas pagado en los últimos 12 meses.
           </p>
 
@@ -137,9 +137,9 @@ import { LEGAL } from './legal-info';
           </ul>
           <p>No usamos tus datos para publicidad de terceros ni los vendemos.</p>
 
-          <h2>Los datos de tus clientas</h2>
+          <h2>Los datos de tus clientes</h2>
           <p>
-            Lo que tus clientas dejan al reservar (nombre, teléfono, notas, fotos, comprobantes) es responsabilidad de tu
+            Lo que tus clientes dejan al reservar (nombre, teléfono, notas, fotos, comprobantes) es responsabilidad de tu
             negocio. Nosotros lo tratamos solo por cuenta tuya, como encargados, y únicamente para que funcione el servicio.
           </p>
 

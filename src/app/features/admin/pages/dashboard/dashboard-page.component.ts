@@ -53,7 +53,7 @@ export class DashboardPageComponent {
     ];
   });
   protected readonly shownTabs = computed(() => {
-    const pays = (this.books()?.staff ?? []).some((person) => person.percent > 0);
+    const pays = this.copy.commissions() && (this.books()?.staff ?? []).some((person) => person.percent > 0);
     return pays ? this.tabs() : this.tabs().filter((tab) => tab.id !== 'commission');
   });
   protected readonly topService = computed(() => {
@@ -893,7 +893,7 @@ export class DashboardPageComponent {
           ['Variables', row ? money(row.expense_variable) : 0],
         ],
       },
-    ];
+    ].filter((sheet) => sheet.name !== 'Comisiones' || this.copy.commissions());
   }
 }
 

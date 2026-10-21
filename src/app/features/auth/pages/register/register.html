@@ -68,7 +68,7 @@
                   formControlName="businessName"
                   data-field="businessName"
                   autocomplete="organization"
-                  placeholder="Ej. Salón Ana"
+                  [placeholder]="nameExample()"
                   [attr.aria-invalid]="!!errors().businessName"
                   [attr.aria-describedby]="errors().businessName ? 'name-error' : 'name-link'"
                 />
@@ -97,12 +97,39 @@
                   [attr.aria-invalid]="!!errors().phone"
                   [attr.aria-describedby]="errors().phone ? 'phone-error' : 'phone-hint'"
                 />
-                <span id="phone-hint" class="mt-0.5 block truncate text-[11px] text-muted">Aquí te escriben tus clientas</span>
+                <span id="phone-hint" class="mt-0.5 block truncate text-[11px] text-muted">Aquí te escriben tus clientes</span>
               </label>
               @if (errors().phone) {
                 <p id="phone-error" class="field-error mt-1">{{ errors().phone }}</p>
               }
             </div>
+          </div>
+
+          <div role="radiogroup" aria-labelledby="commission-label" [attr.aria-describedby]="errors().usesCommissions ? 'commission-error' : 'commission-hint'">
+            <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+              <span id="commission-label" class="text-xs font-medium text-ink-soft">¿Le pagas comisión a tu equipo?</span>
+              <div class="grid grid-cols-2 gap-1.5">
+                @for (pick of commissionPicks; track pick.label; let first = $first) {
+                  <label
+                    class="flex h-9 cursor-pointer items-center justify-center rounded-lg border px-3 text-xs transition-colors focus-within:ring-2 focus-within:ring-accent-soft"
+                    [class.border-accent]="form.controls.usesCommissions.value === pick.value"
+                    [class.bg-accent-soft]="form.controls.usesCommissions.value === pick.value"
+                    [class.font-medium]="form.controls.usesCommissions.value === pick.value"
+                    [class.text-ink]="form.controls.usesCommissions.value === pick.value"
+                    [class.border-line]="form.controls.usesCommissions.value !== pick.value"
+                    [class.text-ink-soft]="form.controls.usesCommissions.value !== pick.value"
+                  >
+                    <input class="sr-only" type="radio" formControlName="usesCommissions" [value]="pick.value" [attr.data-field]="first ? 'usesCommissions' : null" />
+                    {{ pick.label }}
+                  </label>
+                }
+              </div>
+            </div>
+            @if (errors().usesCommissions) {
+              <p id="commission-error" class="field-error mt-1">{{ errors().usesCommissions }}</p>
+            } @else {
+              <p id="commission-hint" class="mt-0.5 text-[11px] text-muted">Si dices que sí, calculamos cuánto le toca a cada quien. Lo cambias cuando quieras en Configuración.</p>
+            }
           </div>
         </fieldset>
 
@@ -216,7 +243,7 @@
       </form>
 
       <p class="mt-2 text-center text-[11px] text-muted sm:mt-3 sm:text-xs">
-        ¿Trabajas en un negocio que ya usa Nexia? La dueña te da de alta desde Equipo.
+        ¿Trabajas en un negocio que ya usa Nexia? Quien administra el negocio te da de alta desde Equipo.
       </p>
     </div>
   </section>

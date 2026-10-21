@@ -188,6 +188,7 @@ export class AdminLayoutComponent {
           this.logoUrl.set(brand.logo_url);
           this.brandName.set(brand.name);
           this.copy.setLabel(brand.staff_label);
+          this.copy.setCommissions(brand.uses_commissions);
           this.copy.setLogo(brand.logo_url);
           this.copy.setTemplates(brand.message_templates);
         });

@@ -228,8 +228,8 @@ export class HomePageComponent {
     const loaded = this.demoLoaded();
     const ok = await this.confirm.ask(
       loaded
-        ? { title: '¿Quitar los datos de ejemplo?', message: 'Se borran los servicios, el equipo, las clientas y las citas de ejemplo. Lo que tú creaste se queda.', confirm: 'Quitar', danger: true }
-        : { title: '¿Llenar con datos de ejemplo?', message: 'Agrega servicios de tu giro, dos colaboradoras con horario, clientas y citas para que veas todo funcionando. Los quitas con un botón.', confirm: 'Llenar' },
+        ? { title: '¿Quitar los datos de ejemplo?', message: 'Se borran los servicios, el equipo, los clientes y las citas de ejemplo. Lo que tú creaste se queda.', confirm: 'Quitar', danger: true }
+        : { title: '¿Llenar con datos de ejemplo?', message: 'Agrega servicios de tu giro, dos personas en tu equipo con horario, clientes y citas para que veas todo funcionando. Los quitas con un botón.', confirm: 'Llenar' },
     );
     if (!ok) {
       return;

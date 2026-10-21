@@ -77,7 +77,7 @@
                     <span class="badge badge-neutral">Inactivo</span>
                   }
                 </span>
-                <span class="block truncate text-sm text-muted">{{ member.role_title }}@if (member.commission_percent) { · <span class="nums">{{ member.commission_percent }}%</span> comisión }</span>
+                <span class="block truncate text-sm text-muted">{{ member.role_title }}@if (member.commission_percent && copy.commissions()) { · <span class="nums">{{ member.commission_percent }}%</span> comisión }</span>
                 <span class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm">
                   <span class="nums" [class]="scheduled ? 'text-ink-soft' : 'text-(--nx-warn-fg)'">{{ scheduleLabel(member.id) }}</span>
                   <span [class]="services ? 'text-ink-soft' : 'text-(--nx-warn-fg)'">{{ services ? services + (services === 1 ? ' servicio' : ' servicios') : 'Sin servicios' }}</span>
@@ -162,7 +162,7 @@
         <section class="card flex flex-col gap-3">
           <div>
             <h3 class="card-title">Perfil público</h3>
-            <p class="field-hint">Tus clientas lo ven en tu página al elegir con quién reservar.</p>
+            <p class="field-hint">Tus clientes lo ven en tu página al elegir con quién reservar.</p>
           </div>
           <div class="flex items-center gap-3">
             @if (photoPreview(); as src) {
@@ -190,32 +190,38 @@
           </div>
           @if (nameError()) { <p class="field-error">{{ nameError() }}</p> }
           @if (roleError()) { <p class="field-error">{{ roleError() }}</p> }
-          <label class="block"><span class="label">Descripción para tus clientas (pública)</span>
-            <textarea formControlName="bio" rows="3" class="input" placeholder="Especialista en uñas acrílicas, 5 años de experiencia."></textarea>
+          <label class="block"><span class="label">Descripción para tus clientes (pública)</span>
+            <textarea formControlName="bio" rows="3" class="input" [placeholder]="bioExample()"></textarea>
             <span class="field-hint">Se ve en tu página. No escribas aquí notas privadas.</span>
           </label>
         </section>
 
         <section class="card flex flex-col gap-3">
           <div>
-            <h3 class="card-title">Pago</h3>
-            <p class="field-hint">Solo lo ves tú. Se usa en Reportes → Comisiones.</p>
+            <h3 class="card-title">{{ copy.commissions() ? 'Pago' : 'Meta' }}</h3>
+            <p class="field-hint">Solo lo ves tú.{{ copy.commissions() ? ' Se usa en Reportes → Comisiones.' : '' }}</p>
           </div>
           <div class="grid gap-3 sm:grid-cols-2">
-            <label class="block"><span class="label">Comisión %</span>
-              <input type="number" min="0" max="100" formControlName="commission_percent" class="input nums" />
-            </label>
+            @if (copy.commissions()) {
+              <label class="block"><span class="label">Comisión %</span>
+                <input type="number" min="0" max="100" formControlName="commission_percent" class="input nums" />
+              </label>
+            }
             <label class="block"><span class="label">Meta de venta al mes ($)</span>
               <input type="number" min="0" formControlName="goal" placeholder="Sin meta" class="input nums" />
             </label>
-            <label class="block"><span class="label">Desde vender ($)</span>
-              <input type="number" min="0" formControlName="tier_amount" placeholder="Opcional" class="input nums" />
-            </label>
-            <label class="block"><span class="label">Comisión sube a %</span>
-              <input type="number" min="0" max="100" formControlName="tier_percent" placeholder="Opcional" class="input nums" />
-            </label>
+            @if (copy.commissions()) {
+              <label class="block"><span class="label">Desde vender ($)</span>
+                <input type="number" min="0" formControlName="tier_amount" placeholder="Opcional" class="input nums" />
+              </label>
+              <label class="block"><span class="label">Comisión sube a %</span>
+                <input type="number" min="0" max="100" formControlName="tier_percent" placeholder="Opcional" class="input nums" />
+              </label>
+            }
           </div>
-          <p class="field-hint">Comisión escalonada: si en el periodo vende desde ese monto, toda su comisión se calcula con el % más alto.</p>
+          @if (copy.commissions()) {
+            <p class="field-hint">Comisión escalonada: si en el periodo vende desde ese monto, toda su comisión se calcula con el % más alto.</p>
+          }
         </section>
 
         <section class="card flex flex-col gap-3">

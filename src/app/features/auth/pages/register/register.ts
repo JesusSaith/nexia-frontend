@@ -7,19 +7,20 @@ import { Router, RouterLink } from '@angular/router';
 import { of } from 'rxjs';
 import { catchError, debounceTime, distinctUntilChanged, map, switchMap } from 'rxjs/operators';
 
-import { BUSINESS_KINDS } from '@core/business-kinds';
+import { BUSINESS_KINDS, examplesFor } from '@core/business-kinds';
 import { AuthService } from '@core/services/auth.service';
 import { Toasts } from '@core/toasts';
 
-type FieldName = 'businessKind' | 'businessName' | 'phone' | 'fullName' | 'email' | 'password' | 'acceptTerms';
+type FieldName = 'businessKind' | 'businessName' | 'phone' | 'usesCommissions' | 'fullName' | 'email' | 'password' | 'acceptTerms';
 
 /** Orden en pantalla: al enviar con errores, el foco va al primero de esta lista que falle. */
-const FIELD_ORDER: FieldName[] = ['businessKind', 'businessName', 'phone', 'fullName', 'email', 'password', 'acceptTerms'];
+const FIELD_ORDER: FieldName[] = ['businessKind', 'businessName', 'phone', 'usesCommissions', 'fullName', 'email', 'password', 'acceptTerms'];
 
 const MESSAGES: Record<FieldName, Record<string, string>> = {
   businessKind: { required: 'Elige el tipo de negocio.' },
   businessName: { required: 'Escribe el nombre del negocio.' },
   phone: { required: 'Escribe el teléfono del negocio.', pattern: 'El teléfono debe tener 10 dígitos.' },
+  usesCommissions: { required: 'Dinos si le pagas comisión a tu equipo.' },
   fullName: { required: 'Escribe tu nombre.' },
   email: { required: 'Escribe tu correo.', email: 'Revisa el correo; parece incompleto.', taken: 'Ese correo ya tiene una cuenta.' },
   password: { required: 'Crea una contraseña.', minlength: 'Usa al menos 8 caracteres.', maxlength: 'Usa máximo 72 caracteres.' },
@@ -48,8 +49,12 @@ export class Register {
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   protected readonly kindPicks = BUSINESS_KINDS;
+  protected readonly commissionPicks = [
+    { value: true, label: 'Sí, por comisión' },
+    { value: false, label: 'No' },
+  ];
   protected readonly benefits = [
-    { icon: 'event_available', text: 'Tus clientas reservan solas, a cualquier hora.' },
+    { icon: 'event_available', text: 'Tus clientes reservan solos, a cualquier hora.' },
     { icon: 'payments', text: 'Pide anticipo por transferencia y evita las faltas.' },
     { icon: 'chat', text: 'Confirma y recuerda citas por WhatsApp en un toque.' },
   ];
@@ -64,6 +69,8 @@ export class Register {
     businessKind: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     businessName: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     phone: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.pattern(/^\d{10}$/)] }),
+    // Sin valor hasta que elija: enciende o esconde las comisiones en Equipo y Reportes.
+    usesCommissions: new FormControl<boolean | null>(null, { validators: [Validators.required] }),
     fullName: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     email: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email] }),
     password: new FormControl('', {
@@ -79,6 +86,12 @@ export class Register {
     this.formEvents();
     this.validationTick();
     return Object.fromEntries(FIELD_ORDER.map((name) => [name, this.fieldError(name)])) as Record<FieldName, string>;
+  });
+
+  /** Nombre de ejemplo del giro elegido, para el placeholder. */
+  protected readonly nameExample = computed(() => {
+    this.formEvents();
+    return `Ej. ${examplesFor(this.form.controls.businessKind.value).name}`;
   });
 
   /** El enlace real que tendrá el negocio, ya con sufijo si el nombre está ocupado. */
@@ -126,6 +139,7 @@ export class Register {
         phone: raw.phone,
         businessKind: raw.businessKind,
         acceptTerms: raw.acceptTerms,
+        usesCommissions: raw.usesCommissions === true,
         timezone: browserTimezone(),
       })
       .pipe(takeUntilDestroyed(this.destroyRef))

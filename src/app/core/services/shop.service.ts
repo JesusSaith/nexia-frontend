@@ -99,7 +99,7 @@ export interface SalesReport {
   no_show_count?: number;
   /** Citas cobradas que salieron con su siguiente cita agendada. */
   rebooked?: number;
-  /** Gasto promedio de una clienta en toda su historia. */
+  /** Gasto promedio de un cliente en toda su historia. */
   client_value?: number;
   discount_count?: number;
   discount_amount?: number;

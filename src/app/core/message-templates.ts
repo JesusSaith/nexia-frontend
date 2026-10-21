@@ -30,7 +30,7 @@ export type MessageVars = Partial<Record<MessageVar, string>>;
 export type MessageVar = 'nombre' | 'negocio' | 'servicio' | 'dia' | 'hora' | 'equipo' | 'enlace' | 'cuando' | 'precio' | 'anticipo' | 'fechas' | 'cita';
 
 export const VARIABLE_HELP: Record<MessageVar, string> = {
-  nombre: 'Nombre de la clienta',
+  nombre: 'Nombre del cliente',
   negocio: 'Nombre de tu negocio',
   servicio: 'Servicio de la cita',
   dia: 'Día (jueves 16 de octubre)',

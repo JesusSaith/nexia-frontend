@@ -6,7 +6,7 @@ import { ActivatedRoute } from '@angular/router';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 
-import { BUSINESS_KINDS, kindOf } from '@core/business-kinds';
+import { BUSINESS_KINDS, examplesFor, kindOf } from '@core/business-kinds';
 import { BusinessCopy } from '@core/business-copy';
 import { MESSAGE_TEMPLATES, MessageKey, MessageVars, VARIABLE_HELP, defaultText, fillTemplate, longDay } from '@core/message-templates';
 import { API_BASE_URL } from '@core/config/api-base-url';
@@ -17,6 +17,9 @@ import { BusinessSettings, ProfileUpdate, SettingsService } from '@core/services
 import { Toasts } from '@core/toasts';
 import { ButtonFill, ButtonShape, FONT_STACKS, FontStyle, HeaderStyle, SHAPE_RADIUS, ThemePreset, contrast, presets, textOn, tint } from '@core/theme';
 import { Confirm } from '@shared/components/confirm/confirm';
+import { MapPicker } from '@shared/components/map-picker/map-picker';
+import { GoogleMapPicker } from '@shared/components/google-map-picker/google-map-picker';
+import { GOOGLE_MAPS_KEY } from '@core/config/google-maps';
 import { PickFieldComponent } from '@shared/components/when-field/when-field';
 
 type SectionId = 'negocio' | 'apariencia' | 'reservas' | 'anticipo' | 'promociones' | 'mensajes' | 'pausa' | 'avisos' | 'privacidad';
@@ -76,18 +79,18 @@ const DEFAULT_COLOR = '#E11D48';
 /** Mismos tipos y orden que ALERT_KINDS en el backend (app/core/alerts.py). */
 const ALERT_OPTIONS: readonly { value: string; label: string; hint: string }[] = [
   { value: 'new_booking', label: 'Citas nuevas', hint: 'Cada vez que alguien reserva en tu página.' },
-  { value: 'cancelled', label: 'Cancelaciones', hint: 'Cuando una clienta cancela desde su enlace.' },
-  { value: 'rescheduled', label: 'Cambios de horario', hint: 'Cuando una clienta mueve su cita.' },
+  { value: 'cancelled', label: 'Cancelaciones', hint: 'Cuando un cliente cancela desde su enlace.' },
+  { value: 'rescheduled', label: 'Cambios de horario', hint: 'Cuando un cliente mueve su cita.' },
   { value: 'payment', label: 'Comprobantes y pagos de anticipo', hint: 'Para revisarlos y confirmar la cita.' },
   { value: 'deposit_expired', label: 'Anticipos vencidos', hint: 'Cuando el horario se libera porque no llegó el pago.' },
   { value: 'waitlist', label: 'Lista de espera', hint: 'Alguien espera lugar o se liberó un horario que buscaban.' },
-  { value: 'confirmed', label: 'Confirmaciones de asistencia', hint: 'Cuando la clienta confirma que sí va.' },
+  { value: 'confirmed', label: 'Confirmaciones de asistencia', hint: 'Cuando el cliente confirma que sí va.' },
   { value: 'daily_summary', label: 'Resumen de mañana', hint: 'A las 8 p. m., las citas del día siguiente.' },
 ];
 
 @Component({
   selector: 'app-settings-page',
-  imports: [ReactiveFormsModule, NgTemplateOutlet, PickFieldComponent, MatIconModule],
+  imports: [ReactiveFormsModule, NgTemplateOutlet, PickFieldComponent, MatIconModule, MapPicker, GoogleMapPicker],
   templateUrl: './settings-page.component.html',
 })
 export class SettingsPageComponent {
@@ -137,6 +140,10 @@ export class SettingsPageComponent {
 
   // Lo que no es un control del formulario (fotos, cupones, pausa…) vive en signals.
   protected readonly logoUrl = signal<string | null>(null);
+  /** Punto del local en el mapa; van juntos o ninguno. */
+  protected readonly location = signal<{ lat: number; lng: number } | null>(null);
+  /** Con llave, el mapa y el buscador son de Google; sin ella, OpenStreetMap. */
+  protected readonly googleMaps = !!GOOGLE_MAPS_KEY;
   protected readonly suggestedColor = signal<string | null>(null);
   /** Colores principales del logo (para asignarlos a botones, detalles o fondo). */
   protected readonly logoPalette = signal<string[]>([]);
@@ -198,6 +205,7 @@ export class SettingsPageComponent {
   protected readonly paymentMethodOptions = PAYMENT_METHODS;
   protected readonly paymentMethods = signal<ReadonlySet<string>>(new Set(PAYMENT_METHODS.map((item) => item.value)));
   protected readonly approveBookings = signal(false);
+  protected readonly usesCommissions = signal(true);
   protected readonly autoReminders = signal(false);
   protected readonly reminderHours = signal(24);
   protected readonly autoReturn = signal(false);
@@ -245,6 +253,8 @@ export class SettingsPageComponent {
       description: value.description.trim() || null,
       phone: value.phone.trim(),
       address: value.address.trim() || null,
+      latitude: this.location()?.lat ?? null,
+      longitude: this.location()?.lng ?? null,
       instagram: value.instagram.trim().replace(/^@/, '') || null,
       facebook: facebookUrl(value.facebook),
       logo_url: this.logoUrl(),
@@ -272,6 +282,7 @@ export class SettingsPageComponent {
       closures: this.closures(),
       payment_methods: PAYMENT_METHODS.map((item) => item.value).filter((value) => this.paymentMethods().has(value)),
       approve_bookings: this.approveBookings(),
+      uses_commissions: this.usesCommissions(),
       auto_reminders: this.autoReminders(),
       reminder_hours: this.reminderHours(),
       auto_return: this.autoReturn(),
@@ -352,13 +363,13 @@ export class SettingsPageComponent {
     const payload = this.payload();
     const asksDeposit = Boolean(payload.deposit_amount || payload.deposit_percent);
     return asksDeposit && !payload.deposit_account
-      ? 'Falta la cuenta o CLABE. Sin ella el anticipo no se pide y tus clientas reservan sin pagar.'
+      ? 'Falta la cuenta o CLABE. Sin ella el anticipo no se pide y tus clientes reservan sin pagar.'
       : '';
   });
 
   protected readonly status = computed(() => {
     if (this.pauseBookings()) {
-      return { tone: 'warn' as const, icon: 'pause_circle', title: 'Tu página no está tomando citas', detail: 'Tus clientas ven que por ahora no hay reservas en línea.' };
+      return { tone: 'warn' as const, icon: 'pause_circle', title: 'Tu página no está tomando citas', detail: 'Tus clientes ven que por ahora no hay reservas en línea.' };
     }
     const today = todayIso();
     const now = this.upcomingClosures().find((row) => row.from <= today);
@@ -369,7 +380,7 @@ export class SettingsPageComponent {
     if (next && next.from <= addDays(today, 14)) {
       return { tone: 'info' as const, icon: 'event_busy', title: `Cierras ${closureText(next)}${next.label ? ` (${next.label})` : ''}`, detail: 'Esos días no se pueden reservar. Fuera de esas fechas todo sigue igual.' };
     }
-    return { tone: 'ok' as const, icon: 'check_circle', title: 'Tu página está recibiendo reservas', detail: 'Tus clientas pueden agendar en línea a cualquier hora.' };
+    return { tone: 'ok' as const, icon: 'check_circle', title: 'Tu página está recibiendo reservas', detail: 'Tus clientes pueden agendar en línea a cualquier hora.' };
   });
 
   /** Lo que se ve de cada sección aunque esté cerrada. */
@@ -387,7 +398,7 @@ export class SettingsPageComponent {
         ? `${payload.deposit_percent}% en precio acordado`
         : '';
     return {
-      negocio: [payload.name, kind, payload.phone].filter(Boolean).join(' · '),
+      negocio: [payload.name, kind, payload.phone, payload.latitude != null ? 'en el mapa' : ''].filter(Boolean).join(' · '),
       apariencia: [this.logoUrl() ? 'Con logo' : 'Sin logo', `${this.photos().length} de 3 fotos`].join(' · '),
       reservas: [
         payload.min_notice_hours ? `${presetLabel('minNoticeHours', payload.min_notice_hours, 'h')} de anticipación` : 'Sin mínimo de anticipación',
@@ -526,6 +537,12 @@ export class SettingsPageComponent {
 
   protected readonly customizedCount = computed(() => Object.keys(this.payload().message_templates ?? {}).length);
 
+  /** Ejemplos del giro elegido (placeholders y vistas previas). */
+  protected readonly examples = computed(() => {
+    this.values();
+    return examplesFor(this.form.controls.businessKind.value);
+  });
+
   /** Datos de ejemplo para la vista previa de cada mensaje. */
   protected readonly sampleVars = computed<MessageVars>(() => {
     const tomorrow = new Date();
@@ -535,7 +552,7 @@ export class SettingsPageComponent {
     return {
       nombre: 'María',
       negocio: this.payload().name || 'Tu negocio',
-      servicio: 'Corte de cabello',
+      servicio: this.examples().service,
       dia: longDay(iso(tomorrow)),
       hora: '11:00 a.m.',
       equipo: 'Ana',
@@ -830,6 +847,7 @@ export class SettingsPageComponent {
         next: (settings) => {
           this.apply(settings);
           this.copy.setLabel(settings.staff_label);
+          this.copy.setCommissions(settings.uses_commissions);
           this.copy.setLogo(settings.logo_url);
           this.copy.setTemplates(settings.message_templates);
           this.saving.set(false);
@@ -889,6 +907,7 @@ export class SettingsPageComponent {
     this.suggestedColor.set(null);
     this.photoNotice.set('');
     this.photos.set(settings.gallery ?? []);
+    this.location.set(settings.latitude != null && settings.longitude != null ? { lat: settings.latitude, lng: settings.longitude } : null);
     this.accentColor.set(settings.accent_color ?? null);
     this.canvasColor.set(settings.canvas_color ?? null);
     this.buttonShape.set((settings.button_shape as ButtonShape) || 'pill');
@@ -902,6 +921,7 @@ export class SettingsPageComponent {
     this.closureError.set('');
     this.paymentMethods.set(new Set(settings.payment_methods?.length ? settings.payment_methods : PAYMENT_METHODS.map((item) => item.value)));
     this.approveBookings.set(Boolean(settings.approve_bookings));
+    this.usesCommissions.set(settings.uses_commissions !== false);
     this.autoReminders.set(Boolean(settings.auto_reminders));
     this.reminderHours.set(settings.reminder_hours || 24);
     this.autoReturn.set(Boolean(settings.auto_return));
@@ -946,12 +966,12 @@ export class SettingsPageComponent {
 
 /** Campo del backend → sección donde se corrige. */
 const FIELD_SECTION: Record<string, SectionId> = {
-  name: 'negocio', phone: 'negocio', description: 'negocio', address: 'negocio', instagram: 'negocio', facebook: 'negocio', business_kind: 'negocio',
+  name: 'negocio', phone: 'negocio', description: 'negocio', address: 'negocio', latitude: 'negocio', longitude: 'negocio', instagram: 'negocio', facebook: 'negocio', business_kind: 'negocio',
   logo_url: 'apariencia', primary_color: 'apariencia', gallery: 'apariencia', canvas_color: 'apariencia', accent_color: 'apariencia', button_shape: 'apariencia', button_fill: 'apariencia', font_style: 'apariencia', header_style: 'apariencia',
   min_notice_hours: 'reservas', max_days_ahead: 'reservas', buffer_minutes: 'reservas', cancel_hours: 'reservas', timezone: 'reservas', resources: 'reservas', cancel_policy: 'reservas',
   deposit_amount: 'anticipo', deposit_percent: 'anticipo', deposit_account: 'anticipo', deposit_hold_hours: 'anticipo', payment_url: 'anticipo',
   promo_text: 'promociones', promo_until: 'promociones', loyalty_every: 'promociones', loyalty_percent: 'promociones', coupons: 'promociones',
-  message_templates: 'mensajes', auto_reminders: 'mensajes', reminder_hours: 'mensajes', auto_return: 'mensajes', bookings_paused: 'pausa', closures: 'pausa', payment_methods: 'anticipo', approve_bookings: 'reservas', email_alerts: 'avisos', privacy_notice: 'privacidad',
+  message_templates: 'mensajes', auto_reminders: 'mensajes', reminder_hours: 'mensajes', auto_return: 'mensajes', bookings_paused: 'pausa', closures: 'pausa', payment_methods: 'anticipo', approve_bookings: 'reservas', uses_commissions: 'negocio', email_alerts: 'avisos', privacy_notice: 'privacidad',
 };
 
 function sectionOfError(error: unknown): SectionId | null {

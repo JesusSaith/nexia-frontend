@@ -17,7 +17,7 @@ export interface Service {
   image_url?: string | null;
   questions?: string | null;
   capacity?: number;
-  /** Cada cuántos días suele volver la clienta ("Te toca"); vacío = se calcula del historial. */
+  /** Cada cuántos días suele volver el cliente ("Te toca"); vacío = se calcula del historial. */
   return_days?: number | null;
   /** Material que gasta cada vez (tinte, cera…). */
   supply_cost?: number | null;

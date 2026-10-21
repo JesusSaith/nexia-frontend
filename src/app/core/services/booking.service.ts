@@ -11,6 +11,10 @@ export interface ManagedAppointment {
   business_name: string;
   business_slug: string;
   google_review_url?: string | null;
+  /** Para "Cómo llegar". */
+  address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   logo_url?: string | null;
   primary_color?: string | null;
   service_id: number;

@@ -25,6 +25,8 @@ import { BookingService } from '@core/services/booking.service';
 import { Review } from '@core/models/review.model';
 import { ReviewsService } from '@core/services/reviews.service';
 import { PickFieldComponent } from '@shared/components/when-field/when-field';
+import { PlaceMap } from '@shared/components/place-map/place-map';
+import { canNavigate } from '@core/maps';
 
 const STEPS = [
   { id: 1, label: 'Servicio' },
@@ -62,6 +64,7 @@ function phoneDigits(control: AbstractControl): ValidationErrors | null {
     ReactiveFormsModule,
     MatProgressSpinnerModule,
     PickFieldComponent,
+    PlaceMap,
   ],
   templateUrl: './booking.html',
   styleUrl: './booking.css',
@@ -121,6 +124,10 @@ export class Booking {
   protected readonly step = signal(1);
   protected readonly reached = signal(1);
   protected readonly brand = signal<BusinessBrand | null>(null);
+  /** Hay punto en el mapa o dirección: se ofrece "Cómo llegar". */
+  protected readonly hasPlace = computed(() => canNavigate(this.brand()));
+  /** El mapa del encabezado se carga solo al abrirlo, para no frenar la página. */
+  protected readonly mapOpen = signal(false);
   protected readonly petName = signal('');
   protected readonly copy = computed(() => businessWords(this.brand()?.staff_label));
   protected readonly opinions = signal<Review[]>([]);
@@ -157,7 +164,7 @@ export class Booking {
   protected readonly remembered = signal(false);
   /** Primer horario libre de los próximos días con lugar, para reservar "lo antes posible" sin calendario. */
   protected readonly soonest = signal<AvailabilitySlot[]>([]);
-  /** Aviso cuando el horario se ocupó mientras la clienta llenaba sus datos. */
+  /** Aviso cuando el horario se ocupó mientras el cliente llenaba sus datos. */
   protected readonly bumpNotice = signal<string | null>(null);
   protected readonly manageCopied = signal(false);
   /** Fotos de referencia para cotizar, ya comprimidas (data URL). */
@@ -310,7 +317,7 @@ export class Booking {
     }
     return couponOff >= loyaltyOff
       ? { percent: couponOff, label: `Cupón ${this.couponChecked()}` }
-      : { percent: loyaltyOff, label: 'Clienta frecuente' };
+      : { percent: loyaltyOff, label: 'Cliente frecuente' };
   });
   protected readonly policy = computed(() => {
     const text = this.brand()?.cancel_policy?.trim();
@@ -1021,7 +1028,7 @@ export class Booking {
     try {
       localStorage.setItem(MINE_KEY, JSON.stringify(rows.slice(-20)));
     } catch {
-      // Sin almacenamiento: la clienta conserva el enlace que le damos al reservar.
+      // Sin almacenamiento: el cliente conserva el enlace que le damos al reservar.
     }
   }
 
@@ -1331,13 +1338,13 @@ export class Booking {
     return `https://wa.me/${phone}?text=${encodeURIComponent(this.whatsappText(appointment, true))}`;
   }
 
-  /** Opción para celular: comparte las fotos como imágenes; la clienta elige el chat del negocio. */
+  /** Opción para celular: comparte las fotos como imágenes; el cliente elige el chat del negocio. */
   protected async sharePhotos(appointment: Appointment): Promise<void> {
     const files = this.refPhotos().map((data, index) => dataUrlToFile(data, `referencia-${index + 1}.jpg`));
     try {
       await navigator.share({ files, text: this.whatsappText(appointment, false) });
     } catch {
-      // La clienta cerró el menú de compartir; el botón de WhatsApp con enlaces sigue disponible.
+      // El cliente cerró el menú de compartir; el botón de WhatsApp con enlaces sigue disponible.
     }
   }
 

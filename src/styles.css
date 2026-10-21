@@ -189,6 +189,10 @@ body {
 /* Filas de lista dentro de una tarjeta: hover suave para que se note qué se puede tocar. */
 .row-hover { transition: background-color .15s; }
 .row-hover:hover { background: color-mix(in srgb, var(--primary) 4%, var(--color-surface)); }
+/* Pin del local en el mapa de Configuración (Leaflet). */
+.nx-pin { background: none; border: 0; filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.35)); }
+/* Buscador de direcciones de Google (Places) a todo el ancho. */
+.nx-place-search gmp-place-autocomplete { display: block; width: 100%; }
 /* Tarjeta destacada (un aviso, un total): fondo con el tono de la marca. */
 .card-tint { background: color-mix(in srgb, var(--primary) 6%, var(--color-surface)); border-color: color-mix(in srgb, var(--primary) 18%, var(--color-line)); }
 

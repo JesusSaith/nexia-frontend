@@ -62,6 +62,14 @@
         }
       </details>
     }
+    @if (hasPlace()) {
+      <details class="more-info px-5" (toggle)="mapOpen.set($any($event.target).open)">
+        <summary class="cursor-pointer text-sm font-medium" style="color: var(--booking-primary, var(--primary))">Cómo llegar</summary>
+        @if (mapOpen()) {
+          <app-place-map class="mt-3 block" [place]="brand()!" [name]="brand()?.name" [color]="brand()?.primary_color" />
+        }
+      </details>
+    }
     <div class="flex flex-wrap items-center gap-4 px-5 pb-4 text-sm">
       @if (brand()?.phone) {
         <a class="contact-chip" [href]="businessWhatsapp(brand()!.phone!)" target="_blank" rel="noopener">
@@ -456,7 +464,7 @@
       }
       @if (loyaltyPercent() && !usePackage()) {
         <p class="text-sm text-ink-soft" role="status">
-          Esta {{ copy().visit.toLowerCase() }} tiene <span class="nums font-medium" style="color: var(--booking-primary)">{{ loyaltyPercent() }}%</span> de descuento por ser clienta frecuente.
+          Esta {{ copy().visit.toLowerCase() }} tiene <span class="nums font-medium" style="color: var(--booking-primary)">{{ loyaltyPercent() }}%</span> de descuento por ser cliente frecuente.
         </p>
       }
       <label class="rounded-xl border border-line bg-white px-3 py-2">
@@ -487,7 +495,7 @@
       @if (selectedService()?.variable_price) {
         <label class="rounded-xl border border-line bg-white px-3 py-2">
           <span class="block text-xs text-muted">Qué necesitas</span>
-          <textarea class="w-full resize-none bg-transparent text-sm outline-none" rows="2" placeholder="Ej. uñas largas, diseño francés con piedritas" formControlName="notes"></textarea>
+          <textarea class="w-full resize-none bg-transparent text-sm outline-none" rows="2" placeholder="Ej. lo que necesitas, medidas, estilo o alguna preferencia" formControlName="notes"></textarea>
         </label>
         <!-- Fotos para cotizar: se guardan con la cita y van como enlace en el WhatsApp al negocio. -->
         <div class="rounded-xl border border-dashed border-line-strong bg-white px-3 py-3">
@@ -752,6 +760,12 @@
         </button>
         <p class="mt-1 text-xs text-muted">Se abre el menú de compartir: elige WhatsApp y el chat de {{ brand()?.name || 'el negocio' }}.</p>
       }
+      @if (hasPlace()) {
+        <div class="mt-6 w-full text-left">
+          <p class="mb-2 text-sm font-medium">Cómo llegar</p>
+          <app-place-map [place]="brand()!" [name]="brand()?.name" [color]="brand()?.primary_color" />
+        </div>
+      }
       <button type="button" class="mt-3 h-10 text-sm text-muted underline-offset-2 hover:underline" (click)="restart()">
         Volver al inicio
       </button>
@@ -761,7 +775,7 @@
 
 @if (summary(); as info) {
   @if (!confirmation() && !isLoading() && !loadError()) {
-    <!-- Resumen fijo: la clienta siempre ve qué está reservando y tiene el botón a la mano. -->
+    <!-- Resumen fijo: el cliente siempre ve qué está reservando y tiene el botón a la mano. -->
     <div class="booking-bar" role="region" aria-label="Resumen de tu reserva">
       <div class="mx-auto flex w-full max-w-3xl items-center gap-3 px-4 py-3">
         <div class="min-w-0 flex-1 text-sm">

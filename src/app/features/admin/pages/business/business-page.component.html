@@ -24,7 +24,7 @@
       </div>
       <button type="button" class="btn btn-secondary" (click)="showPreview.set(!showPreview())">
         <mat-icon>smartphone</mat-icon>
-        {{ showPreview() ? 'Cerrar vista previa' : 'Ver como clienta' }}
+        {{ showPreview() ? 'Cerrar vista previa' : 'Ver como cliente' }}
       </button>
     </header>
 
@@ -49,7 +49,7 @@
     </div>
 
     @if (showPreview() && preview(); as src) {
-      <!-- La página de reservas tal como la ve la clienta, en un marco de celular. -->
+      <!-- La página de reservas tal como la ve el cliente, en un marco de celular. -->
       <div class="mb-4 flex justify-center">
         <div class="h-[680px] w-[360px] max-w-full overflow-hidden rounded-[2.5rem] border-[10px] border-ink bg-surface shadow-xl">
           <iframe [src]="src" title="Vista previa de tu página de reservas" class="h-full w-full"></iframe>
@@ -178,7 +178,7 @@
             <span class="sec-icon"><mat-icon>reviews</mat-icon></span>
             <div>
               <h2 class="card-title">Opiniones</h2>
-              <p class="text-sm text-muted">Las dejan tus clientas desde su enlace de la cita, después de cobrarla.</p>
+              <p class="text-sm text-muted">Las dejan tus clientes desde su enlace de la cita, después de cobrarla.</p>
             </div>
           </div>
           @if (reviews().length === 0) {

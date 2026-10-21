@@ -16,6 +16,9 @@ export interface BusinessBrand {
   slug?: string | null;
   description?: string | null;
   address?: string | null;
+  /** Punto del local en el mapa (los dos o ninguno). */
+  latitude?: number | null;
+  longitude?: number | null;
   instagram?: string | null;
   facebook?: string | null;
   website?: string | null;
@@ -35,7 +38,9 @@ export interface BusinessBrand {
   /** Métodos que acepta (efectivo, transferencia, tarjeta); el backend responde los tres si no eligió. */
   payment_methods?: string[];
   approve_bookings?: boolean;
-  /** Hay CLABE válida: la clienta puede confirmar el anticipo con Banxico. */
+  /** Solo en /businesses/me: si le paga comisión a su equipo. */
+  uses_commissions?: boolean;
+  /** Hay CLABE válida: el cliente puede confirmar el anticipo con Banxico. */
   spei_check?: boolean;
   promo_text?: string | null;
   promo_until?: string | null;
@@ -87,7 +92,7 @@ export interface PublicService {
   questions?: string | null;
   capacity?: number;
   featured?: boolean;
-  /** Opciones con su precio y duración; la clienta elige una. */
+  /** Opciones con su precio y duración; el cliente elige una. */
   variants?: { name: string; price: number; duration_minutes: number }[];
 }
 

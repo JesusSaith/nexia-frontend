@@ -114,6 +114,12 @@
       @if (item.client_confirmed) {
         <p class="mt-4 text-sm text-[var(--nx-ok-fg)]">Confirmaste que vas.</p>
       }
+      @if (!item.is_cancelled && !item.is_past && canNavigate(item)) {
+        <div class="mt-6 text-left">
+          <p class="mb-2 text-sm font-medium">Cómo llegar</p>
+          <app-place-map [place]="item" [name]="item.business_name" [color]="item.primary_color" />
+        </div>
+      }
       @if (!item.is_cancelled && !item.is_past && !item.changes_locked) {
         <div class="mt-6 flex flex-col gap-2">
           @if (item.cancel_policy) {

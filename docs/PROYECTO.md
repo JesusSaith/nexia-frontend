@@ -35,6 +35,7 @@ Código: `src/app/features/auth/`, `src/app/features/legal/` y, en el backend, `
   - **Tipo de negocio** en botones (Salón de belleza, Salón de uñas, Barbería, Spa, Consultorio, Clínica dental, Veterinaria, Estudio, Otro). La lista vive en `src/app/core/business-kinds.ts` y es la misma que usa Configuración.
   - **Nombre del negocio**, con la vista previa del enlace real (`…/salon-ana/book`), que pide a `GET /api/auth/slug-preview` (agrega `-2` si el nombre ya existe).
   - **WhatsApp del negocio**: solo números, 10 dígitos; si pegan `+52` se quita.
+  - **"¿Le pagas comisión a tu equipo?"** (Sí / No, obligatorio). Se guarda en `businesses.uses_commissions` (ver "Comisiones" en la sección 4).
   - **Tu nombre, correo y contraseña** (mínimo 8).
   - **Casilla obligatoria** de términos y aviso de privacidad.
 - **Errores en su campo:** el correo repetido ofrece "Inicia sesión" con el correo ya escrito, y al enviar con errores el foco salta al primero.
@@ -70,6 +71,7 @@ Ruta: `/:negocio/book`. Código: `src/app/features/booking/pages/booking/`.
 
 ### Encabezado
 - Logo, nombre, descripción y dirección. Si el negocio subió fotos de su trabajo, **la primera se usa como portada** arriba, con un degradado del color de la marca.
+- **"Cómo llegar"** (plegado): mapa con el punto del local y botones a **Google Maps** y **Waze**. El mapa se carga solo al abrirlo. Sin punto en el mapa, los botones buscan la dirección escrita y no se muestra mapa (una dirección suelta puede caer en otra ciudad).
 
 ### Paso 1. Servicio
 - Elige un servicio. Puede filtrar por categoría y sumar servicios extra a la misma cita.
@@ -95,6 +97,7 @@ Ruta: `/:negocio/book`. Código: `src/app/features/booking/pages/booking/`.
 - Si el negocio aprueba a mano: "Recibimos tu solicitud", con el horario ya apartado. La página de la cita muestra lo mismo hasta que la dueña responde.
 - Botón de WhatsApp con un mensaje completo para el negocio: servicio, día, hora, colaboradora, nombre, notas, fotos y anticipo.
 - **"Agregar a mi calendario":** Google Calendar o archivo `.ics`.
+- **Cómo llegar:** al final, el mismo mapa con Google Maps y Waze. También aparece en la página de la cita mientras no haya pasado ni esté cancelada.
 - Enlace para ver, cambiar o cancelar la cita (`/:negocio/manage/:token`).
 - **Si hay anticipo:** cuenta para transferir, botón para subir el comprobante y la hora hasta la que se guarda el horario.
 - **Si alguien ganó el horario** mientras llenaba sus datos: regresa sola al paso 2 con los horarios actualizados y conserva lo que escribió.
@@ -131,7 +134,7 @@ Ruta: `/:negocio/book`. Código: `src/app/features/booking/pages/booking/`.
 - **Vista previa en vivo** (solo en pantallas muy anchas, 1536 px o más): a la derecha, el encabezado de la página de reservas con lo que se lleva escrito, sin guardar: portada, logo, nombre, color, anuncio, pausa o próximo cierre, métodos de pago y un servicio de ejemplo. El índice lateral de secciones se queda siempre en escritorio; los chips son solo para celular.
 - **Llegar directo a lo que falta:** `/admin/settings?sec=anticipo` abre y baja a esa sección. Los avisos de Inicio y Mi negocio usan esa dirección.
 - **Nueve secciones**, cada una con un **resumen visible aunque esté cerrada** (por ejemplo, "$200 · 3 h para pagar · falta la cuenta"):
-  1. **Tu negocio:** nombre, tipo, descripción, WhatsApp (10 dígitos), dirección y redes.
+  1. **Tu negocio:** nombre, tipo, descripción, WhatsApp (10 dígitos), dirección, redes y **ubicación en el mapa** (ver "Ubicación del local").
   2. **Apariencia:** logo, **colores del logo** (se sacan al subirlo; cada uno se asigna a botones, detalles o fondo), color de **botones**, de **detalles** (chips, horas y tarjetas elegidas) y de **fondo**, **temas listos** (Claro, Suave, Intenso), **forma** de botones (píldora, redondeado, recto), **relleno** (sólido o contorno), **letra** (moderna, elegante, cálida) y **encabezado** (con portada, de color o liso). El texto de los botones se pone blanco u oscuro solo, según el color (`src/app/core/theme.ts`), y avisa si el color casi no se ve sobre el fondo. **Vista previa en vivo** en un mini celular, en todas las pantallas. Fotos del trabajo (hasta 3). Se guarda en `businesses.accent_color`, `canvas_color`, `button_shape`, `button_fill`, `font_style` y `header_style`; la página de reservas los lee como variables de CSS (`--booking-on`, `--booking-accent`, `--booking-radius`).
   3. **Reglas de reserva:** opciones rápidas en vez de números sueltos (anticipación, días a futuro, tiempo entre citas, hasta cuándo cancelar), **aprobar cada cita a mano**, mensaje sobre cancelaciones, zona horaria y salas o equipos.
   4. **Anticipo y pagos:** **métodos de pago que acepta** (efectivo, transferencia, tarjeta; al menos uno), monto fijo, porcentaje para servicios por cotizar, cuenta o CLABE, tiempo para pagarlo y enlace de pago. **Avisa si falta la CLABE**, porque sin ella el anticipo no se cobra.
@@ -200,6 +203,26 @@ Están programados y probados, pero **apagados y sin mostrarse** hasta decidir e
   - **avisos:** "falta tu CLABE" o "tu página está en pausa". Se muestran en Inicio aunque se haya ocultado la lista.
 - Cada paso trae `section` (la sección de Configuración donde se resuelve), y el enlace se arma con `?sec=…`.
 - **"Comparte tu enlace"** se guarda en el negocio (`link_shared`), no en el navegador.
+
+### Ubicación del local
+- **Dónde se guarda:** `businesses.latitude` y `businesses.longitude` (van juntas o ninguna; la API responde 422 si llega solo una). Salen en `GET /api/businesses/{slug}` y en la página de la cita (`address`, `latitude`, `longitude`).
+- **Dos proveedores, según haya llave.** Con `GOOGLE_MAPS_KEY` (`src/app/core/config/google-maps.ts`) todo es de **Google Maps**, que tiene los datos más completos y al día de México. Sin llave se usa **OpenStreetMap**, gratis pero con menos detalle.
+- **Cómo la marca la dueña** (Configuración → Tu negocio):
+  - **Con Google** (`src/app/shared/components/google-map-picker/`): buscador de Google (Places, `PlaceAutocompleteElement`, solo México: encuentra direcciones y negocios por nombre), **"Estoy en el local"** o tocar el mapa; el pin se arrastra (`AdvancedMarkerElement`, necesita `GOOGLE_MAP_ID`). El script se carga solo en esa pantalla (`src/app/core/google-maps.ts`).
+  - **Sin llave** (`src/app/shared/components/map-picker/`): Leaflet con OpenStreetMap; busca con Nominatim o lee el punto de un enlace largo de Google Maps (`pointFromLink`). Su CSS va dentro del componente (por eso el límite de estilos por componente subió a 12 kB).
+  - En los dos, el punto se guarda con el botón de siempre.
+- **Lo que ve la clienta** (`src/app/shared/components/place-map/`, enlaces en `src/app/core/maps.ts`): un **mapa fijo**, sin librería ni iframe, para que cargue rápido en celular: con llave, una sola imagen de Google (Maps Static API, `googleStaticMapUrl`, pin del color de la marca); sin llave o si esa imagen falla, 15 imágenes de OpenStreetMap (`staticMap`). Tocarlo abre Google Maps; debajo, botones a Google Maps y Waze.
+- **Para encender Google:**
+  1. En Google Cloud, crear un proyecto con facturación y activar **Maps JavaScript API**, **Maps Static API** y **Places API (New)**.
+  2. Crear una llave y **restringirla** a "Sitios web" (el dominio de Vercel y `localhost:*`) y a esas 3 APIs. Va en el navegador, así que la restricción es lo que la protege.
+  3. En Gestión de mapas, crear un **ID de mapa** de tipo JavaScript y ponerlo en `GOOGLE_MAP_ID` (`DEMO_MAP_ID` solo sirve para probar).
+  4. **Costo:** desde marzo de 2025, cada API tiene un tope mensual gratis (unas 10,000 cargas de mapa, de mapa fijo y de búsquedas); con pocos negocios no se paga. Poner una alerta de presupuesto en Google Cloud.
+- **Qué le falta:** el paso "Marca tu local en el mapa" (`location`) se suma a "para dar confianza".
+
+### Comisiones (encender o apagar)
+- **Dónde:** `businesses.uses_commissions`. Se elige al registrarse y se cambia en Configuración → Tu negocio ("Le pago comisión a mi equipo"). Los negocios que ya existían quedan encendidos.
+- **Apagado:** Equipo no muestra el % ni la comisión escalonada (la meta de venta sí); Reportes esconde la pestaña Comisiones, el aviso de "comisión por pagar", la línea de Comisiones en Resultado, la columna en "Lo que deja cada servicio" y la hoja del Excel. El backend calcula todo con 0% aunque haya porcentajes guardados (`pays` en `app/routers/shop.py`), así que la ganancia y el punto de equilibrio no restan comisiones, y el correo mensual no las menciona. La página pública no expone la opción.
+- **En el panel:** `BusinessCopy.commissions()` (se llena desde `GET /api/businesses/me`).
 
 ### Métodos de pago
 - Se guardan en `businesses.payment_methods` (JSON); vacío significa los tres. Lógica en `app/core/payment_methods.py` y `src/app/core/payment-methods.ts`.
@@ -287,6 +310,7 @@ El sistema de diseño está en `src/styles.css`. Usa **siempre** estos nombres y
 - **Huecos:** para tarjetas de alturas distintas lado a lado, usa columnas independientes (`grid items-start` con un `flex flex-col gap-4` por columna), no una rejilla de filas.
 - **Modo oscuro:** solo con tokens; no agregues `bg-white`. Los menús desplegables viven fuera del panel, así que también deben usar `bg-surface`.
 - **Confirmaciones:** el servicio `Confirm` (`src/app/shared/components/confirm/`). No usar `window.confirm`.
+- **Textos para cualquier negocio:** nada de un giro en particular ni en femenino. Se dice "cliente/clientes" (o `copy.text().client` cuando el giro lo cambia: paciente, tutor, alumno), "tu equipo" o `copy.text().person` para el personal, y los ejemplos (nombre del negocio, descripción, servicio, descripción del personal) salen de `examplesFor(giro)` en `src/app/core/business-kinds.ts`.
 - **Tipografía:** Plus Jakarta Sans. **Íconos:** Material Symbols (`<mat-icon>`). Sin emojis en la interfaz; en los mensajes de WhatsApp sí se usan.
 
 ---
@@ -358,6 +382,7 @@ npx ng test --watch=false
 **Antes de abrir a negocios reales**
 - Llenar razón social, domicilio, correo y ciudad en `src/app/features/legal/legal-info.ts`, y pedir a un abogado que revise `/terminos` y `/privacidad`. La sección "Precio del servicio" de los términos es genérica: confirmar si Nexia va a cobrar.
 - Configurar Resend con el dominio y verificar `TRUSTED_PROXY_HOPS` en Render (ver la sección 8).
+- Crear la llave de Google Maps y el ID de mapa (ver "Ubicación del local" en la sección 4) y probar en el navegador el buscador, el pin y el mapa fijo.
 - Recorrer en el navegador: el registro en celular, recuperar contraseña con un correo real y los menús del selector de hora en modo oscuro.
 
 **Para encender lo automático** (hoy en pausa; ver "En pausa" en la sección 4)
@@ -473,3 +498,12 @@ Pruebas: backend 52 (1 omitida a propósito: el webhook en pausa), frontend 30, 
 | backend, frontend | (sin commit) | **Apariencia:** tema completo de la página de reservas a partir de los colores del logo (botones, detalles, fondo, temas listos, forma, relleno, letra y encabezado), contraste automático del texto de los botones con aviso y vista previa en vivo. |
 
 Pruebas: backend 65 (1 omitida a propósito), frontend 30, todas pasando.
+
+| backend, frontend | (sin commit) | **Ubicación del local:** `businesses.latitude`/`longitude` (con migración y validación de que lleguen juntas), en la página pública, en la de la cita y en "qué te falta" (`location`). Configuración → Tu negocio: mapa con pin arrastrable (Leaflet + OpenStreetMap), "Estoy en el local", buscar dirección y pegar enlace de Google Maps. Página de reservas: "Cómo llegar" plegado en el encabezado y al confirmar; página de la cita: "Cómo llegar". Dependencia nueva: `leaflet`. |
+| frontend | (sin commit) | **Mapas más rápidos:** la clienta ve un mapa fijo de imágenes de OpenStreetMap en lugar del iframe de Google; el CSS de Leaflet va dentro del componente (antes dependía de reiniciar `ng serve` y, sin él, el mapa salía roto). |
+| frontend | (sin commit) | **Google Maps:** con llave (`GOOGLE_MAPS_KEY`), la dueña marca su local con el mapa y el buscador de Google, y la clienta ve una imagen de Google con el pin del color de la marca. Sin llave sigue OpenStreetMap. Dependencia nueva: `@types/google.maps`. |
+
+| backend, frontend | (sin commit) | **Comisiones opcionales:** pregunta al registrarse y switch en Configuración (`businesses.uses_commissions`); apagadas, Equipo y Reportes las esconden y el backend calcula con 0%. |
+| frontend | (sin commit) | **Textos para cualquier negocio:** "clienta(s)" → "cliente(s)" en todo el panel, la página pública y lo legal; ejemplos por giro (`examplesFor`) en el registro, Configuración, Equipo y la vista previa de mensajes; sin ejemplos de uñas, tinte o cabello en Servicios ni en la reserva. Backend: aviso de faltas y correo mensual en neutro. |
+
+Pruebas: backend 68 (1 omitida a propósito), frontend 33, todas pasando.

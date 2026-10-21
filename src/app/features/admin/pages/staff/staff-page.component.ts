@@ -14,6 +14,7 @@ import { forkJoin, of, switchMap, tap } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 
 import { BusinessCopy } from '@core/business-copy';
+import { examplesFor, kindOf } from '@core/business-kinds';
 import { Toasts } from '@core/toasts';
 import { Service } from '@core/models/service.model';
 import { Staff, StaffWrite } from '@core/models/staff.model';
@@ -47,6 +48,8 @@ type StaffSection = 'info' | 'services' | 'account';
 export class StaffPageComponent {
   private readonly staffApi = inject(StaffService);
   protected readonly copy = inject(BusinessCopy);
+  /** Ejemplo de descripción pública según el giro (se deduce de cómo se llama al personal). */
+  protected readonly bioExample = computed(() => examplesFor(kindOf(null, this.copy.text().person)).bio);
   private readonly servicesApi = inject(ServicesService);
   private readonly toasts = inject(Toasts);
   private readonly schedulesApi = inject(SchedulesService);

@@ -1,4 +1,4 @@
-/** Bancos desde los que la clienta puede transferir (clave de participante SPEI; misma lista que app/core/spei.py). */
+/** Bancos desde los que el cliente puede transferir (clave de participante SPEI; misma lista que app/core/spei.py). */
 export const SPEI_BANKS: readonly { code: string; name: string }[] = [
   { code: '40012', name: 'BBVA' },
   { code: '40002', name: 'Banamex' },
