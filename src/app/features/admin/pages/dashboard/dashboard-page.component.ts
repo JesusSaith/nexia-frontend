@@ -5,7 +5,7 @@ import { Component, DestroyRef, computed, effect, inject, signal } from '@angula
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
-import { forkJoin, of } from 'rxjs';
+import { Subscription, catchError, forkJoin, of } from 'rxjs';
 
 import { BusinessCopy } from '@core/business-copy';
 import { Appointment } from '@core/models/appointment.model';
@@ -16,7 +16,8 @@ import { AuthService } from '@core/services/auth.service';
 import { Toasts } from '@core/toasts';
 import { DashboardService } from '@core/services/dashboard.service';
 import { ServicesService } from '@core/services/services.service';
-import { CashDay, SalesReport, ShopExpense, ShopService } from '@core/services/shop.service';
+import { Confirm } from '@shared/components/confirm/confirm';
+import { CashDay, CashRow, SalesReport, ShopExpense, ShopService } from '@core/services/shop.service';
 import { PickFieldComponent } from '@shared/components/when-field/when-field';
 import { ReportSheet, downloadExcel, downloadPdf } from './dashboard-export';
 
@@ -31,6 +32,7 @@ export class DashboardPageComponent {
   private readonly dashboardApi = inject(DashboardService);
   private readonly auth = inject(AuthService);
   private readonly toasts = inject(Toasts);
+  private readonly confirm = inject(Confirm);
   protected readonly copy = inject(BusinessCopy);
   private readonly shop = inject(ShopService);
   private readonly appointmentsApi = inject(AppointmentsService);
@@ -40,7 +42,18 @@ export class DashboardPageComponent {
   private readonly dayFormat = new Intl.DateTimeFormat('es-MX', { weekday: 'short' });
 
   private readonly catalog = signal<Service[]>([]);
-  private readonly rangePoints = signal<WeekTrendPoint[]>([]);
+  /** Citas del rango elegido; la gráfica por día se arma aparte para no volver a pedir los reportes al cargar el catálogo o el resumen. */
+  private reportRequest: Subscription | null = null;
+  private readonly rangeData = signal<{ start: string; end: string; days: Appointment[] } | null>(null);
+  private readonly rangePoints = computed<WeekTrendPoint[]>(() => {
+    const data = this.rangeData();
+    if (!data) {
+      return [];
+    }
+    const prices = new Map(this.catalog().map((service) => [service.id, service.price]));
+    const trend = [...(this.summary()?.month_trend ?? []), ...(this.summary()?.week_trend ?? [])];
+    return dailyCut(data.start, data.end, trend, data.days, prices);
+  });
   protected readonly tabs = computed(() => {
     const person = this.copy.text().person.toLowerCase();
     return [
@@ -108,6 +121,10 @@ export class DashboardPageComponent {
   protected readonly expenseAmount = signal('');
   protected readonly expenseKind = signal<'fixed' | 'variable'>('fixed');
   protected readonly expenseCadence = signal<'month' | 'week' | 'day'>('month');
+  /** Día de pago de un gasto fijo: del 1 al 31 si es mensual, 0 (lunes) a 6 (domingo) si es semanal. */
+  protected readonly expensePayDay = signal<number>(new Date().getDate());
+  protected readonly monthDayPicks = Array.from({ length: 31 }, (_, index) => ({ value: index + 1, label: index === 30 ? 'Día 31 (o el último del mes)' : `Día ${index + 1}` }));
+  protected readonly weekDayPicks = WEEK_DAYS.map((label, index) => ({ value: index, label }));
   protected readonly expenseCategory = signal('otros');
 
   // Corte de caja: un día a la vez (por defecto hoy).
@@ -116,9 +133,28 @@ export class DashboardPageComponent {
   protected readonly cashCounted = signal('');
   protected readonly cashNote = signal('');
   protected readonly cashSaving = signal(false);
+  // Fondo con el que abrió la caja (texto del campo) y el movimiento de caja que se está capturando.
+  protected readonly cashOpening = signal('');
+  protected readonly cashMoveKind = signal<'in' | 'out'>('out');
+  protected readonly cashMoveAmount = signal('');
+  protected readonly cashMoveReason = signal('');
+  protected readonly cashMoveExpense = signal(true);
+  protected readonly cashClosed = computed(() => !!this.cash()?.count?.closed);
+  // Lo que debe haber: mientras el corte está abierto se recalcula con el fondo que se escribe; cerrado, queda lo congelado.
+  protected readonly cashExpected = computed(() => {
+    const data = this.cash();
+    if (!data) {
+      return 0;
+    }
+    if (this.cashClosed()) {
+      return data.count?.expected ?? data.expected_cash;
+    }
+    const opening = Number(this.cashOpening());
+    return Math.round((data.expected_cash - data.opening + (Number.isFinite(opening) && opening > 0 ? opening : 0)) * 100) / 100;
+  });
   protected readonly cashDiff = computed(() => {
     const counted = this.cashCounted().trim();
-    return counted === '' ? null : Math.round((Number(counted) - (this.cash()?.expected_cash ?? 0)) * 100) / 100;
+    return counted === '' ? null : Math.round((Number(counted) - this.cashExpected()) * 100) / 100;
   });
 
   /** Proyección: lo cobrado más lo ya agendado de aquí al fin del periodo. */
@@ -423,6 +459,61 @@ export class DashboardPageComponent {
     }),
   );
 
+  /** El resumen de arriba: ¿gané o perdí?, ¿qué falta cobrar o pagar?, ¿a quién cuido? */
+  protected readonly glance = computed(() => {
+    const row = this.books();
+    if (!row) {
+      return null;
+    }
+    const cards = this.staffCards();
+    const worst = [...cards].sort((a, b) => b.lost - a.lost)[0];
+    const gap = row.break_even && row.break_even > row.total ? Math.round((row.break_even - row.total) * 100) / 100 : 0;
+    return {
+      profit: row.profit,
+      gap,
+      covered: !!row.break_even && gap === 0,
+      collect: row.uncollected_amount ?? 0,
+      collectCount: row.uncollected_count ?? 0,
+      toPay: row.fixed_pending ?? 0,
+      owedCommission: this.copy.commissions() ? Math.round(cards.reduce((sum, person) => sum + person.due, 0) * 100) / 100 : 0,
+      missing: row.clients_missing ?? 0,
+      cancelling: row.clients_cancelling ?? 0,
+      worstName: worst && worst.lost >= 3 ? worst.staff_name : null,
+      worstLost: worst?.lost ?? 0,
+      winSent: row.winback_sent ?? 0,
+      winReturned: row.winback_returned ?? 0,
+      winBooked: row.winback_booked ?? 0,
+      winRevenue: row.winback_revenue ?? 0,
+    };
+  });
+  /** Cómo se llama el periodo en las frases del resumen. */
+  protected readonly periodWord = computed(() =>
+    this.period() === 'day' ? 'Hoy' : this.period() === 'week' ? 'En estos 7 días' : this.period() === 'month' ? 'En lo que va del mes' : 'En este periodo',
+  );
+  /** El análisis a fondo (ocupación, servicios, horas fuertes…) se abre solo si la dueña lo pide. */
+  protected readonly moreDetail = signal(false);
+
+  /** Una tarjeta por persona: lo que vendió, cómo trabajó, qué le toca y cuánto se le debe. */
+  protected readonly staffCards = computed(() => {
+    const extra = new Map(this.staffTable().map((person) => [person.staff_id, person]));
+    return this.shifts().map((person) => {
+      const more = extra.get(person.staff_id);
+      const lost = (person.no_shows ?? 0) + (person.cancels ?? 0);
+      return {
+        ...person,
+        perHour: more?.perHour ?? 0,
+        returnShare: more?.returnShare ?? null,
+        lost,
+        initials: person.staff_name
+          .split(/\s+/)
+          .slice(0, 2)
+          .map((word) => word.charAt(0).toUpperCase())
+          .join(''),
+        due: Math.max(0, person.commission - person.paid),
+      };
+    });
+  });
+
   /** Faltas y cancelaciones sobre todas las citas que debían ocurrir en el periodo. */
   protected readonly misses = computed(() => {
     const row = this.books();
@@ -524,10 +615,10 @@ export class DashboardPageComponent {
         const methods = [...new Set(months.flatMap((row) => Object.keys(row.by_method)))];
         const categories = [...new Set(months.flatMap((row) => Object.keys(row.by_category)))];
         const catLabels = Object.fromEntries(this.categoryPicks.map((item) => [item.value, item.label]));
-        const head = ['Mes', ...methods.map((key) => `Cobrado ${METHOD_LABELS[key] ?? key}`), 'Servicios', 'Productos', 'Ingresos', ...categories.map((key) => `Gasto ${catLabels[key] ?? key}`), 'Gastos', 'Comisiones', 'Propinas (aparte)', 'Ganancia'];
+        const head = ['Mes', ...methods.map((key) => `Cobrado ${METHOD_LABELS[key] ?? key}`), 'Servicios', 'Productos', 'Ingresos', ...categories.map((key) => `Gasto ${catLabels[key] ?? key}`), 'Gastos', 'Compras de producto', 'Comisiones', 'Propinas (aparte)', 'Ganancia'];
         const rows = months.map((row) => [
           row.month, ...methods.map((key) => row.by_method[key] ?? 0), row.service_income, row.product_income, row.total,
-          ...categories.map((key) => row.by_category[key] ?? 0), row.expenses, row.commissions, row.tips, row.profit,
+          ...categories.map((key) => row.by_category[key] ?? 0), row.expenses, row.product_cost, row.commissions, row.tips, row.profit,
         ]);
         const csv = [head, ...rows].map((line) => line.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\r\n');
         const link = document.createElement('a');
@@ -588,9 +679,9 @@ export class DashboardPageComponent {
           : this.period() === 'range'
             ? previousSpan(start, end)
             : previousRange(this.period(), today);
-      const prices = new Map(this.catalog().map((service) => [service.id, service.price]));
-      const trend = [...(this.summary()?.month_trend ?? []), ...(this.summary()?.week_trend ?? [])];
-      forkJoin({
+      // Si cambian el periodo o la comparación mientras carga, la respuesta vieja ya no se usa.
+      this.reportRequest?.unsubscribe();
+      this.reportRequest = forkJoin({
         current: this.shop.report(start, end),
         previous: this.shop.report(prev.start, prev.end),
         days: this.period() === 'range' ? this.appointmentsApi.getAppointments({ start_date: start, end_date: end }) : of([] as Appointment[]),
@@ -600,7 +691,7 @@ export class DashboardPageComponent {
           this.books.set(current);
           this.pointAt.set(null);
           this.previous.set(previous);
-          this.rangePoints.set(this.period() === 'range' ? dailyCut(start, end, trend, days, prices) : []);
+          this.rangeData.set(this.period() === 'range' ? { start, end, days } : null);
         });
     });
     effect(() => {
@@ -636,12 +727,38 @@ export class DashboardPageComponent {
     localStorage.setItem('nexia-profit-goal', String(amount));
   }
 
+  protected setCadence(value: 'month' | 'week' | 'day'): void {
+    this.expenseCadence.set(value);
+    // Sugerencia: el día de hoy, que casi siempre es el día en que se acuerda de registrarlo.
+    const today = new Date();
+    this.expensePayDay.set(value === 'week' ? (today.getDay() + 6) % 7 : today.getDate());
+  }
+
+  /** "Se paga el día 5" / "Se paga los viernes" para la lista de gastos. */
+  protected payText(item: ShopExpense): string {
+    if (item.kind !== 'fixed') {
+      return 'Variable';
+    }
+    if (item.cadence === 'day') {
+      return 'Se paga cada día';
+    }
+    if (item.cadence === 'week') {
+      return `Semanal · se paga los ${WEEK_DAYS[item.pay_day ?? 0].toLowerCase()}`;
+    }
+    return `Mensual · se paga el día ${item.pay_day ?? 1}`;
+  }
+
+  protected dueText(day: string | null | undefined): string {
+    return day ? new Date(`${day}T12:00:00`).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }) : '';
+  }
+
   protected editExpense(item: ShopExpense): void {
     this.editingExpense.set(item.id);
     this.expenseName.set(item.name);
     this.expenseAmount.set(String(item.base || item.amount));
     this.expenseKind.set(item.kind === 'fixed' ? 'fixed' : 'variable');
     this.expenseCadence.set(item.cadence === 'week' || item.cadence === 'day' ? item.cadence : 'month');
+    this.expensePayDay.set(item.pay_day ?? (item.cadence === 'week' ? 0 : new Date(`${item.day ?? ''}T12:00:00`).getDate() || 1));
     this.expenseCategory.set(item.category || 'otros');
   }
 
@@ -651,7 +768,39 @@ export class DashboardPageComponent {
       this.cash.set(data);
       this.cashCounted.set(data.count ? String(data.count.counted) : '');
       this.cashNote.set(data.count?.note ?? '');
+      // Sin corte guardado se propone lo que se contó en el último corte; la dueña lo confirma o lo cambia.
+      this.cashOpening.set(String(data.count ? data.opening : data.suggested_opening));
+      this.cashMoveAmount.set('');
+      this.cashMoveReason.set('');
     });
+  }
+
+  protected openCash(): void {
+    this.shop.reopenCash(this.cashDay()).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((data) => {
+      this.cash.set(data);
+      this.cashOpening.set(String(data.opening));
+    });
+  }
+
+  protected addCashMove(): void {
+    const amount = Number(this.cashMoveAmount());
+    const reason = this.cashMoveReason().trim();
+    if (!(amount > 0) || !reason) {
+      this.toasts.show('Escribe cuánto fue y para qué.');
+      return;
+    }
+    this.shop
+      .addCashMove(this.cashDay(), this.cashMoveKind(), amount, reason, this.cashMoveKind() === 'out' && this.cashMoveExpense())
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((data) => {
+        this.cash.set(data);
+        this.cashMoveAmount.set('');
+        this.cashMoveReason.set('');
+      });
+  }
+
+  protected removeCashMove(id: number): void {
+    this.shop.removeCashMove(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((data) => this.cash.set(data));
   }
 
   protected saveCash(): void {
@@ -660,11 +809,11 @@ export class DashboardPageComponent {
       return;
     }
     this.cashSaving.set(true);
-    this.shop.saveCash(this.cashDay(), counted, this.cashNote()).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    this.shop.saveCash(this.cashDay(), counted, this.cashNote(), Math.max(Number(this.cashOpening()) || 0, 0)).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (data) => {
         this.cash.set(data);
         this.cashSaving.set(false);
-        this.toasts.show('Corte de caja guardado.');
+        this.toasts.show('Corte de caja cerrado.');
       },
       error: () => this.cashSaving.set(false),
     });
@@ -672,6 +821,28 @@ export class DashboardPageComponent {
 
   protected methodLabel(key: string): string {
     return METHOD_LABELS[key] ?? key;
+  }
+
+  /** "Ya pagué": el pago que tocaba pasa a contar hoy y sale de "Falta pagar". */
+  protected async markBillPaid(due: { id: number; name: string; amount: number; date: string }): Promise<void> {
+    const ok = await this.confirm.ask({
+      title: `¿Ya pagaste ${due.name}?`,
+      message: `Se contará como un gasto de hoy por ${this.money(due.amount)}. Si te equivocas, lo puedes deshacer.`,
+      confirm: 'Sí, ya pagué',
+    });
+    if (!ok) {
+      return;
+    }
+    this.shop.markExpensePaid(due.id, due.date).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.toasts.show('Pago registrado.');
+      this.reloadBooks.update((value) => value + 1);
+    });
+  }
+
+  protected undoPaid(id: number, due: string): void {
+    this.shop.unmarkExpensePaid(id, due).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.reloadBooks.update((value) => value + 1);
+    });
   }
 
   protected removeExpense(id: number): void {
@@ -688,9 +859,10 @@ export class DashboardPageComponent {
     }
     const cadence = this.expenseKind() === 'fixed' ? this.expenseCadence() : null;
     const editing = this.editingExpense();
+    const payDay = cadence === 'month' || cadence === 'week' ? this.expensePayDay() : null;
     const request = editing
-      ? this.shop.updateExpense(editing, name, amount, this.expenseKind(), cadence, this.expenseCategory())
-      : this.shop.addExpense(name, amount, this.expenseKind(), cadence, this.expenseCategory());
+      ? this.shop.updateExpense(editing, name, amount, this.expenseKind(), cadence, this.expenseCategory(), payDay)
+      : this.shop.addExpense(name, amount, this.expenseKind(), cadence, this.expenseCategory(), payDay);
     request.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       this.editingExpense.set(null);
       this.expenseName.set('');
@@ -814,24 +986,40 @@ export class DashboardPageComponent {
   }
 
   protected downloadExcel(all: boolean): void {
-    const sheets = all ? this.reportSheets() : [this.reportSheets().find((sheet) => sheet.name === this.sheetName()) ?? this.reportSheets()[0]];
-    downloadExcel(`nexia-${all ? 'dashboard' : this.view()}-${this.rangeStart()}.xls`, sheets);
+    this.withCuts((cuts) => {
+      const sheets = this.reportSheets(cuts);
+      const chosen = all ? sheets : [sheets.find((sheet) => sheet.name === this.sheetName()) ?? sheets[0]];
+      downloadExcel(`nexia-${all ? 'dashboard' : this.view()}-${this.rangeStart()}.xls`, chosen);
+    });
   }
 
   protected downloadPdf(): void {
     const shop = this.auth.currentUser()?.businessName ?? 'Negocio';
     const period = this.period() === 'day' ? 'Día' : this.period() === 'week' ? 'Semana' : this.period() === 'range' ? 'Rango' : 'Mes';
     const target = this.goalMode() === 'percent' ? `${this.goal()}%` : this.money(this.goal());
-    downloadPdf(
-      `nexia-reporte-${this.rangeStart()}.pdf`,
-      `Reporte · ${shop}`,
-      `${period} ${this.rangeStart()} a ${this.rangeEnd()}`,
-      this.reportSheets(),
-      {
-        goal: this.goal() > 0 ? `Meta ${target} · ${this.goalProgress()}% cubierta · ganancia ${this.money(this.books()?.profit ?? 0)}` : `Ganancia ${this.money(this.books()?.profit ?? 0)}`,
-        chart: this.series().map((point) => ({ label: point.label, amount: point.amount })),
-      },
+    this.withCuts((cuts) =>
+      downloadPdf(
+        `nexia-reporte-${this.rangeStart()}.pdf`,
+        `Reporte · ${shop}`,
+        `${period} ${this.rangeStart()} a ${this.rangeEnd()}`,
+        this.reportSheets(cuts),
+        {
+          goal: this.goal() > 0 ? `Meta ${target} · ${this.goalProgress()}% cubierta · ganancia ${this.money(this.books()?.profit ?? 0)}` : `Ganancia ${this.money(this.books()?.profit ?? 0)}`,
+          chart: this.series().map((point) => ({ label: point.label, amount: point.amount })),
+        },
+      ),
     );
+  }
+
+  /** Trae los cortes de caja del periodo para el archivo; si no se pueden leer, el archivo sale sin esa hoja. */
+  private withCuts(done: (cuts: CashRow[]) => void): void {
+    this.shop
+      .cashRange(this.rangeStart(), this.rangeEnd())
+      .pipe(
+        catchError(() => of([] as CashRow[])),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe(done);
   }
 
   private sheetName(): string {
@@ -844,58 +1032,106 @@ export class DashboardPageComponent {
     if (this.view() === 'expenses') {
       return 'Gastos';
     }
-    return 'Ingresos';
+    if (this.view() === 'cash') {
+      return 'Corte de caja';
+    }
+    return 'Resumen';
   }
 
-  private reportSheets(): ReportSheet[] {
+  private reportSheets(cuts: CashRow[] = []): ReportSheet[] {
     const row = this.books();
-    const money = (amount: number) => this.money(amount);
-    const staff = row?.staff ?? [];
+    // Los montos van como número: en Excel se pueden sumar; en el PDF se escriben en pesos.
+    const money = (amount: number | undefined) => ({ money: Math.round((amount ?? 0) * 100) / 100 });
+    const staff = this.staffCards();
     const expenses = row?.expenses ?? [];
     const trend = this.period() === 'month' ? (this.summary()?.month_trend ?? []) : this.period() === 'day' ? this.points() : (this.summary()?.week_trend ?? []);
-    return [
+    const person = this.copy.text().person;
+    const sheets: ReportSheet[] = [
       {
-        name: 'Ingresos',
+        name: 'Resumen',
         rows: [
           ['Concepto', 'Valor'],
           ['Periodo', `${this.rangeStart()} a ${this.rangeEnd()}`],
-          ['Ingresos', row ? money(row.total) : 0],
-          ['Citas completadas', row?.completed_count ?? 0],
-          ['Ticket promedio', row ? money(row.average_ticket) : 0],
-          ['No se hicieron', row?.missed_count ?? 0],
-          ['Monto no cobrado', row ? money(row.missed_amount) : 0],
-          ['Anticipos por cobrar', row ? money(row.deposit_due) : 0],
-          ['Ganancia', row ? money(row.profit) : 0],
-          ['Servicio más pedido', this.topService()],
+          ['Ingresos por servicios', money(row?.service_income)],
+          ['Ingresos por productos', money(row?.product_income)],
+          ['Ingresos totales (solo lo cobrado)', money(row?.total)],
+          ['Gastos fijos pagados en el periodo', money(row?.expense_fixed)],
+          ['Gastos variables', money(row?.expense_variable)],
+          ['Compras de producto', money(row?.product_cost)],
+          ...(this.copy.commissions() ? [['Comisiones', money(row?.commission_total)]] : []),
+          ['Ganancia', money(row?.profit)],
+          ['Punto de equilibrio', money(row?.break_even)],
+          ['Propinas (van para el equipo, no son ingreso)', money(row?.tips_total)],
           [],
+          ['Citas completadas', row?.completed_count ?? 0],
+          ['Ticket promedio', money(row?.average_ticket)],
+          ['Citas que no se hicieron', row?.missed_count ?? 0],
+          ['Monto que no entró por eso', money(row?.missed_amount)],
+          ['Citas que ya pasaron sin cobrar', row?.uncollected_count ?? 0],
+          ['Falta cobrar de esas citas', money(row?.uncollected_amount)],
+          ['Anticipos por cobrar', money(row?.deposit_due)],
+          ['Gastos fijos que faltan por pagar este mes', money(row?.fixed_pending)],
+          ['Servicio más pedido', this.topService()],
+        ],
+      },
+      {
+        name: 'Ingresos',
+        rows: [
           ['Fecha', 'Citas', 'Ingresos'],
           ...trend.map((point) => [point.date, point.count, money(point.revenue)]),
+          [],
+          ['Cómo te pagaron', 'Monto'],
+          ...Object.entries(row?.by_method ?? {}).map(([key, value]) => [METHOD_LABELS[key] ?? key, money(value)]),
         ],
       },
       {
         name: 'Colaboradores',
-        rows: [['Colaborador', 'Ingresos', 'Visitas', 'Ticket'], ...staff.map((person) => [person.staff_name, money(person.income), person.visits, money(person.ticket)])],
+        rows: [
+          [person, 'Vendió', 'Citas', 'Ticket', 'Ocupación %', 'Por hora', 'Regresan %', 'Faltas', 'Cancelaciones', 'Propinas'],
+          ...staff.map((item) => [
+            item.staff_name, money(item.income), item.visits, money(item.ticket), item.occupancy ?? 0, money(item.perHour),
+            item.returnShare ?? '', item.no_shows ?? 0, item.cancels ?? 0, money(item.tips),
+          ]),
+        ],
       },
       {
         name: 'Comisiones',
         rows: [
-          ['Colaborador', 'Porcentaje', 'Comisión', 'Pagado', 'Por pagar'],
-          ...staff.map((person) => [person.staff_name, `${person.percent}%`, money(person.commission), money(person.paid), money(this.owed(person.commission, person.paid))]),
+          [person, 'Porcentaje', 'Le toca (con propinas)', 'Pagado', 'Falta pagar'],
+          ...staff.map((item) => [item.staff_name, `${item.percent}%`, money(item.commission), money(item.paid), money(item.due)]),
         ],
       },
       {
         name: 'Gastos',
         rows: [
-          ['Gasto', 'Tipo', 'Cadencia', 'Monto'],
-          ...expenses.map((item) => [item.name, item.kind === 'fixed' ? 'Fijo' : 'Variable', item.kind === 'fixed' ? cadenceLabel(item.cadence) : '-', money(item.amount)]),
+          ['Gasto', 'Tipo', 'Cuándo se paga', 'Veces en el periodo', 'Monto', 'Pagado el'],
+          ...expenses.map((item) => [
+            item.name, item.kind === 'fixed' ? 'Fijo' : 'Variable', this.payText(item), item.kind === 'fixed' ? (item.times ?? 0) : 1, money(item.amount),
+            (item.paid_marks ?? []).map((mark) => mark.paid_on).join(', '),
+          ]),
           [],
-          ['Fijos', row ? money(row.expense_fixed) : 0],
-          ['Variables', row ? money(row.expense_variable) : 0],
+          ['Fijos pagados', money(row?.expense_fixed)],
+          ['Variables', money(row?.expense_variable)],
+          [],
+          ['Próximos pagos', 'Fecha', 'Monto'],
+          ...(row?.upcoming_fixed ?? []).map((due) => [due.name, due.date, money(due.amount)]),
         ],
       },
-    ].filter((sheet) => sheet.name !== 'Comisiones' || this.copy.commissions());
+      {
+        name: 'Corte de caja',
+        rows: [
+          ['Día', 'Fondo', 'Debía haber', 'Contó', 'Diferencia', 'Cerró', 'Nota'],
+          ...cuts.map((cut) => [cut.day, money(cut.opening), money(cut.expected), money(cut.counted), money(cut.difference), cut.closed_by ?? '', cut.note ?? '']),
+        ],
+      },
+    ];
+    return sheets.filter(
+      (sheet) => (sheet.name !== 'Comisiones' || this.copy.commissions()) && (sheet.name !== 'Corte de caja' || cuts.length > 0),
+    );
   }
 }
+
+const WEEK_DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
 function cadenceLabel(value: string | null | undefined): string {
   if (value === 'week') {

@@ -52,7 +52,7 @@
         <button
           type="button"
           role="tab"
-          class="h-10 rounded-md px-3.5 text-sm font-medium transition-colors"
+          class="h-11 rounded-md px-3.5 text-sm font-medium transition-colors"
           [class.bg-ink]="currentView() === view.id"
           [class.text-surface]="currentView() === view.id"
           [class.text-ink-soft]="currentView() !== view.id"
@@ -362,10 +362,15 @@
     [attr.aria-label]="formatTime(item.starts_at) + ' ' + item.client_name + ' · ' + item.service_name + (mark(item) ? ' · ' + mark(item) : '')"
     (click)="openAppointment(item, $event)"
   >
-    <span class="nums block truncate font-medium">{{ formatTime(item.starts_at) }}{{ view === 'day' ? ' ' + item.service_name : '' }}</span>
+    @if (stateMark(item); as state) {
+      <mat-icon class="absolute top-0.5 right-0.5 h-4! w-4! text-[14px]! {{ state.cls }}" [attr.title]="state.label">{{ state.icon }}</mat-icon>
+    }
+    <span class="nums block truncate pr-4 font-medium">{{ formatTime(item.starts_at) }}{{ view === 'day' ? ' ' + item.service_name : '' }}</span>
     <span class="block truncate">{{ item.client_name }}</span>
     @if (mark(item); as label) {
-      <span class="badge badge-warn mt-0.5 h-5! max-w-full overflow-hidden whitespace-nowrap px-1.5! text-xs!">{{ label }}</span>
+      @if (label !== 'Confirmó') {
+        <span class="badge badge-warn mt-0.5 h-5! max-w-full overflow-hidden whitespace-nowrap px-1.5! text-xs!">{{ label }}</span>
+      }
     }
   </button>
 </ng-template>
@@ -387,18 +392,33 @@
   }
   <ul class="mt-2 flex flex-col" [class]="main ? '' : 'max-h-128 overflow-y-auto'">
     @for (item of items; track item.id) {
-      <li>
-        <button type="button" class="flex min-h-11 w-full items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-surface" [class]="tone(item)" (click)="openAppointment(item, $event)">
+      <li class="flex items-center gap-1 rounded-lg hover:bg-surface">
+        <button type="button" class="flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-2 text-left" [class]="tone(item)" (click)="openAppointment(item, $event)">
           <span class="h-10 w-1 shrink-0 rounded-full" [style.background]="staffColor(item.staff_id)"></span>
-          <span class="nums w-16 shrink-0 text-base font-semibold text-ink">{{ formatTime(item.starts_at) }}</span>
           <span class="min-w-0 flex-1">
+            <span class="nums flex items-center gap-1.5 text-sm font-semibold text-ink">
+              {{ formatTime(item.starts_at) }}
+              @if (stateMark(item); as state) {
+                <mat-icon class="h-4! w-4! shrink-0 text-[16px]! {{ state.cls }}" [attr.title]="state.label">{{ state.icon }}</mat-icon>
+              }
+            </span>
             <span class="block truncate text-sm font-medium text-ink">{{ item.client_name }}</span>
             <span class="block truncate text-sm text-muted">{{ item.service_name }} · {{ item.staff_name }}</span>
+            @if (mark(item); as label) {
+              @if (label !== 'Confirmó') {
+                <span class="badge mt-1" [class]="label === 'Precio aceptado' ? 'badge-ok' : 'badge-warn'">{{ label }}</span>
+              }
+            }
           </span>
-          @if (mark(item); as label) {
-            <span class="badge shrink-0" [class]="label === 'Confirmó' || label === 'Precio aceptado' ? 'badge-ok' : 'badge-warn'">{{ label }}</span>
-          }
         </button>
+        @if (confirmHref(item); as href) {
+          <a class="btn btn-ghost shrink-0 px-2.5!" [href]="href" target="_blank" rel="noopener" aria-label="Pedir confirmación por WhatsApp" title="Pedir confirmación por WhatsApp">
+            <mat-icon class="text-(--nx-ok-fg)">chat</mat-icon>
+          </a>
+        }
+        @if (canChargeFromList(item)) {
+          <button type="button" class="btn btn-secondary shrink-0 px-3!" (click)="chargeFromList(item)">Cobrar</button>
+        }
       </li>
     }
     @for (block of blocks; track block.starts_at + block.staff_id + block.id) {

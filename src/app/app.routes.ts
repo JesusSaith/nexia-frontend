@@ -58,4 +58,9 @@ export const routes: Routes = [
     loadChildren: () => import('./features/booking/booking.routes').then((m) => m.bookingRoutes),
   },
   { path: '', pathMatch: 'full', redirectTo: 'auth' },
+  {
+    path: '**',
+    title: 'Página no encontrada · Nexia',
+    loadComponent: () => import('./features/public/pages/not-found/not-found.component').then((m) => m.NotFoundComponent),
+  },
 ];

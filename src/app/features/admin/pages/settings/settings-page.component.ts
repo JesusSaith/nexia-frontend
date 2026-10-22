@@ -142,6 +142,11 @@ export class SettingsPageComponent {
   protected readonly logoUrl = signal<string | null>(null);
   /** Punto del local en el mapa; van juntos o ninguno. */
   protected readonly location = signal<{ lat: number; lng: number } | null>(null);
+  /** Mapa de Google que pegó la dueña ("Insertar un mapa"); se muestra en "Cómo llegar" en lugar del mapa fijo. */
+  protected readonly mapEmbed = signal<string | null>(null);
+  protected readonly mapPaste = signal('');
+  protected readonly mapBusy = signal(false);
+  protected readonly mapNote = signal<{ ok: boolean; text: string } | null>(null);
   /** Con llave, el mapa y el buscador son de Google; sin ella, OpenStreetMap. */
   protected readonly googleMaps = !!GOOGLE_MAPS_KEY;
   protected readonly suggestedColor = signal<string | null>(null);
@@ -255,6 +260,7 @@ export class SettingsPageComponent {
       address: value.address.trim() || null,
       latitude: this.location()?.lat ?? null,
       longitude: this.location()?.lng ?? null,
+      map_embed: this.mapEmbed(),
       instagram: value.instagram.trim().replace(/^@/, '') || null,
       facebook: facebookUrl(value.facebook),
       logo_url: this.logoUrl(),
@@ -814,6 +820,47 @@ export class SettingsPageComponent {
     this.coupons.update((rows) => rows.map((row, position) => (position === index ? { ...row, ...patch } : row)));
   }
 
+  /** La dueña movió el pin a mano: el mapa pegado ya no coincide, así que se quita y vuelve el mapa fijo. */
+  protected onPoint(point: { lat: number; lng: number } | null): void {
+    this.location.set(point);
+    this.mapEmbed.set(null);
+    this.mapNote.set(null);
+  }
+
+  /** Lee lo que pegó (código "Insertar un mapa" o enlace de Google Maps, también el corto) y marca el local. */
+  protected applyMapPaste(): void {
+    const text = this.mapPaste().trim();
+    if (!text || this.mapBusy()) {
+      return;
+    }
+    this.mapBusy.set(true);
+    this.mapNote.set(null);
+    this.settingsApi
+      .readMapLink(text)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (found) => {
+          this.mapBusy.set(false);
+          if (found.latitude != null && found.longitude != null) {
+            this.location.set({ lat: found.latitude, lng: found.longitude });
+          }
+          this.mapEmbed.set(found.embed);
+          this.mapPaste.set('');
+          this.mapNote.set({ ok: true, text: found.embed ? 'Listo. Tus clientes verán este mapa de Google en "Cómo llegar". Guarda para aplicarlo.' : 'Listo, marcamos tu local en el mapa. Revisa que el pin esté bien y guarda.' });
+        },
+        error: (error: unknown) => {
+          this.mapBusy.set(false);
+          const detail = error instanceof HttpErrorResponse && typeof error.error?.detail === 'string' ? error.error.detail : null;
+          this.mapNote.set({ ok: false, text: detail ?? 'No pudimos leer ese enlace. Revisa que lo hayas copiado completo.' });
+        },
+      });
+  }
+
+  protected removeMapEmbed(): void {
+    this.mapEmbed.set(null);
+    this.mapNote.set(null);
+  }
+
   protected toNumber(value: string): number | null {
     return value.trim() === '' || Number.isNaN(Number(value)) ? null : Math.round(Number(value));
   }
@@ -908,6 +955,9 @@ export class SettingsPageComponent {
     this.photoNotice.set('');
     this.photos.set(settings.gallery ?? []);
     this.location.set(settings.latitude != null && settings.longitude != null ? { lat: settings.latitude, lng: settings.longitude } : null);
+    this.mapEmbed.set(settings.map_embed ?? null);
+    this.mapPaste.set('');
+    this.mapNote.set(null);
     this.accentColor.set(settings.accent_color ?? null);
     this.canvasColor.set(settings.canvas_color ?? null);
     this.buttonShape.set((settings.button_shape as ButtonShape) || 'pill');
@@ -966,7 +1016,7 @@ export class SettingsPageComponent {
 
 /** Campo del backend → sección donde se corrige. */
 const FIELD_SECTION: Record<string, SectionId> = {
-  name: 'negocio', phone: 'negocio', description: 'negocio', address: 'negocio', latitude: 'negocio', longitude: 'negocio', instagram: 'negocio', facebook: 'negocio', business_kind: 'negocio',
+  name: 'negocio', phone: 'negocio', description: 'negocio', address: 'negocio', latitude: 'negocio', longitude: 'negocio', map_embed: 'negocio', instagram: 'negocio', facebook: 'negocio', business_kind: 'negocio',
   logo_url: 'apariencia', primary_color: 'apariencia', gallery: 'apariencia', canvas_color: 'apariencia', accent_color: 'apariencia', button_shape: 'apariencia', button_fill: 'apariencia', font_style: 'apariencia', header_style: 'apariencia',
   min_notice_hours: 'reservas', max_days_ahead: 'reservas', buffer_minutes: 'reservas', cancel_hours: 'reservas', timezone: 'reservas', resources: 'reservas', cancel_policy: 'reservas',
   deposit_amount: 'anticipo', deposit_percent: 'anticipo', deposit_account: 'anticipo', deposit_hold_hours: 'anticipo', payment_url: 'anticipo',

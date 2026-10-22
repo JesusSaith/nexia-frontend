@@ -1,6 +1,15 @@
+/** Una celda: texto, un número (cantidad) o un monto en pesos (en Excel va como número para poder sumarlo). */
+export type Cell = string | number | { money: number };
+
 export interface ReportSheet {
   name: string;
-  rows: (string | number)[][];
+  rows: Cell[][];
+}
+
+const PESOS = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
+
+function cellText(cell: Cell): string {
+  return typeof cell === 'object' ? PESOS.format(cell.money) : String(cell);
 }
 
 export function downloadExcel(fileName: string, sheets: ReportSheet[]): void {
@@ -11,9 +20,9 @@ export function downloadExcel(fileName: string, sheets: ReportSheet[]): void {
           (row) =>
             `<Row>${row
               .map((cell) =>
-                typeof cell === 'number'
-                  ? `<Cell><Data ss:Type="Number">${cell}</Data></Cell>`
-                  : `<Cell><Data ss:Type="String">${xml(String(cell))}</Data></Cell>`,
+                typeof cell === 'number' || typeof cell === 'object'
+                  ? `<Cell><Data ss:Type="Number">${typeof cell === 'object' ? cell.money : cell}</Data></Cell>`
+                  : `<Cell><Data ss:Type="String">${xml(cell)}</Data></Cell>`,
               )
               .join('')}</Row>`,
         )
@@ -96,7 +105,7 @@ export function downloadPdf(
       let x = 40;
       row.forEach((cell, index) => {
         const width = widths[index] ?? 80;
-        text(x, 9, fit(String(cell), width));
+        text(x, 9, fit(cellText(cell), width));
         x += width;
       });
       y -= 6;
@@ -147,7 +156,7 @@ export function downloadPdf(
   save(fileName, new Blob([output], { type: 'application/pdf' }));
 }
 
-function columnWidths(rows: (string | number)[][]): number[] {
+function columnWidths(rows: Cell[][]): number[] {
   const count = Math.max(1, ...rows.map((row) => row.length));
   return Array.from({ length: count }, () => 532 / count);
 }

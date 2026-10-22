@@ -10,11 +10,15 @@ export interface ManagedAppointment {
   client_name?: string;
   business_name: string;
   business_slug: string;
+  /** Cuándo termina la cita (hora local del negocio), para el evento de calendario. */
+  ends_at?: string | null;
   google_review_url?: string | null;
   /** Para "Cómo llegar". */
   address?: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  /** Mapa de Google incrustado, si el negocio lo pegó en Configuración. */
+  map_embed?: string | null;
   logo_url?: string | null;
   primary_color?: string | null;
   service_id: number;
@@ -77,6 +81,8 @@ export interface ClientCard {
   visit_count: number;
   no_show_count: number;
   total_spent: number;
+  /** Los últimos mensajes que se le mandaron, del más reciente al más viejo. */
+  contacts?: { kind: string; at: string; by: string | null }[];
   visits: {
     id?: number | null;
     visit_note?: string | null;
@@ -106,6 +112,9 @@ export interface ClientRow {
   /** Próxima cita agendada, hora local del negocio. */
   next_visit?: string | null;
   tags?: string[];
+  /** Último mensaje que se le mandó desde Nexia (AAAA-MM-DDTHH:MM) y de qué tipo. */
+  last_contact_at?: string | null;
+  last_contact_kind?: string | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -167,6 +176,11 @@ export class BookingService {
     body: { service_id: number; staff_id: number; day: string; client_name: string; client_phone: string },
   ): Observable<{ ok: boolean }> {
     return this.http.post<{ ok: boolean }>(`${this.apiBaseUrl}/businesses/${slug}/waitlist`, body);
+  }
+
+  /** Anota que ya se le escribió (invitar, felicitar…) para no repetir y medir si regresó. */
+  logContact(id: number, kind: 'invitar' | 'volver' | 'felicitar' | 'otro'): Observable<ClientCard> {
+    return this.http.post<ClientCard>(`${this.apiBaseUrl}/clients/${id}/contacts`, { kind });
   }
 
   getClient(id: number): Observable<ClientCard> {
@@ -256,6 +270,13 @@ export class BookingService {
 
   cancelManagedAppointment(token: string): Observable<ManagedAppointment> {
     return this.http.post<ManagedAppointment>(`${this.apiBaseUrl}/public/appointments/${token}/cancel`, {});
+  }
+
+  /** Horarios a los que se puede mover una cita ya hecha: con su duración real y sin contar su propio horario. */
+  getRescheduleSlots(token: string, date: string): Observable<AvailabilitySlot[]> {
+    return this.http.get<AvailabilitySlot[]>(`${this.apiBaseUrl}/public/appointments/${token}/slots`, {
+      params: new HttpParams().set('date', date),
+    });
   }
 
   rescheduleManagedAppointment(

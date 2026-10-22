@@ -21,10 +21,10 @@
           <mat-icon class="h-4! w-4! text-[16px]!">expand_more</mat-icon>
         </summary>
         <div class="absolute right-0 z-20 mt-1 flex w-56 flex-col rounded-xl border border-line bg-surface p-1 shadow-lg">
-          <button type="button" class="row-hover rounded-lg px-3 py-2 text-left text-sm text-ink" (click)="downloads.open = false; downloadExcel(false)">Excel de este periodo</button>
-          <button type="button" class="row-hover rounded-lg px-3 py-2 text-left text-sm text-ink" (click)="downloads.open = false; downloadExcel(true)">Excel con todo</button>
-          <button type="button" class="row-hover rounded-lg px-3 py-2 text-left text-sm text-ink" (click)="downloads.open = false; downloadPdf()">PDF de este periodo</button>
-          <button type="button" class="row-hover rounded-lg px-3 py-2 text-left text-sm text-ink" (click)="downloads.open = false; downloadAccounting()">Para el contador (año, por mes)</button>
+          <button type="button" class="row-hover min-h-11 rounded-lg px-3 py-2 text-left text-sm text-ink" (click)="downloads.open = false; downloadExcel(false)">Excel de este periodo</button>
+          <button type="button" class="row-hover min-h-11 rounded-lg px-3 py-2 text-left text-sm text-ink" (click)="downloads.open = false; downloadExcel(true)">Excel con todo</button>
+          <button type="button" class="row-hover min-h-11 rounded-lg px-3 py-2 text-left text-sm text-ink" (click)="downloads.open = false; downloadPdf()">PDF de este periodo</button>
+          <button type="button" class="row-hover min-h-11 rounded-lg px-3 py-2 text-left text-sm text-ink" (click)="downloads.open = false; downloadAccounting()">Para el contador (año, por mes)</button>
         </div>
       </details>
     </header>
@@ -53,7 +53,7 @@
             <button
               type="button"
               role="tab"
-              class="h-10 whitespace-nowrap rounded-md px-3 text-sm font-medium transition-colors"
+              class="h-11 whitespace-nowrap rounded-md px-3 text-sm font-medium transition-colors"
               [class.bg-ink]="view() === tab.id"
               [class.text-surface]="view() === tab.id"
               [class.text-ink-soft]="view() !== tab.id"
@@ -69,7 +69,7 @@
           <button
             type="button"
             role="tab"
-            class="h-10 rounded-md px-3 text-sm font-medium transition-colors"
+            class="h-11 rounded-md px-3 text-sm font-medium transition-colors"
             [class.bg-ink]="period() === item.id"
             [class.text-surface]="period() === item.id"
             [class.text-ink-soft]="period() !== item.id"
@@ -84,8 +84,8 @@
     @if (view() !== 'cash') {
       <div class="mb-4 flex items-center gap-2 text-sm text-muted">
         <span>Comparar con:</span>
-        <button type="button" class="chip h-10!" [class.chip-on]="compareTo() === 'prev'" (click)="compareTo.set('prev')">Periodo anterior</button>
-        <button type="button" class="chip h-10!" [class.chip-on]="compareTo() === 'year'" (click)="compareTo.set('year')">Hace un año</button>
+        <button type="button" class="chip h-11!" [class.chip-on]="compareTo() === 'prev'" (click)="compareTo.set('prev')">Periodo anterior</button>
+        <button type="button" class="chip h-11!" [class.chip-on]="compareTo() === 'year'" (click)="compareTo.set('year')">Hace un año</button>
       </div>
     }
 
@@ -108,6 +108,69 @@
           <a routerLink="/admin/agenda" class="btn btn-secondary mt-1">Ir a la agenda</a>
         </div>
       } @else {
+        <!-- Las tres preguntas de la dueña, con su respuesta y a dónde ir. -->
+        @if (glance(); as g) {
+          <section class="card mb-4 p-4!" aria-label="Resumen de tu negocio">
+            <div class="grid gap-4 lg:grid-cols-3 lg:gap-0 lg:divide-x lg:divide-line">
+              <div class="lg:pr-5">
+                <p class="flex items-center gap-1.5 text-sm text-muted"><mat-icon class="h-4! w-4! text-[16px]!">savings</mat-icon>¿Gané o perdí?</p>
+                <p class="nums mt-1 text-2xl font-semibold tracking-tight" [class.text-[var(--nx-ok-fg)]]="g.profit >= 0" [class.text-[var(--nx-bad-fg)]]="g.profit < 0">
+                  {{ g.profit >= 0 ? 'Ganas ' : 'Pierdes ' }}{{ money(g.profit < 0 ? -g.profit : g.profit) }}
+                </p>
+                <p class="text-sm text-ink-soft">
+                  {{ periodWord() }}.
+                  {{ g.covered ? 'Ya cubriste tus gastos.' : g.gap > 0 ? 'Te faltan ' + money(g.gap) + ' de ingresos para cubrir tus gastos.' : '' }}
+                </p>
+              </div>
+              <div class="lg:px-5">
+                <p class="flex items-center gap-1.5 text-sm text-muted"><mat-icon class="h-4! w-4! text-[16px]!">hourglass_top</mat-icon>¿Qué me falta cobrar o pagar?</p>
+                <ul class="mt-1 text-sm text-ink-soft">
+                  <li><span class="nums font-semibold text-ink">{{ money(g.collect) }}</span> por cobrar{{ g.collectCount ? ' (' + g.collectCount + (g.collectCount === 1 ? ' cita ya pasó)' : ' citas ya pasaron)') : '' }}</li>
+                  <li><span class="nums font-semibold text-ink">{{ money(g.toPay) }}</span> de gastos fijos por pagar este mes</li>
+                  @if (g.owedCommission > 0) {
+                    <li><span class="nums font-semibold text-ink">{{ money(g.owedCommission) }}</span> de comisiones por pagar</li>
+                  }
+                </ul>
+                <p class="mt-1 flex flex-wrap gap-x-3 text-sm font-medium">
+                  @if (g.collect > 0) {
+                    <a routerLink="/admin/agenda" class="inline-flex min-h-11 items-center text-accent hover:underline">Ir a la agenda</a>
+                  }
+                  @if (g.toPay > 0) {
+                    <button type="button" class="inline-flex min-h-11 items-center text-accent hover:underline" (click)="view.set('expenses')">Ver próximos pagos</button>
+                  }
+                  @if (g.owedCommission > 0) {
+                    <button type="button" class="inline-flex min-h-11 items-center text-accent hover:underline" (click)="view.set('commission')">Pagar comisiones</button>
+                  }
+                </p>
+              </div>
+              <div class="lg:pl-5">
+                <p class="flex items-center gap-1.5 text-sm text-muted"><mat-icon class="h-4! w-4! text-[16px]!">favorite</mat-icon>¿A quién tengo que cuidar?</p>
+                @if (g.missing || g.cancelling || g.worstName) {
+                  <ul class="mt-1 text-sm text-ink-soft">
+                    @if (g.missing) {
+                      <li><span class="nums font-semibold text-ink">{{ g.missing }}</span> {{ g.missing === 1 ? 'cliente dejó' : 'clientes dejaron' }} de venir</li>
+                    }
+                    @if (g.cancelling) {
+                      <li><span class="nums font-semibold text-ink">{{ g.cancelling }}</span> {{ g.cancelling === 1 ? 'cliente cancela' : 'clientes cancelan' }} o {{ g.cancelling === 1 ? 'falta' : 'faltan' }} seguido</li>
+                    }
+                    @if (g.worstName) {
+                      <li>{{ g.worstName }} tuvo <span class="nums font-semibold text-ink">{{ g.worstLost }}</span> faltas o cancelaciones</li>
+                    }
+                  </ul>
+                  <a routerLink="/admin/clientes" class="inline-flex min-h-11 items-center text-sm font-medium text-accent hover:underline">Ver clientes</a>
+                } @else {
+                  <p class="mt-1 text-sm text-ink-soft">Nadie por ahora. Tus clientes siguen viniendo.</p>
+                }
+                @if (g.winSent) {
+                  <p class="mt-2 rounded-lg bg-canvas px-3 py-2 text-sm text-ink-soft">
+                    De <span class="nums font-semibold text-ink">{{ g.winSent }}</span> {{ g.winSent === 1 ? 'cliente al que invitaste' : 'clientes a los que invitaste' }}:
+                    <span class="nums font-semibold text-ink">{{ g.winReturned }}</span> {{ g.winReturned === 1 ? 'ya regresó' : 'ya regresaron' }}{{ g.winReturned ? ' y dejaron ' + money(g.winRevenue) : '' }}{{ g.winBooked ? ' · ' + g.winBooked + (g.winBooked === 1 ? ' tiene cita agendada' : ' tienen cita agendada') : '' }}.
+                  </p>
+                }
+              </div>
+            </div>
+          </section>
+        }
         <!-- Lo importante de un vistazo, cada número contra el periodo anterior. -->
         <div class="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
           @for (item of kpis(); track item.label) {
@@ -118,6 +181,27 @@
             </div>
           }
         </div>
+        @if (view() === 'income' && books(); as sale) {
+          @if ((sale.uncollected_count ?? 0) > 0) {
+            <div class="card mb-4 p-4!">
+              <div class="flex flex-wrap items-start gap-x-4 gap-y-2">
+                <span class="stat-icon stat-warn"><mat-icon>hourglass_top</mat-icon></span>
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm text-ink-soft">
+                    <strong class="nums text-ink">{{ money(sale.uncollected_amount ?? 0) }}</strong> por cobrar en {{ sale.uncollected_count }} {{ sale.uncollected_count === 1 ? 'cita que ya pasó' : 'citas que ya pasaron' }} y no se han cobrado.
+                    Los ingresos de arriba solo cuentan lo cobrado.
+                  </p>
+                  <ul class="mt-1 text-sm text-muted">
+                    @for (item of sale.uncollected ?? []; track item.id) {
+                      <li class="nums">{{ item.name }} · {{ dueText(item.date.slice(0, 10)) }} · {{ money(item.amount) }}</li>
+                    }
+                  </ul>
+                </div>
+                <a routerLink="/admin/agenda" class="btn btn-secondary">Ir a la agenda</a>
+              </div>
+            </div>
+          }
+        }
         @if (projection(); as plan) {
           <div class="card card-tint mb-4 flex flex-wrap items-center gap-x-6 gap-y-2 p-4!">
             <span class="sec-icon"><mat-icon>insights</mat-icon></span>
@@ -145,9 +229,15 @@
               <span class="nums text-right font-medium text-ink">{{ money(row.total) }}</span>
             </li>
             <li class="flex items-center justify-between gap-3 py-2.5">
-              <div><p class="text-ink">Gastos</p><p class="text-xs text-muted">Fijos y variables</p></div>
+              <div><p class="text-ink">Gastos</p><p class="text-xs text-muted">Lo que se pagó en el periodo</p></div>
               <span class="nums text-right font-medium text-ink-soft">− {{ money(row.expense_fixed + row.expense_variable) }}</span>
             </li>
+            @if (period() === 'month' && row.fixed_pending) {
+              <li class="flex items-center justify-between gap-3 py-2.5">
+                <div><p class="text-ink">Falta pagar este mes</p><p class="text-xs text-muted">Gastos fijos que aún no caen; todavía no se restan</p></div>
+                <span class="nums text-right font-medium text-muted">{{ money(row.fixed_pending) }}</span>
+              </li>
+            }
             @if (copy.commissions()) {
               <li class="flex items-center justify-between gap-3 py-2.5">
                 <div><p class="text-ink">Comisiones</p><p class="text-xs text-muted">Parte del equipo</p></div>
@@ -200,30 +290,102 @@
                   <span class="nums text-base font-semibold text-ink">{{ money(item.value) }}</span>
                 </li>
               } @empty {
-                <li class="py-4 text-muted">Ese día no hay citas cobradas.</li>
+                <li class="py-4 text-muted">Ese día no hay cobros.</li>
               }
             </ul>
+            <p class="mt-1 text-sm text-muted">Incluye propinas y venta de productos. El anticipo no cuenta: ya entró por transferencia.</p>
             <div class="mt-4 rounded-xl border border-line p-4">
-              <p class="text-sm text-ink-soft">Efectivo que debe haber en caja</p>
-              <p class="nums text-2xl font-semibold text-ink">{{ money(data.expected_cash) }}</p>
+              <label class="block">
+                <span class="label">Fondo con el que abriste la caja</span>
+                <input class="input nums" type="number" min="0" inputmode="decimal" [value]="cashOpening()" [disabled]="cashClosed()" (input)="cashOpening.set($any($event.target).value)" placeholder="0" />
+                @if (!data.count && data.suggested_opening > 0) {
+                  <span class="mt-1 block text-sm text-muted">Propuesto: lo que contaste en el corte anterior ({{ money(data.suggested_opening) }}). Cámbialo si dejaste otra cantidad.</span>
+                }
+              </label>
+              <ul class="mt-3 divide-y divide-line text-sm">
+                <li class="flex justify-between gap-3 py-2"><span class="text-ink-soft">Fondo</span><span class="nums text-ink">{{ money(cashOpening() === '' ? 0 : +cashOpening()) }}</span></li>
+                <li class="flex justify-between gap-3 py-2"><span class="text-ink-soft">Servicios cobrados en efectivo</span><span class="nums text-ink">{{ money(data.cash_parts.services) }}</span></li>
+                <li class="flex justify-between gap-3 py-2"><span class="text-ink-soft">Propinas en efectivo</span><span class="nums text-ink">{{ money(data.cash_parts.tips) }}</span></li>
+                <li class="flex justify-between gap-3 py-2"><span class="text-ink-soft">Productos vendidos en efectivo</span><span class="nums text-ink">{{ money(data.cash_parts.products) }}</span></li>
+                @if (data.moves_in) {
+                  <li class="flex justify-between gap-3 py-2"><span class="text-ink-soft">Entradas de caja</span><span class="nums text-ink">+ {{ money(data.moves_in) }}</span></li>
+                }
+                @if (data.moves_out) {
+                  <li class="flex justify-between gap-3 py-2"><span class="text-ink-soft">Salidas de caja</span><span class="nums text-ink">− {{ money(data.moves_out) }}</span></li>
+                }
+              </ul>
+              <p class="mt-3 text-sm text-ink-soft">Efectivo que debe haber en caja</p>
+              <p class="nums text-2xl font-semibold text-ink">{{ money(cashExpected()) }}</p>
               <div class="mt-3 grid gap-3 sm:grid-cols-2">
                 <label class="block">
                   <span class="label">Efectivo que contaste</span>
-                  <input class="input nums text-lg!" type="number" min="0" inputmode="decimal" [value]="cashCounted()" (input)="cashCounted.set($any($event.target).value)" placeholder="0" />
+                  <input class="input nums text-lg!" type="number" min="0" inputmode="decimal" [value]="cashCounted()" [disabled]="cashClosed()" (input)="cashCounted.set($any($event.target).value)" placeholder="0" />
                 </label>
                 <label class="block">
                   <span class="label">Nota (opcional)</span>
-                  <input class="input" maxlength="500" [value]="cashNote()" (input)="cashNote.set($any($event.target).value)" placeholder="Se dio cambio de…" />
+                  <input class="input" maxlength="500" [value]="cashNote()" [disabled]="cashClosed()" (input)="cashNote.set($any($event.target).value)" placeholder="Se dio cambio de…" />
                 </label>
               </div>
-              @if (cashDiff(); as diff) {
-                <p class="mt-3 text-sm font-medium" [class.text-[var(--nx-ok-fg)]]="diff === 0" [class.text-[var(--nx-bad-fg)]]="diff < 0" [class.text-[var(--nx-warn-fg)]]="diff > 0">
-                  {{ diff === 0 ? 'Cuadra exacto.' : diff < 0 ? 'Faltan ' + money(-diff) + '.' : 'Sobran ' + money(diff) + '.' }}
+              @if (cashDiff() !== null) {
+                <p class="mt-3 text-sm font-medium" [class.text-[var(--nx-ok-fg)]]="cashDiff() === 0" [class.text-[var(--nx-bad-fg)]]="cashDiff()! < 0" [class.text-[var(--nx-warn-fg)]]="cashDiff()! > 0">
+                  {{ cashDiff() === 0 ? 'Cuadra exacto.' : cashDiff()! < 0 ? 'Faltan ' + money(-cashDiff()!) + '.' : 'Sobran ' + money(cashDiff()!) + '.' }}
                 </p>
-              } @else if (cashCounted() === '0') {
-                <p class="mt-3 text-sm font-medium" [class.text-[var(--nx-ok-fg)]]="data.expected_cash === 0" [class.text-[var(--nx-bad-fg)]]="data.expected_cash > 0">{{ data.expected_cash === 0 ? 'Cuadra exacto.' : 'Faltan ' + money(data.expected_cash) + '.' }}</p>
               }
-              <button type="button" class="btn btn-primary mt-3 w-full sm:w-auto" [disabled]="cashSaving() || cashCounted().trim() === ''" (click)="saveCash()">{{ data.count ? 'Actualizar corte' : 'Guardar corte' }}</button>
+              @if (cashClosed()) {
+                <p class="mt-3 flex items-center gap-2 text-sm text-ink-soft"><mat-icon class="h-5! w-5! text-[20px]!">lock</mat-icon>Corte cerrado{{ data.count?.closed_by ? ' por ' + data.count?.closed_by : '' }}.</p>
+                <button type="button" class="btn btn-secondary mt-3 w-full sm:w-auto" (click)="openCash()">Abrir de nuevo</button>
+              } @else {
+                <button type="button" class="btn btn-primary mt-3 w-full sm:w-auto" [disabled]="cashSaving() || cashCounted().trim() === ''" (click)="saveCash()">Cerrar corte</button>
+                <p class="mt-2 text-sm text-muted">Al cerrar, el corte queda guardado y ya no se cambia sin abrirlo de nuevo.</p>
+              }
+            </div>
+            <div class="mt-4 rounded-xl border border-line p-4">
+              <h3 class="text-sm font-semibold text-ink">Dinero que entra o sale de la caja</h3>
+              <p class="mt-1 text-sm text-muted">Compras con el efectivo de la caja, retiros o cambio que metiste.</p>
+              @if (data.moves.length) {
+                <ul class="mt-2 divide-y divide-line text-sm">
+                  @for (move of data.moves; track move.id) {
+                    <li class="flex items-center justify-between gap-3 py-1.5">
+                      <span class="min-w-0">
+                        <span class="block truncate text-ink">{{ move.reason }}</span>
+                        @if (move.as_expense) {
+                          <span class="block text-muted">También está en gastos</span>
+                        }
+                      </span>
+                      <span class="nums shrink-0 font-semibold text-ink">{{ move.kind === 'in' ? '+' : '−' }} {{ money(move.amount) }}</span>
+                      @if (!cashClosed()) {
+                        <button type="button" class="grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted hover:bg-canvas" [attr.aria-label]="'Quitar ' + move.reason" (click)="removeCashMove(move.id)"><mat-icon>close</mat-icon></button>
+                      }
+                    </li>
+                  }
+                </ul>
+              }
+              @if (!cashClosed()) {
+                <div class="mt-3 grid gap-3 sm:grid-cols-[8rem_1fr_8rem]">
+                  <label class="block">
+                    <span class="label">Tipo</span>
+                    <select class="input" [value]="cashMoveKind()" (change)="cashMoveKind.set($any($event.target).value)">
+                      <option value="out">Salió</option>
+                      <option value="in">Entró</option>
+                    </select>
+                  </label>
+                  <label class="block">
+                    <span class="label">Para qué fue</span>
+                    <input class="input" maxlength="255" [value]="cashMoveReason()" (input)="cashMoveReason.set($any($event.target).value)" placeholder="Compré esmaltes" />
+                  </label>
+                  <label class="block">
+                    <span class="label">Cuánto</span>
+                    <input class="input nums" type="number" min="0" inputmode="decimal" [value]="cashMoveAmount()" (input)="cashMoveAmount.set($any($event.target).value)" placeholder="0" />
+                  </label>
+                </div>
+                @if (cashMoveKind() === 'out') {
+                  <label class="mt-2 flex min-h-11 items-center gap-3 text-sm text-ink-soft">
+                    <input type="checkbox" class="h-5 w-5" [checked]="cashMoveExpense()" (change)="cashMoveExpense.set($any($event.target).checked)" />
+                    Anotarlo también como gasto del día
+                  </label>
+                }
+                <button type="button" class="btn btn-secondary mt-2 w-full sm:w-auto" (click)="addCashMove()">Agregar</button>
+              }
             </div>
           } @else {
             <div class="mt-3 h-40 animate-pulse rounded-xl bg-line"></div>
@@ -239,7 +401,7 @@
               @for (row of cash()?.history ?? []; track row.day) {
                 <li class="flex items-center justify-between gap-3 py-2.5">
                   <button type="button" class="min-w-0 text-left" (click)="loadCash(row.day)">
-                    <span class="nums block text-ink">{{ row.day }}</span>
+                    <span class="nums block text-ink">{{ row.day }}@if (row.closed_by) { · {{ row.closed_by }} }</span>
                     @if (row.note) {
                       <span class="block truncate text-muted">{{ row.note }}</span>
                     }
@@ -423,8 +585,8 @@
                   <div class="flex items-center justify-between gap-3">
                     <p class="text-sm font-semibold text-ink">Tu meta de ganancia</p>
                     <div class="inline-flex rounded-lg border border-line-strong bg-surface p-0.5" role="tablist" aria-label="Tipo de meta">
-                      <button type="button" role="tab" class="h-8 rounded-md px-2.5 text-xs font-medium transition-colors" [class.bg-ink]="goalMode() === 'money'" [class.text-white]="goalMode() === 'money'" [class.text-ink-soft]="goalMode() !== 'money'" [attr.aria-selected]="goalMode() === 'money'" (click)="setGoalMode('money')">Pesos</button>
-                      <button type="button" role="tab" class="h-8 rounded-md px-2.5 text-xs font-medium transition-colors" [class.bg-ink]="goalMode() === 'percent'" [class.text-white]="goalMode() === 'percent'" [class.text-ink-soft]="goalMode() !== 'percent'" [attr.aria-selected]="goalMode() === 'percent'" (click)="setGoalMode('percent')">Porcentaje</button>
+                      <button type="button" role="tab" class="h-11 rounded-md px-2.5 text-xs font-medium transition-colors" [class.bg-ink]="goalMode() === 'money'" [class.text-white]="goalMode() === 'money'" [class.text-ink-soft]="goalMode() !== 'money'" [attr.aria-selected]="goalMode() === 'money'" (click)="setGoalMode('money')">Pesos</button>
+                      <button type="button" role="tab" class="h-11 rounded-md px-2.5 text-xs font-medium transition-colors" [class.bg-ink]="goalMode() === 'percent'" [class.text-white]="goalMode() === 'percent'" [class.text-ink-soft]="goalMode() !== 'percent'" [attr.aria-selected]="goalMode() === 'percent'" (click)="setGoalMode('percent')">Porcentaje</button>
                     </div>
                   </div>
                   <label class="mt-3 block">
@@ -448,12 +610,67 @@
             @if (row.staff.length === 0) {
               <p class="py-8 text-center text-sm text-muted">Sin {{ copy.text().people.toLowerCase() }} en este periodo.</p>
             } @else if (view() === 'staff') {
-              <ul class="mt-2 divide-y divide-line text-sm">
-                @for (person of shifts(); track person.staff_id) {
-                  <li class="py-3">
-                    <p class="font-medium text-ink">{{ person.staff_name }}</p>
-                    <p class="nums text-muted">{{ person.visits }} citas · ticket {{ money(person.ticket) }} · ocupación {{ person.occupancy }}%</p>
-                    <p class="text-sm text-muted">{{ deltaText(person.incomeDelta) }}</p>
+              <ul class="mt-3 flex flex-col gap-3">
+                @for (person of staffCards(); track person.staff_id) {
+                  <li class="rounded-xl border border-line p-4">
+                    <div class="flex items-start justify-between gap-3">
+                      <div class="flex min-w-0 items-center gap-3">
+                        <span class="avatar" aria-hidden="true">{{ person.initials }}</span>
+                        <div class="min-w-0">
+                          <p class="truncate font-medium text-ink">{{ person.staff_name }}</p>
+                          <p class="text-sm text-muted">{{ deltaText(person.incomeDelta) }}</p>
+                        </div>
+                      </div>
+                      <div class="shrink-0 text-right">
+                        <p class="nums text-xl font-semibold text-ink">{{ money(person.income) }}</p>
+                        <p class="text-sm text-muted">vendió</p>
+                      </div>
+                    </div>
+                    <dl class="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-4">
+                      <div><dt class="text-muted">Citas</dt><dd class="nums font-medium text-ink">{{ person.visits }}</dd></div>
+                      <div><dt class="text-muted">Ticket</dt><dd class="nums font-medium text-ink">{{ money(person.ticket) }}</dd></div>
+                      <div><dt class="text-muted">Por hora</dt><dd class="nums font-medium text-ink">{{ person.perHour ? money(person.perHour) : '—' }}</dd></div>
+                      <div><dt class="text-muted">Regresan</dt><dd class="nums font-medium text-ink">{{ person.returnShare === null ? '—' : person.returnShare + '%' }}</dd></div>
+                    </dl>
+                    <div class="mt-3">
+                      <div class="flex items-center justify-between text-sm">
+                        <span class="text-muted">Ocupación</span>
+                        <span class="nums text-ink-soft">{{ person.occupancy }}%</span>
+                      </div>
+                      <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-canvas"><div class="h-full rounded-full bg-accent" [style.width.%]="person.occupancy"></div></div>
+                    </div>
+                    @if (person.goal) {
+                      <div class="mt-3">
+                        <div class="flex items-center justify-between text-sm">
+                          <span class="text-muted">Meta del mes</span>
+                          <span class="nums text-ink-soft">{{ percentOf(person.income, person.goal) }}% de {{ money(person.goal) }}</span>
+                        </div>
+                        <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-canvas"><div class="h-full rounded-full bg-accent" [style.width.%]="percentOf(person.income, person.goal) > 100 ? 100 : percentOf(person.income, person.goal)"></div></div>
+                        @if (person.tier_reached) {
+                          <span class="badge badge-ok mt-2">Subió a {{ person.percent }}%</span>
+                        }
+                      </div>
+                    }
+                    <div class="mt-3 flex flex-wrap items-center gap-2 text-sm">
+                      @if (person.lost > 0) {
+                        <span class="badge" [class.badge-warn]="person.lost > 2" [class.badge-info]="person.lost <= 2">{{ person.no_shows ?? 0 }} {{ (person.no_shows ?? 0) === 1 ? 'falta' : 'faltas' }} · {{ person.cancels ?? 0 }} {{ (person.cancels ?? 0) === 1 ? 'cancelación' : 'cancelaciones' }}</span>
+                      } @else {
+                        <span class="badge badge-ok">Sin faltas ni cancelaciones</span>
+                      }
+                      @if (person.tips) {
+                        <span class="badge badge-info">Propinas {{ money(person.tips) }}</span>
+                      }
+                    </div>
+                    @if (person.hadCommission) {
+                      <div class="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3 text-sm">
+                        <span class="nums text-ink-soft">Le toca {{ money(person.commission) }}@if (person.tips) { (con propinas) }</span>
+                        @if (person.due > 0) {
+                          <span class="badge badge-warn">Falta pagar {{ money(person.due) }}</span>
+                        } @else if (person.commission > 0) {
+                          <span class="badge badge-ok">Pagado</span>
+                        }
+                      </div>
+                    }
                   </li>
                 }
               </ul>
@@ -488,7 +705,25 @@
           </article>
         }
         @if (view() === 'expenses') {
-          <article class="card flex-1">
+          <article class="card" aria-label="Próximos pagos">
+          <div class="flex items-center gap-2"><h2 class="card-title">Próximos pagos</h2></div>
+          @if ((books()?.upcoming_fixed ?? []).length) {
+            <ul class="mt-2 divide-y divide-line text-sm">
+              @for (due of books()?.upcoming_fixed ?? []; track due.id + due.date) {
+                <li class="flex items-center justify-between gap-3 py-1.5">
+                  <span class="min-w-0 truncate text-ink">{{ due.name }} <span class="text-muted">· {{ dueText(due.date) }}</span></span>
+                  <span class="flex shrink-0 items-center gap-2">
+                    <span class="nums font-medium text-ink">{{ money(due.amount) }}</span>
+                    <button type="button" class="btn btn-secondary px-3!" (click)="markBillPaid(due)">Ya pagué</button>
+                  </span>
+                </li>
+              }
+            </ul>
+          } @else {
+            <p class="mt-2 text-sm text-muted">No hay gastos fijos por pagar en los próximos 30 días.</p>
+          }
+        </article>
+        <article class="card flex-1">
             <div class="card-head">
               <span class="sec-icon"><mat-icon>add_card</mat-icon></span>
               <h2 class="card-title">Agregar gasto</h2>
@@ -508,8 +743,14 @@
               </label>
               @if (expenseKind() === 'fixed') {
                 <label class="block"><span class="label">Cada cuándo</span>
-                  <app-pick-field class="block" [options]="cadencePicks" [valueIn]="expenseCadence()" (picked)="expenseCadence.set($any($event))" />
+                  <app-pick-field class="block" [options]="cadencePicks" [valueIn]="expenseCadence()" (picked)="setCadence($any($event))" />
                 </label>
+                @if (expenseCadence() !== 'day') {
+                  <label class="block"><span class="label">Día de pago</span>
+                    <app-pick-field class="block" [options]="expenseCadence() === 'week' ? weekDayPicks : monthDayPicks" [valueIn]="expensePayDay()" (picked)="expensePayDay.set($any($event))" />
+                    <span class="mt-1 block text-xs text-muted">Se cuenta completo en el periodo donde cae ese día, no repartido por día.</span>
+                  </label>
+                }
               }
               <button type="button" class="btn btn-primary" (click)="addExpense()">{{ editingExpense() ? 'Guardar' : 'Agregar gasto' }}</button>
             </div>
@@ -519,7 +760,13 @@
                   <li class="flex items-center gap-3 py-2.5">
                     <div class="min-w-0 flex-1">
                       <p class="truncate font-medium text-ink">{{ item.name }}</p>
-                      <p class="text-sm text-muted">{{ item.kind === 'fixed' ? (item.cadence === 'week' ? 'Semanal' : item.cadence === 'day' ? 'Por día' : 'Mensual') : 'Variable' }}{{ item.day ? ' · ' + (item.kind === 'fixed' ? 'desde ' : '') + item.day : '' }}</p>
+                      <p class="text-sm text-muted">{{ payText(item) }}{{ item.kind !== 'fixed' && item.day ? ' · ' + item.day : '' }}</p>
+                      @for (mark of item.paid_marks ?? []; track mark.due) {
+                        <p class="text-sm text-muted">Pagado el {{ dueText(mark.paid_on) }} (tocaba el {{ dueText(mark.due) }}) · <button type="button" class="font-medium text-accent hover:underline" (click)="undoPaid(item.id, mark.due)">Deshacer</button></p>
+                      }
+                      @if (item.kind === 'fixed' && !item.times && item.next_due) {
+                        <p class="text-xs text-muted">No cae en este periodo · próximo pago {{ dueText(item.next_due) }}</p>
+                      }
                     </div>
                     <span class="nums shrink-0 text-right text-base font-semibold text-ink">{{ money(item.amount) }}</span>
                     <span class="flex shrink-0">
@@ -568,6 +815,10 @@
           </span>
         </div>
       </div>
+      <button type="button" class="btn btn-secondary mt-4 w-full sm:w-auto" [attr.aria-expanded]="moreDetail()" (click)="moreDetail.set(!moreDetail())">
+        <mat-icon>{{ moreDetail() ? 'expand_less' : 'expand_more' }}</mat-icon>{{ moreDetail() ? 'Ocultar el análisis' : 'Ver análisis a fondo' }}
+      </button>
+      @if (moreDetail()) {
       <!-- Ocupación, clientas, servicios que más dejan y horas fuertes. -->
       <div class="mt-4 grid items-start gap-4 lg:grid-cols-2">
         <article class="card">
@@ -799,6 +1050,7 @@
           </article>
         }
       </div>
+      }
     }
 
     @if ((view() === 'staff' || view() === 'commission') && books()) {
@@ -872,7 +1124,8 @@
         }
       </div>
       @if (view() === 'staff' && staffTable().length) {
-        <article class="card mt-4">
+        <!-- En el celular basta con las tarjetas; la tabla es para comparar en pantalla grande. -->
+        <article class="card mt-4 hidden md:block">
           <div class="card-head">
             <span class="sec-icon"><mat-icon>table_chart</mat-icon></span>
             <div>

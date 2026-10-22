@@ -41,11 +41,11 @@ function openSheet(overlay: Overlay, view: ViewContainerRef, anchor: HTMLElement
     <ng-template #panel>
       <div class="w-[280px] rounded-2xl border border-line bg-surface p-3 text-ink shadow-lg" (click)="$event.stopPropagation()">
         <div class="mb-2 flex items-center justify-between">
-          <button type="button" class="h-8 w-8 rounded-full text-muted" (click)="shift(-1)" aria-label="Mes anterior">‹</button>
+          <button type="button" class="h-11 w-11 rounded-full text-muted" (click)="shift(-1)" aria-label="Mes anterior">‹</button>
           <p class="text-sm font-medium">{{ monthLabel() }}</p>
-          <button type="button" class="h-8 w-8 rounded-full text-muted" (click)="shift(1)" aria-label="Mes siguiente">›</button>
+          <button type="button" class="h-11 w-11 rounded-full text-muted" (click)="shift(1)" aria-label="Mes siguiente">›</button>
         </div>
-        <div class="grid grid-cols-7 text-center text-[11px] text-muted">
+        <div class="grid grid-cols-7 text-center text-xs text-muted">
           @for (label of labels; track label) { <span>{{ label }}</span> }
         </div>
         <div class="mt-1 grid grid-cols-7 gap-1 text-center">
@@ -211,7 +211,7 @@ export class DateFieldComponent implements ControlValueAccessor {
         } @else {
           <div class="grid grid-cols-3 gap-1">
             @for (time of choices(); track time) {
-              <button type="button" class="h-10 rounded-full px-2 text-sm" [class.bg-accent]="shown() === time" [class.text-white]="shown() === time" (click)="pick(time)">{{ time }}</button>
+              <button type="button" class="h-11 rounded-full px-2 text-sm" [class.bg-accent]="shown() === time" [class.text-white]="shown() === time" (click)="pick(time)">{{ time }}</button>
             }
           </div>
         }

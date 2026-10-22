@@ -54,7 +54,8 @@ const MANAGER_LINKS: readonly AdminNavLink[] = [
   { label: 'Equipo', path: '/admin/staff', exact: false, icon: 'groups', group: 'Tu negocio' },
   { label: 'Horarios', path: '/admin/schedules', exact: false, icon: 'schedule', group: 'Tu negocio' },
   { label: 'Mi negocio', path: '/admin/negocio', exact: true, icon: 'storefront', group: 'Tu negocio' },
-  { label: 'Inventario', path: '/admin/caja', exact: true, icon: 'inventory_2', group: 'Tu negocio' },
+  // Fuera de la fase 1 beta (inventario y ventas de producto). Se reactiva junto con la ruta 'caja' en admin.routes.ts.
+  // { label: 'Inventario', path: '/admin/caja', exact: true, icon: 'inventory_2', group: 'Tu negocio' },
   { label: 'Configuración', path: '/admin/settings', exact: true, icon: 'tune', group: 'Tu negocio' },
 ];
 

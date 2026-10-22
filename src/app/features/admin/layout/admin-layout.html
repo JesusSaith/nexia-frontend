@@ -18,7 +18,7 @@
         }
         <div class="min-w-0">
           <p class="truncate text-sm font-semibold text-[var(--nx-rail-ink)]">{{ brandName() || businessName() }}</p>
-          <p class="text-[11px] text-[var(--nx-rail-soft)]">Panel de Nexia</p>
+          <p class="text-xs text-[var(--nx-rail-soft)]">Panel de Nexia</p>
         </div>
       </div>
 
@@ -40,7 +40,7 @@
               <mat-icon>{{ link.icon }}</mat-icon>
               <span class="flex-1 truncate">{{ link.label }}</span>
               @if (link.path === '/admin/home' && unread() > 0) {
-                <span class="rounded-full px-1.5 text-[10px] font-semibold leading-4 text-white" style="background: var(--primary)">{{ unread() }}</span>
+                <span class="rounded-full px-1.5 text-xs font-semibold leading-4 text-white" style="background: var(--primary)">{{ unread() }}</span>
               }
             </a>
           }
@@ -59,7 +59,7 @@
           </span>
           <span class="min-w-0 flex-1">
             <span class="block truncate text-sm text-[var(--nx-rail-ink)]">{{ currentUser()?.fullName }}</span>
-            <span class="block text-[11px]">{{ roleLabel() }}</span>
+            <span class="block text-xs">{{ roleLabel() }}</span>
           </span>
           <mat-icon>unfold_more</mat-icon>
         </button>
@@ -102,7 +102,7 @@
             </span>
           }
           <span class="min-w-0 flex-1 truncate text-base font-semibold">{{ brandName() || businessName() }}</span>
-          <button type="button" class="grid h-9 w-9 place-items-center rounded-full text-[var(--nx-rail-soft)]" [matMenuTriggerFor]="userMenu" aria-label="Cuenta">
+          <button type="button" class="grid h-11 w-11 place-items-center rounded-full text-[var(--nx-rail-soft)]" [matMenuTriggerFor]="userMenu" aria-label="Cuenta">
             <mat-icon>account_circle</mat-icon>
           </button>
         </div>
@@ -119,16 +119,16 @@
     <!-- Celular: lo más usado a un toque; el resto sigue en el menú. -->
     <nav class="fixed inset-x-0 bottom-0 z-30 flex border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] md:hidden" aria-label="Accesos rápidos">
       @for (link of links().slice(0, 3); track link.path) {
-        <a class="flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] text-muted" [routerLink]="link.path" routerLinkActive="!text-[var(--primary)] font-semibold" [routerLinkActiveOptions]="{ exact: link.exact }">
+        <a class="flex flex-1 flex-col items-center gap-0.5 py-2 text-xs text-muted" [routerLink]="link.path" routerLinkActive="!text-[var(--primary)] font-semibold" [routerLinkActiveOptions]="{ exact: link.exact }">
           <mat-icon>{{ link.icon }}</mat-icon>
           {{ link.label }}
         </a>
       }
-      <button type="button" class="relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] text-muted" (click)="toggleSidebar()">
+      <button type="button" class="relative flex flex-1 flex-col items-center gap-0.5 py-2 text-xs text-muted" (click)="toggleSidebar()">
         <mat-icon>menu</mat-icon>
         Más
         @if (unread() > 0) {
-          <span class="absolute right-[calc(50%-18px)] top-1 h-2.5 w-2.5 rounded-full bg-rose-500" aria-label="Avisos nuevos"></span>
+          <span class="absolute right-[calc(50%-18px)] top-1 h-2.5 w-2.5 rounded-full bg-[var(--nx-bad-fg)]" aria-label="Avisos nuevos"></span>
         }
       </button>
     </nav>
@@ -139,7 +139,7 @@
             <mat-icon class="!h-5 !w-5 !text-[20px]">check</mat-icon>
           </span>
           <span class="text-sm font-medium text-ink">{{ saved }}</span>
-          <button type="button" class="flex h-8 w-8 items-center justify-center rounded-full text-muted" aria-label="Cerrar" (click)="toasts.close()">
+          <button type="button" class="flex h-11 w-11 items-center justify-center rounded-full text-muted" aria-label="Cerrar" (click)="toasts.close()">
             <mat-icon class="!h-4 !w-4 !text-[16px]">close</mat-icon>
           </button>
         </div>
@@ -161,7 +161,7 @@
             </span>
             <span class="shrink-0 rounded-full bg-ink px-3 py-1.5 text-xs text-surface sm:px-4 sm:py-2 sm:text-sm">Ver</span>
           </a>
-          <button type="button" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink hover:bg-canvas" aria-label="Cerrar aviso" (click)="closeToast($event)">
+          <button type="button" class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink hover:bg-canvas" aria-label="Cerrar aviso" (click)="closeToast($event)">
             <mat-icon>close</mat-icon>
           </button>
         </div>

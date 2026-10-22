@@ -8,7 +8,7 @@
   </header>
 
   @if (loadError(); as message) {
-    <p role="alert" class="text-sm text-red-700">{{ message }}</p>
+    <p role="alert" class="text-sm text-[var(--nx-bad-fg)]">{{ message }}</p>
   } @else if (isLoading()) {
     <p class="text-sm text-muted">Cargando…</p>
   } @else {
@@ -18,7 +18,7 @@
           <li>
             <button
               type="button"
-              class="flex w-full gap-4 rounded border bg-white p-4 text-left"
+              class="flex w-full gap-4 rounded border bg-surface p-4 text-left"
               [class.ring-1]="selected()?.id === member.id"
               (click)="choose(member.id)"
             >
@@ -45,7 +45,7 @@
       </ul>
 
       @if (selected(); as member) {
-        <aside class="rounded border bg-white p-4 lg:sticky lg:top-6">
+        <aside class="rounded border bg-surface p-4 lg:sticky lg:top-6">
           <h2 class="font-medium">{{ member.full_name }}</h2>
           <p class="mt-1 text-xs text-muted">{{ member.role_title }}</p>
           @if (member.bio) {
@@ -60,7 +60,7 @@
             }
           </ul>
           @if (bookLink(); as link) {
-            <a [routerLink]="link" class="brand-fill mt-4 flex h-10 items-center justify-center rounded text-sm">
+            <a [routerLink]="link" class="brand-fill mt-4 flex h-11 items-center justify-center rounded text-sm">
               Reservar
             </a>
           }

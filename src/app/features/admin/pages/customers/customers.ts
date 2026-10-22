@@ -621,6 +621,28 @@ export class Customers {
     return days <= 0 ? 'Hoy' : days === 1 ? 'Ayer' : `Hace ${days} días`;
   }
 
+  /** "Invitado hace 3 días", "Felicitado ayer": lo último que se le mandó desde Nexia. */
+  protected contactNote(row: { last_contact_at?: string | null; last_contact_kind?: string | null }): string {
+    if (!row.last_contact_at) {
+      return '';
+    }
+    const verb = row.last_contact_kind === 'felicitar' ? 'Felicitado' : row.last_contact_kind === 'otro' ? 'Contactado' : 'Invitado';
+    const days = this.ago(row.last_contact_at.slice(0, 10));
+    return `${verb} ${days === 'Hoy' ? 'hoy' : days === 'Ayer' ? 'ayer' : days.toLowerCase()}`;
+  }
+
+  protected contactKind(kind: string): string {
+    return kind === 'felicitar' ? 'Felicitación' : kind === 'volver' ? 'Invitación a volver (Te toca)' : kind === 'invitar' ? 'Invitación a volver' : 'Mensaje';
+  }
+
+  /** Al abrir el WhatsApp queda anotado, para no invitar dos veces y poder medir si regresó. */
+  protected logContact(row: ClientRow, kind: 'invitar' | 'felicitar'): void {
+    const now = new Date();
+    const stamp = `${this.today}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    this.clients.update((rows) => rows.map((item) => (item.id === row.id ? { ...item, last_contact_at: stamp, last_contact_kind: kind } : item)));
+    this.bookingApi.logContact(row.id, kind).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ error: () => undefined });
+  }
+
   protected nextLabel(value: string): string {
     return this.shortDay.format(new Date(value));
   }

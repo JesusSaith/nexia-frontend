@@ -9,6 +9,8 @@ export interface Place {
   address?: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  /** Mapa de Google incrustado ("Insertar un mapa"): si viene, se muestra en lugar del mapa fijo. */
+  map_embed?: string | null;
 }
 
 /** Centro de México, para abrir el mapa cuando aún no hay punto. */

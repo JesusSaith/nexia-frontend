@@ -34,7 +34,7 @@
             <div class="grid grid-cols-3 gap-1.5">
               @for (kind of kindPicks; track kind.value; let first = $first) {
                 <label
-                  class="flex h-9 min-w-0 cursor-pointer items-center justify-center gap-2 rounded-lg border px-1.5 text-[11px] transition-colors sm:justify-start sm:px-2.5 sm:text-xs focus-within:ring-2 focus-within:ring-accent-soft"
+                  class="flex h-11 min-w-0 cursor-pointer items-center justify-center gap-2 rounded-lg border px-1.5 text-xs transition-colors sm:justify-start sm:px-2.5 sm:text-xs focus-within:ring-2 focus-within:ring-accent-soft"
                   [class.border-accent]="form.controls.businessKind.value === kind.value"
                   [class.bg-accent-soft]="form.controls.businessKind.value === kind.value"
                   [class.font-medium]="form.controls.businessKind.value === kind.value"
@@ -72,7 +72,7 @@
                   [attr.aria-invalid]="!!errors().businessName"
                   [attr.aria-describedby]="errors().businessName ? 'name-error' : 'name-link'"
                 />
-                <span id="name-link" class="mt-0.5 block truncate text-[11px] text-muted">
+                <span id="name-link" class="mt-0.5 block truncate text-xs text-muted">
                   {{ bookingHost }}/<span class="font-medium text-ink-soft">{{ slug() || 'tu-negocio' }}</span>/book
                 </span>
               </label>
@@ -97,7 +97,7 @@
                   [attr.aria-invalid]="!!errors().phone"
                   [attr.aria-describedby]="errors().phone ? 'phone-error' : 'phone-hint'"
                 />
-                <span id="phone-hint" class="mt-0.5 block truncate text-[11px] text-muted">Aquí te escriben tus clientes</span>
+                <span id="phone-hint" class="mt-0.5 block truncate text-xs text-muted">Aquí te escriben tus clientes</span>
               </label>
               @if (errors().phone) {
                 <p id="phone-error" class="field-error mt-1">{{ errors().phone }}</p>
@@ -128,7 +128,7 @@
             @if (errors().usesCommissions) {
               <p id="commission-error" class="field-error mt-1">{{ errors().usesCommissions }}</p>
             } @else {
-              <p id="commission-hint" class="mt-0.5 text-[11px] text-muted">Si dices que sí, calculamos cuánto le toca a cada quien. Lo cambias cuando quieras en Configuración.</p>
+              <p id="commission-hint" class="mt-0.5 text-xs text-muted">Si dices que sí, calculamos cuánto le toca a cada quien. Lo cambias cuando quieras en Configuración.</p>
             }
           </div>
         </fieldset>
@@ -242,7 +242,7 @@
         </div>
       </form>
 
-      <p class="mt-2 text-center text-[11px] text-muted sm:mt-3 sm:text-xs">
+      <p class="mt-2 text-center text-xs text-muted sm:mt-3">
         ¿Trabajas en un negocio que ya usa Nexia? Quien administra el negocio te da de alta desde Equipo.
       </p>
     </div>

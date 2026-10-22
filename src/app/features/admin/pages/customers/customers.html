@@ -145,6 +145,9 @@
                   } @else {
                     <span class="badge badge-info">Primera vez</span>
                   }
+                  @if (contactNote(client); as note) {
+                    <span class="text-sm text-muted">{{ note }}</span>
+                  }
                   @if (isCanceller(client)) {
                     <span class="badge badge-warn"><span class="nums">{{ client.cancel_count + (client.no_show_count ?? 0) }}</span> cancel./faltas</span>
                   }
@@ -157,9 +160,9 @@
                 </span>
               </button>
               @if (filter() === 'missing') {
-                <a class="btn btn-whatsapp shrink-0 px-3!" [href]="missYou(client)" target="_blank" rel="noopener">Invitar</a>
+                <a class="btn btn-whatsapp shrink-0 px-3!" [href]="missYou(client)" target="_blank" rel="noopener" (click)="logContact(client, 'invitar')">{{ client.last_contact_at ? 'Invitar otra vez' : 'Invitar' }}</a>
               } @else if (filter() === 'birthday') {
-                <a class="btn btn-whatsapp shrink-0 px-3!" [href]="birthdayWish(client)" target="_blank" rel="noopener">Felicitar</a>
+                <a class="btn btn-whatsapp shrink-0 px-3!" [href]="birthdayWish(client)" target="_blank" rel="noopener" (click)="logContact(client, 'felicitar')">Felicitar</a>
               }
             </li>
           }
@@ -257,7 +260,7 @@
         @for (tag of person.tags ?? []; track tag) {
           <span class="chip chip-on gap-1 pr-1!">
             {{ tag }}
-            <button type="button" class="grid h-8 w-8 place-items-center rounded-full" [attr.aria-label]="'Quitar ' + tag" (click)="removeTag(tag)"><mat-icon class="h-4! w-4! text-[16px]!">close</mat-icon></button>
+            <button type="button" class="grid h-11 w-11 place-items-center rounded-full" [attr.aria-label]="'Quitar ' + tag" (click)="removeTag(tag)"><mat-icon class="h-4! w-4! text-[16px]!">close</mat-icon></button>
           </span>
         }
         <form class="flex gap-2" (submit)="$event.preventDefault(); addTag()">
@@ -330,6 +333,23 @@
         }
       </span>
     </label>
+
+    @if ((person.contacts ?? []).length) {
+      <section class="card">
+        <div class="card-head">
+          <span class="sec-icon"><mat-icon>chat</mat-icon></span>
+          <h3 class="card-title">Mensajes que le mandaste</h3>
+        </div>
+        <ul class="mt-2 divide-y divide-line text-sm">
+          @for (item of person.contacts ?? []; track item.at + item.kind) {
+            <li class="flex items-center justify-between gap-3 py-2">
+              <span class="text-ink">{{ contactKind(item.kind) }}</span>
+              <span class="nums text-muted">{{ ago(item.at.slice(0, 10)) }}{{ item.by ? ' · ' + item.by : '' }}</span>
+            </li>
+          }
+        </ul>
+      </section>
+    }
 
     <section class="card">
       <div class="card-head">

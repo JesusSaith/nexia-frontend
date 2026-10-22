@@ -7,7 +7,7 @@
   </header>
 
   @if (loadError(); as message) {
-    <p role="alert" class="text-sm text-red-700">{{ message }}</p>
+    <p role="alert" class="text-sm text-[var(--nx-bad-fg)]">{{ message }}</p>
   } @else if (isLoading()) {
     <div class="animate-pulse space-y-3" aria-label="Cargando">
       <div class="h-14 rounded-2xl bg-line"></div>
@@ -22,7 +22,7 @@
         <input class="w-full bg-transparent text-sm outline-none" formControlName="full_name" />
       </label>
       @if (nameError()) {
-        <p class="text-sm text-red-700">{{ nameError() }}</p>
+        <p class="text-sm text-[var(--nx-bad-fg)]">{{ nameError() }}</p>
       }
       <label class="rounded-xl border border-line bg-surface px-3 py-2">
         <span class="block text-xs text-muted">Teléfono</span>
@@ -37,10 +37,10 @@
         <textarea class="w-full bg-transparent text-sm outline-none" rows="4" formControlName="bio"></textarea>
       </label>
       @if (formError(); as message) {
-        <p role="alert" class="text-sm text-red-700">{{ message }}</p>
+        <p role="alert" class="text-sm text-[var(--nx-bad-fg)]">{{ message }}</p>
       }
       @if (saved()) {
-        <p class="text-sm text-emerald-700">Perfil guardado.</p>
+        <p class="text-sm text-[var(--nx-ok-fg)]">Perfil guardado.</p>
       }
       <button class="btn btn-primary disabled:opacity-50" type="submit" [disabled]="isSaving()">
         {{ isSaving() ? 'Guardando…' : 'Guardar' }}

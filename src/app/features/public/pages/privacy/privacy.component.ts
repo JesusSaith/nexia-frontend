@@ -16,7 +16,7 @@ import { BookingService, PrivacyNotice } from '@core/services/booking.service';
   template: `
     <main class="mx-auto w-full max-w-2xl px-4 py-10 text-ink">
       @if (error()) {
-        <p role="alert" class="text-sm text-red-700">No pudimos cargar el aviso de privacidad.</p>
+        <p role="alert" class="text-sm text-[var(--nx-bad-fg)]">No pudimos cargar el aviso de privacidad.</p>
       } @else if (!notice()) {
         <div class="flex justify-center py-16"><mat-spinner diameter="32" /></div>
       } @else {

@@ -1,32 +1,36 @@
 <main class="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8" [class.pb-40]="summary() && !confirmation()">
-  <header class="flex flex-col gap-3 overflow-hidden rounded-2xl border bg-white" style="border-color: color-mix(in srgb, var(--booking-primary, var(--primary)) 28%, white)">
+  <!-- Del paso 2 en adelante el encabezado se compacta para que las horas y los datos queden a la vista. -->
+  @let compact = step() > 1;
+  <header class="flex flex-col gap-3 overflow-hidden rounded-2xl border bg-surface" style="border-color: color-mix(in srgb, var(--booking-primary, var(--primary)) 28%, white)">
     <!-- Portada: la primera foto del trabajo, con un degradado del color de la marca para que el texto se lea. -->
-    @if (headerStyle() === 'cover' && gallery()[0]; as cover) {
+    @if (!compact && headerStyle() === 'cover' && gallery()[0]; as cover) {
       <div class="relative h-28 sm:h-36" aria-hidden="true">
         <img [src]="cover" alt="" class="h-full w-full object-cover" />
         <span class="absolute inset-0" style="background: linear-gradient(to bottom, transparent 55%, color-mix(in srgb, var(--booking-primary, var(--primary)) 12%, white))"></span>
       </div>
     }
-    <div class="flex items-center gap-4 px-5 py-5"
+    <div class="flex items-center gap-4 px-5" [class.py-5]="!compact" [class.py-3]="compact"
       [style.background]="headerStyle() === 'color' ? 'var(--booking-primary)' : headerStyle() === 'plain' ? 'white' : 'color-mix(in srgb, var(--booking-primary, var(--primary)) 12%, white)'"
       [style.color]="headerStyle() === 'color' ? 'var(--booking-on)' : null">
       @if (brand()?.logo_url && !logoFailed()) {
-        <img [src]="brand()!.logo_url" [alt]="brand()?.name || ''" class="h-16 w-16 rounded-2xl bg-white object-contain p-1" (error)="logoFailed.set(true)" />
+        <img [src]="brand()!.logo_url" [alt]="brand()?.name || ''" class="rounded-2xl bg-white object-contain p-1" [class.h-16]="!compact" [class.w-16]="!compact" [class.h-12]="compact" [class.w-12]="compact" (error)="logoFailed.set(true)" />
       } @else {
-        <span class="brand-fill flex h-16 w-16 items-center justify-center rounded-2xl text-lg font-semibold">
+        <span class="brand-fill flex items-center justify-center rounded-2xl text-lg font-semibold" [class.h-16]="!compact" [class.w-16]="!compact" [class.h-12]="compact" [class.w-12]="compact">
           {{ (brand()?.name || 'N').charAt(0) }}
         </span>
       }
       <div>
-        <p class="text-xs font-medium uppercase tracking-wide" style="color: var(--booking-primary, var(--primary))">Reservas</p>
-        <h1 class="text-2xl font-semibold">{{ brand()?.name || 'Reservar ' + copy().visit.toLowerCase() }}</h1>
-        @if (brand()?.description) {
+        @if (!compact) {
+          <p class="text-xs font-medium uppercase tracking-wide" style="color: var(--booking-primary, var(--primary))">Reservas</p>
+        }
+        <h1 class="font-semibold" [class.text-2xl]="!compact" [class.text-xl]="compact">{{ brand()?.name || 'Reservar ' + copy().visit.toLowerCase() }}</h1>
+        @if (!compact && brand()?.description) {
           <p class="text-sm text-ink-soft">{{ brand()?.description }}</p>
         }
-        @if (brand()?.address) {
+        @if (!compact && brand()?.address) {
           <p class="text-sm text-ink-soft">{{ brand()?.address }}</p>
         }
-        @if (brand()?.hours?.length) {
+        @if (!compact && brand()?.hours?.length) {
           <p class="text-sm text-ink-soft">Horario: {{ brand()?.hours?.join(' · ') }}</p>
         }
       </div>
@@ -37,7 +41,7 @@
     @if (closedLabel(); as label) {
       <p class="px-5 text-sm" style="color: var(--booking-primary, var(--primary))">Cerramos: {{ label }}.</p>
     }
-    @if (gallery().length || opinions().length) {
+    @if (!compact && (gallery().length || opinions().length)) {
       <!-- Plegado para que en celular los servicios queden a la vista desde el inicio. -->
       <details class="more-info px-5">
         <summary class="cursor-pointer text-sm font-medium" style="color: var(--booking-primary, var(--primary))">
@@ -62,7 +66,7 @@
         }
       </details>
     }
-    @if (hasPlace()) {
+    @if (!compact && hasPlace()) {
       <details class="more-info px-5" (toggle)="mapOpen.set($any($event.target).open)">
         <summary class="cursor-pointer text-sm font-medium" style="color: var(--booking-primary, var(--primary))">Cómo llegar</summary>
         @if (mapOpen()) {
@@ -70,6 +74,7 @@
         }
       </details>
     }
+    <ng-template #contacts>
     <div class="flex flex-wrap items-center gap-4 px-5 pb-4 text-sm">
       @if (brand()?.phone) {
         <a class="contact-chip" [href]="businessWhatsapp(brand()!.phone!)" target="_blank" rel="noopener">
@@ -104,6 +109,21 @@
         <a class="underline" [href]="externalHref(brand()!.facebook!, 'facebook.com')" target="_blank" rel="noopener">Facebook</a>
       }
     </div>
+    </ng-template>
+    @if (compact) {
+      <details class="more-info px-5 pb-3">
+        <summary class="min-h-11 cursor-pointer py-3 text-sm font-medium" style="color: var(--booking-primary, var(--primary))">Contacto y ubicación</summary>
+        @if (brand()?.address) {
+          <p class="mb-2 text-sm text-ink-soft">{{ brand()?.address }}</p>
+        }
+        @if (brand()?.hours?.length) {
+          <p class="mb-2 text-sm text-ink-soft">Horario: {{ brand()?.hours?.join(' · ') }}</p>
+        }
+        <ng-container [ngTemplateOutlet]="contacts" />
+      </details>
+    } @else {
+      <ng-container [ngTemplateOutlet]="contacts" />
+    }
   </header>
 
   <nav class="step-tabs" aria-label="Pasos de la reserva">
@@ -142,7 +162,7 @@
               <li class="flex items-center gap-3 py-3">
                 <div class="min-w-0 flex-1 text-sm">
                   <p class="truncate font-medium text-ink">{{ visit.service_name }}</p>
-                  <p class="truncate capitalize text-muted">
+                  <p class="truncate first-letter:uppercase text-muted">
                     <span class="nums">{{ formatDate(visit.starts_at) }} · {{ formatTime(visit.starts_at) }}</span> · {{ visit.staff_name }}
                   </p>
                   @if (visit.status === 'awaiting_deposit') {
@@ -159,23 +179,23 @@
         <h2 class="mb-3 text-base font-medium">Servicio</h2>
         @if (categories().length) {
           <div class="mb-3 flex flex-wrap gap-2">
-            <button type="button" class="rounded-full border px-3 py-1 text-sm" [class.brand-solid]="!categoryFilter()" (click)="categoryFilter.set('')">Todas</button>
+            <button type="button" class="min-h-11 rounded-full border px-4 py-1 text-sm" [class.brand-solid]="!categoryFilter()" (click)="categoryFilter.set('')">Todas</button>
             @for (name of categories(); track name) {
-              <button type="button" class="rounded-full border px-3 py-1 text-sm" [class.brand-solid]="categoryFilter() === name" (click)="categoryFilter.set(name)">{{ name }}</button>
+              <button type="button" class="min-h-11 rounded-full border px-4 py-1 text-sm" [class.brand-solid]="categoryFilter() === name" (click)="categoryFilter.set(name)">{{ name }}</button>
             }
           </div>
         }
         @if (shopNote().pause || services().length === 0) {
           <p class="text-sm text-ink-soft">{{ shopNote().pause ? 'Por ahora no estamos tomando citas.' : 'Estamos preparando las reservas.' }}</p>
           @if (brand()?.phone; as phone) {
-            <a class="mt-3 inline-flex h-10 items-center rounded-full px-4 text-sm text-white" style="background: var(--booking-primary, var(--primary))" [href]="businessWhatsapp(phone)" target="_blank" rel="noopener">Escribir por WhatsApp</a>
+            <a class="mt-3 inline-flex h-11 items-center rounded-full px-4 text-sm text-white" style="background: var(--booking-primary, var(--primary))" [href]="businessWhatsapp(phone)" target="_blank" rel="noopener">Escribir por WhatsApp</a>
           }
         } @else {
           <div class="grid gap-3 sm:grid-cols-2">
             @for (service of visibleServices(); track service.id) {
               <button
                 type="button"
-                class="choice-card flex gap-3 p-4 text-left"
+                class="choice-card service-card flex gap-3 p-4 text-left"
                 [class.choice-selected]="selectedService()?.id === service.id"
                 (click)="selectService(service)"
               >
@@ -183,7 +203,7 @@
                   <img class="h-16 w-16 shrink-0 rounded-xl object-cover" [src]="service.image_url" alt="" />
                 }
                 <span class="min-w-0">
-                  @if (service.category) {
+                  @if (service.category && service.category.trim().toLowerCase() !== service.name.trim().toLowerCase()) {
                     <span class="block text-xs text-muted">{{ service.category }}</span>
                   }
                   <span class="block font-medium">{{ service.name }}</span>
@@ -194,7 +214,7 @@
                     @if ((service.variants ?? []).length) {
                       Desde {{ formatPrice(minVariant(service)) }} · {{ (service.variants ?? []).length }} opciones
                     } @else {
-                      {{ service.duration_minutes }} min · {{ service.variable_price ? 'Precio según lo que pidas' : formatPrice(service.price) }}
+                      {{ formatMinutes(service.duration_minutes) }} · {{ service.variable_price ? 'Te confirmamos el precio' : formatPrice(service.price) }}
                     }
                   </span>
                   @if (service.description) {
@@ -204,6 +224,8 @@
               </button>
             }
           </div>
+          <!-- Ancla: al elegir un servicio en celular la página baja hasta lo que sigue. -->
+          <div id="tras-servicio" class="scroll-mt-4"></div>
           @if (selectedService(); as picked) {
             @if ((picked.variants ?? []).length) {
               <div class="mt-5">
@@ -212,7 +234,7 @@
                   @for (option of picked.variants ?? []; track option.name) {
                     <button type="button" class="choice-card px-3 py-2 text-left" [class.choice-selected]="selectedVariant() === option.name" (click)="selectedVariant.set(option.name); selectedSlot.set(null)">
                       <span class="block text-sm font-medium">{{ option.name }}</span>
-                      <span class="block text-xs text-muted">{{ option.duration_minutes }} min · {{ formatPrice(option.price) }}</span>
+                      <span class="block text-xs text-muted">{{ formatMinutes(option.duration_minutes) }} · {{ formatPrice(option.price) }}</span>
                     </button>
                   }
                 </div>
@@ -238,7 +260,7 @@
                       <span class="min-w-0 flex-1">
                         <span class="block truncate text-sm font-medium">{{ service.name }}</span>
                         <span class="block text-xs text-muted">
-                          {{ service.duration_minutes }} min
+                          {{ formatMinutes(service.duration_minutes) }}
                           @if (!service.variable_price) {
                             · {{ formatPrice(service.price) }}
                           }
@@ -280,6 +302,21 @@
         } @else if (eligibleStaff().length === 0) {
           <p class="text-sm text-ink-soft">Nadie tiene asignado este servicio.</p>
         } @else {
+          @if (eligibleStaff().length === 1) {
+            <!-- Una sola persona hace el servicio: basta una línea, no una tarjeta grande. -->
+            @let only = eligibleStaff()[0];
+            <div class="flex items-center gap-3 rounded-2xl border border-line bg-surface p-3">
+              @if (only.avatar_url) {
+                <img [src]="only.avatar_url" [alt]="only.full_name" class="h-12 w-12 shrink-0 rounded-full object-cover" />
+              } @else {
+                <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-canvas text-sm font-medium text-ink-soft">{{ initials(only.full_name) }}</span>
+              }
+              <span class="min-w-0">
+                <span class="block text-sm text-muted">Te atiende</span>
+                <span class="block truncate font-medium">{{ only.full_name }}@if (only.role_title) { <span class="font-normal text-ink-soft"> · {{ only.role_title }}</span> }</span>
+              </span>
+            </div>
+          } @else {
           <div class="grid gap-3 sm:grid-cols-2">
             @if (eligibleStaff().length > 1) {
               <button
@@ -321,6 +358,7 @@
               </button>
             }
           </div>
+          }
         }
       </div>
     </section>
@@ -335,7 +373,7 @@
           <div class="grid grid-cols-3 gap-2">
             @for (slot of soonest(); track slot.starts_at) {
               <button type="button" class="choice-card flex flex-col items-center px-2 py-3 text-center" (click)="pickSoonest(slot)">
-                <span class="text-xs capitalize text-muted">{{ dayLabel(slot.starts_at) }}</span>
+                <span class="block text-xs first-letter:uppercase text-muted">{{ dayLabel(slot.starts_at) }}</span>
                 <span class="text-base font-semibold">{{ formatTime(slot.starts_at) }}</span>
               </button>
             }
@@ -345,14 +383,14 @@
       }
       <div class="flex items-center justify-between">
         <div>
-          <p class="text-base font-medium capitalize">{{ monthLabel() }}</p>
+          <p class="text-base font-medium first-letter:uppercase">{{ monthLabel() }}</p>
           @if (themeLabel()) {
             <p class="text-sm text-muted">{{ themeLabel() }}</p>
           }
         </div>
         <div class="flex gap-2">
-          <button type="button" class="rounded-full border px-3 py-1 text-sm" (click)="shiftMonth(-1)">‹</button>
-          <button type="button" class="rounded-full border px-3 py-1 text-sm" (click)="shiftMonth(1)">›</button>
+          <button type="button" class="grid h-11 w-11 place-items-center rounded-full border text-sm" (click)="shiftMonth(-1)">‹</button>
+          <button type="button" class="grid h-11 w-11 place-items-center rounded-full border text-sm" (click)="shiftMonth(1)">›</button>
         </div>
       </div>
       <div class="grid grid-cols-7 text-center text-xs text-muted">
@@ -364,8 +402,8 @@
         @for (day of monthDays(); track dayIso(day)) {
           <button
             type="button"
-            class="flex h-10 flex-col items-center justify-center rounded-lg text-sm"
-            [class.text-slate-300]="day.getMonth() !== dateMonth() || dayIso(day) < minDate || dayIso(day) > maxDate()"
+            class="flex h-11 flex-col items-center justify-center rounded-lg text-sm"
+            [class.text-line-strong]="day.getMonth() !== dateMonth() || dayIso(day) < minDate || dayIso(day) > maxDate()"
             [class.text-muted]="!openDays().includes(dayIso(day))"
             [class.font-medium]="openDays().includes(dayIso(day))"
             [class.brand-solid]="dayIso(day) === date()"
@@ -398,11 +436,11 @@
           <p class="text-sm text-[var(--nx-ok-fg)]">Listo. Te avisamos si se libera un horario.</p>
         } @else {
           <div class="flex flex-col gap-2 sm:max-w-sm">
-            <label class="rounded-xl border border-line bg-white px-3 py-2">
+            <label class="rounded-xl border border-line bg-surface px-3 py-2">
               <span class="block text-xs text-muted">Nombre</span>
               <input class="w-full bg-transparent text-sm outline-none" [value]="waitName()" (input)="waitName.set($any($event.target).value)" />
             </label>
-            <label class="rounded-xl border border-line bg-white px-3 py-2">
+            <label class="rounded-xl border border-line bg-surface px-3 py-2">
               <span class="block text-xs text-muted">Teléfono</span>
               <input class="w-full bg-transparent text-sm outline-none" [value]="waitPhone()" (input)="waitPhone.set($any($event.target).value)" />
             </label>
@@ -410,7 +448,7 @@
           </div>
         }
       } @else {
-        <p class="text-sm font-medium capitalize">{{ formatDate(date() + 'T12:00:00') }}</p>
+        <p class="text-sm font-medium first-letter:uppercase">{{ formatDate(date() + 'T12:00:00') }}</p>
         @for (group of slotGroups(); track group.label) {
           <div>
             <p class="mb-2 text-xs font-medium uppercase tracking-wide text-muted">{{ group.label }}</p>
@@ -418,9 +456,9 @@
               @for (slot of group.slots; track slot.starts_at) {
                 <button
                   type="button"
-                  class="rounded-full border px-3 py-2 text-sm"
+                  class="min-h-11 rounded-full border px-4 py-2 text-sm"
                   [class.border-line]="selectedSlot() !== slot.starts_at"
-                  [class.bg-white]="selectedSlot() !== slot.starts_at"
+                  [class.bg-surface]="selectedSlot() !== slot.starts_at"
                   [class.brand-solid]="selectedSlot() === slot.starts_at"
                   [class.border-transparent]="selectedSlot() === slot.starts_at"
                   [attr.aria-pressed]="selectedSlot() === slot.starts_at"
@@ -436,6 +474,17 @@
     </section>
   } @else if (step() === 3) {
     <form id="booking-form" class="flex flex-col gap-3" [formGroup]="clientForm" (ngSubmit)="confirm()">
+      @if (summary(); as info) {
+        <!-- Qué se va a reservar, a la vista antes de confirmar. -->
+        <section class="rounded-2xl border p-4" style="border-color: color-mix(in srgb, var(--booking-primary, var(--primary)) 40%, white); background: color-mix(in srgb, var(--booking-primary, var(--primary)) 6%, white)" aria-label="Resumen de tu cita">
+          <p class="text-xs font-medium uppercase tracking-wide text-muted">Tu {{ copy().visit.toLowerCase() }}</p>
+          @if (info.when) {
+            <p class="mt-1 text-base font-semibold first-letter:uppercase">{{ info.when }}</p>
+          }
+          <p class="text-sm text-ink-soft">{{ info.title }} · {{ info.detail }}@if (info.who) { · con {{ info.who }}}</p>
+          <button type="button" class="mt-1 min-h-11 text-sm underline underline-offset-2" style="color: var(--booking-primary)" (click)="openStep(2)">Cambiar día u hora</button>
+        </section>
+      }
       <!-- Campo trampa contra bots: invisible para las personas, no lo llenes. -->
       <label class="trap-field" aria-hidden="true">
         Sitio web
@@ -447,7 +496,7 @@
           <button type="button" class="shrink-0 text-xs underline" (click)="forgetClient()">No soy yo</button>
         </p>
       }
-      <label class="rounded-xl border border-line bg-white px-3 py-2">
+      <label class="rounded-xl border border-line bg-surface px-3 py-2">
         <span class="block text-xs text-muted">Teléfono (WhatsApp)</span>
         <input
           class="w-full bg-transparent text-sm outline-none"
@@ -467,7 +516,7 @@
           Esta {{ copy().visit.toLowerCase() }} tiene <span class="nums font-medium" style="color: var(--booking-primary)">{{ loyaltyPercent() }}%</span> de descuento por ser cliente frecuente.
         </p>
       }
-      <label class="rounded-xl border border-line bg-white px-3 py-2">
+      <label class="rounded-xl border border-line bg-surface px-3 py-2">
         <span class="block text-xs text-muted">Tu nombre</span>
         <input class="w-full bg-transparent text-sm outline-none" formControlName="client_name" autocomplete="name" />
       </label>
@@ -475,7 +524,7 @@
         <p class="text-sm text-[var(--nx-bad-fg)]">{{ message }}</p>
       }
       @if (copy().pet) {
-        <label class="rounded-xl border border-line bg-white px-3 py-2">
+        <label class="rounded-xl border border-line bg-surface px-3 py-2">
           <span class="block text-xs text-muted">Mascota</span>
           <input class="w-full bg-transparent text-sm outline-none" [value]="petName()" (input)="petName.set($any($event.target).value)" />
         </label>
@@ -487,18 +536,18 @@
         </label>
       }
       @if (selectedService()?.questions) {
-        <label class="rounded-xl border border-line bg-white px-3 py-2">
+        <label class="rounded-xl border border-line bg-surface px-3 py-2">
           <span class="block whitespace-pre-line text-xs text-muted">{{ selectedService()!.questions }}</span>
           <textarea class="mt-1 w-full resize-none bg-transparent text-sm outline-none" rows="3" placeholder="Tus respuestas" [value]="answers()" (input)="answers.set($any($event.target).value)"></textarea>
         </label>
       }
       @if (selectedService()?.variable_price) {
-        <label class="rounded-xl border border-line bg-white px-3 py-2">
+        <label class="rounded-xl border border-line bg-surface px-3 py-2">
           <span class="block text-xs text-muted">Qué necesitas</span>
           <textarea class="w-full resize-none bg-transparent text-sm outline-none" rows="2" placeholder="Ej. lo que necesitas, medidas, estilo o alguna preferencia" formControlName="notes"></textarea>
         </label>
         <!-- Fotos para cotizar: se guardan con la cita y van como enlace en el WhatsApp al negocio. -->
-        <div class="rounded-xl border border-dashed border-line-strong bg-white px-3 py-3">
+        <div class="rounded-xl border border-dashed border-line-strong bg-surface px-3 py-3">
           <p class="text-xs text-muted">Fotos de referencia (opcional, hasta 3). Ayudan a que te coticen más rápido.</p>
           <div class="mt-2 flex flex-wrap gap-2">
             @for (photo of refPhotos(); track $index) {
@@ -526,7 +575,7 @@
         </div>
       }
       @if (showOptional()) {
-        <label class="rounded-xl border border-line bg-white px-3 py-2">
+        <label class="rounded-xl border border-line bg-surface px-3 py-2">
           <span class="block text-xs text-muted">Correo (opcional)</span>
           <input class="w-full bg-transparent text-sm outline-none" type="email" formControlName="client_email" autocomplete="email" />
         </label>
@@ -534,20 +583,20 @@
           <p class="text-sm text-[var(--nx-bad-fg)]">{{ message }}</p>
         }
         @if (!selectedService()?.variable_price) {
-          <label class="rounded-xl border border-line bg-white px-3 py-2">
+          <label class="rounded-xl border border-line bg-surface px-3 py-2">
             <span class="block text-xs text-muted">Nota para el negocio (opcional)</span>
             <textarea class="w-full resize-none bg-transparent text-sm outline-none" rows="2" formControlName="notes"></textarea>
           </label>
         }
       } @else {
-        <button type="button" class="self-start text-sm underline underline-offset-2" style="color: var(--booking-primary)" (click)="showOptional.set(true)">
+        <button type="button" class="min-h-11 self-start text-sm underline underline-offset-2" style="color: var(--booking-primary)" (click)="showOptional.set(true)">
           + Agregar correo o nota
         </button>
       }
 
       @if (couponOpen() || coupon()) {
         <div class="flex items-stretch gap-2">
-          <label class="min-w-0 flex-1 rounded-xl border border-line bg-white px-3 py-2">
+          <label class="min-w-0 flex-1 rounded-xl border border-line bg-surface px-3 py-2">
             <span class="block text-xs text-muted">¿Tienes un cupón?</span>
             <input
               class="w-full bg-transparent text-sm uppercase outline-none"
@@ -567,7 +616,7 @@
           <p class="text-sm text-ink-soft" role="status">Cupón {{ couponChecked() }}: <span class="nums">{{ couponPercent() }}%</span> de descuento.</p>
         }
       } @else {
-        <button type="button" class="self-start text-sm underline underline-offset-2" style="color: var(--booking-primary)" (click)="couponOpen.set(true)">
+        <button type="button" class="min-h-11 self-start text-sm underline underline-offset-2" style="color: var(--booking-primary)" (click)="couponOpen.set(true)">
           ¿Tienes un cupón?
         </button>
       }
@@ -578,7 +627,7 @@
 
       @if (money(); as cash) {
         <!-- Desglose antes de confirmar: cuánto hoy, cuánto en la cita y qué pasa si cancela. -->
-        <section class="rounded-xl border border-line bg-white px-4 py-3 text-sm" aria-label="Resumen de pago">
+        <section class="rounded-xl border border-line bg-surface px-4 py-3 text-sm" aria-label="Resumen de pago">
           @if (usePackage()) {
             <p class="font-medium">Esta {{ copy().visit.toLowerCase() }} se descuenta de tu paquete.</p>
           } @else if (cash.variable) {
@@ -677,13 +726,17 @@
         </p>
       }
       @if (appointment.status === 'awaiting_deposit' && appointment.deposit_amount) {
-        <ol class="mt-4 w-full space-y-2 text-left text-sm">
-          <li class="rounded-xl bg-canvas px-3 py-2">
-            1. Transfiere <strong>${{ appointment.deposit_amount }}</strong> a {{ brand()?.deposit_account }}. Se descuenta del total.
-            <button type="button" class="ml-2 text-xs font-medium underline" (click)="copyAccount()">{{ accountCopied() ? 'Copiada' : 'Copiar cuenta' }}</button>
-          </li>
-          <li class="rounded-xl bg-canvas px-3 py-2">2. Sube la foto del comprobante para que el negocio confirme tu cita</li>
-        </ol>
+        <!-- Lo primero que hay que hacer: transferir. La cuenta se ve grande y se copia con un toque. -->
+        <div class="mt-4 w-full rounded-2xl border p-4 text-left" style="border-color: color-mix(in srgb, var(--booking-primary, var(--primary)) 40%, white); background: color-mix(in srgb, var(--booking-primary, var(--primary)) 6%, white)">
+          <p class="text-sm text-muted">1. Transfiere el anticipo</p>
+          <p class="nums text-3xl font-semibold">${{ appointment.deposit_amount }}</p>
+          <p class="mt-2 text-sm text-muted">A esta {{ accountLabel() }}</p>
+          <p class="nums break-all text-lg font-semibold tracking-wide">{{ brand()?.deposit_account }}</p>
+          <button type="button" class="brand-fill mt-3 flex h-12 w-full items-center justify-center rounded-full text-base font-medium" (click)="copyAccount()">
+            {{ accountCopied() ? '¡Copiada!' : 'Copiar ' + accountLabel() }}
+          </button>
+          <p class="mt-3 text-sm text-ink-soft">Se descuenta del total. Después, 2. sube la foto del comprobante para que el negocio confirme tu cita.</p>
+        </div>
         <!-- FUTURE_PHASE_SPEI: confirmar el anticipo con la clave de rastreo (Banxico). Falta probarlo con transferencias reales.
         @if (brand()?.spei_check && appointment.cancel_token) {
           <app-spei-check [token]="appointment.cancel_token" [amount]="appointment.deposit_amount" (verified)="confirmation.set({ ...appointment, status: $event.status })" />
@@ -718,18 +771,23 @@
           <dd class="font-medium">{{ appointment.staff_name || selectedStaff()?.full_name }}</dd>
         </div>
       </dl>
-      <div class="mt-6 grid w-full grid-cols-2 gap-2">
-        <a
-          class="btn btn-secondary justify-center"
-          [href]="googleCalendarHref(appointment)"
-          target="_blank"
-          rel="noopener"
-        >Google Calendar</a>
-        <button type="button" class="btn btn-secondary" (click)="downloadIcs(appointment)">
-          iPhone / Outlook
+      <!-- Lo que se hace justo después de reservar: guardarla en el calendario y saber cómo llegar. -->
+      <div class="mt-6 grid w-full gap-2" [class.grid-cols-2]="directionsHref()">
+        <button type="button" class="btn btn-secondary h-12 justify-center" (click)="downloadIcs(appointment)">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>
+          Agregar a mi calendario
         </button>
+        @if (directionsHref(); as route) {
+          <a class="btn btn-secondary h-12 justify-center" [href]="route" target="_blank" rel="noopener">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="M12 21s7-6.2 7-11.2A7 7 0 0 0 5 9.8C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.8" r="2.5"/></svg>
+            Cómo llegar
+          </a>
+        }
       </div>
-      <p class="mt-1 text-xs text-muted">Agrégala a tu calendario para que te avise.</p>
+      <p class="mt-2 text-sm text-muted">
+        Te avisa un día y dos horas antes.
+        <a class="underline" [href]="googleCalendarHref(appointment)" target="_blank" rel="noopener">Usar Google Calendar</a>
+      </p>
       @if (manageLink(appointment); as link) {
         <div class="mt-5 w-full rounded-2xl bg-canvas px-4 py-3 text-left text-sm">
           <p class="font-medium">¿Necesitas cambiarla o cancelarla?</p>
@@ -766,7 +824,7 @@
           <app-place-map [place]="brand()!" [name]="brand()?.name" [color]="brand()?.primary_color" />
         </div>
       }
-      <button type="button" class="mt-3 h-10 text-sm text-muted underline-offset-2 hover:underline" (click)="restart()">
+      <button type="button" class="mt-3 h-11 text-sm text-muted underline-offset-2 hover:underline" (click)="restart()">
         Volver al inicio
       </button>
     </section>
@@ -783,8 +841,8 @@
           <p class="truncate text-muted">
             {{ info.detail }}@if (info.who) { · con {{ info.who }}}
           </p>
-          @if (info.when) {
-            <p class="truncate font-medium capitalize" style="color: var(--booking-primary)">{{ info.when }}</p>
+          @if (info.when && step() !== 3) {
+            <p class="truncate font-medium first-letter:uppercase" style="color: var(--booking-primary)">{{ info.when }}</p>
           }
         </div>
         @if (step() > 1) {

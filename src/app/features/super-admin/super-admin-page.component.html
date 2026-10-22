@@ -1,5 +1,5 @@
 <div class="min-h-dvh bg-canvas">
-  <header class="flex h-16 items-center gap-3 border-b border-line bg-white px-4">
+  <header class="flex h-16 items-center gap-3 border-b border-line bg-surface px-4">
     <mat-icon>apartment</mat-icon>
     <h1 class="text-base font-medium">Negocios / Plataforma</h1>
     <span class="flex-1"></span>
@@ -12,7 +12,7 @@
 
   <main class="p-4 md:p-6">
     @if (loadError(); as message) {
-      <p role="alert" class="mb-4 text-sm text-red-700">{{ message }}</p>
+      <p role="alert" class="mb-4 text-sm text-[var(--nx-bad-fg)]">{{ message }}</p>
     }
 
     @if (isLoading()) {
@@ -22,7 +22,7 @@
     } @else if (businesses().length === 0) {
       <p class="py-10 text-center text-sm text-ink-soft">No hay negocios en la plataforma.</p>
     } @else {
-      <div class="overflow-x-auto rounded border border-line bg-white">
+      <div class="overflow-x-auto rounded border border-line bg-surface">
         <table mat-table [dataSource]="businesses()" class="w-full">
           <ng-container matColumnDef="name">
             <th mat-header-cell *matHeaderCellDef>Negocio</th>

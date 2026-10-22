@@ -45,30 +45,42 @@
         </span>
       </a>
       <a routerLink="/admin/agenda" [queryParams]="{ vista: 'day' }" class="stat">
-        <span class="stat-icon stat-info"><mat-icon>point_of_sale</mat-icon></span>
+        <span class="stat-icon stat-ok"><mat-icon>payments</mat-icon></span>
         <span class="min-w-0">
-          <span class="stat-value block truncate">{{ pesos(dayBrief().due) }}</span>
-          <span class="stat-label block">Por cobrar hoy</span>
+          <span class="stat-value block truncate">{{ pesos(dayBrief().collected) }}</span>
+          <span class="stat-label block">Cobrado hoy</span>
+          @if (dayBrief().due > 0) {
+            <span class="nums block truncate text-xs text-muted">Faltan {{ pesos(dayBrief().due) }}</span>
+          }
         </span>
       </a>
-      <button type="button" class="stat text-left" (click)="scrollTo('hoy')">
-        <span class="stat-icon" [class.stat-warn]="dayBrief().unconfirmed" [class.stat-ok]="!dayBrief().unconfirmed">
-          <mat-icon>{{ dayBrief().unconfirmed ? 'help' : 'task_alt' }}</mat-icon>
+      <button type="button" class="stat text-left" [class.stat-quiet]="!dayBrief().unconfirmed" (click)="scrollTo('hoy')">
+        <span class="stat-icon" [class.stat-warn]="dayBrief().unconfirmed" [class.stat-idle]="!dayBrief().unconfirmed">
+          <mat-icon>{{ dayBrief().unconfirmed ? 'mark_chat_unread' : 'done_all' }}</mat-icon>
         </span>
         <span class="min-w-0">
           <span class="stat-value block">{{ dayBrief().unconfirmed }}</span>
           <span class="stat-label block">Sin confirmar</span>
         </span>
       </button>
-      <button type="button" class="stat text-left" [disabled]="!dayBrief().todos" (click)="scrollTo('pendientes')">
-        <span class="stat-icon" [class.stat-bad]="dayBrief().todos" [class.stat-ok]="!dayBrief().todos">
-          <mat-icon>{{ dayBrief().todos ? 'pending_actions' : 'task_alt' }}</mat-icon>
+      <button type="button" class="stat text-left" [class.stat-quiet]="!dayBrief().todos" [disabled]="!dayBrief().todos" (click)="scrollTo('pendientes')">
+        <span class="stat-icon" [class.stat-bad]="dayBrief().todos" [class.stat-idle]="!dayBrief().todos">
+          <mat-icon>{{ dayBrief().todos ? 'pending_actions' : 'inbox' }}</mat-icon>
         </span>
         <span class="min-w-0">
           <span class="stat-value block">{{ dayBrief().todos }}</span>
           <span class="stat-label block">Por resolver</span>
         </span>
       </button>
+    </div>
+
+    <!-- Lo que se hace todos los días, a un toque. -->
+    <div class="mb-6 flex flex-wrap gap-2">
+      <a routerLink="/admin/clientes" class="btn btn-secondary"><mat-icon>groups</mat-icon>Clientes</a>
+      <button type="button" class="btn btn-secondary" (click)="copyLink()">
+        <mat-icon>{{ linkCopied() ? 'check' : 'link' }}</mat-icon>{{ linkCopied() ? 'Enlace copiado' : 'Copiar mi enlace de reservas' }}
+      </button>
+      <a routerLink="/admin/dashboard" class="btn btn-secondary"><mat-icon>insights</mat-icon>Ver reportes</a>
     </div>
 
     <!-- Lo urgente primero: hay un cliente esperando respuesta. -->
@@ -189,7 +201,7 @@
           </div>
           @if (today().length) {
             <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-canvas">
-              <div class="h-full rounded-full bg-accent transition-all" [style.width.%]="(todayDone() / today().length) * 100"></div>
+              <div class="h-full rounded-full transition-all" [class.bg-accent]="todayDone() < today().length" [class.bg-(--nx-ok-fg)]="todayDone() === today().length" [style.width.%]="(todayDone() / today().length) * 100"></div>
             </div>
           }
           @if (today().length === 0) {
@@ -253,35 +265,48 @@
         </section>
 
         <section class="card">
-          <div class="card-head">
-            <span class="sec-icon"><mat-icon>notifications</mat-icon></span>
-            <h2 class="card-title">Avisos</h2>
+          <div class="flex items-center justify-between gap-3">
+            <div class="card-head">
+              <span class="sec-icon"><mat-icon>notifications</mat-icon></span>
+              <div>
+                <h2 class="card-title">Avisos</h2>
+                @if (unseenCount() > 0) {
+                  <p class="nums text-sm text-muted">{{ unseenCount() }} {{ unseenCount() === 1 ? 'nuevo' : 'nuevos' }}</p>
+                }
+              </div>
+            </div>
+            @if (unseenCount() > 0) {
+              <button type="button" class="btn btn-ghost" (click)="markNoticesSeen()">Marcar como vistos</button>
+            }
           </div>
-          @if (notices().length === 0) {
+          @if (groupedNotices().length === 0) {
             <p class="py-8 text-center text-sm text-muted">Sin avisos nuevos.</p>
           } @else {
             <ul class="mt-2 divide-y divide-line">
-              @for (notice of pagedNotices(); track notice.id) {
-                <li class="py-3">
-                  <p class="text-sm text-ink">{{ noticeText(notice.message) }}</p>
+              @for (notice of shownNotices(); track notice.id) {
+                <li class="py-3" [class.opacity-60]="!notice.unseen">
+                  <p class="flex items-start gap-2 text-sm text-ink">
+                    @if (notice.unseen) {
+                      <span class="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-accent" aria-label="Nuevo"></span>
+                    }
+                    <span>{{ noticeText(notice.message) }}@if (notice.count > 1) { <span class="badge badge-neutral ml-1">{{ notice.count }} veces</span> }</span>
+                  </p>
                   <div class="mt-1 flex flex-wrap items-center gap-3 text-sm">
                     <span class="nums text-muted">{{ noticeWhen(notice.created_at) }}</span>
                     @if (noticeCita(notice.message); as citaId) {
-                      <a class="font-medium text-ink-soft hover:text-ink" [routerLink]="['/admin/agenda']" [queryParams]="{ cita: citaId }">Ver cita</a>
+                      <a class="inline-flex min-h-11 items-center font-medium text-ink-soft hover:text-ink" [routerLink]="['/admin/agenda']" [queryParams]="{ cita: citaId }">Ver cita</a>
                     }
                     @for (phone of noticePhones(notice.message); track phone) {
-                      <a class="font-medium text-(--nx-ok-fg) hover:underline" [href]="waitWhatsapp(notice.message, phone)" target="_blank" rel="noopener">WhatsApp</a>
+                      <a class="inline-flex min-h-11 items-center font-medium text-(--nx-ok-fg) hover:underline" [href]="waitWhatsapp(notice.message, phone)" target="_blank" rel="noopener">WhatsApp</a>
                     }
                   </div>
                 </li>
               }
             </ul>
-            @if (noticePages() > 1) {
-              <div class="mt-3 flex items-center justify-between">
-                <button type="button" class="btn btn-ghost" [disabled]="noticePage() === 0" (click)="noticePage.update((page) => page - 1)">Anterior</button>
-                <span class="nums text-sm text-muted">{{ noticePage() + 1 }} / {{ noticePages() }}</span>
-                <button type="button" class="btn btn-ghost" [disabled]="noticePage() + 1 >= noticePages()" (click)="noticePage.update((page) => page + 1)">Siguiente</button>
-              </div>
+            @if (groupedNotices().length > shownNotices().length) {
+              <button type="button" class="btn btn-ghost mt-1 w-full" (click)="allNotices.set(true)">Ver todos ({{ groupedNotices().length }})</button>
+            } @else if (allNotices() && groupedNotices().length > NOTICES_SHORT) {
+              <button type="button" class="btn btn-ghost mt-1 w-full" (click)="allNotices.set(false)">Ver menos</button>
             }
           }
         </section>
@@ -343,7 +368,7 @@
                 <li class="flex items-center gap-3 py-2">
                   <span class="min-w-0 flex-1 truncate text-sm font-medium text-ink">{{ client.full_name }}</span>
                   @if (client.phone) {
-                    <a class="btn btn-whatsapp shrink-0 px-3!" [href]="birthdayWhatsapp(client)" target="_blank" rel="noopener">Felicitar</a>
+                    <a class="btn btn-whatsapp shrink-0 px-3!" [href]="birthdayWhatsapp(client)" target="_blank" rel="noopener" (click)="markCongratulated(client)">Felicitar</a>
                   }
                 </li>
               }
@@ -369,6 +394,32 @@
                 </li>
               }
             </ul>
+          </section>
+        }
+
+        @if (awayShown().length) {
+          <section class="card">
+            <div class="card-head">
+              <span class="sec-icon"><mat-icon>waving_hand</mat-icon></span>
+              <div>
+                <h2 class="card-title">A quién escribirle hoy</h2>
+                <p class="text-sm text-muted">Hace más de 45 días que no vienen</p>
+              </div>
+            </div>
+            <ul class="mt-2 divide-y divide-line">
+              @for (row of awayShown(); track row.id) {
+                <li class="flex items-center gap-3 py-2">
+                  <div class="min-w-0 flex-1">
+                    <p class="truncate text-sm font-medium text-ink">{{ row.full_name }}</p>
+                    <p class="field-hint truncate">{{ awayLabel(row) }}</p>
+                  </div>
+                  <a class="btn btn-whatsapp shrink-0 px-3!" [href]="awayWhatsapp(row)" target="_blank" rel="noopener" (click)="markAwayInvited(row)">Invitar</a>
+                </li>
+              }
+            </ul>
+            @if (awayAll().length > awayShown().length) {
+              <a routerLink="/admin/clientes" class="btn btn-ghost mt-1 w-full">Ver {{ awayAll().length - awayShown().length }} más en Clientes</a>
+            }
           </section>
         }
 

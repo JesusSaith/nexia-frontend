@@ -49,6 +49,8 @@ export interface BusinessSettings {
   address: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  /** Mapa incrustado de Google ("Insertar un mapa"), si la dueña lo pegó. */
+  map_embed?: string | null;
   instagram: string | null;
   facebook: string | null;
   cancel_hours: number | null;
@@ -108,6 +110,8 @@ export interface ProfileUpdate {
   address: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  /** Mapa incrustado de Google ("Insertar un mapa"), si la dueña lo pegó. */
+  map_embed?: string | null;
   instagram: string | null;
   facebook: string | null;
   cancel_hours: number | null;
@@ -163,6 +167,11 @@ export class SettingsService {
 
   clearDemo(): Observable<void> {
     return this.http.delete<void>(`${this.apiBaseUrl}/settings/demo`);
+  }
+
+  /** Lee lo que pegó la dueña (código de "Insertar un mapa" o enlace de Google Maps, también el corto). */
+  readMapLink(text: string): Observable<{ latitude: number | null; longitude: number | null; embed: string | null }> {
+    return this.http.post<{ latitude: number | null; longitude: number | null; embed: string | null }>(`${this.apiBaseUrl}/settings/map-link`, { text });
   }
 
   getReadiness(): Observable<Readiness> {

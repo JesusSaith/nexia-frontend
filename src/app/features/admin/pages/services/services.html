@@ -92,11 +92,11 @@
     <div class="card mb-4 flex flex-col gap-3 p-4! sm:flex-row sm:items-center">
       @if (categories().length) {
         <div class="flex flex-1 flex-wrap gap-2" role="tablist" aria-label="Categoría">
-          <button type="button" role="tab" class="chip h-10! gap-2 px-4!" [class.chip-on]="!categoryFilter()" [attr.aria-selected]="!categoryFilter()" (click)="categoryFilter.set('')">
+          <button type="button" role="tab" class="chip h-11! gap-2 px-4!" [class.chip-on]="!categoryFilter()" [attr.aria-selected]="!categoryFilter()" (click)="categoryFilter.set('')">
             Todas <span class="nums rounded-full bg-canvas px-1.5 text-xs text-muted">{{ services().length }}</span>
           </button>
           @for (name of categories(); track name) {
-            <button type="button" role="tab" class="chip h-10! gap-2 px-4!" [class.chip-on]="categoryFilter() === name" [attr.aria-selected]="categoryFilter() === name" (click)="categoryFilter.set(name)">
+            <button type="button" role="tab" class="chip h-11! gap-2 px-4!" [class.chip-on]="categoryFilter() === name" [attr.aria-selected]="categoryFilter() === name" (click)="categoryFilter.set(name)">
               {{ name }} <span class="nums rounded-full bg-canvas px-1.5 text-xs text-muted">{{ countIn(name) }}</span>
             </button>
           }
@@ -139,8 +139,8 @@
           <li class="flex items-center gap-3 px-4 py-3 sm:px-5" [class.opacity-60]="!row.is_active">
             @if (canOrder()) {
               <span class="flex shrink-0 flex-col">
-                <button type="button" class="grid h-6 w-8 place-items-center rounded text-muted hover:text-ink disabled:opacity-30" [disabled]="first" [attr.aria-label]="'Subir ' + row.name" (click)="move(row, -1)"><mat-icon class="h-5! w-5! text-[20px]!">expand_less</mat-icon></button>
-                <button type="button" class="grid h-6 w-8 place-items-center rounded text-muted hover:text-ink disabled:opacity-30" [disabled]="last" [attr.aria-label]="'Bajar ' + row.name" (click)="move(row, 1)"><mat-icon class="h-5! w-5! text-[20px]!">expand_more</mat-icon></button>
+                <button type="button" class="grid h-11 w-11 place-items-center rounded text-muted hover:text-ink disabled:opacity-30" [disabled]="first" [attr.aria-label]="'Subir ' + row.name" (click)="move(row, -1)"><mat-icon class="h-5! w-5! text-[20px]!">expand_less</mat-icon></button>
+                <button type="button" class="grid h-11 w-11 place-items-center rounded text-muted hover:text-ink disabled:opacity-30" [disabled]="last" [attr.aria-label]="'Bajar ' + row.name" (click)="move(row, 1)"><mat-icon class="h-5! w-5! text-[20px]!">expand_more</mat-icon></button>
               </span>
             }
             <button type="button" class="row-hover -my-2 flex min-w-0 flex-1 items-center gap-3 rounded-lg py-2 text-left" (click)="openEdit(row)">
@@ -327,8 +327,8 @@
         <div>
           <span class="label">Estado</span>
           <div class="inline-flex rounded-lg border border-line-strong bg-surface p-0.5" role="group" aria-label="Estado">
-            <button type="button" class="h-10 rounded-md px-3 text-sm font-medium" [class.bg-ink]="form.controls.is_active.value" [class.text-surface]="form.controls.is_active.value" [class.text-ink-soft]="!form.controls.is_active.value" [attr.aria-pressed]="form.controls.is_active.value" (click)="form.controls.is_active.setValue(true)">Activo</button>
-            <button type="button" class="h-10 rounded-md px-3 text-sm font-medium" [class.bg-ink]="!form.controls.is_active.value" [class.text-surface]="!form.controls.is_active.value" [class.text-ink-soft]="form.controls.is_active.value" [attr.aria-pressed]="!form.controls.is_active.value" (click)="form.controls.is_active.setValue(false)">Pausado</button>
+            <button type="button" class="h-11 rounded-md px-3 text-sm font-medium" [class.bg-ink]="form.controls.is_active.value" [class.text-surface]="form.controls.is_active.value" [class.text-ink-soft]="!form.controls.is_active.value" [attr.aria-pressed]="form.controls.is_active.value" (click)="form.controls.is_active.setValue(true)">Activo</button>
+            <button type="button" class="h-11 rounded-md px-3 text-sm font-medium" [class.bg-ink]="!form.controls.is_active.value" [class.text-surface]="!form.controls.is_active.value" [class.text-ink-soft]="form.controls.is_active.value" [attr.aria-pressed]="!form.controls.is_active.value" (click)="form.controls.is_active.setValue(false)">Pausado</button>
           </div>
           <label class="mt-2 flex min-h-11 items-center gap-2 text-sm text-ink">
             <input class="h-5 w-5" type="checkbox" formControlName="featured" />
@@ -342,7 +342,7 @@
           <input class="input nums" type="number" min="1" step="1" formControlName="duration_minutes" />
           <div class="mt-2 flex flex-wrap gap-1.5">
             @for (minutes of durationPicks; track minutes) {
-              <button type="button" class="chip h-9! px-3!" [class.chip-on]="+form.controls.duration_minutes.value === minutes" (click)="form.controls.duration_minutes.setValue('' + minutes)">{{ minutes }}</button>
+              <button type="button" class="chip h-11! px-3!" [class.chip-on]="+form.controls.duration_minutes.value === minutes" (click)="form.controls.duration_minutes.setValue('' + minutes)">{{ minutes }}</button>
             }
           </div>
           @if (durationError()) {

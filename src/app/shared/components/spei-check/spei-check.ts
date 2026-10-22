@@ -43,7 +43,7 @@ import { SPEI_BANKS } from '@core/spei-banks';
           </label>
         </div>
         @if (error(); as message) {
-          <p class="text-red-700" role="alert">{{ message }}</p>
+          <p class="text-[var(--nx-bad-fg)]" role="alert">{{ message }}</p>
         }
         <button type="submit" class="flex h-11 items-center justify-center rounded-full bg-ink text-sm font-medium text-white disabled:opacity-50" [disabled]="busy()">
           {{ busy() ? 'Consultando a Banxico…' : 'Confirmar pago' }}

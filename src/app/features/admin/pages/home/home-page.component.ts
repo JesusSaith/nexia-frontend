@@ -14,7 +14,7 @@ import { ReadinessStep, SettingsService } from '@core/services/settings.service'
 import { Confirm } from '@shared/components/confirm/confirm';
 import { AppointmentsService } from '@core/services/appointments.service';
 import { AuthService } from '@core/services/auth.service';
-import { BookingService, DueClient } from '@core/services/booking.service';
+import { BookingService, ClientRow, DueClient } from '@core/services/booking.service';
 import { DashboardService } from '@core/services/dashboard.service';
 import { ServicesService } from '@core/services/services.service';
 import { ShopService } from '@core/services/shop.service';
@@ -100,8 +100,12 @@ export class HomePageComponent {
   /** Los números de arriba. */
   protected readonly dayBrief = computed(() => {
     const open = this.today().filter((item) => item.status === 'scheduled');
+    const collected = this.today()
+      .filter((item) => item.status === 'completed')
+      .reduce((sum, item) => sum + (item.quoted_price ?? this.services().find((row) => row.id === item.service_id)?.price ?? 0), 0);
     return {
       visits: this.today().length,
+      collected,
       due: open.reduce((sum, item) => sum + this.rest(item), 0),
       unconfirmed: open.filter((item) => !item.client_confirmed).length,
       todos: this.todos().length,
@@ -121,7 +125,7 @@ export class HomePageComponent {
   );
 
   // birthday lo agrega el backend en GET /api/clients; se tipa opcional aquí sin tocar booking.service.ts.
-  protected readonly clients = signal<{ id: number; full_name: string; phone: string; birthday?: string | null }[]>([]);
+  protected readonly clients = signal<ClientRow[]>([]);
   protected readonly birthdays = computed(() => {
     const now = new Date();
     const today = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -132,18 +136,96 @@ export class HomePageComponent {
   protected readonly dueClients = signal<DueClient[]>([]);
   protected readonly dueShown = computed(() => [...this.dueClients()].sort((left, right) => Number(left.invited) - Number(right.invited)).slice(0, 6));
 
+  /**
+   * "A quién escribirle hoy": clientes que dejaron de venir (más de 45 días, sin cita próxima), sin repetir a los de
+   * "Les toca volver" ni a quien ya se invitó en las últimas dos semanas. Primero quienes más han gastado.
+   */
+  protected readonly awayAll = computed(() => {
+    const cut = inputDate(addDays(new Date(), -AWAY_DAYS));
+    const recent = inputDate(addDays(new Date(), -CONTACT_COOLDOWN_DAYS));
+    const due = new Set(this.dueClients().map((row) => row.client_phone.replace(/\D/g, '').slice(-10)));
+    return this.clients()
+      .filter(
+        (row) =>
+          !!row.last_visit &&
+          row.last_visit < cut &&
+          !row.next_visit &&
+          row.phone.replace(/\D/g, '').length >= 8 &&
+          !due.has(row.phone.replace(/\D/g, '').slice(-10)) &&
+          !(row.last_contact_at && row.last_contact_at.slice(0, 10) >= recent),
+      )
+      .sort((left, right) => right.total_spent - left.total_spent);
+  });
+  protected readonly awayShown = computed(() => this.awayAll().slice(0, 5));
+
+  protected awayLabel(row: ClientRow): string {
+    const days = Math.round((startOfDay(new Date()).getTime() - parseLocal(row.last_visit ?? '').getTime()) / 86_400_000);
+    return days >= 60 ? `Vino por última vez hace ${Math.round(days / 30)} meses` : `Vino por última vez hace ${days} días`;
+  }
+
+  protected awayWhatsapp(row: ClientRow): string {
+    return whatsappLink(row.phone, this.copy.message('miss_you', { nombre: firstName(row.full_name), negocio: this.shopName() }));
+  }
+
+  /** Al abrir el WhatsApp queda anotado y sale de la lista. */
+  protected markAwayInvited(row: ClientRow): void {
+    const now = new Date();
+    const stamp = `${inputDate(now)}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    this.clients.update((rows) => rows.map((item) => (item.id === row.id ? { ...item, last_contact_at: stamp, last_contact_kind: 'invitar' } : item)));
+    this.bookingApi.logContact(row.id, 'invitar').pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ error: () => undefined });
+  }
+
   /** Avisos que salen de los números: semana arriba o abajo, huecos, faltas, productos por acabarse. */
   protected readonly alerts = signal<{ tone: string; text: string; link: string }[]>([]);
 
   /** Lo cobrado esta semana (lunes a hoy) contra los mismos días de la semana pasada. */
   protected readonly week = signal<{ total: number; count: number; change: number | null } | null>(null);
 
-  protected readonly noticePage = signal(0);
-  protected readonly pagedNotices = computed(() => {
-    const start = this.noticePage() * NOTICES_PER_PAGE;
-    return this.notices().slice(start, start + NOTICES_PER_PAGE);
+  /** Marca de "ya los vi": los avisos más nuevos que ella aparecen con punto; los demás, atenuados. */
+  private readonly noticesSeenAt = signal(readNumber(NOTICES_SEEN_KEY));
+  protected readonly allNotices = signal(false);
+  protected readonly NOTICES_SHORT = NOTICES_SHORT;
+  /** Avisos con el mismo texto (p. ej. un anticipo vencido de la misma persona) se juntan en uno con su conteo. */
+  protected readonly groupedNotices = computed(() => {
+    const seen = this.noticesSeenAt();
+    const groups = new Map<string, Notice & { count: number; unseen: boolean }>();
+    for (const notice of this.notices()) {
+      const key = notice.message;
+      const unseen = parseLocal(notice.created_at).getTime() > seen;
+      const found = groups.get(key);
+      if (found) {
+        found.count += 1;
+        found.unseen = found.unseen || unseen;
+      } else {
+        groups.set(key, { ...notice, count: 1, unseen });
+      }
+    }
+    return [...groups.values()];
   });
-  protected readonly noticePages = computed(() => Math.max(1, Math.ceil(this.notices().length / NOTICES_PER_PAGE)));
+  protected readonly unseenCount = computed(() => this.groupedNotices().filter((notice) => notice.unseen).length);
+  protected readonly shownNotices = computed(() => (this.allNotices() ? this.groupedNotices() : this.groupedNotices().slice(0, NOTICES_SHORT)));
+
+  protected markNoticesSeen(): void {
+    const now = Date.now();
+    this.noticesSeenAt.set(now);
+    try {
+      localStorage.setItem(NOTICES_SEEN_KEY, String(now));
+    } catch {
+      // Sin almacenamiento, vuelven a verse como nuevos en la próxima visita.
+    }
+  }
+
+  protected readonly linkCopied = signal(false);
+  protected copyLink(): void {
+    const slug = this.auth.currentUser()?.slug ?? '';
+    if (!slug) {
+      return;
+    }
+    void navigator.clipboard.writeText(this.bookingApi.shareUrl(slug)).then(() => {
+      this.linkCopied.set(true);
+      setTimeout(() => this.linkCopied.set(false), 2500);
+    });
+  }
 
   /** Pasos para dejar el negocio listo. Oculta la lista, los avisos (p. ej. falta la CLABE) se siguen viendo. */
   protected readonly setup = signal<ReadinessStep[]>([]);
@@ -310,6 +392,11 @@ export class HomePageComponent {
     this.bookingApi.markInvited(row.appointment_id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ error: () => undefined });
   }
 
+  /** Al abrir el WhatsApp de felicitación queda anotado en la ficha. */
+  protected markCongratulated(client: { id: number }): void {
+    this.bookingApi.logContact(client.id, 'felicitar').pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ error: () => undefined });
+  }
+
   protected birthdayWhatsapp(client: { full_name: string; phone: string }): string {
     return whatsappLink(client.phone, this.copy.message('birthday', { nombre: firstName(client.full_name), negocio: this.shopName() }));
   }
@@ -356,7 +443,7 @@ export class HomePageComponent {
   }
 
   protected noticeText(message: string): string {
-    return message.replace(/\s*#\d+\s*$/, '');
+    return message.replace(/\s*(?:anticipo\s*)?#\d+\s*$/, '');
   }
 
   protected noticeWhen(value: string): string {
@@ -400,7 +487,10 @@ export class HomePageComponent {
   }
 }
 
-const NOTICES_PER_PAGE = 8;
+const NOTICES_SHORT = 3;
+const AWAY_DAYS = 45;
+const CONTACT_COOLDOWN_DAYS = 14;
+const NOTICES_SEEN_KEY = 'nexia-notices-seen';
 
 function inputDate(date: Date): string {
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -443,6 +533,14 @@ function readReminded(): number[] {
     return saved?.day === key && Array.isArray(saved.ids) ? saved.ids : [];
   } catch {
     return [];
+  }
+}
+
+function readNumber(key: string): number {
+  try {
+    return Number(localStorage.getItem(key)) || 0;
+  } catch {
+    return 0;
   }
 }
 

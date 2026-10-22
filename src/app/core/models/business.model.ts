@@ -19,6 +19,7 @@ export interface BusinessBrand {
   /** Punto del local en el mapa (los dos o ninguno). */
   latitude?: number | null;
   longitude?: number | null;
+  map_embed?: string | null;
   instagram?: string | null;
   facebook?: string | null;
   website?: string | null;

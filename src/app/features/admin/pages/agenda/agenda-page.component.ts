@@ -1070,10 +1070,11 @@ export class AgendaPageComponent {
     };
   }
 
-  /** Precio variable o sin precio acordado: hay que cotizar. */
+  /** Precio variable que todavía no tiene precio acordado: hay que cotizar. Un servicio de precio fijo nunca lo pide. */
   protected needsQuote(appointment: Appointment): boolean {
     const service = this.services().find((item) => item.id === appointment.service_id);
-    return !!service?.variable_price || appointment.quoted_price == null;
+    const open = appointment.status === 'scheduled' || appointment.status === 'awaiting_deposit';
+    return open && !!service?.variable_price && appointment.quoted_price == null;
   }
 
   protected readonly quoteFocus = signal(false);
@@ -1287,6 +1288,40 @@ export class AgendaPageComponent {
     // Por aprobar: contorno punteado para que se vea sin abrir la ficha.
     if (appointment.needs_approval) return 'outline-2 outline-dashed outline-[var(--nx-warn-fg)] -outline-offset-2';
     return '';
+  }
+
+  /** Marca de estado de la cita (el color ya es de quien atiende): confirmada, sin confirmar, cobrada o cancelada. */
+  protected stateMark(item: Appointment): { icon: string; cls: string; label: string } | null {
+    if (item.status === 'completed') return { icon: 'paid', cls: 'text-(--nx-ok-fg)', label: 'Cobrada' };
+    if (item.status === 'cancelled') return { icon: 'event_busy', cls: 'text-muted', label: 'Cancelada' };
+    if (item.status === 'no_show') return { icon: 'person_off', cls: 'text-muted', label: 'No llegó' };
+    if (item.status === 'scheduled' && !item.needs_approval) {
+      return item.client_confirmed
+        ? { icon: 'check_circle', cls: 'text-(--nx-ok-fg)', label: 'Confirmó' }
+        : { icon: 'help', cls: 'text-(--nx-warn-fg)', label: 'Sin confirmar' };
+    }
+    return null;
+  }
+
+  /** WhatsApp para pedir confirmación desde el panel del día (el mismo mensaje de recordatorio de Inicio). */
+  protected confirmHref(item: Appointment): string | null {
+    const phone = waPhone(item.client_phone);
+    if (!phone || item.status !== 'scheduled' || item.client_confirmed || item.needs_approval) {
+      return null;
+    }
+    const sameDay = toInputDate(new Date()) === item.starts_at.slice(0, 10);
+    return whatsappLink(phone, this.copy.message('reminder', { ...this.visitVars(item), cuando: sameDay ? 'hoy' : 'mañana', enlace: this.manageLink(item) }));
+  }
+
+  /** Abre la ficha de la cita ya en el cobro (igual que el botón Cobrar de Inicio). */
+  protected chargeFromList(item: Appointment): void {
+    this.showAppointment({ appointment: item, x: 24, y: 88, maxHeight: 560, history: [] }, false);
+    this.startCharge(item);
+  }
+
+  /** Puede cobrarse desde la lista: agendada, con precio ya acordado y sin anticipo ni aprobación pendientes. */
+  protected canChargeFromList(item: Appointment): boolean {
+    return item.status === 'scheduled' && !item.needs_approval && !this.needsQuote(item);
   }
 
   protected blockStyle(appointment: Appointment): { top: string; height: string } {
@@ -1564,12 +1599,14 @@ export class AgendaPageComponent {
   }
 
   private sellCart(rows: { id: number; name: string; price: number; qty: number }[]): void {
+    // Los productos se cobran junto con la cita, por el mismo método.
+    const method = this.chargeMethod();
     if (!rows.length) {
       return;
     }
     forkJoin(
       rows.map((row) =>
-        this.shopApi.sell(row.id, row.qty, row.price).pipe(
+        this.shopApi.sell(row.id, row.qty, row.price, method).pipe(
           map(() => null),
           catchError(() => of(row.name)),
         ),

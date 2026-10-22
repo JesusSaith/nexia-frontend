@@ -96,7 +96,7 @@
                   </span>
                   <label class="flex items-center gap-1.5 text-sm text-muted">
                     $
-                    <input class="input nums h-10! w-24" type="number" min="0" inputmode="decimal" [disabled]="!picked().has(item.id)" [value]="prices()[item.id]" (input)="setPrice(item.id, $any($event.target).value)" [attr.aria-label]="'Precio de ' + item.name" />
+                    <input class="input nums w-24" type="number" min="0" inputmode="decimal" [disabled]="!picked().has(item.id)" [value]="prices()[item.id]" (input)="setPrice(item.id, $any($event.target).value)" [attr.aria-label]="'Precio de ' + item.name" />
                   </label>
                 </li>
               }

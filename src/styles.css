@@ -185,7 +185,7 @@ body {
 .sec-icon { display: grid; place-items: center; flex-shrink: 0; width: 2.25rem; height: 2.25rem; border-radius: 0.625rem; background: var(--color-accent-soft); color: var(--color-accent); }
 .sec-icon .mat-icon { width: 20px; height: 20px; font-size: 20px; }
 /* Iniciales de personas (clientas, equipo) con el tono de la marca en vez de gris. */
-.avatar { display: grid; place-items: center; flex-shrink: 0; width: 2.25rem; height: 2.25rem; border-radius: 999px; background: var(--color-accent-soft); color: var(--color-accent); font-size: 0.75rem; font-weight: 600; }
+.avatar { display: grid; place-items: center; flex-shrink: 0; width: 2.25rem; height: 2.25rem; border-radius: 999px; background: var(--color-accent-soft); color: var(--color-accent); font-size: 0.8125rem; font-weight: 600; }
 /* Filas de lista dentro de una tarjeta: hover suave para que se note qué se puede tocar. */
 .row-hover { transition: background-color .15s; }
 .row-hover:hover { background: color-mix(in srgb, var(--primary) 4%, var(--color-surface)); }
@@ -205,7 +205,8 @@ body {
 .btn-ghost { color: var(--color-ink-soft); }
 .btn-ghost:hover { background: var(--color-canvas); }
 .btn-danger { background: #b42318; color: #fff; }
-.btn-whatsapp { background: #1f9d55; color: #fff; }
+.btn-whatsapp { background: #167a43; color: #fff; } /* verde más oscuro: contraste 5.4:1 con texto blanco */
+.btn-whatsapp:hover { background: #12663a; }
 
 .badge { display: inline-flex; align-items: center; gap: 0.25rem; height: 1.5rem; padding: 0 0.5625rem; border-radius: 999px; font-size: 0.8125rem; font-weight: 500; }
 .badge-ok { background: var(--nx-ok-bg); color: var(--nx-ok-fg); }
@@ -231,6 +232,9 @@ a.stat:hover { border-color: var(--color-line-strong); }
 .stat-warn { background: var(--nx-warn-bg); color: var(--nx-warn-fg); }
 .stat-bad { background: var(--nx-bad-bg); color: var(--nx-bad-fg); }
 .stat-info { background: var(--nx-info-bg); color: var(--nx-info-fg); }
+/* Indicador en cero: se apaga para que resalte lo que sí necesita atención. */
+.stat-idle { background: var(--color-canvas); color: var(--color-muted); }
+.stat-quiet .stat-value { color: var(--color-muted); }
 @media (max-width: 639px) {
   .stat { flex-direction: column; align-items: flex-start; gap: 0.5rem; padding: 0.75rem; }
   .stat-icon { width: 2rem; height: 2rem; border-radius: 0.625rem; }
@@ -240,15 +244,15 @@ a.stat:hover { border-color: var(--color-line-strong); }
 
 /* Menú lateral oscuro del panel. */
 .nx-rail { display: flex; height: 100%; flex-direction: column; background: var(--nx-rail-bg); color: var(--nx-rail-ink); }
-.nx-rail-group { padding: 0 0.75rem; margin-top: 1.25rem; font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--nx-rail-soft); opacity: 0.75; }
-.nx-rail-link { position: relative; display: flex; align-items: center; gap: 0.75rem; height: 2.5rem; padding: 0 0.75rem; margin-top: 0.125rem; border-radius: 0.625rem; font-size: 0.875rem; color: var(--nx-rail-soft); text-decoration: none; transition: background-color .15s, color .15s; }
+.nx-rail-group { padding: 0 0.75rem; margin-top: 1.25rem; font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--nx-rail-soft); opacity: 0.75; }
+.nx-rail-link { position: relative; display: flex; align-items: center; gap: 0.75rem; height: 2.75rem; padding: 0 0.75rem; margin-top: 0.125rem; border-radius: 0.625rem; font-size: 0.875rem; color: var(--nx-rail-soft); text-decoration: none; transition: background-color .15s, color .15s; }
 .nx-rail-link .mat-icon { width: 20px; height: 20px; font-size: 20px; }
 .nx-rail-link:hover { background: var(--nx-rail-hover); color: var(--nx-rail-ink); }
 .nx-rail-on, .nx-rail-on:hover { background: color-mix(in srgb, var(--primary) 22%, var(--nx-rail-bg)); color: #fff; font-weight: 600; }
 .nx-rail-on::before { content: ''; position: absolute; left: -0.75rem; top: 0.5rem; bottom: 0.5rem; width: 3px; border-radius: 0 3px 3px 0; background: var(--primary); }
 .nx-rail-on .mat-icon { color: color-mix(in srgb, var(--primary) 55%, #fff); }
 .nx-rail-foot { border-top: 1px solid var(--nx-rail-line); padding: 0.75rem; }
-.nx-rail-btn { display: flex; width: 100%; align-items: center; gap: 0.75rem; height: 2.5rem; padding: 0 0.75rem; border-radius: 0.625rem; font-size: 0.875rem; color: var(--nx-rail-soft); text-align: left; }
+.nx-rail-btn { display: flex; width: 100%; align-items: center; gap: 0.75rem; height: 2.75rem; padding: 0 0.75rem; border-radius: 0.625rem; font-size: 0.875rem; color: var(--nx-rail-soft); text-align: left; }
 .nx-rail-btn:hover { background: var(--nx-rail-hover); color: var(--nx-rail-ink); }
 .nx-rail-btn .mat-icon { width: 20px; height: 20px; font-size: 20px; flex-shrink: 0; }
 
@@ -259,12 +263,15 @@ textarea.input { height: auto; padding: 0.625rem 0.875rem; line-height: 1.5; }
 .input:focus { border-color: var(--color-accent); box-shadow: 0 0 0 3px var(--color-accent-soft); }
 .input.ng-invalid.ng-touched, .input-invalid { border-color: var(--nx-bad-fg); }
 /* Opciones rápidas (chips) para elegir un valor común a un toque. */
-.chip { display: inline-flex; align-items: center; height: 2.25rem; padding: 0 0.875rem; border: 1px solid var(--color-line-strong); border-radius: 999px; background: var(--color-surface); font-size: 0.875rem; color: var(--color-ink-soft); transition: background-color .15s, border-color .15s, color .15s; }
+.chip { display: inline-flex; align-items: center; height: 2.75rem; padding: 0 0.875rem; border: 1px solid var(--color-line-strong); border-radius: 999px; background: var(--color-surface); font-size: 0.875rem; color: var(--color-ink-soft); transition: background-color .15s, border-color .15s, color .15s; }
 .chip:hover { border-color: var(--color-accent); color: var(--color-ink); }
 .chip-on, .chip-on:hover { border-color: var(--color-accent); background: var(--color-accent-soft); color: var(--color-accent); font-weight: 600; }
 /* Interruptor: <button role="switch" class="switch" [attr.aria-checked]="on"><span></span></button> */
 .switch { position: relative; flex-shrink: 0; width: 2.75rem; height: 1.5rem; border-radius: 999px; background: var(--color-line-strong); transition: background-color .15s; }
 .switch > span { position: absolute; top: 0.125rem; left: 0.125rem; width: 1.25rem; height: 1.25rem; border-radius: 999px; background: #fff; box-shadow: 0 1px 2px rgb(0 0 0 / 0.2); transition: transform .15s; }
+/* Zona táctil de 44 px sin cambiar el dibujo del interruptor. */
+.switch::before { content: ''; position: absolute; inset: -0.625rem -0.125rem; }
+.switch:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; }
 .switch[aria-checked='true'] { background: var(--color-accent); }
 .switch[aria-checked='true'] > span { transform: translateX(1.25rem); }
 

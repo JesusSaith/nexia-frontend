@@ -44,6 +44,14 @@ export interface ShopExpense {
   category?: string | null;
   /** Día en que se registró (AAAA-MM-DD). */
   day?: string | null;
+  /** Gasto fijo: día de pago (1 a 31 si es mensual; 0 = lunes a 6 = domingo si es semanal). */
+  pay_day?: number | null;
+  /** Cuántas veces cae su pago dentro del periodo del reporte (amount = base × veces). */
+  times?: number;
+  /** Siguiente fecha de pago (AAAA-MM-DD). */
+  next_due?: string | null;
+  /** Pagos marcados con "Ya pagué" que caen en el periodo. */
+  paid_marks?: { due: string; paid_on: string }[];
 }
 
 /** Corte de caja de un día (GET/PUT /api/shop/cash). */
@@ -53,12 +61,34 @@ export interface CashRow {
   counted: number;
   difference: number;
   note: string | null;
+  opening: number;
+  closed: boolean;
+  closed_by: string | null;
+}
+
+/** Dinero que entra o sale del cajón fuera de una cita. */
+export interface CashMove {
+  id: number;
+  kind: 'in' | 'out';
+  amount: number;
+  reason: string;
+  /** Si salió como gasto, también aparece en Reportes. */
+  as_expense: boolean;
+  created_by: string | null;
 }
 
 export interface CashDay {
   day: string;
   by_method: Record<string, number>;
   expected_cash: number;
+  /** Qué parte del efectivo viene de servicios, propinas y productos. */
+  cash_parts: { services: number; tips: number; products: number; total: number };
+  opening: number;
+  /** Lo que se contó en el último corte anterior: se propone como fondo. */
+  suggested_opening: number;
+  moves: CashMove[];
+  moves_in: number;
+  moves_out: number;
   count: CashRow | null;
   history: CashRow[];
 }
@@ -79,7 +109,23 @@ export interface SalesReport {
   expected_income?: number;
   expected_count?: number;
   by_category?: Record<string, number>;
-  /** Lo que hay que ingresar en el periodo para cubrir gastos y comisiones, y en cuántas citas. */
+  /** Gastos fijos que aún caen en lo que resta del mes (no están restados de la ganancia todavía). */
+  fixed_pending?: number;
+  /** Próximos pagos fijos de los siguientes 30 días. */
+  upcoming_fixed?: { id: number; name: string; amount: number; date: string }[];
+  /** Citas del periodo que ya pasaron y siguen sin cobrar ni cerrar, y lo que falta cobrar de ellas (precio menos anticipo). */
+  uncollected_count?: number;
+  uncollected_amount?: number;
+  uncollected?: { id: number; name: string; date: string; amount: number }[];
+  /** A quién cuidar (de hoy): clientes que dejaron de venir y clientes que cancelan o faltan seguido. */
+  clients_missing?: number;
+  clients_cancelling?: number;
+  /** Invitaciones a volver del periodo: a cuántos clientes, cuántos regresaron o tienen cita, y lo que dejaron. */
+  winback_sent?: number;
+  winback_returned?: number;
+  winback_booked?: number;
+  winback_revenue?: number;
+  /** Lo que hay que ingresar en el periodo para cubrir gastos, compras de producto y comisiones, y en cuántas citas. */
   break_even?: number;
   break_even_visits?: number;
   /** % del horario de trabajo que se llenó. */
@@ -142,6 +188,7 @@ export interface AccountingMonth {
   expenses: number;
   commissions: number;
   tips: number;
+  product_cost: number;
   profit: number;
 }
 
@@ -158,8 +205,8 @@ export class ShopService {
     return this.http.post<ShopProduct>(`${this.apiBaseUrl}/shop/products`, { name, price, stock, cost, iva });
   }
 
-  sell(id: number, qty: number, price: number): Observable<ShopProduct> {
-    return this.http.post<ShopProduct>(`${this.apiBaseUrl}/shop/products/${id}/sell`, { qty, price });
+  sell(id: number, qty: number, price: number, method: string): Observable<ShopProduct> {
+    return this.http.post<ShopProduct>(`${this.apiBaseUrl}/shop/products/${id}/sell`, { qty, price, method });
   }
 
   receive(id: number, qty: number, cost: number, iva: boolean): Observable<ShopProduct> {
@@ -170,20 +217,40 @@ export class ShopService {
     return this.http.get<StockMove[]>(`${this.apiBaseUrl}/shop/moves`);
   }
 
-  addExpense(name: string, amount: number, kind: 'fixed' | 'variable', cadence: 'month' | 'week' | 'day' | null, category: string | null = null): Observable<ShopExpense> {
-    return this.http.post<ShopExpense>(`${this.apiBaseUrl}/shop/expenses`, { name, amount, kind, cadence, category });
+  addExpense(name: string, amount: number, kind: 'fixed' | 'variable', cadence: 'month' | 'week' | 'day' | null, category: string | null = null, payDay: number | null = null): Observable<ShopExpense> {
+    return this.http.post<ShopExpense>(`${this.apiBaseUrl}/shop/expenses`, { name, amount, kind, cadence, category, pay_day: payDay });
   }
 
-  updateExpense(id: number, name: string, amount: number, kind: 'fixed' | 'variable', cadence: 'month' | 'week' | 'day' | null, category: string | null = null): Observable<ShopExpense> {
-    return this.http.put<ShopExpense>(`${this.apiBaseUrl}/shop/expenses/${id}`, { name, amount, kind, cadence, category });
+  updateExpense(id: number, name: string, amount: number, kind: 'fixed' | 'variable', cadence: 'month' | 'week' | 'day' | null, category: string | null = null, payDay: number | null = null): Observable<ShopExpense> {
+    return this.http.put<ShopExpense>(`${this.apiBaseUrl}/shop/expenses/${id}`, { name, amount, kind, cadence, category, pay_day: payDay });
+  }
+
+  markExpensePaid(id: number, due: string): Observable<{ due: string; paid_on: string }> {
+    return this.http.post<{ due: string; paid_on: string }>(`${this.apiBaseUrl}/shop/expenses/${id}/paid`, { due });
+  }
+
+  unmarkExpensePaid(id: number, due: string): Observable<string> {
+    return this.http.delete(`${this.apiBaseUrl}/shop/expenses/${id}/paid`, { params: { due }, responseType: 'text' });
   }
 
   getCash(day: string): Observable<CashDay> {
     return this.http.get<CashDay>(`${this.apiBaseUrl}/shop/cash`, { params: { day } });
   }
 
-  saveCash(day: string, counted: number, note: string): Observable<CashDay> {
-    return this.http.put<CashDay>(`${this.apiBaseUrl}/shop/cash`, { day, counted, note });
+  saveCash(day: string, counted: number, note: string, opening: number): Observable<CashDay> {
+    return this.http.put<CashDay>(`${this.apiBaseUrl}/shop/cash`, { day, counted, note, opening });
+  }
+
+  reopenCash(day: string): Observable<CashDay> {
+    return this.http.post<CashDay>(`${this.apiBaseUrl}/shop/cash/reopen`, { day });
+  }
+
+  addCashMove(day: string, kind: 'in' | 'out', amount: number, reason: string, asExpense: boolean): Observable<CashDay> {
+    return this.http.post<CashDay>(`${this.apiBaseUrl}/shop/cash/moves`, { day, kind, amount, reason, as_expense: asExpense });
+  }
+
+  removeCashMove(id: number): Observable<CashDay> {
+    return this.http.delete<CashDay>(`${this.apiBaseUrl}/shop/cash/moves/${id}`);
   }
 
   removeExpense(id: number): Observable<string> {
@@ -198,6 +265,11 @@ export class ShopService {
   /** Por mes del año: ingresos por método y gastos por categoría, para el contador. */
   accounting(year: number): Observable<AccountingMonth[]> {
     return this.http.get<AccountingMonth[]>(`${this.apiBaseUrl}/shop/accounting`, { params: { year } });
+  }
+
+  /** Cortes de caja guardados entre dos fechas. */
+  cashRange(start: string, end: string): Observable<CashRow[]> {
+    return this.http.get<CashRow[]>(`${this.apiBaseUrl}/shop/cash/range`, { params: { start, end } });
   }
 
   report(start: string, end: string): Observable<SalesReport> {

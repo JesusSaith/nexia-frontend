@@ -239,17 +239,17 @@
           </div>
           <ul class="mt-3 divide-y divide-line text-sm">
             @if (shop.hours?.length) {
-              <li class="flex items-start gap-3 py-2.5"><mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">schedule</mat-icon><span class="nums min-w-0 flex-1 text-ink">@for (line of shop.hours ?? []; track line) { <span class="block">{{ line }}</span> }</span><a class="text-sm font-medium text-ink-soft hover:text-ink" routerLink="/admin/schedules">Editar</a></li>
+              <li class="flex items-start gap-3 py-2.5"><mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">schedule</mat-icon><span class="nums min-w-0 flex-1 text-ink">@for (line of shop.hours ?? []; track line) { <span class="block">{{ line }}</span> }</span><a class="inline-flex min-h-11 items-center px-2 text-sm font-medium text-ink-soft hover:text-ink" routerLink="/admin/schedules">Editar</a></li>
             }
-            <li class="flex items-center gap-3 py-2.5"><mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">call</mat-icon><span class="nums min-w-0 flex-1 truncate" [class.text-ink]="shop.phone" [class.text-muted]="!shop.phone">{{ shop.phone || 'Sin WhatsApp' }}</span><a class="text-sm font-medium text-ink-soft hover:text-ink" routerLink="/admin/settings" [queryParams]="{ sec: 'negocio' }">Editar</a></li>
-            <li class="flex items-center gap-3 py-2.5"><mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">location_on</mat-icon><span class="min-w-0 flex-1" [class.text-ink]="shop.address" [class.text-muted]="!shop.address">{{ shop.address || 'Sin dirección' }}</span><a class="text-sm font-medium text-ink-soft hover:text-ink" routerLink="/admin/settings" [queryParams]="{ sec: 'negocio' }">Editar</a></li>
+            <li class="flex items-center gap-3 py-2.5"><mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">call</mat-icon><span class="nums min-w-0 flex-1 truncate" [class.text-ink]="shop.phone" [class.text-muted]="!shop.phone">{{ shop.phone || 'Sin WhatsApp' }}</span><a class="inline-flex min-h-11 items-center px-2 text-sm font-medium text-ink-soft hover:text-ink" routerLink="/admin/settings" [queryParams]="{ sec: 'negocio' }">Editar</a></li>
+            <li class="flex items-center gap-3 py-2.5"><mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">location_on</mat-icon><span class="min-w-0 flex-1" [class.text-ink]="shop.address" [class.text-muted]="!shop.address">{{ shop.address || 'Sin dirección' }}</span><a class="inline-flex min-h-11 items-center px-2 text-sm font-medium text-ink-soft hover:text-ink" routerLink="/admin/settings" [queryParams]="{ sec: 'negocio' }">Editar</a></li>
             <li class="flex items-center gap-3 py-2.5"><mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">photo_camera</mat-icon>
               @if (link(shop.instagram, 'instagram'); as url) {
-                <a class="min-w-0 flex-1 truncate font-medium text-ink-soft hover:text-ink" [href]="url" target="_blank" rel="noopener">Instagram</a>
+                <a class="flex min-h-11 min-w-0 flex-1 items-center truncate font-medium text-ink-soft hover:text-ink" [href]="url" target="_blank" rel="noopener">Instagram</a>
               } @else {
                 <span class="min-w-0 flex-1 text-muted">Sin Instagram</span>
               }
-              <a class="text-sm font-medium text-ink-soft hover:text-ink" routerLink="/admin/settings" [queryParams]="{ sec: 'negocio' }">Editar</a>
+              <a class="inline-flex min-h-11 items-center px-2 text-sm font-medium text-ink-soft hover:text-ink" routerLink="/admin/settings" [queryParams]="{ sec: 'negocio' }">Editar</a>
             </li>
             @if (link(shop.facebook, 'facebook'); as url) {
               <li class="py-2.5"><a class="flex items-center gap-3 font-medium text-ink-soft hover:text-ink" [href]="url" target="_blank" rel="noopener"><mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">thumb_up</mat-icon>Facebook</a></li>

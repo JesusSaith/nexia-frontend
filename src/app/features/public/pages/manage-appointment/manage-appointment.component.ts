@@ -9,7 +9,9 @@ import { BookingService, ManagedAppointment } from '@core/services/booking.servi
 // FUTURE_PHASE_SPEI: import { SpeiCheckComponent } from '@shared/components/spei-check/spei-check';
 import { DateFieldComponent } from '@shared/components/when-field/when-field';
 import { PlaceMap } from '@shared/components/place-map/place-map';
-import { canNavigate } from '@core/maps';
+import { Confirm } from '@shared/components/confirm/confirm';
+import { CalendarEvent, downloadIcs, googleCalendarUrl } from '@core/calendar';
+import { canNavigate, googleMapsUrl } from '@core/maps';
 
 @Component({
   selector: 'app-manage-appointment',
@@ -21,6 +23,7 @@ export class ManageAppointmentComponent {
   private readonly bookingApi = inject(BookingService);
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly confirmDialog = inject(Confirm);
   protected readonly canNavigate = canNavigate;
   private readonly when = new Intl.DateTimeFormat('es-MX', {
     weekday: 'long',
@@ -52,17 +55,20 @@ export class ManageAppointmentComponent {
     this.reviewState.set('sending');
     this.reviewError.set(null);
     this.reviewsApi
-      .createPublicReview(item.business_slug, { client_name: item.client_name || 'Cliente', rating: this.rating(), comment, photo_url: null })
+      .createPublicReview(item.business_slug, { client_name: item.client_name || 'Cliente', rating: this.rating(), comment, photo_url: null, token: this.tokenValue })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => this.reviewState.set('sent'),
-        error: () => {
+        error: (error: unknown) => {
           this.reviewState.set('idle');
-          this.reviewError.set('No pudimos enviar tu opinión. Intenta de nuevo.');
+          this.reviewError.set(readError(error, 'No pudimos enviar tu opinión. Intenta de nuevo.'));
         },
       });
   }
   protected readonly isLoading = signal(true);
+  /** El enlace no abre: reemplaza la página. */
+  protected readonly loadError = signal<string | null>(null);
+  /** Una acción falló: se muestra dentro de la cita para que la persona no pierda lo que ve. */
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly notice = signal<string | null>(null);
   protected readonly changing = signal(false);
@@ -74,6 +80,44 @@ export class ManageAppointmentComponent {
 
   constructor() {
     this.load();
+  }
+
+  /** La cita como evento de calendario, con la ruta y el enlace de esta página. */
+  private calendarEvent(item: ManagedAppointment): CalendarEvent {
+    const start = new Date(item.starts_at);
+    const end = item.ends_at ? new Date(item.ends_at) : new Date(start.getTime() + 60 * 60_000);
+    return {
+      start,
+      end,
+      title: `${item.service_name} · ${item.business_name}`,
+      location: item.address ?? '',
+      details: [`Con ${item.staff_name}`, canNavigate(item) ? `Cómo llegar: ${googleMapsUrl(item)}` : '', `Ver o cambiar: ${location.href}`].filter(Boolean).join('\n'),
+      uid: this.tokenValue,
+    };
+  }
+
+  protected addToCalendar(item: ManagedAppointment): void {
+    downloadIcs(this.calendarEvent(item));
+  }
+
+  protected googleCalendarHref(item: ManagedAppointment): string {
+    return googleCalendarUrl(this.calendarEvent(item));
+  }
+
+  protected directionsHref(item: ManagedAppointment): string | null {
+    return canNavigate(item) ? googleMapsUrl(item) : null;
+  }
+
+  protected readonly accountCopied = signal(false);
+
+  protected copyAccount(item: ManagedAppointment): void {
+    if (item.deposit_account) {
+      void navigator.clipboard.writeText(item.deposit_account).then(() => this.accountCopied.set(true));
+    }
+  }
+
+  protected accountLabel(item: ManagedAppointment): string {
+    return (item.deposit_account ?? '').replace(/\D/g, '').length === 18 ? 'CLABE' : 'cuenta';
   }
 
   protected label(value: string): string {
@@ -125,13 +169,13 @@ export class ManageAppointmentComponent {
           .subscribe({
             next: (appointment) => {
               this.appointment.set(appointment);
-              document.title = appointment.business_name;
+              document.title = `Tu cita · ${appointment.business_name}`;
               this.saving.set(false);
               this.notice.set('Comprobante enviado');
             },
-            error: () => {
+            error: (error: unknown) => {
               this.saving.set(false);
-              this.errorMessage.set('No pudimos subir el comprobante.');
+              this.errorMessage.set(readError(error, 'No pudimos subir el comprobante.'));
             },
           });
       };
@@ -141,6 +185,7 @@ export class ManageAppointmentComponent {
   }
 
   protected acceptPrice(): void {
+    this.errorMessage.set(null);
     this.saving.set(true);
     this.bookingApi
       .acceptPrice(this.tokenValue)
@@ -151,14 +196,15 @@ export class ManageAppointmentComponent {
           this.saving.set(false);
           this.notice.set('Precio aceptado');
         },
-        error: () => {
+        error: (error: unknown) => {
           this.saving.set(false);
-          this.errorMessage.set('No pudimos guardar la aceptación.');
+          this.errorMessage.set(readError(error, 'No pudimos guardar la aceptación.'));
         },
       });
   }
 
   protected markPaid(): void {
+    this.errorMessage.set(null);
     this.saving.set(true);
     this.bookingApi.markPaid(this.tokenValue).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (appointment) => {
@@ -166,9 +212,9 @@ export class ManageAppointmentComponent {
         this.saving.set(false);
         this.notice.set('Avisamos al negocio. Tu cita queda confirmada cuando revise el pago.');
       },
-      error: () => {
+      error: (error: unknown) => {
         this.saving.set(false);
-        this.errorMessage.set('No pudimos registrar el pago.');
+        this.errorMessage.set(readError(error, 'No pudimos registrar el pago.'));
       },
     });
   }
@@ -179,6 +225,7 @@ export class ManageAppointmentComponent {
   }
 
   protected confirmVisit(): void {
+    this.errorMessage.set(null);
     this.saving.set(true);
     this.bookingApi
       .confirmManagedAppointment(this.tokenValue)
@@ -189,18 +236,29 @@ export class ManageAppointmentComponent {
           this.saving.set(false);
           this.notice.set('Listo, te esperamos');
         },
-        error: () => {
+        error: (error: unknown) => {
           this.saving.set(false);
-          this.errorMessage.set('No pudimos confirmar la cita.');
+          this.errorMessage.set(readError(error, 'No pudimos confirmar la cita.'));
         },
       });
   }
 
-  protected cancel(): void {
+  protected async cancel(): Promise<void> {
     const current = this.appointment();
-    if (!current || current.is_cancelled || !confirm('¿Estás seguro de cancelar tu cita?')) {
+    if (!current || current.is_cancelled) {
       return;
     }
+    const sure = await this.confirmDialog.ask({
+      title: '¿Cancelar tu cita?',
+      message: current.cancel_policy ?? 'Se libera tu horario y el negocio recibe el aviso.',
+      confirm: 'Sí, cancelar',
+      cancel: 'No, conservarla',
+      danger: true,
+    });
+    if (!sure) {
+      return;
+    }
+    this.errorMessage.set(null);
     this.saving.set(true);
     this.bookingApi
       .cancelManagedAppointment(this.tokenValue)
@@ -226,6 +284,7 @@ export class ManageAppointmentComponent {
       return;
     }
     const [newDate, clock] = slot.split('T');
+    this.errorMessage.set(null);
     this.saving.set(true);
     this.bookingApi
       .rescheduleManagedAppointment(this.tokenValue, {
@@ -251,7 +310,7 @@ export class ManageAppointmentComponent {
   private load(): void {
     if (!this.tokenValue) {
       this.isLoading.set(false);
-      this.errorMessage.set('Este enlace no es válido.');
+      this.loadError.set('Este enlace no es válido.');
       return;
     }
     this.bookingApi
@@ -260,12 +319,13 @@ export class ManageAppointmentComponent {
       .subscribe({
         next: (appointment) => {
           this.appointment.set(appointment);
+          document.title = `Tu cita · ${appointment.business_name}`;
           this.date.set(appointment.starts_at.slice(0, 10));
           this.isLoading.set(false);
         },
         error: () => {
           this.isLoading.set(false);
-          this.errorMessage.set('Este enlace no es válido o ya expiró.');
+          this.loadError.set('Este enlace no es válido o ya expiró.');
         },
       });
   }
@@ -276,7 +336,7 @@ export class ManageAppointmentComponent {
       return;
     }
     this.bookingApi
-      .getAvailability(this.slug || current.business_slug, current.service_id, current.staff_id, this.date())
+      .getRescheduleSlots(this.tokenValue, this.date())
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (slots) => this.slots.set(slots),

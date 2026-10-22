@@ -97,7 +97,7 @@
               <button type="button" class="chip" [class.chip-on]="isPreset(field, option.value)" (click)="setPreset(field, option.value)">{{ option.label }}</button>
             }
             <span class="flex items-center gap-1.5 text-sm text-muted">
-              <input class="input nums h-8! w-20" type="number" min="0" [attr.max]="max" [value]="customValue(field)" (change)="setCustom(field, $any($event.target).value)" [class.border-accent]="isCustom(field)" aria-label="Otro valor" placeholder="Otro" />
+              <input class="input nums w-20" type="number" min="0" [attr.max]="max" [value]="customValue(field)" (change)="setCustom(field, $any($event.target).value)" [class.border-accent]="isCustom(field)" aria-label="Otro valor" placeholder="Otro" />
               {{ unit }}
             </span>
           </div>
@@ -157,15 +157,40 @@
               <span class="label">Ubicación en el mapa</span>
               <p class="field-hint mb-2">Tus clientes ven el mapa al reservar y abren la ruta en Google Maps o Waze.</p>
               @if (googleMaps) {
-                <app-google-map-picker [latitude]="location()?.lat ?? null" [longitude]="location()?.lng ?? null" (pointChange)="location.set($event)" />
+                <app-google-map-picker [latitude]="location()?.lat ?? null" [longitude]="location()?.lng ?? null" (pointChange)="onPoint($event)" />
               } @else {
                 <app-map-picker
                   [latitude]="location()?.lat ?? null"
                   [longitude]="location()?.lng ?? null"
                   [address]="form.controls.address.value"
-                  (pointChange)="location.set($event)"
+                  (pointChange)="onPoint($event)"
                 />
               }
+              <div class="mt-4 rounded-xl border border-line p-4">
+                <p class="text-sm font-semibold text-ink">¿Ya tienes tu local en Google Maps?</p>
+                <p class="field-hint mt-1">Pega aquí el enlace (el de "Compartir", también el corto) o el código de "Insertar un mapa". Con el código, tus clientes ven tu mapa de Google tal cual en "Cómo llegar".</p>
+                <textarea
+                  class="input mt-2 h-auto min-h-24 py-2"
+                  rows="3"
+                  placeholder='https://maps.app.goo.gl/… o &lt;iframe src="https://www.google.com/maps/embed?…"&gt;'
+                  [value]="mapPaste()"
+                  (input)="mapPaste.set($any($event.target).value)"
+                  aria-label="Enlace o código de Google Maps"
+                ></textarea>
+                <div class="mt-2 flex flex-wrap items-center gap-2">
+                  <button type="button" class="btn btn-secondary" [disabled]="!mapPaste().trim() || mapBusy()" (click)="applyMapPaste()">
+                    <mat-icon>pin_drop</mat-icon>
+                    {{ mapBusy() ? 'Leyendo…' : 'Usar este mapa' }}
+                  </button>
+                  @if (mapEmbed()) {
+                    <span class="badge badge-ok">Mapa de Google conectado</span>
+                    <button type="button" class="btn btn-ghost" (click)="removeMapEmbed()">Quitar</button>
+                  }
+                </div>
+                @if (mapNote(); as note) {
+                  <p class="mt-2 text-sm" [class.text-(--nx-ok-fg)]="note.ok" [class.text-(--nx-bad-fg)]="!note.ok" [attr.role]="note.ok ? 'status' : 'alert'">{{ note.text }}</p>
+                }
+              </div>
             </div>
           </div>
         </details>
@@ -534,7 +559,7 @@
                       <span class="label">%</span>
                       <input class="input nums" type="number" min="1" max="100" [value]="coupon.percent" (input)="editCoupon($index, { percent: toNumber($any($event.target).value) ?? 0 })" />
                     </label>
-                    <label class="flex h-10 items-center gap-2 text-sm text-ink-soft">
+                    <label class="flex min-h-11 items-center gap-2 text-sm text-ink-soft">
                       <input type="checkbox" [checked]="coupon.first_visit" (change)="editCoupon($index, { first_visit: $any($event.target).checked })" />
                       Solo primera visita
                     </label>
@@ -618,7 +643,7 @@
                         <div class="mt-3 flex items-center justify-between gap-3">
                           <span class="field-hint nums">{{ messages()[template.key].length }}/1000</span>
                           @if (isCustomized(template.key)) {
-                            <button type="button" class="btn btn-ghost h-8! px-3! text-xs" (click)="resetMessage(template.key)">
+                            <button type="button" class="btn btn-ghost h-11! px-3! text-xs" (click)="resetMessage(template.key)">
                               <mat-icon>restart_alt</mat-icon>
                               Volver al de fábrica
                             </button>
@@ -664,7 +689,7 @@
                         <p class="truncate text-sm font-medium text-ink">{{ row.label || 'Cerrado' }}</p>
                         <p class="field-hint">{{ closureText(row) }}</p>
                       </div>
-                      <button type="button" class="btn btn-ghost h-8! px-2!" [attr.aria-label]="'Quitar ' + (row.label || 'cierre')" (click)="removeClosure(row)"><mat-icon>close</mat-icon></button>
+                      <button type="button" class="btn btn-ghost h-11! px-2!" [attr.aria-label]="'Quitar ' + (row.label || 'cierre')" (click)="removeClosure(row)"><mat-icon>close</mat-icon></button>
                     </li>
                   }
                 </ul>
@@ -784,7 +809,7 @@
               <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-base font-semibold text-white" [style.background]="color">{{ (form.controls.name.value || 'N').charAt(0) }}</span>
             }
             <div class="min-w-0">
-              <p class="text-[10px] font-medium uppercase tracking-wide" [style.color]="color">Reservas</p>
+              <p class="text-xs font-medium uppercase tracking-wide" [style.color]="color">Reservas</p>
               <p class="truncate text-base font-semibold">{{ form.controls.name.value || 'Tu negocio' }}</p>
               @if (form.controls.description.value) {
                 <p class="line-clamp-2 text-xs text-[#57534e]">{{ form.controls.description.value }}</p>
@@ -804,7 +829,7 @@
               <p class="text-sm font-medium">{{ examples().service }}</p>
               <p class="text-xs text-[#78716c]">45 min · $250</p>
             </div>
-            <p class="text-[11px] text-[#78716c]">Aceptamos {{ methodsText() }}.{{ approveBookings() ? ' Confirmamos cada solicitud por WhatsApp.' : '' }}</p>
+            <p class="text-xs text-[#78716c]">Aceptamos {{ methodsText() }}.{{ approveBookings() ? ' Confirmamos cada solicitud por WhatsApp.' : '' }}</p>
             <span class="flex h-9 items-center justify-center rounded-full text-sm font-medium text-white" [style.background]="color">Elegir horario</span>
           </div>
         </div>
@@ -820,8 +845,8 @@
           <p class="min-w-0 flex-1 text-sm">
             <span class="font-semibold nums">{{ changeCount() }}</span> cambio{{ changeCount() === 1 ? '' : 's' }} sin guardar
           </p>
-          <button type="button" class="btn h-9! text-[var(--nx-rail-soft)] hover:bg-[var(--nx-rail-hover)]" [disabled]="saving()" (click)="discard()">Descartar</button>
-          <button type="submit" form="settings-form" class="btn h-9! text-white" style="background: var(--primary)" [disabled]="saving()">
+          <button type="button" class="btn h-11! text-[var(--nx-rail-soft)] hover:bg-[var(--nx-rail-hover)]" [disabled]="saving()" (click)="discard()">Descartar</button>
+          <button type="submit" form="settings-form" class="btn h-11! text-white" style="background: var(--primary)" [disabled]="saving()">
             {{ saving() ? 'Guardando…' : 'Guardar cambios' }}
           </button>
         </div>

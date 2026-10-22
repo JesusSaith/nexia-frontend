@@ -1,6 +1,7 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ButtonShape, FONT_STACKS, FontStyle, SHAPE_RADIUS, textOn } from '@core/theme';
-import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, HostListener, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import {
   AbstractControl,
@@ -22,11 +23,13 @@ import { closureOn, closureSpan, liveOffer, nextClosure, noteOf } from '@core/sh
 import { Appointment, AvailabilitySlot } from '@core/models/appointment.model';
 import { BusinessBrand, PublicService, PublicStaff } from '@core/models/business.model';
 import { BookingService } from '@core/services/booking.service';
+import { whatsappLink } from '@core/message-templates';
 import { Review } from '@core/models/review.model';
 import { ReviewsService } from '@core/services/reviews.service';
 import { PickFieldComponent } from '@shared/components/when-field/when-field';
 import { PlaceMap } from '@shared/components/place-map/place-map';
-import { canNavigate } from '@core/maps';
+import { CalendarEvent, downloadIcs, googleCalendarUrl } from '@core/calendar';
+import { canNavigate, googleMapsUrl } from '@core/maps';
 
 const STEPS = [
   { id: 1, label: 'Servicio' },
@@ -61,6 +64,7 @@ function phoneDigits(control: AbstractControl): ValidationErrors | null {
   selector: 'app-booking',
   imports: [
     // FUTURE_PHASE_SPEI: SpeiCheckComponent,
+    NgTemplateOutlet,
     ReactiveFormsModule,
     MatProgressSpinnerModule,
     PickFieldComponent,
@@ -87,6 +91,11 @@ export class Booking {
   private readonly currency = new Intl.NumberFormat('es-MX', {
     style: 'currency',
     currency: 'MXN',
+  });
+  private readonly currencyWhole = new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+    maximumFractionDigits: 0,
   });
   private readonly timeFormat = new Intl.DateTimeFormat('es-MX', {
     hour: '2-digit',
@@ -339,7 +348,7 @@ export class Booking {
     const who = this.selectedStaff()?.full_name ?? (this.anyStaff() ? 'quien esté disponible' : null);
     return {
       title: chosen.length > 1 ? `${chosen[0].name} + ${chosen.length - 1} más` : chosen[0].name,
-      detail: `${minutes} min · ${variable ? (price ? `desde ${this.formatPrice(price)}` : 'precio por cotizar') : this.formatPrice(price)}`,
+      detail: `${this.formatMinutes(minutes)} · ${variable ? (price ? `desde ${this.formatPrice(price)}` : 'precio por cotizar') : this.formatPrice(price)}`,
       who,
       when: slot ? `${this.formatDate(slot)} · ${this.formatTime(slot)}` : null,
     };
@@ -379,8 +388,19 @@ export class Booking {
     this.loadMine();
   }
 
+  /** Sin centavos cuando el precio es redondo: "$280", no "$280.00". */
   protected formatPrice(price: number): string {
-    return this.currency.format(price);
+    return Number.isInteger(price) ? this.currencyWhole.format(price) : this.currency.format(price);
+  }
+
+  /** "45 min", "1 h" o "3 h 31 min": más fácil de leer que 211 min. */
+  protected formatMinutes(total: number): string {
+    if (total < 60) {
+      return `${total} min`;
+    }
+    const hours = Math.floor(total / 60);
+    const rest = total % 60;
+    return rest ? `${hours} h ${rest} min` : `${hours} h`;
   }
 
   protected formatTime(value: string): string {
@@ -407,10 +427,24 @@ export class Booking {
     this.selectedSlot.set(null);
     this.extraIds.update((ids) => ids.filter((id) => id !== service.id));
     this.settleStaff();
+    this.scrollToNext();
     // Sin extras que ofrecer, opciones ni colaboradora que elegir, no hay nada más que decidir aquí.
     if (this.services().length === 1 && !(service.variants ?? []).length && this.canChooseSchedule()) {
       this.goToSchedule();
     }
+  }
+
+  /** En celular, baja hasta "¿Sumas otro servicio?" y la persona que atiende, que quedan fuera de la pantalla. */
+  private scrollToNext(): void {
+    if (typeof window === 'undefined' || !window.matchMedia('(max-width: 639px)').matches) {
+      return;
+    }
+    setTimeout(() => {
+      const anchor = document.getElementById('tras-servicio');
+      if (anchor && anchor.getBoundingClientRect().top > window.innerHeight * 0.55) {
+        anchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 120);
   }
 
   /** Quita a la colaboradora si ya no hace todo lo elegido y la elige sola cuando solo hay una. */
@@ -535,10 +569,10 @@ export class Booking {
 
   protected themeLabel(): string {
     const month = new Date(`${this.date()}T12:00:00`).getMonth();
-    if (month === 9) return '🎃 Halloween';
-    if (month === 10) return '🌼 Día de Muertos';
-    if (month === 11) return '🎄 Navidad y Año Nuevo';
-    if (month === 1) return '♥ San Valentín';
+    if (month === 9) return 'Halloween';
+    if (month === 10) return 'Día de Muertos';
+    if (month === 11) return 'Navidad y Año Nuevo';
+    if (month === 1) return 'San Valentín';
     return '';
   }
 
@@ -821,6 +855,11 @@ export class Booking {
   }
 
   protected back(): void {
+    // Si este paso tiene su entrada en el historial, se usa para que "Atrás" del navegador y el botón de la página coincidan.
+    if (history.state?.nxStep === this.step() && !this.confirmation()) {
+      history.back();
+      return;
+    }
     this.openStep(this.step() - 1);
   }
 
@@ -955,6 +994,7 @@ export class Booking {
         rating: this.reviewRating(),
         comment,
         photo_url: this.reviewPhoto(),
+        token: appointment.cancel_token ?? "",
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
@@ -1219,6 +1259,17 @@ export class Booking {
   protected readonly proofSent = signal(false);
   protected readonly accountCopied = signal(false);
 
+  /** "Copiar CLABE" si la cuenta es una CLABE (18 dígitos); si no, "Copiar cuenta". */
+  protected accountLabel(): string {
+    return (this.brand()?.deposit_account ?? '').replace(/\D/g, '').length === 18 ? 'CLABE' : 'cuenta';
+  }
+
+  /** Cómo llegar en un toque: abre la ruta en Google Maps (la app del celular, si la tiene). */
+  protected directionsHref(): string | null {
+    const place = this.brand();
+    return place && canNavigate(place) ? googleMapsUrl(place) : null;
+  }
+
   protected copyAccount(): void {
     const account = this.brand()?.deposit_account ?? '';
     if (!account) {
@@ -1335,7 +1386,7 @@ export class Booking {
     if (!phone) {
       return null;
     }
-    return `https://wa.me/${phone}?text=${encodeURIComponent(this.whatsappText(appointment, true))}`;
+    return whatsappLink(phone, this.whatsappText(appointment, true));
   }
 
   /** Opción para celular: comparte las fotos como imágenes; el cliente elige el chat del negocio. */
@@ -1372,7 +1423,7 @@ export class Booking {
     return `${sameDay ? 'hoy' : this.dateFormat.format(limit)} a las ${this.timeFormat.format(limit)}`;
   }
 
-  private calendarEvent(appointment: Appointment) {
+  private calendarEvent(appointment: Appointment): CalendarEvent {
     const start = new Date(appointment.starts_at);
     const end = new Date(start.getTime() + (this.totalMinutes() || 60) * 60_000);
     const service = appointment.service_name || this.selectedService()?.name || 'Cita';
@@ -1382,54 +1433,24 @@ export class Booking {
       end,
       title: `${service} · ${this.brand()?.name ?? ''}`.trim(),
       location: this.brand()?.address ?? '',
-      details: [`Con ${appointment.staff_name || this.selectedStaff()?.full_name || ''}`, manage ? `Ver o cambiar: ${manage}` : '']
+      details: [
+        `Con ${appointment.staff_name || this.selectedStaff()?.full_name || ''}`,
+        canNavigate(this.brand()) ? `Cómo llegar: ${googleMapsUrl(this.brand()!)}` : '',
+        manage ? `Ver o cambiar: ${manage}` : '',
+      ]
         .filter(Boolean)
         .join('\n'),
+      uid: String(appointment.cancel_token ?? appointment.id),
     };
   }
 
   protected googleCalendarHref(appointment: Appointment): string {
-    const event = this.calendarEvent(appointment);
-    const params = new URLSearchParams({
-      action: 'TEMPLATE',
-      text: event.title,
-      dates: `${calendarStamp(event.start)}/${calendarStamp(event.end)}`,
-      details: event.details,
-      location: event.location,
-    });
-    return `https://calendar.google.com/calendar/render?${params.toString()}`;
+    return googleCalendarUrl(this.calendarEvent(appointment));
   }
 
-  /** Archivo .ics: lo abren el calendario del iPhone, Outlook y la mayoría de Android. */
+  /** Archivo .ics con la cita y dos avisos (un día y dos horas antes). */
   protected downloadIcs(appointment: Appointment): void {
-    const event = this.calendarEvent(appointment);
-    const escape = (text: string) => text.replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/[,;]/g, (char) => `\\${char}`);
-    const lines = [
-      'BEGIN:VCALENDAR',
-      'VERSION:2.0',
-      'PRODID:-//Nexia//Reservas//ES',
-      'BEGIN:VEVENT',
-      `UID:${appointment.cancel_token ?? appointment.id}@nexia`,
-      `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').slice(0, 15)}Z`,
-      `DTSTART:${calendarStamp(event.start)}`,
-      `DTEND:${calendarStamp(event.end)}`,
-      `SUMMARY:${escape(event.title)}`,
-      `LOCATION:${escape(event.location)}`,
-      `DESCRIPTION:${escape(event.details)}`,
-      'BEGIN:VALARM',
-      'TRIGGER:-PT2H',
-      'ACTION:DISPLAY',
-      `DESCRIPTION:${escape(event.title)}`,
-      'END:VALARM',
-      'END:VEVENT',
-      'END:VCALENDAR',
-    ];
-    const url = URL.createObjectURL(new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'mi-cita.ics';
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    downloadIcs(this.calendarEvent(appointment));
   }
 
   protected openWhatsapp(href: string): void {
@@ -1438,7 +1459,7 @@ export class Booking {
 
   protected businessWhatsapp(phone: string): string {
     const text = `¡Hola${this.brand()?.name ? `, ${this.brand()!.name}` : ''}! 👋 Vi su página de reservas y tengo una pregunta:\n\n`;
-    return `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(text)}`;
+    return whatsappLink(phone, text);
   }
 
   protected instagramHandle(value: string): string {
@@ -1451,7 +1472,26 @@ export class Booking {
   private moveTo(id: number): void {
     this.step.set(id);
     this.reached.update((current) => Math.max(current, id));
+    // Cada paso es una entrada del historial: "Atrás" del celular regresa un paso, no sale de la página.
+    history.pushState({ ...history.state, nxStep: id }, '');
     scrollToTop();
+  }
+
+  /** Botón Atrás (o gesto) del navegador: regresa al paso anterior sin perder lo que ya eligió. */
+  @HostListener('window:popstate', ['$event'])
+  protected onPopState(event: PopStateEvent): void {
+    if (this.confirmation()) {
+      return;
+    }
+    const target = Number(event.state?.nxStep ?? 1);
+    if (target !== this.step() && target <= this.reached()) {
+      this.step.set(target);
+      scrollToTop();
+      if (target === 2) {
+        this.loadSlots();
+        this.loadOpenDays(false);
+      }
+    }
   }
 
   protected externalHref(value: string, host: string): string {
@@ -1548,11 +1588,6 @@ function canShareImages(): boolean {
 }
 
 /** Fecha local "flotante" (sin zona) para calendarios: 20261016T093000. */
-function calendarStamp(value: Date): string {
-  const pad = (part: number) => String(part).padStart(2, '0');
-  return `${value.getFullYear()}${pad(value.getMonth() + 1)}${pad(value.getDate())}T${pad(value.getHours())}${pad(value.getMinutes())}00`;
-}
-
 function scrollToTop(): void {
   if (typeof window !== 'undefined') {
     window.scrollTo({ top: 0, behavior: 'smooth' });

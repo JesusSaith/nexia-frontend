@@ -1,9 +1,10 @@
-import { Component, computed, input, signal } from '@angular/core';
+import { Component, computed, inject, input, signal } from '@angular/core';
+import { DomSanitizer } from '@angular/platform-browser';
 
 import { canNavigate, googleMapsUrl, googleStaticMapUrl, Place, staticMap, TILE_ATTRIBUTION, wazeUrl } from '@core/maps';
 
 /**
- * "Cómo llegar" para el cliente: mapa fijo con el punto del local (una imagen de Google, o mosaicos
+ * "Cómo llegar" para el cliente: el mapa de Google que pegó la dueña o, si no, un mapa fijo con el punto del local (una imagen de Google, o mosaicos
  * de OpenStreetMap si no hay llave; sin librería ni iframe, para que cargue rápido en celular), la
  * dirección y botones a Google Maps y Waze.
  */
@@ -12,7 +13,16 @@ import { canNavigate, googleMapsUrl, googleStaticMapUrl, Place, staticMap, TILE_
   template: `
     @if (navigable()) {
       <div class="flex w-full flex-col gap-3 text-left">
-        @if (googleSrc(); as src) {
+        @if (embedSrc(); as frame) {
+          <!-- El mapa que la dueña pegó de Google ("Insertar un mapa"): tal cual lo armó ella, con su nombre y reseñas. -->
+          <iframe
+            [src]="frame"
+            [title]="'Mapa de ' + (name() || 'el local')"
+            loading="lazy"
+            referrerpolicy="strict-origin-when-cross-origin"
+            class="h-64 w-full rounded-2xl border border-line bg-canvas sm:h-72"
+          ></iframe>
+        } @else if (googleSrc(); as src) {
           <a [href]="google()" target="_blank" rel="noopener" class="block h-48 w-full overflow-hidden rounded-2xl border border-line bg-canvas sm:h-56" [attr.aria-label]="'Abrir ' + (name() || 'el local') + ' en Google Maps'">
             <img [src]="src" alt="" loading="lazy" decoding="async" class="h-full w-full object-cover" (error)="googleFailed.set(true)" />
           </a>
@@ -29,7 +39,7 @@ import { canNavigate, googleMapsUrl, googleStaticMapUrl, Place, staticMap, TILE_
                 <circle cx="12" cy="12" r="4.5" fill="white" />
               </svg>
             </a>
-            <span class="absolute bottom-0 right-0 bg-white/80 px-1.5 text-[11px] leading-5 text-ink-soft" [innerHTML]="attribution"></span>
+            <span class="absolute bottom-0 right-0 bg-white/80 px-1.5 text-xs leading-5 text-ink-soft" [innerHTML]="attribution"></span>
           </div>
         }
         @if (place().address) {
@@ -48,6 +58,14 @@ export class PlaceMap {
   readonly name = input<string | null | undefined>(null);
   /** Color de la marca para el pin de Google. */
   readonly color = input<string | null | undefined>(null);
+
+  private readonly sanitizer = inject(DomSanitizer);
+
+  /** Solo se incrusta una dirección de Google Maps ("…/maps/embed?pb=…"); la API ya la valida y aquí se repite. */
+  protected readonly embedSrc = computed(() => {
+    const src = this.place().map_embed;
+    return src && src.startsWith('https://www.google.com/maps/embed?pb=') ? this.sanitizer.bypassSecurityTrustResourceUrl(src) : null;
+  });
 
   /** Si la imagen de Google falla (llave mal puesta, cuota), se cae a OpenStreetMap. */
   protected readonly googleFailed = signal(false);
