@@ -9,6 +9,7 @@ export interface BusinessWords {
 
 const BY_LABEL: Record<string, BusinessWords> = {
   Estilista: words('Estilista', 'Estilistas', 'Cliente', 'Clientes', 'Cita', false),
+  Manicurista: words('Manicurista', 'Manicuristas', 'Cliente', 'Clientes', 'Cita', false),
   Barbero: words('Barbero', 'Barberos', 'Cliente', 'Clientes', 'Cita', false),
   Terapeuta: words('Terapeuta', 'Terapeutas', 'Cliente', 'Clientes', 'Cita', false),
   Veterinario: words('Veterinario', 'Veterinarios', 'Tutor', 'Tutores', 'Cita', true),
@@ -19,7 +20,9 @@ const BY_LABEL: Record<string, BusinessWords> = {
 };
 
 export function businessWords(label: string | null | undefined): BusinessWords {
-  return BY_LABEL[label?.trim() ?? ''] ?? words(label?.trim() || 'Colaborador', 'Colaboradores', 'Cliente', 'Clientes', 'Cita', false);
+  const clean = label?.trim() ?? '';
+  // Sin giro (o con un nombre que la dueña escribió) el plural neutro es "Colaboradores": no se inventa un plural del nombre.
+  return BY_LABEL[clean] ?? words(clean || 'Colaborador', 'Colaboradores', 'Cliente', 'Clientes', 'Cita', false);
 }
 
 function words(person: string, people: string, client: string, clients: string, visit: string, pet: boolean): BusinessWords {
