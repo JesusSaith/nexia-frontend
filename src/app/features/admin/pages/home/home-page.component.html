@@ -76,7 +76,7 @@
 
     <!-- Lo que se hace todos los días, a un toque. -->
     <div class="mb-6 flex flex-wrap gap-2">
-      <a routerLink="/admin/clientes" class="btn btn-secondary"><mat-icon>groups</mat-icon>Clientes</a>
+      <a routerLink="/admin/clientes" class="btn btn-secondary"><mat-icon>groups</mat-icon>{{ copy.text().clients }}</a>
       <button type="button" class="btn btn-secondary" (click)="copyLink()">
         <mat-icon>{{ linkCopied() ? 'check' : 'link' }}</mat-icon>{{ linkCopied() ? 'Enlace copiado' : 'Copiar mi enlace de reservas' }}
       </button>
@@ -90,7 +90,7 @@
           <span class="sec-icon"><mat-icon>pending_actions</mat-icon></span>
           <div>
             <h2 class="card-title">Por resolver</h2>
-            <p class="text-sm text-muted">Clientes esperando tu respuesta</p>
+            <p class="text-sm text-muted">{{ copy.text().clients }} esperando tu respuesta</p>
           </div>
         </div>
         <ul class="mt-2 divide-y divide-line">
@@ -420,7 +420,7 @@
               }
             </ul>
             @if (awayAll().length > awayShown().length) {
-              <a routerLink="/admin/clientes" class="btn btn-ghost mt-1 w-full">Ver {{ awayAll().length - awayShown().length }} más en Clientes</a>
+              <a routerLink="/admin/clientes" class="btn btn-ghost mt-1 w-full">Ver {{ awayAll().length - awayShown().length }} más en {{ copy.text().clients }}</a>
             }
           </section>
         }

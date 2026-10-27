@@ -29,7 +29,7 @@ export class BusinessPageComponent {
   private readonly settingsApi = inject(SettingsService);
   private readonly reviewsApi = inject(ReviewsService);
   private readonly shopApi = inject(ShopService);
-  private readonly copy = inject(BusinessCopy);
+  protected readonly copy = inject(BusinessCopy);
   private readonly destroyRef = inject(DestroyRef);
   private readonly sanitizer = inject(DomSanitizer);
 

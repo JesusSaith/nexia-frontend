@@ -95,7 +95,7 @@ const ALERT_OPTIONS: readonly { value: string; label: string; hint: string }[] =
 })
 export class SettingsPageComponent {
   private readonly settingsApi = inject(SettingsService);
-  private readonly copy = inject(BusinessCopy);
+  protected readonly copy = inject(BusinessCopy);
   private readonly toasts = inject(Toasts);
   private readonly confirm = inject(Confirm);
   private readonly http = inject(HttpClient);

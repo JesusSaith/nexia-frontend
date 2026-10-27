@@ -61,6 +61,7 @@ const MANAGER_LINKS: readonly AdminNavLink[] = [
 
 const STAFF_LINKS: readonly AdminNavLink[] = [
   { label: 'Mi Agenda', path: '/admin/agenda', exact: true, icon: 'calendar_month' },
+  { label: 'Clientes', path: '/admin/clientes', exact: false, icon: 'person' },
   { label: 'Mi Perfil', path: '/admin/profile', exact: true, icon: 'account_circle' },
 ];
 
@@ -120,11 +121,9 @@ export class AdminLayoutComponent {
     if (this.authService.isSuperAdmin()) {
       return PLATFORM_LINKS;
     }
-    if (this.authService.isStaff()) {
-      return STAFF_LINKS;
-    }
     const clients = this.copy.text().clients;
-    return MANAGER_LINKS.map((link) => (link.path === '/admin/clientes' ? { ...link, label: clients } : link));
+    const links = this.authService.isStaff() ? STAFF_LINKS : MANAGER_LINKS;
+    return links.map((link) => (link.path === '/admin/clientes' ? { ...link, label: clients } : link));
   });
 
   /** Los enlaces en bloques para el menú lateral: [{ title, links }]. */

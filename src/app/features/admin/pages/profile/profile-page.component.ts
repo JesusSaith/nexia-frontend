@@ -5,6 +5,7 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
+import { PhotoError, squarePhotoFromFile } from '@core/image-file';
 import { Staff } from '@core/models/staff.model';
 import { StaffService } from '@core/services/staff.service';
 
@@ -28,6 +29,9 @@ export class ProfilePageComponent {
   protected readonly loadError = signal<string | null>(null);
   protected readonly formError = signal<string | null>(null);
   protected readonly saved = signal(false);
+  protected readonly photoPending = signal(false);
+  /** La foto que se ve ahora (la guardada o la recién elegida, antes de guardar). */
+  protected readonly photo = signal<string | null>(null);
 
   protected readonly form = new FormGroup({
     full_name: new FormControl('', {
@@ -57,6 +61,7 @@ export class ProfilePageComponent {
       .subscribe({
         next: (profile) => {
           this.profile.set(profile);
+          this.photo.set(profile.avatar_url || null);
           this.form.reset({
             full_name: profile.full_name,
             phone: profile.phone ?? '',
@@ -72,10 +77,35 @@ export class ProfilePageComponent {
       });
   }
 
+  protected onPhoto(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) {
+      return;
+    }
+    this.photoPending.set(true);
+    this.formError.set(null);
+    squarePhotoFromFile(file)
+      .then((data) => {
+        this.form.controls.avatar_url.setValue(data);
+        this.photo.set(data);
+        this.saved.set(false);
+      })
+      .catch((error: unknown) => this.formError.set(error instanceof PhotoError ? error.message : 'No pudimos leer esa foto.'))
+      .finally(() => this.photoPending.set(false));
+  }
+
+  protected clearPhoto(): void {
+    this.form.controls.avatar_url.setValue('');
+    this.photo.set(null);
+    this.saved.set(false);
+  }
+
   protected save(): void {
     this.form.markAllAsTouched();
     this.validationTick.update((tick) => tick + 1);
-    if (this.form.invalid || this.isSaving()) {
+    if (this.form.invalid || this.isSaving() || this.photoPending()) {
       return;
     }
     const raw = this.form.getRawValue();
@@ -93,6 +123,7 @@ export class ProfilePageComponent {
       .subscribe({
         next: (profile) => {
           this.profile.set(profile);
+          this.photo.set(profile.avatar_url || null);
           this.isSaving.set(false);
           this.saved.set(true);
         },

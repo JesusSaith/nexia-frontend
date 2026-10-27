@@ -7,7 +7,7 @@ import { Router, RouterLink } from '@angular/router';
 import { of } from 'rxjs';
 import { catchError, debounceTime, distinctUntilChanged, map, switchMap } from 'rxjs/operators';
 
-import { BUSINESS_KINDS, examplesFor } from '@core/business-kinds';
+import { BUSINESS_KINDS, clientsWordFor, examplesFor } from '@core/business-kinds';
 import { AuthService } from '@core/services/auth.service';
 import { Toasts } from '@core/toasts';
 
@@ -92,6 +92,12 @@ export class Register {
   protected readonly nameExample = computed(() => {
     this.formEvents();
     return `Ej. ${examplesFor(this.form.controls.businessKind.value).name}`;
+  });
+
+  /** "clientes", "pacientes" o "tutores" según el giro elegido, para el texto bajo el teléfono. */
+  protected readonly clientsWord = computed(() => {
+    this.formEvents();
+    return clientsWordFor(this.form.controls.businessKind.value);
   });
 
   /** El enlace real que tendrá el negocio, ya con sufijo si el nombre está ocupado. */

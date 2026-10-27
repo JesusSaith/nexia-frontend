@@ -327,7 +327,7 @@ export class Booking {
     }
     return couponOff >= loyaltyOff
       ? { percent: couponOff, label: `Cupón ${this.couponChecked()}` }
-      : { percent: loyaltyOff, label: 'Cliente frecuente' };
+      : { percent: loyaltyOff, label: `${this.copy().client} frecuente` };
   });
   protected readonly policy = computed(() => {
     const text = this.brand()?.cancel_policy?.trim();

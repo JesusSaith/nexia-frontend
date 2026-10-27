@@ -2,7 +2,7 @@
   <header class="page-head">
     <div>
       <h1>Configuración</h1>
-      <p>Lo que ven tus clientes y las reglas para reservar.</p>
+      <p>Lo que ven tus {{ copy.text().clients.toLowerCase() }} y las reglas para reservar.</p>
     </div>
     @if (bookingUrl(); as url) {
       <a class="btn btn-secondary" [href]="url" target="_blank" rel="noopener">
@@ -130,7 +130,7 @@
               @if (form.controls.phone.invalid && form.controls.phone.touched) {
                 <span class="field-error mt-1 block">El teléfono debe tener 10 dígitos.</span>
               } @else {
-                <span class="field-hint mt-1 block">Aquí te escriben tus clientes al reservar.</span>
+                <span class="field-hint mt-1 block">Aquí te escriben tus {{ copy.text().clients.toLowerCase() }} al reservar.</span>
               }
             </label>
             <label class="block">
@@ -155,7 +155,7 @@
             </div>
             <div class="sm:col-span-2">
               <span class="label">Ubicación en el mapa</span>
-              <p class="field-hint mb-2">Tus clientes ven el mapa al reservar y abren la ruta en Google Maps o Waze.</p>
+              <p class="field-hint mb-2">Tus {{ copy.text().clients.toLowerCase() }} ven el mapa al reservar y abren la ruta en Google Maps o Waze.</p>
               @if (googleMaps) {
                 <app-google-map-picker [latitude]="location()?.lat ?? null" [longitude]="location()?.lng ?? null" (pointChange)="onPoint($event)" />
               } @else {
@@ -168,7 +168,7 @@
               }
               <div class="mt-4 rounded-xl border border-line p-4">
                 <p class="text-sm font-semibold text-ink">¿Ya tienes tu local en Google Maps?</p>
-                <p class="field-hint mt-1">Pega aquí el enlace (el de "Compartir", también el corto) o el código de "Insertar un mapa". Con el código, tus clientes ven tu mapa de Google tal cual en "Cómo llegar".</p>
+                <p class="field-hint mt-1">Pega aquí el enlace (el de "Compartir", también el corto) o el código de "Insertar un mapa". Con el código, tus {{ copy.text().clients.toLowerCase() }} ven tu mapa de Google tal cual en "Cómo llegar".</p>
                 <textarea
                   class="input mt-2 h-auto min-h-24 py-2"
                   rows="3"
@@ -395,7 +395,7 @@
             <div>
               <span class="label">Tiempo libre entre citas</span>
               <ng-container *ngTemplateOutlet="chips; context: { field: 'bufferMinutes', unit: 'min', max: 120 }" />
-              <span class="field-hint mt-1 block">Para limpiar o preparar entre un cliente y la siguiente.</span>
+              <span class="field-hint mt-1 block">Para limpiar o preparar entre un {{ copy.text().client.toLowerCase() }} y la siguiente.</span>
             </div>
             <div>
               <span class="label">¿Hasta cuándo pueden cancelar o cambiar?</span>
@@ -404,12 +404,12 @@
             <label class="block">
               <span class="label">Mensaje sobre cancelaciones</span>
               <textarea class="input" rows="2" formControlName="cancelPolicy" placeholder="Si no puedes venir, avísanos con 24 horas para darle tu lugar a alguien más."></textarea>
-              <span class="field-hint mt-1 block">Lo ven tus clientes al reservar y al cancelar.</span>
+              <span class="field-hint mt-1 block">Lo ven tus {{ copy.text().clients.toLowerCase() }} al reservar y al cancelar.</span>
             </label>
             <div class="flex items-center justify-between gap-4 rounded-xl border border-line p-4">
               <div>
                 <p class="text-sm font-semibold text-ink">Aprobar cada cita a mano</p>
-                <p class="field-hint">Las reservas de tu página apartan el horario, pero quedan "Por aprobar" hasta que tú las aceptas o rechazas desde la Agenda. Al cliente se le avisa que la confirmarás por WhatsApp.</p>
+                <p class="field-hint">Las reservas de tu página apartan el horario, pero quedan "Por aprobar" hasta que tú las aceptas o rechazas desde la Agenda. Al {{ copy.text().client.toLowerCase() }} se le avisa que la confirmarás por WhatsApp.</p>
               </div>
               <button type="button" role="switch" class="switch" [attr.aria-checked]="approveBookings()" (click)="approveBookings.set(!approveBookings())" aria-label="Aprobar cada cita a mano"><span></span></button>
             </div>
@@ -422,7 +422,7 @@
               <label class="block">
                 <span class="label">Salas o equipos (opcional)</span>
                 <input class="input" formControlName="resources" placeholder="Sala 1, Sala 2" />
-                <span class="field-hint mt-1 block">Sepáralos con comas. El cliente elige uno al reservar.</span>
+                <span class="field-hint mt-1 block">Sepáralos con comas. El {{ copy.text().client.toLowerCase() }} elige uno al reservar.</span>
               </label>
             </div>
           </div>
@@ -474,7 +474,7 @@
                 <input class="input nums" formControlName="depositAccount" placeholder="CLABE, número de tarjeta o referencia" [class.input-invalid]="depositWarning()" />
                 <!-- FUTURE_PHASE_SPEI: aviso de que con CLABE Banxico confirma los anticipos solos.
                 @if (clabeOk()) {
-                  <span class="mt-1 flex items-center gap-1 text-xs text-[var(--nx-ok-fg)]"><mat-icon class="h-4! w-4! text-[16px]!">verified</mat-icon>Con tu CLABE, Banxico confirma los anticipos solos: el cliente pone su clave de rastreo y la cita queda pagada.</span>
+                  <span class="mt-1 flex items-center gap-1 text-xs text-[var(--nx-ok-fg)]"><mat-icon class="h-4! w-4! text-[16px]!">verified</mat-icon>Con tu CLABE, Banxico confirma los anticipos solos: el {{ copy.text().client.toLowerCase() }} pone su clave de rastreo y la cita queda pagada.</span>
                 } @else {
                   <span class="field-hint mt-1 block">Si pones tu CLABE (18 dígitos), los anticipos se confirman solos con Banxico.</span>
                 }
@@ -538,7 +538,7 @@
               <div class="flex items-center justify-between gap-3">
                 <div>
                   <p class="text-sm font-semibold text-ink">Cupones</p>
-                  <p class="field-hint">El cliente escribe el código al reservar. Si aplican varios descuentos, gana el mayor.</p>
+                  <p class="field-hint">El {{ copy.text().client.toLowerCase() }} escribe el código al reservar. Si aplican varios descuentos, gana el mayor.</p>
                 </div>
                 <button type="button" class="btn btn-secondary shrink-0" (click)="addCoupon()">
                   <mat-icon>add</mat-icon>
@@ -594,7 +594,7 @@
               <div class="flex items-center justify-between gap-4 px-4 py-3">
                 <div>
                   <p class="text-sm font-medium text-ink">Recordatorio con "Confirmo / Cambiar"</p>
-                  <p class="field-hint">El cliente confirma con un toque y se marca en tu agenda. "Cambiar" le manda su enlace para moverla.</p>
+                  <p class="field-hint">El {{ copy.text().client.toLowerCase() }} confirma con un toque y se marca en tu agenda. "Cambiar" le manda su enlace para moverla.</p>
                 </div>
                 <button type="button" role="switch" class="switch" [attr.aria-checked]="autoReminders()" (click)="autoReminders.set(!autoReminders())" aria-label="Recordatorio automático"><span></span></button>
               </div>
@@ -651,7 +651,7 @@
                         </div>
                       </div>
                       <div>
-                        <p class="label">Así le llega a tu cliente</p>
+                        <p class="label">Así le llega a tu {{ copy.text().client.toLowerCase() }}</p>
                         <!-- Burbuja tipo WhatsApp con datos de ejemplo. -->
                         <div class="rounded-xl bg-[#e7ddd3] p-3">
                           <p class="ml-auto max-w-[92%] whitespace-pre-line rounded-lg rounded-tr-none bg-[#d9fdd3] px-3 py-2 text-sm leading-relaxed text-[#111b21] shadow-sm">{{ preview(template.key) }}</p>
@@ -793,7 +793,7 @@
       <!-- Vista previa en vivo (pantallas anchas): así se ve el encabezado de la página con lo que llevas escrito, sin guardar. -->
       @let color = form.controls.primaryColor.value;
       <aside class="sticky top-6 hidden flex-col gap-2 2xl:flex" aria-label="Vista previa de tu página">
-        <p class="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted"><mat-icon class="h-4! w-4! text-[16px]!">visibility</mat-icon>Así te ven tus clientes</p>
+        <p class="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted"><mat-icon class="h-4! w-4! text-[16px]!">visibility</mat-icon>Así te ven tus {{ copy.text().clients.toLowerCase() }}</p>
         <!-- La página de reservas siempre es clara, así que la vista previa también. -->
         <div class="overflow-hidden rounded-2xl border bg-white text-[#1e1b1e] shadow-sm" [style.border-color]="color + '47'">
           @if (photos()[0]; as cover) {

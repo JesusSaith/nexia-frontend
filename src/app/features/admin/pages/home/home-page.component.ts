@@ -31,7 +31,7 @@ export class HomePageComponent {
   private readonly dashboardApi = inject(DashboardService);
   private readonly appointmentsApi = inject(AppointmentsService);
   private readonly auth = inject(AuthService);
-  private readonly copy = inject(BusinessCopy);
+  protected readonly copy = inject(BusinessCopy);
   private readonly bookingApi = inject(BookingService);
   private readonly servicesApi = inject(ServicesService);
   private readonly settingsApi = inject(SettingsService);

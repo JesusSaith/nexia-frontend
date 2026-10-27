@@ -31,7 +31,7 @@ export class Customers {
   private readonly destroyRef = inject(DestroyRef);
   private readonly router = inject(Router);
   private readonly auth = inject(AuthService);
-  private readonly copy = inject(BusinessCopy);
+  protected readonly copy = inject(BusinessCopy);
   private readonly confirm = inject(Confirm);
   protected readonly deleteError = signal<string | null>(null);
   private readonly money = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });

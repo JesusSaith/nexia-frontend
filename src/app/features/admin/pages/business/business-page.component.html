@@ -24,7 +24,7 @@
       </div>
       <button type="button" class="btn btn-secondary" (click)="showPreview.set(!showPreview())">
         <mat-icon>smartphone</mat-icon>
-        {{ showPreview() ? 'Cerrar vista previa' : 'Ver como cliente' }}
+        {{ showPreview() ? 'Cerrar vista previa' : 'Ver como ' + copy.text().client.toLowerCase() }}
       </button>
     </header>
 
@@ -178,7 +178,7 @@
             <span class="sec-icon"><mat-icon>reviews</mat-icon></span>
             <div>
               <h2 class="card-title">Opiniones</h2>
-              <p class="text-sm text-muted">Las dejan tus clientes desde su enlace de la cita, después de cobrarla.</p>
+              <p class="text-sm text-muted">Las dejan tus {{ copy.text().clients.toLowerCase() }} desde su enlace de la cita, después de cobrarla.</p>
             </div>
           </div>
           @if (reviews().length === 0) {

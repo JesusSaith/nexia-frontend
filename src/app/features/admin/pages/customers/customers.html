@@ -1,7 +1,7 @@
 <section>
   <header class="page-head">
     <div>
-      <h1>Clientes</h1>
+      <h1>{{ copy.text().clients }}</h1>
       <p>Quien reserva con el mismo teléfono queda en una sola ficha.</p>
     </div>
     <div class="flex flex-wrap gap-2">
@@ -18,7 +18,7 @@
       </label>
       <button type="button" class="btn btn-primary" (click)="adding.set(!adding())">
         <mat-icon>person_add</mat-icon>
-        Agregar cliente
+        Agregar {{ copy.text().client.toLowerCase() }}
       </button>
     </div>
   </header>
@@ -55,7 +55,7 @@
   } @else if (loaded() && clients().length === 0) {
     <div class="empty">
       <mat-icon>person_search</mat-icon>
-      <p class="font-medium text-ink">Aún no tienes clientes</p>
+      <p class="font-medium text-ink">Aún no tienes {{ copy.text().clients.toLowerCase() }}</p>
       <p>Se agregan solos cuando alguien reserva o cuando creas una cita. También puedes agregarlos a mano.</p>
       <a routerLink="/admin/negocio" class="btn btn-secondary">Compartir mi enlace de reservas</a>
     </div>
@@ -84,7 +84,7 @@
 
     <section class="card">
       <label class="relative block">
-        <span class="sr-only">Buscar cliente</span>
+        <span class="sr-only">Buscar {{ copy.text().client.toLowerCase() }}</span>
         <mat-icon class="pointer-events-none absolute left-3 top-1/2 h-5! w-5! -translate-y-1/2 text-[20px]! text-muted">search</mat-icon>
         <input class="input pl-10!" type="search" placeholder="Buscar por nombre o teléfono" [ngModel]="query()" (ngModelChange)="query.set($event)" />
       </label>

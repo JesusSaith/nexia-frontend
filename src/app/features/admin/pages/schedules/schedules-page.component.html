@@ -37,7 +37,7 @@
 
     @if (outside(); as left) {
       <p class="card card-tint mb-4 flex flex-wrap items-center justify-between gap-2 py-2! text-sm" role="status">
-        <span>Quedaron {{ left.count }} {{ left.count === 1 ? 'cita' : 'citas' }} fuera del horario nuevo. Muévelas y avisa a cada cliente.</span>
+        <span>Quedaron {{ left.count }} {{ left.count === 1 ? 'cita' : 'citas' }} fuera del horario nuevo. Muévelas y avisa a cada {{ copy.text().client.toLowerCase() }}.</span>
         <a class="btn btn-secondary" routerLink="/admin/agenda" [queryParams]="{ dia: left.day, vista: 'day' }">Ir a la agenda</a>
       </p>
     }
@@ -124,7 +124,7 @@
               @if (!day.break_start) {
                 <p class="mt-1 text-sm text-muted">¿Dos turnos (9–14 y 16–20)? Pon el descanso de 14:00 a 16:00.</p>
               }
-              <p class="mt-2 text-sm text-muted">Tus clientes verán: <span class="nums text-ink-soft">{{ preview(day) }}</span></p>
+              <p class="mt-2 text-sm text-muted">Tus {{ copy.text().clients.toLowerCase() }} verán: <span class="nums text-ink-soft">{{ preview(day) }}</span></p>
             }
           </li>
         }

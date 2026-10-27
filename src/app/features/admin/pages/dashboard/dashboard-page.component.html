@@ -148,10 +148,10 @@
                 @if (g.missing || g.cancelling || g.worstName) {
                   <ul class="mt-1 text-sm text-ink-soft">
                     @if (g.missing) {
-                      <li><span class="nums font-semibold text-ink">{{ g.missing }}</span> {{ g.missing === 1 ? 'cliente dejó' : 'clientes dejaron' }} de venir</li>
+                      <li><span class="nums font-semibold text-ink">{{ g.missing }}</span> {{ g.missing === 1 ? copy.text().client.toLowerCase() + ' dejó' : copy.text().clients.toLowerCase() + ' dejaron' }} de venir</li>
                     }
                     @if (g.cancelling) {
-                      <li><span class="nums font-semibold text-ink">{{ g.cancelling }}</span> {{ g.cancelling === 1 ? 'cliente cancela' : 'clientes cancelan' }} o {{ g.cancelling === 1 ? 'falta' : 'faltan' }} seguido</li>
+                      <li><span class="nums font-semibold text-ink">{{ g.cancelling }}</span> {{ g.cancelling === 1 ? copy.text().client.toLowerCase() + ' cancela' : copy.text().clients.toLowerCase() + ' cancelan' }} o {{ g.cancelling === 1 ? 'falta' : 'faltan' }} seguido</li>
                     }
                     @if (g.worstName) {
                       <li>{{ g.worstName }} tuvo <span class="nums font-semibold text-ink">{{ g.worstLost }}</span> faltas o cancelaciones</li>
@@ -159,11 +159,11 @@
                   </ul>
                   <a routerLink="/admin/clientes" class="inline-flex min-h-11 items-center text-sm font-medium text-accent hover:underline">Ver clientes</a>
                 } @else {
-                  <p class="mt-1 text-sm text-ink-soft">Nadie por ahora. Tus clientes siguen viniendo.</p>
+                  <p class="mt-1 text-sm text-ink-soft">Nadie por ahora. Tus {{ copy.text().clients.toLowerCase() }} siguen viniendo.</p>
                 }
                 @if (g.winSent) {
                   <p class="mt-2 rounded-lg bg-canvas px-3 py-2 text-sm text-ink-soft">
-                    De <span class="nums font-semibold text-ink">{{ g.winSent }}</span> {{ g.winSent === 1 ? 'cliente al que invitaste' : 'clientes a los que invitaste' }}:
+                    De <span class="nums font-semibold text-ink">{{ g.winSent }}</span> {{ g.winSent === 1 ? copy.text().client.toLowerCase() + ' al que invitaste' : copy.text().clients.toLowerCase() + ' a los que invitaste' }}:
                     <span class="nums font-semibold text-ink">{{ g.winReturned }}</span> {{ g.winReturned === 1 ? 'ya regresó' : 'ya regresaron' }}{{ g.winReturned ? ' y dejaron ' + money(g.winRevenue) : '' }}{{ g.winBooked ? ' · ' + g.winBooked + (g.winBooked === 1 ? ' tiene cita agendada' : ' tienen cita agendada') : '' }}.
                   </p>
                 }
@@ -991,7 +991,7 @@
               <div><p class="nums text-lg font-semibold text-ink">{{ lost.noShow }}</p><p class="text-muted">No llegaron</p></div>
             </div>
             @if (lost.rate >= 15) {
-              <p class="mt-3 text-sm text-ink-soft">Es alto. Pide anticipo a quien cancela seguido (Clientes → Cancelan seguido).</p>
+              <p class="mt-3 text-sm text-ink-soft">Es alto. Pide anticipo a quien cancela seguido ({{ copy.text().clients }} → Cancelan seguido).</p>
             }
           </article>
         }
@@ -1008,7 +1008,7 @@
                 <dd class="nums text-lg font-semibold text-ink">{{ info.rebook === null ? '—' : info.rebook + '%' }}</dd>
               </div>
               <div>
-                <dt class="text-muted">Gasta un cliente (en total)</dt>
+                <dt class="text-muted">Gasta un {{ copy.text().client.toLowerCase() }} (en total)</dt>
                 <dd class="nums text-lg font-semibold text-ink">{{ money(info.value) }}</dd>
               </div>
               <div>
@@ -1130,7 +1130,7 @@
             <span class="sec-icon"><mat-icon>table_chart</mat-icon></span>
             <div>
               <h2 class="card-title">Comparar {{ copy.text().people.toLowerCase() }}</h2>
-              <p class="text-sm text-muted">"Por hora" es lo que vendió entre las horas que trabajó con cita. "Regresan" son clientes que ya habían venido antes.</p>
+              <p class="text-sm text-muted">"Por hora" es lo que vendió entre las horas que trabajó con cita. "Regresan" son {{ copy.text().clients.toLowerCase() }} que ya habían venido antes.</p>
             </div>
           </div>
           <div class="mt-3 overflow-x-auto">

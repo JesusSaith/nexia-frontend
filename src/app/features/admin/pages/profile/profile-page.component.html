@@ -28,10 +28,22 @@
         <span class="block text-xs text-muted">Teléfono</span>
         <input class="w-full bg-transparent text-sm outline-none" type="tel" formControlName="phone" />
       </label>
-      <label class="rounded-xl border border-line bg-surface px-3 py-2">
-        <span class="block text-xs text-muted">Foto</span>
-        <input class="w-full bg-transparent text-sm outline-none" formControlName="avatar_url" placeholder="https://" />
-      </label>
+      <div class="flex items-center gap-3 rounded-xl border border-line bg-surface p-3">
+        @if (photo(); as src) {
+          <img [src]="src" alt="Tu foto" class="h-16 w-16 shrink-0 rounded-full object-cover" />
+        } @else {
+          <span class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-dashed border-line-strong text-muted"><mat-icon>add_a_photo</mat-icon></span>
+        }
+        <div class="flex flex-wrap gap-2">
+          <label class="btn btn-secondary cursor-pointer">
+            {{ photoPending() ? 'Preparando foto…' : photo() ? 'Cambiar foto' : 'Subir foto' }}
+            <input type="file" accept="image/png,image/jpeg,image/webp" class="sr-only" (change)="onPhoto($event)" />
+          </label>
+          @if (photo()) {
+            <button type="button" class="btn btn-ghost text-(--nx-bad-fg)" (click)="clearPhoto()">Quitar</button>
+          }
+        </div>
+      </div>
       <label class="rounded-xl border border-line bg-surface px-3 py-2">
         <span class="block text-xs text-muted">Biografía</span>
         <textarea class="w-full bg-transparent text-sm outline-none" rows="4" formControlName="bio"></textarea>
@@ -42,7 +54,7 @@
       @if (saved()) {
         <p class="text-sm text-[var(--nx-ok-fg)]">Perfil guardado.</p>
       }
-      <button class="btn btn-primary disabled:opacity-50" type="submit" [disabled]="isSaving()">
+      <button class="btn btn-primary disabled:opacity-50" type="submit" [disabled]="isSaving() || photoPending()">
         {{ isSaving() ? 'Guardando…' : 'Guardar' }}
       </button>
     </form>

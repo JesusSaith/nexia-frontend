@@ -23,6 +23,14 @@ const KIND_BY_STAFF_LABEL: Record<string, string> = {
   Profesional: 'estudio',
 };
 
+/** Cómo se llama a quien reserva en cada giro (en plural y minúsculas), para textos del registro. */
+export function clientsWordFor(kind: string | null | undefined): string {
+  if (kind === 'dental' || kind === 'consultorio') {
+    return 'pacientes';
+  }
+  return kind === 'veterinaria' ? 'tutores' : 'clientes';
+}
+
 export function kindOf(businessKind: string | null | undefined, staffLabel: string | null | undefined): string {
   if (businessKind) {
     return businessKind;

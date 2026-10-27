@@ -162,7 +162,7 @@
         <section class="card flex flex-col gap-3">
           <div>
             <h3 class="card-title">Perfil público</h3>
-            <p class="field-hint">Tus clientes lo ven en tu página al elegir con quién reservar.</p>
+            <p class="field-hint">Tus {{ copy.text().clients.toLowerCase() }} lo ven en tu página al elegir con quién reservar.</p>
           </div>
           <div class="flex items-center gap-3">
             @if (photoPreview(); as src) {
@@ -190,7 +190,7 @@
           </div>
           @if (nameError()) { <p class="field-error">{{ nameError() }}</p> }
           @if (roleError()) { <p class="field-error">{{ roleError() }}</p> }
-          <label class="block"><span class="label">Descripción para tus clientes (pública)</span>
+          <label class="block"><span class="label">Descripción para tus {{ copy.text().clients.toLowerCase() }} (pública)</span>
             <textarea formControlName="bio" rows="3" class="input" [placeholder]="bioExample()"></textarea>
             <span class="field-hint">Se ve en tu página. No escribas aquí notas privadas.</span>
           </label>

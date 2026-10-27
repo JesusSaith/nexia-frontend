@@ -11,6 +11,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { finalize, forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 
+import { BusinessCopy } from '@core/business-copy';
 import { Service, ServiceVariant, ServiceWrite } from '@core/models/service.model';
 import { Staff } from '@core/models/staff.model';
 import { ShopService } from '@core/services/shop.service';
@@ -36,6 +37,7 @@ import { PickFieldComponent } from '@shared/components/when-field/when-field';
   templateUrl: './services.html',
 })
 export class ServicesPageComponent {
+  protected readonly copy = inject(BusinessCopy);
   private readonly servicesApi = inject(ServicesService);
   private readonly toasts = inject(Toasts);
   private readonly staffApi = inject(StaffService);

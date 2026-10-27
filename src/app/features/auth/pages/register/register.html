@@ -97,7 +97,7 @@
                   [attr.aria-invalid]="!!errors().phone"
                   [attr.aria-describedby]="errors().phone ? 'phone-error' : 'phone-hint'"
                 />
-                <span id="phone-hint" class="mt-0.5 block truncate text-xs text-muted">Aquí te escriben tus clientes</span>
+                <span id="phone-hint" class="mt-0.5 block truncate text-xs text-muted">Aquí te escriben tus {{ clientsWord() }}</span>
               </label>
               @if (errors().phone) {
                 <p id="phone-error" class="field-error mt-1">{{ errors().phone }}</p>
