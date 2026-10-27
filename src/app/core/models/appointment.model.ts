@@ -39,6 +39,8 @@ export interface Appointment {
   staff_id: number;
   staff_name: string;
   starts_at: string;
+  /** Cuándo termina (con extras incluidos). */
+  ends_at?: string | null;
   status: AppointmentStatus;
   notes?: string | null;
   cancel_token?: string | null;

@@ -1,5 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { MatIconModule } from '@angular/material/icon';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 
@@ -12,10 +13,12 @@ import { PlaceMap } from '@shared/components/place-map/place-map';
 import { Confirm } from '@shared/components/confirm/confirm';
 import { CalendarEvent, downloadIcs, googleCalendarUrl } from '@core/calendar';
 import { canNavigate, googleMapsUrl } from '@core/maps';
+import { balanceDue, formatMinutes, minutesBetween } from '@core/appointment-summary';
+import { whatsappLink } from '@core/message-templates';
 
 @Component({
   selector: 'app-manage-appointment',
-  imports: [DateFieldComponent, PlaceMap], // FUTURE_PHASE_SPEI: SpeiCheckComponent
+  imports: [DateFieldComponent, MatIconModule, PlaceMap], // FUTURE_PHASE_SPEI: SpeiCheckComponent
   templateUrl: './manage-appointment.component.html',
   styleUrl: './manage-appointment.component.css',
 })
@@ -118,6 +121,26 @@ export class ManageAppointmentComponent {
 
   protected accountLabel(item: ManagedAppointment): string {
     return (item.deposit_account ?? '').replace(/\D/g, '').length === 18 ? 'CLABE' : 'cuenta';
+  }
+
+  /** "1 h 55 min" con extras incluidos; null si la API no manda el final. */
+  protected duration(item: ManagedAppointment): string | null {
+    const minutes = minutesBetween(item.starts_at, item.ends_at);
+    return minutes ? formatMinutes(minutes) : null;
+  }
+
+  /** Lo que falta pagar en el local cuando el anticipo ya fue aceptado. */
+  protected balance(item: ManagedAppointment): number | null {
+    return balanceDue(item.quoted_price, item.deposit_amount);
+  }
+
+  /** WhatsApp al negocio, con el mensaje listo, para cuando ya no se puede cambiar la cita desde aquí. */
+  protected contactHref(item: ManagedAppointment): string | null {
+    if ((item.business_phone ?? '').replace(/\D/g, '').length < 10) {
+      return null;
+    }
+    const text = `Hola, soy ${item.client_name || 'cliente'}. Tengo una cita el ${this.label(item.starts_at)} (${item.service_name}) y necesito cambiarla o cancelarla.`;
+    return whatsappLink(item.business_phone, text);
   }
 
   protected label(value: string): string {
@@ -268,7 +291,8 @@ export class ManageAppointmentComponent {
           this.appointment.set(appointment);
           this.saving.set(false);
           this.changing.set(false);
-          this.notice.set('Cita cancelada');
+          // El aviso rojo "Cita cancelada" de la tarjeta ya lo dice: no se repite en un segundo aviso.
+          this.notice.set(null);
         },
         error: (error: unknown) => {
           this.saving.set(false);

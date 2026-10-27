@@ -7,6 +7,13 @@ import { CurrentUser, LoginRequest, RegisterRequest } from '../models/user.model
 
 const SESSION_PROBE_TIMEOUT_MS = 8_000;
 
+/** Páginas que abre cualquier persona sin cuenta (reservar, ver su cita, avisos legales): ahí no hace falta preguntar por la sesión. */
+const PUBLIC_PATH = /^\/(?:terminos|privacidad|s\/[^/]+|[^/]+\/(?:book|manage|privacidad))(?:[/?#]|$)/;
+
+export function isPublicPath(path: string): boolean {
+  return PUBLIC_PATH.test(path);
+}
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
@@ -28,8 +35,16 @@ export class AuthService {
 
   readonly isAuthenticated = computed(() => this.currentUserState() !== null);
 
+  /** Ya se preguntó al servidor por la sesión (en páginas públicas se omite hasta que haga falta). */
+  private sessionProbed = false;
+
+  get hasProbedSession(): boolean {
+    return this.sessionProbed;
+  }
+
   /** Resolves the session from the HttpOnly cookie. A missing API leaves the user anonymous. */
   restoreSession(): Observable<CurrentUser | null> {
+    this.sessionProbed = true;
     return this.http.get<CurrentUser>(`${this.apiBaseUrl}/auth/me`).pipe(
       timeout(SESSION_PROBE_TIMEOUT_MS),
       tap((user) => this.currentUserState.set(user)),
@@ -38,6 +53,11 @@ export class AuthService {
         return of(null);
       }),
     );
+  }
+
+  /** Al abrir la app: en páginas públicas no se consulta la sesión (evita un 401 en la consola de cada cliente). */
+  restoreSessionOnStart(path: string): Observable<CurrentUser | null> {
+    return isPublicPath(path) ? of(null) : this.restoreSession();
   }
 
   login(credentials: LoginRequest): Observable<CurrentUser> {

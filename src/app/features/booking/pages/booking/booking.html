@@ -44,7 +44,7 @@
     @if (!compact && (gallery().length || opinions().length)) {
       <!-- Plegado para que en celular los servicios queden a la vista desde el inicio. -->
       <details class="more-info px-5">
-        <summary class="cursor-pointer text-sm font-medium" style="color: var(--booking-primary, var(--primary))">
+        <summary class="min-h-11 cursor-pointer py-3 text-sm font-medium" style="color: var(--booking-primary, var(--primary))">
           Ver {{ gallery().length ? 'fotos' : '' }}{{ gallery().length && opinions().length ? ' y ' : '' }}{{ opinions().length ? 'opiniones (' + opinions().length + ')' : '' }}
         </summary>
         @if (gallery().length) {
@@ -68,7 +68,7 @@
     }
     @if (!compact && hasPlace()) {
       <details class="more-info px-5" (toggle)="mapOpen.set($any($event.target).open)">
-        <summary class="cursor-pointer text-sm font-medium" style="color: var(--booking-primary, var(--primary))">Cómo llegar</summary>
+        <summary class="min-h-11 cursor-pointer py-3 text-sm font-medium" style="color: var(--booking-primary, var(--primary))">Cómo llegar</summary>
         @if (mapOpen()) {
           <app-place-map class="mt-3 block" [place]="brand()!" [name]="brand()?.name" [color]="brand()?.primary_color" />
         }
@@ -126,25 +126,27 @@
     }
   </header>
 
-  <nav class="step-tabs" aria-label="Pasos de la reserva">
-    @for (item of steps; track item.id) {
-      <button
-        type="button"
-        class="step-tab"
-        [class.is-current]="step() === item.id"
-        [class.is-done]="step() > item.id"
-        [disabled]="item.id > reached() || !!confirmation()"
-        (click)="openStep(item.id)"
-      >
-        @if (step() > item.id) {
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" class="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
-            <path fill-rule="evenodd" d="M16.7 5.3a1 1 0 0 1 0 1.4l-7.2 7.2a1 1 0 0 1-1.4 0L3.3 9.1a1 1 0 1 1 1.4-1.4l4.1 4.1 6.5-6.5a1 1 0 0 1 1.4 0z" clip-rule="evenodd"/>
-          </svg>
-        }
-        {{ item.label }}
-      </button>
-    }
-  </nav>
+  @if (!confirmation()) {
+    <nav class="step-tabs" aria-label="Pasos de la reserva">
+      @for (item of steps; track item.id) {
+        <button
+          type="button"
+          class="step-tab"
+          [class.is-current]="step() === item.id"
+          [class.is-done]="step() > item.id"
+          [disabled]="item.id > reached()"
+          (click)="openStep(item.id)"
+        >
+          @if (step() > item.id) {
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" class="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
+              <path fill-rule="evenodd" d="M16.7 5.3a1 1 0 0 1 0 1.4l-7.2 7.2a1 1 0 0 1-1.4 0L3.3 9.1a1 1 0 1 1 1.4-1.4l4.1 4.1 6.5-6.5a1 1 0 0 1 1.4 0z" clip-rule="evenodd"/>
+            </svg>
+          }
+          {{ item.label }}
+        </button>
+      }
+    </nav>
+  }
 
   @if (loadError(); as message) {
     <p role="alert" class="text-sm text-[var(--nx-bad-fg)]">{{ message }}</p>
@@ -722,7 +724,7 @@
       }
       @if (appointment.status === 'awaiting_deposit' && appointment.deposit_amount && holdUntil(appointment); as limit) {
         <p class="mt-3 rounded-xl badge-warn px-3 py-2 text-sm">
-          Te guardamos el horario hasta <strong>{{ limit }}</strong>. Si no llega el anticipo, se libera para alguien más.
+          Te guardamos el horario hasta <strong>{{ limit }}</strong> Si no llega el anticipo, se libera para alguien más.
         </p>
       }
       @if (appointment.status === 'awaiting_deposit' && appointment.deposit_amount) {
@@ -762,6 +764,12 @@
           <dt class="text-muted">Servicio</dt>
           <dd class="font-medium">{{ appointment.service_name || selectedService()?.name }}</dd>
         </div>
+        @if (appointment.extra_label) {
+          <div>
+            <dt class="text-muted">Extras</dt>
+            <dd class="font-medium">{{ appointment.extra_label }}</dd>
+          </div>
+        }
         <div>
           <dt class="text-muted">Día y hora</dt>
           <dd class="font-medium">{{ formatDate(appointment.starts_at) }} · {{ formatTime(appointment.starts_at) }}</dd>
@@ -770,10 +778,22 @@
           <dt class="text-muted">Con</dt>
           <dd class="font-medium">{{ appointment.staff_name || selectedStaff()?.full_name }}</dd>
         </div>
+        @if (durationOf(appointment); as time) {
+          <div>
+            <dt class="text-muted">Duración</dt>
+            <dd class="font-medium">{{ time }}</dd>
+          </div>
+        }
+        @if (totalOf(appointment); as total) {
+          <div>
+            <dt class="text-muted">Total</dt>
+            <dd class="font-medium">${{ total }}</dd>
+          </div>
+        }
       </dl>
       <!-- Lo que se hace justo después de reservar: guardarla en el calendario y saber cómo llegar. -->
       <div class="mt-6 grid w-full gap-2" [class.grid-cols-2]="directionsHref()">
-        <button type="button" class="btn btn-secondary h-12 justify-center" (click)="downloadIcs(appointment)">
+        <button type="button" class="btn btn-secondary min-h-12 !h-auto !whitespace-normal py-2 text-center leading-tight justify-center" (click)="downloadIcs(appointment)">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>
           Agregar a mi calendario
         </button>
@@ -793,8 +813,8 @@
           <p class="font-medium">¿Necesitas cambiarla o cancelarla?</p>
           <p class="mt-1 text-muted">Guarda este enlace; ahí ves tu {{ copy().visit.toLowerCase() }}, la cambias o la cancelas.</p>
           <div class="mt-2 flex items-center gap-3">
-            <a class="font-medium underline" style="color: var(--booking-primary)" [href]="link">Ver mi {{ copy().visit.toLowerCase() }}</a>
-            <button type="button" class="text-xs underline" (click)="copyManage(link)">{{ manageCopied() ? 'Enlace copiado' : 'Copiar enlace' }}</button>
+            <a class="inline-flex min-h-11 items-center font-medium underline" style="color: var(--booking-primary)" [href]="link">Ver mi {{ copy().visit.toLowerCase() }}</a>
+            <button type="button" class="min-h-11 px-2 text-sm underline" (click)="copyManage(link)">{{ manageCopied() ? 'Enlace copiado' : 'Copiar enlace' }}</button>
           </div>
         </div>
       }

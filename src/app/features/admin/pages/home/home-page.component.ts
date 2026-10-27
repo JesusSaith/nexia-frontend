@@ -1,3 +1,4 @@
+import { attendanceState } from '@core/appointment-progress';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -107,7 +108,7 @@ export class HomePageComponent {
       visits: this.today().length,
       collected,
       due: open.reduce((sum, item) => sum + this.rest(item), 0),
-      unconfirmed: open.filter((item) => !item.client_confirmed).length,
+      unconfirmed: open.filter((item) => attendanceState(item) === 'pending').length,
       todos: this.todos().length,
     };
   });
@@ -120,7 +121,7 @@ export class HomePageComponent {
   protected readonly reminded = signal<number[]>(readReminded());
   protected readonly pendingReminders = computed(() =>
     this.tomorrow().filter(
-      (item) => (item.client_phone ?? '').replace(/\D/g, '').length >= 8 && !item.client_confirmed && !this.reminded().includes(item.id),
+      (item) => (item.client_phone ?? '').replace(/\D/g, '').length >= 8 && attendanceState(item) === 'pending' && !this.reminded().includes(item.id),
     ),
   );
 
@@ -354,10 +355,21 @@ export class HomePageComponent {
   }
 
   private minutes(item: Appointment): number {
+    if (item.ends_at) {
+      const length = (parseLocal(item.ends_at).getTime() - parseLocal(item.starts_at).getTime()) / 60_000;
+      if (length > 0) {
+        return length;
+      }
+    }
     return this.services().find((row) => row.id === item.service_id)?.duration_minutes || 60;
   }
 
   /** Ya terminó y no se ha cobrado: el botón Cobrar se vuelve el principal. */
+  /** Confirmó, anticipo pagado o sin confirmar. */
+  protected attendance(item: Appointment): 'confirmed' | 'deposit' | 'pending' {
+    return attendanceState(item);
+  }
+
   protected overdue(item: Appointment): boolean {
     return item.status === 'scheduled' && parseLocal(item.starts_at).getTime() + this.minutes(item) * 60_000 <= this.now();
   }

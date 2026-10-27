@@ -404,7 +404,10 @@
             </span>
             <span class="block truncate text-sm font-medium text-ink">{{ item.client_name }}</span>
             <span class="block truncate text-sm text-muted">{{ item.service_name }} · {{ item.staff_name }}</span>
-            @if (mark(item); as label) {
+            @let live = progress(item);
+            @if (live.key === 'live' || live.key === 'ended' || live.key === 'done') {
+              <span class="badge mt-1 {{ live.badge }}">{{ live.label }}</span>
+            } @else if (mark(item); as label) {
               @if (label !== 'Confirmó') {
                 <span class="badge mt-1" [class]="label === 'Precio aceptado' ? 'badge-ok' : 'badge-warn'">{{ label }}</span>
               }
@@ -449,7 +452,7 @@
         <h2 class="truncate text-base font-semibold text-ink">{{ pop.appointment.client_name }}</h2>
         <p class="text-sm text-ink-soft">{{ pop.appointment.service_name }}</p>
         <p class="nums text-sm text-muted first-letter:uppercase">{{ whenLabel(pop.appointment.starts_at) }}</p>
-        <span class="badge mt-1.5" [class]="statusBadge(pop.appointment)">{{ pop.appointment.needs_approval && pop.appointment.status !== 'cancelled' ? 'Por aprobar' : statusLabel(pop.appointment.status) }}{{ pop.appointment.status === 'scheduled' && !pop.appointment.needs_approval ? (pop.appointment.client_confirmed ? ' · Confirmó' : ' · Sin confirmar') : '' }}</span>
+        <span class="badge mt-1.5" [class]="statusBadge(pop.appointment)">{{ statusText(pop.appointment) }}</span>
       </div>
       <button type="button" class="btn btn-ghost w-11! shrink-0 px-0!" aria-label="Cerrar" (click)="closeAppointment()">
         <mat-icon>close</mat-icon>

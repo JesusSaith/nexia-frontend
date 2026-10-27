@@ -52,19 +52,31 @@
       <dl class="mt-5 space-y-2 text-sm">
         <div>
           <dt class="text-muted">Servicio</dt>
-          <dd class="font-medium">{{ item.service_name }}</dd>
+          <dd class="font-medium">{{ item.service_name }}@if (item.option_name) { · {{ item.option_name }}}</dd>
         </div>
+        @if (item.extra_label) {
+          <div>
+            <dt class="text-muted">Extras</dt>
+            <dd class="font-medium">{{ item.extra_label }}</dd>
+          </div>
+        }
         <div>
           <dt class="text-muted">Fecha y hora</dt>
           <dd class="font-medium">{{ label(item.starts_at) }}</dd>
         </div>
+        @if (duration(item); as time) {
+          <div>
+            <dt class="text-muted">Duración</dt>
+            <dd class="font-medium">{{ time }}</dd>
+          </div>
+        }
         <div>
           <dt class="text-muted">Con</dt>
           <dd class="font-medium">{{ item.staff_name }}</dd>
         </div>
         @if (item.quoted_price != null) {
           <div>
-            <dt class="text-muted">Precio acordado</dt>
+            <dt class="text-muted">{{ item.variable_price ? 'Precio acordado' : 'Total' }}</dt>
             <dd class="font-medium">${{ item.quoted_price }}</dd>
           </div>
         } @else if (item.variable_price) {
@@ -75,7 +87,19 @@
         }
       </dl>
 
-      @if (item.quoted_price != null && !item.price_accepted && !item.is_cancelled) {
+      @if (item.status === 'scheduled' && item.deposit_amount) {
+        <p class="mt-4 rounded-xl badge-ok px-3 py-2 text-sm" role="status">
+          Anticipo recibido: ${{ item.deposit_amount }}.
+          @if (balance(item); as rest) {
+            En tu cita pagas ${{ rest }}.
+          } @else if (item.quoted_price != null) {
+            Ya no debes nada en tu cita.
+          } @else {
+            Se descuenta del total en tu cita.
+          }
+        </p>
+      }
+      @if (item.variable_price && item.quoted_price != null && !item.price_accepted && !item.is_cancelled) {
         <button type="button" class="btn btn-primary mt-4 w-full" [disabled]="saving()" (click)="acceptPrice()">Sí, ese precio</button>
       }
       @if (item.price_accepted) {
@@ -108,7 +132,13 @@
         }
       }
       @if (item.changes_locked && !item.is_cancelled && !item.is_past) {
-        <p class="mt-4 text-sm text-[var(--nx-bad-fg)]">Ya no se puede cambiar esta cita.</p>
+        <p class="mt-4 text-sm text-[var(--nx-bad-fg)]">Ya no se puede cambiar esta cita desde aquí.</p>
+        @if (contactHref(item); as chat) {
+          <a class="btn btn-secondary mt-2 w-full justify-center" [href]="chat" target="_blank" rel="noopener">
+            <mat-icon>chat</mat-icon>
+            Escribir a {{ item.business_name }}
+          </a>
+        }
       }
       @if (item.status === 'awaiting_deposit' && item.payment_url) {
         <a class="btn btn-primary mt-4 justify-center" [href]="item.payment_url" target="_blank" rel="noopener">Pagar anticipo</a>
@@ -127,7 +157,7 @@
       @if (!item.is_cancelled && !item.is_past) {
         <!-- Guardarla en el calendario (con aviso un día y dos horas antes) y saber cómo llegar. -->
         <div class="mt-6 grid gap-2" [class.grid-cols-2]="directionsHref(item)">
-          <button type="button" class="btn btn-secondary h-12 justify-center" (click)="addToCalendar(item)">Agregar a mi calendario</button>
+          <button type="button" class="btn btn-secondary min-h-12 !h-auto !whitespace-normal py-2 text-center leading-tight justify-center" (click)="addToCalendar(item)">Agregar a mi calendario</button>
           @if (directionsHref(item); as route) {
             <a class="btn btn-secondary h-12 justify-center" [href]="route" target="_blank" rel="noopener">Cómo llegar</a>
           }
@@ -148,9 +178,11 @@
           @if (item.cancel_policy) {
             <p class="text-sm text-ink-soft">{{ item.cancel_policy }}</p>
           }
-          <button type="button" class="btn btn-primary" (click)="startChange()">
-            Cambiar fecha u hora
-          </button>
+          @if (item.status === 'scheduled') {
+            <button type="button" class="btn btn-primary" (click)="startChange()">
+              Cambiar fecha u hora
+            </button>
+          }
           <button type="button" class="btn btn-secondary" [disabled]="saving()" (click)="cancel()">
             Cancelar cita
           </button>

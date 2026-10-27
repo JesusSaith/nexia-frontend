@@ -216,7 +216,7 @@
                 <p class="font-medium text-ink">{{ uploading() ? 'Leyendo imagen…' : 'Logo' }}</p>
                 <p class="text-muted">Toca el cuadro para elegir una imagen. Se ve arriba de tu página de reservas.</p>
                 @if (logoUrl()) {
-                  <button type="button" class="mt-1 text-sm font-medium text-ink-soft hover:text-ink" (click)="removeLogo()">Quitar logo</button>
+                  <button type="button" class="mt-1 min-h-11 text-sm font-medium text-ink-soft hover:text-ink" (click)="removeLogo()">Quitar logo</button>
                 }
               </div>
             </div>
@@ -723,7 +723,7 @@
                 <div class="mt-4">
                   <div class="flex flex-wrap items-center justify-between gap-2">
                     <p class="text-sm font-semibold text-ink">Días festivos que vienen</p>
-                    <button type="button" class="text-sm font-medium text-accent hover:underline" (click)="addHolidays(suggestedHolidays())">Cerrar todos</button>
+                    <button type="button" class="min-h-11 text-sm font-medium text-accent hover:underline" (click)="addHolidays(suggestedHolidays())">Cerrar todos</button>
                   </div>
                   <p class="field-hint">Toca los días en que no abres.</p>
                   <div class="mt-2 flex flex-wrap gap-2">

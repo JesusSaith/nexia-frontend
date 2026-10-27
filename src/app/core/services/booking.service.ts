@@ -43,6 +43,12 @@ export interface ManagedAppointment {
   spei_check?: boolean;
   /** Dijo "Ya pagué": el negocio revisa y confirma. */
   paid_claim?: boolean;
+  /** Extras que se sumaron al servicio, separados por coma. */
+  extra_label?: string | null;
+  /** Opción elegida del servicio (ej. "Largo"). */
+  option_name?: string | null;
+  /** WhatsApp o teléfono del negocio, para escribirle cuando ya no se puede cambiar la cita. */
+  business_phone?: string | null;
 }
 
 export interface DueClient {

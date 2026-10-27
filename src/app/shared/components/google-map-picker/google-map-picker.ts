@@ -31,7 +31,7 @@ import { MEXICO_CENTER, roundCoord } from '@core/maps';
           {{ message() || (latitude() != null ? 'Arrastra el pin o toca el mapa para ajustarlo a la puerta del local.' : 'Aún no está en el mapa: búscalo o toca el mapa donde está tu local.') }}
         </p>
         @if (latitude() != null) {
-          <button type="button" class="font-medium text-ink-soft hover:text-ink" (click)="clear()">Quitar del mapa</button>
+          <button type="button" class="min-h-11 font-medium text-ink-soft hover:text-ink" (click)="clear()">Quitar del mapa</button>
         }
       </div>
     </div>

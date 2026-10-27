@@ -16,6 +16,7 @@ import { forkJoin, interval, of } from 'rxjs';
 import { catchError, distinctUntilChanged, map, switchMap } from 'rxjs/operators';
 
 import { BusinessCopy } from '@core/business-copy';
+import { Progress, appointmentProgress, attendanceState } from '@core/appointment-progress';
 import { staffColorOf } from '@core/staff-colors';
 import { ALL_METHODS, PAYMENT_METHODS } from '@core/payment-methods';
 import { MessageVars, firstName, longDay, whatsappLink } from '@core/message-templates';
@@ -57,14 +58,6 @@ const SLOT_MINUTES = 30;
 const VIEW_KEY = 'nexia-agenda-view';
 const SLOT_HEIGHT = 28;
 const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
-const STATUS_LABELS: Record<AppointmentStatus, string> = {
-  scheduled: 'Programada',
-  completed: 'Completada',
-  cancelled: 'Cancelada',
-  no_show: 'No llegó',
-  awaiting_deposit: 'Falta el anticipo',
-};
-
 @Component({
   selector: 'app-agenda-page',
   imports: [
@@ -412,6 +405,21 @@ export class AgendaPageComponent {
     const dia = this.route.snapshot.queryParamMap.get('dia');
     if (dia && /^\d{4}-\d{2}-\d{2}$/.test(dia)) {
       this.cursor.set(new Date(`${dia}T12:00:00`));
+    }
+    // ?cita=ID sin ?dia (Avisos, correos): se busca la cita y la agenda salta a su día.
+    const citaId = Number(this.route.snapshot.queryParamMap.get('cita'));
+    if (citaId && !dia) {
+      this.appointmentsApi
+        .getAppointment(citaId)
+        .pipe(
+          takeUntilDestroyed(this.destroyRef),
+          catchError(() => of(null)),
+        )
+        .subscribe((found) => {
+          if (found) {
+            this.cursor.set(new Date(`${found.starts_at.slice(0, 10)}T12:00:00`));
+          }
+        });
     }
     this.destroyRef.onDestroy(() => this.dialogRef?.close());
     this.loadCatalog();
@@ -848,7 +856,7 @@ export class AgendaPageComponent {
       return 'Confirmó';
     }
     if (item.status === 'scheduled') {
-      return 'Sin confirmar';
+      return attendanceState(item) === 'deposit' ? 'Anticipo pagado' : 'Sin confirmar';
     }
     return '';
   }
@@ -955,16 +963,20 @@ export class AgendaPageComponent {
     return clockFromMinutes(minutes);
   }
 
-  protected statusLabel(status: AppointmentStatus): string {
-    return STATUS_LABELS[status];
+  protected statusBadge(appointment: Appointment): string {
+    const live = this.progress(appointment);
+    if (live.key === 'upcoming') return attendanceState(appointment) !== 'pending' ? 'badge badge-ok' : 'badge badge-neutral';
+    return `badge ${live.badge}`;
   }
 
-  protected statusBadge(appointment: Appointment): string {
-    if (appointment.needs_approval && appointment.status !== 'cancelled') return 'badge badge-warn';
-    if (appointment.status === 'completed') return 'badge badge-ok';
-    if (appointment.status === 'awaiting_deposit') return 'badge badge-warn';
-    if (appointment.status === 'cancelled' || appointment.status === 'no_show') return 'badge badge-bad';
-    return appointment.client_confirmed ? 'badge badge-info' : 'badge badge-neutral';
+  /** Texto del estado en la ficha: "En curso", "Terminó · falta cobrar", "Finalizada"… y, si aún no llega, si ya confirmó. */
+  protected statusText(appointment: Appointment): string {
+    const live = this.progress(appointment);
+    if (live.key === 'upcoming') {
+      const state = attendanceState(appointment);
+      return `Por venir · ${state === 'confirmed' ? 'Confirmó' : state === 'deposit' ? 'Anticipo pagado' : 'Sin confirmar'}`;
+    }
+    return live.label;
   }
 
   /**
@@ -1290,15 +1302,26 @@ export class AgendaPageComponent {
     return '';
   }
 
-  /** Marca de estado de la cita (el color ya es de quien atiende): confirmada, sin confirmar, cobrada o cancelada. */
+  /** En qué va la cita ahora: por venir, en curso, terminó sin cobrar o finalizada (con los extras en la duración). */
+  protected progress(item: Appointment): Progress {
+    const minutes = this.services().find((row) => row.id === item.service_id)?.duration_minutes;
+    return appointmentProgress(item, this.now(), minutes);
+  }
+
+  /** Marca de estado de la cita (el color ya es de quien atiende): en curso, por cobrar, confirmada, sin confirmar, finalizada o cancelada. */
   protected stateMark(item: Appointment): { icon: string; cls: string; label: string } | null {
-    if (item.status === 'completed') return { icon: 'paid', cls: 'text-(--nx-ok-fg)', label: 'Cobrada' };
+    const live = this.progress(item);
+    if (live.key === 'live') return { icon: live.icon, cls: 'text-accent', label: live.label };
+    if (live.key === 'ended') return { icon: live.icon, cls: 'text-(--nx-warn-fg)', label: live.label };
+    if (item.status === 'completed') return { icon: 'paid', cls: 'text-(--nx-ok-fg)', label: 'Finalizada · cobrada' };
     if (item.status === 'cancelled') return { icon: 'event_busy', cls: 'text-muted', label: 'Cancelada' };
     if (item.status === 'no_show') return { icon: 'person_off', cls: 'text-muted', label: 'No llegó' };
     if (item.status === 'scheduled' && !item.needs_approval) {
-      return item.client_confirmed
-        ? { icon: 'check_circle', cls: 'text-(--nx-ok-fg)', label: 'Confirmó' }
-        : { icon: 'help', cls: 'text-(--nx-warn-fg)', label: 'Sin confirmar' };
+      const state = attendanceState(item);
+      if (state === 'pending') {
+        return { icon: 'help', cls: 'text-(--nx-warn-fg)', label: 'Sin confirmar' };
+      }
+      return { icon: 'check_circle', cls: 'text-(--nx-ok-fg)', label: state === 'deposit' ? 'Anticipo pagado' : 'Confirmó' };
     }
     return null;
   }
@@ -1306,7 +1329,7 @@ export class AgendaPageComponent {
   /** WhatsApp para pedir confirmación desde el panel del día (el mismo mensaje de recordatorio de Inicio). */
   protected confirmHref(item: Appointment): string | null {
     const phone = waPhone(item.client_phone);
-    if (!phone || item.status !== 'scheduled' || item.client_confirmed || item.needs_approval) {
+    if (!phone || item.status !== 'scheduled' || attendanceState(item) !== 'pending' || item.needs_approval) {
       return null;
     }
     const sameDay = toInputDate(new Date()) === item.starts_at.slice(0, 10);

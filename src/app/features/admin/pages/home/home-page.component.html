@@ -231,7 +231,9 @@
                       <span class="flex items-center gap-2">
                         <span class="truncate text-sm font-medium text-ink" [class.line-through]="done">{{ item.client_name }}</span>
                         @if (isNow) {
-                          <span class="badge badge-info shrink-0">Ahora</span>
+                          <span class="badge badge-info shrink-0">En curso</span>
+                        } @else if (overdue(item)) {
+                          <span class="badge badge-warn shrink-0">Terminó · falta cobrar</span>
                         } @else if (next() === item.id) {
                           <span class="badge badge-neutral shrink-0">Sigue</span>
                         }
@@ -240,15 +242,15 @@
                     </span>
                   </a>
                   @if (done) {
-                    <span class="badge badge-ok shrink-0">Cobrada</span>
+                    <span class="badge badge-ok shrink-0">Finalizada · cobrada</span>
                   } @else {
-                    @if (!item.client_confirmed && item.client_phone && !overdue(item)) {
+                    @if (attendance(item) === 'pending' && item.client_phone && !overdue(item)) {
                       <a class="btn btn-ghost hidden shrink-0 px-3! sm:inline-flex" [href]="confirmWhatsapp(item)" target="_blank" rel="noopener" aria-label="Pedir confirmación por WhatsApp">
                         <mat-icon class="text-(--nx-ok-fg)">chat</mat-icon>
                         <span class="badge badge-warn">Sin confirmar</span>
                       </a>
-                    } @else if (item.client_confirmed && !overdue(item)) {
-                      <span class="badge badge-ok hidden shrink-0 sm:inline-flex">Confirmó</span>
+                    } @else if (attendance(item) !== 'pending' && !overdue(item)) {
+                      <span class="badge badge-ok hidden shrink-0 sm:inline-flex">{{ attendance(item) === 'deposit' ? 'Anticipo pagado' : 'Confirmó' }}</span>
                     }
                     <a
                       class="btn shrink-0 px-3!"
@@ -346,8 +348,8 @@
                     <p class="truncate text-sm font-medium text-ink">{{ item.client_name }}</p>
                     <p class="truncate text-sm text-muted">{{ item.service_name }}</p>
                   </div>
-                  @if (item.client_confirmed) {
-                    <span class="badge badge-ok shrink-0">Confirmó</span>
+                  @if (attendance(item) !== 'pending') {
+                    <span class="badge badge-ok shrink-0">{{ attendance(item) === 'deposit' ? 'Anticipo pagado' : 'Confirmó' }}</span>
                   } @else if (reminded().includes(item.id)) {
                     <a class="badge badge-neutral shrink-0 hover:underline" [href]="remind(item)" target="_blank" rel="noopener" title="Enviar otra vez">Recordado</a>
                   }

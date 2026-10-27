@@ -23,6 +23,7 @@ import { closureOn, closureSpan, liveOffer, nextClosure, noteOf } from '@core/sh
 import { Appointment, AvailabilitySlot } from '@core/models/appointment.model';
 import { BusinessBrand, PublicService, PublicStaff } from '@core/models/business.model';
 import { BookingService } from '@core/services/booking.service';
+import { formatMinutes, minutesBetween } from '@core/appointment-summary';
 import { whatsappLink } from '@core/message-templates';
 import { Review } from '@core/models/review.model';
 import { ReviewsService } from '@core/services/reviews.service';
@@ -395,12 +396,22 @@ export class Booking {
 
   /** "45 min", "1 h" o "3 h 31 min": más fácil de leer que 211 min. */
   protected formatMinutes(total: number): string {
-    if (total < 60) {
-      return `${total} min`;
+    return formatMinutes(total);
+  }
+
+  /** Duración real de la cita ya reservada (con extras), o null si la API no manda el final. */
+  protected durationOf(appointment: Appointment): string | null {
+    const minutes = minutesBetween(appointment.starts_at, appointment.ends_at);
+    return minutes ? formatMinutes(minutes) : null;
+  }
+
+  /** Total de la cita: el que quedó guardado (opción y extras) o el del servicio si no es de precio variable. */
+  protected totalOf(appointment: Appointment): number | null {
+    if (appointment.quoted_price != null) {
+      return appointment.quoted_price;
     }
-    const hours = Math.floor(total / 60);
-    const rest = total % 60;
-    return rest ? `${hours} h ${rest} min` : `${hours} h`;
+    const service = this.selectedService();
+    return service && !service.variable_price ? service.price : null;
   }
 
   protected formatTime(value: string): string {

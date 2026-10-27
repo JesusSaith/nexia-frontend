@@ -33,6 +33,11 @@ export class AppointmentsService {
   private readonly http = inject(HttpClient);
   private readonly apiBaseUrl = inject(API_BASE_URL);
 
+  /** Una cita por número (la agenda la usa para saltar al día de ?cita=ID). */
+  getAppointment(id: number): Observable<Appointment> {
+    return this.http.get<Appointment>(`${this.apiBaseUrl}/appointments/${id}`);
+  }
+
   getAppointments(params: AppointmentQuery): Observable<Appointment[]> {
     let httpParams = new HttpParams();
     if (params.start_date) {
