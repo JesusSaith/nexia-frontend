@@ -63,6 +63,10 @@ export interface BusinessSettings {
   min_notice_hours: number;
   max_days_ahead: number;
   cancel_policy: string | null;
+  max_daily_appointments?: number | null;
+  deposit_cancel_policy?: 'refund' | 'keep';
+  noshow_after?: number | null;
+  noshow_deposit?: number | null;
   resources: string | null;
   payment_url: string | null;
   google_review_url?: string | null;
@@ -80,6 +84,7 @@ export interface BusinessSettings {
   payment_methods: string[];
   approve_bookings: boolean;
   uses_commissions?: boolean;
+  staff_can_edit_price?: boolean;
   auto_reminders: boolean;
   reminder_hours: number;
   auto_return: boolean;
@@ -124,6 +129,10 @@ export interface ProfileUpdate {
   min_notice_hours?: number | null;
   max_days_ahead?: number | null;
   cancel_policy?: string | null;
+  max_daily_appointments?: number | null;
+  deposit_cancel_policy?: 'refund' | 'keep';
+  noshow_after?: number | null;
+  noshow_deposit?: number | null;
   resources?: string | null;
   payment_url?: string | null;
   google_review_url?: string | null;
@@ -138,6 +147,7 @@ export interface ProfileUpdate {
   payment_methods?: string[];
   approve_bookings?: boolean;
   uses_commissions?: boolean;
+  staff_can_edit_price?: boolean;
   auto_reminders?: boolean;
   reminder_hours?: number;
   auto_return?: boolean;

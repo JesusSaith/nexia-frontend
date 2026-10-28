@@ -1,7 +1,7 @@
 import { Routes } from '@angular/router';
 
 import { authGuard } from './core/guards/auth.guard';
-import { clientEntryGuard, roleGuard } from './core/guards/role.guard';
+import { clientEntryGuard, passwordChosenGuard, roleGuard } from './core/guards/role.guard';
 
 export const routes: Routes = [
   {
@@ -10,7 +10,7 @@ export const routes: Routes = [
   },
   {
     path: 'admin',
-    canActivate: [authGuard, roleGuard(['owner', 'admin', 'staff'])],
+    canActivate: [authGuard, passwordChosenGuard, roleGuard(['owner', 'admin', 'staff'])],
     loadChildren: () => import('./features/admin/admin.routes').then((m) => m.adminRoutes),
   },
   {

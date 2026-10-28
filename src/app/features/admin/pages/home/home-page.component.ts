@@ -15,12 +15,13 @@ import { ReadinessStep, SettingsService } from '@core/services/settings.service'
 import { Confirm } from '@shared/components/confirm/confirm';
 import { AppointmentsService } from '@core/services/appointments.service';
 import { AuthService } from '@core/services/auth.service';
-import { BookingService, ClientRow, DueClient } from '@core/services/booking.service';
-import { DashboardService } from '@core/services/dashboard.service';
+import { BusinessClock } from '@core/business-clock';
+import { BirthdayRow, BookingService, ClientRow, DueClient } from '@core/services/booking.service';
+import { DashboardService, HomeNotice } from '@core/services/dashboard.service';
 import { ServicesService } from '@core/services/services.service';
 import { ShopService } from '@core/services/shop.service';
 
-type Notice = { id: number; message: string; created_at: string };
+type Notice = HomeNotice;
 
 @Component({
   selector: 'app-home-page',
@@ -38,13 +39,15 @@ export class HomePageComponent {
   private readonly shopApi = inject(ShopService);
   private readonly confirm = inject(Confirm);
   private readonly destroyRef = inject(DestroyRef);
+  /** "Hoy" y "ahora" son los del negocio, no los del navegador. */
+  private readonly clock = inject(BusinessClock);
   protected readonly demoLoaded = signal(false);
   protected readonly demoBusy = signal(false);
 
   private readonly timeFormat = new Intl.DateTimeFormat('es-MX', { hour: '2-digit', minute: '2-digit' });
   private readonly dayFormat = new Intl.DateTimeFormat('es-MX', { weekday: 'short', day: 'numeric', month: 'short' });
   private readonly pesosFormat = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
-  protected readonly todayLabel = new Intl.DateTimeFormat('es-MX', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
+  protected readonly todayLabel = new Intl.DateTimeFormat('es-MX', { weekday: 'long', day: 'numeric', month: 'long' }).format(this.clock.now());
 
   protected readonly isLoading = signal(true);
   protected readonly loadError = signal<string | null>(null);
@@ -52,11 +55,11 @@ export class HomePageComponent {
   protected readonly services = signal<Service[]>([]);
   protected readonly notices = signal<Notice[]>([]);
   /** Hora actual, al minuto: mueve "Ahora" y "Siguiente" en la lista de hoy. */
-  protected readonly now = signal(Date.now());
+  protected readonly now = signal(this.clock.nowMs());
 
   /** Lo que hay que resolver, cada cosa con su acción. */
   protected readonly todos = computed(() => {
-    const today = inputDate(new Date());
+    const today = inputDate(this.clock.now());
     const rows: { id: number; day: string; title: string; detail: string; action: string; tone: string }[] = [];
     for (const item of this.booked()) {
       const day = item.starts_at.slice(0, 10);
@@ -78,7 +81,7 @@ export class HomePageComponent {
 
   // Citas de hoy: las cobradas se quedan (atenuadas) para que se vea el avance del día.
   protected readonly today = computed(() => {
-    const day = inputDate(new Date());
+    const day = inputDate(this.clock.now());
     return this.booked().filter((item) => (item.status === 'scheduled' || item.status === 'completed') && item.starts_at.slice(0, 10) === day);
   });
   protected readonly todayDone = computed(() => this.today().filter((item) => item.status === 'completed').length);
@@ -114,24 +117,28 @@ export class HomePageComponent {
   });
 
   protected readonly tomorrow = computed(() => {
-    const day = inputDate(addDays(new Date(), 1));
+    const day = inputDate(addDays(this.clock.now(), 1));
     return this.booked().filter((item) => item.status === 'scheduled' && item.starts_at.slice(0, 10) === day);
   });
   /** Citas ya recordadas hoy (por id), para ir una por una sin repetir. */
-  protected readonly reminded = signal<number[]>(readReminded());
+  protected readonly reminded = signal<number[]>(readReminded(this.clock.now()));
   protected readonly pendingReminders = computed(() =>
     this.tomorrow().filter(
       (item) => (item.client_phone ?? '').replace(/\D/g, '').length >= 8 && attendanceState(item) === 'pending' && !this.reminded().includes(item.id),
     ),
   );
 
-  // birthday lo agrega el backend en GET /api/clients; se tipa opcional aquí sin tocar booking.service.ts.
   protected readonly clients = signal<ClientRow[]>([]);
-  protected readonly birthdays = computed(() => {
-    const now = new Date();
-    const today = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    return this.clients().filter((client) => client.birthday?.slice(5, 10) === today);
-  });
+  /** Cumpleaños de hoy y de los próximos 7 días, filtrados por el servidor. */
+  protected readonly birthdays = signal<BirthdayRow[]>([]);
+  protected readonly birthdaysTitle = computed(() => (this.birthdays().every((row) => row.days_until === 0) ? 'Cumpleaños de hoy' : 'Cumpleaños de esta semana'));
+
+  protected birthdayWhen(row: BirthdayRow): string {
+    if (row.days_until === 0) {
+      return 'Hoy';
+    }
+    return row.days_until === 1 ? 'Mañana' : `En ${row.days_until} días`;
+  }
 
   /** "Te toca": a quién le toca volver; las ya invitadas van al final. */
   protected readonly dueClients = signal<DueClient[]>([]);
@@ -142,8 +149,8 @@ export class HomePageComponent {
    * "Les toca volver" ni a quien ya se invitó en las últimas dos semanas. Primero quienes más han gastado.
    */
   protected readonly awayAll = computed(() => {
-    const cut = inputDate(addDays(new Date(), -AWAY_DAYS));
-    const recent = inputDate(addDays(new Date(), -CONTACT_COOLDOWN_DAYS));
+    const cut = inputDate(addDays(this.clock.now(), -AWAY_DAYS));
+    const recent = inputDate(addDays(this.clock.now(), -CONTACT_COOLDOWN_DAYS));
     const due = new Set(this.dueClients().map((row) => row.client_phone.replace(/\D/g, '').slice(-10)));
     return this.clients()
       .filter(
@@ -160,7 +167,7 @@ export class HomePageComponent {
   protected readonly awayShown = computed(() => this.awayAll().slice(0, 5));
 
   protected awayLabel(row: ClientRow): string {
-    const days = Math.round((startOfDay(new Date()).getTime() - parseLocal(row.last_visit ?? '').getTime()) / 86_400_000);
+    const days = Math.round((startOfDay(this.clock.now()).getTime() - parseLocal(row.last_visit ?? '').getTime()) / 86_400_000);
     return days >= 60 ? `Vino por última vez hace ${Math.round(days / 30)} meses` : `Vino por última vez hace ${days} días`;
   }
 
@@ -170,7 +177,7 @@ export class HomePageComponent {
 
   /** Al abrir el WhatsApp queda anotado y sale de la lista. */
   protected markAwayInvited(row: ClientRow): void {
-    const now = new Date();
+    const now = this.clock.now();
     const stamp = `${inputDate(now)}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     this.clients.update((rows) => rows.map((item) => (item.id === row.id ? { ...item, last_contact_at: stamp, last_contact_kind: 'invitar' } : item)));
     this.bookingApi.logContact(row.id, 'invitar').pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ error: () => undefined });
@@ -182,17 +189,15 @@ export class HomePageComponent {
   /** Lo cobrado esta semana (lunes a hoy) contra los mismos días de la semana pasada. */
   protected readonly week = signal<{ total: number; count: number; change: number | null } | null>(null);
 
-  /** Marca de "ya los vi": los avisos más nuevos que ella aparecen con punto; los demás, atenuados. */
-  private readonly noticesSeenAt = signal(readNumber(NOTICES_SEEN_KEY));
+  /** "Ya los vi" lo guarda el servidor: los avisos sin ver aparecen con punto; los demás, atenuados. */
   protected readonly allNotices = signal(false);
   protected readonly NOTICES_SHORT = NOTICES_SHORT;
   /** Avisos con el mismo texto (p. ej. un anticipo vencido de la misma persona) se juntan en uno con su conteo. */
   protected readonly groupedNotices = computed(() => {
-    const seen = this.noticesSeenAt();
     const groups = new Map<string, Notice & { count: number; unseen: boolean }>();
     for (const notice of this.notices()) {
       const key = notice.message;
-      const unseen = parseLocal(notice.created_at).getTime() > seen;
+      const unseen = !notice.seen;
       const found = groups.get(key);
       if (found) {
         found.count += 1;
@@ -207,13 +212,9 @@ export class HomePageComponent {
   protected readonly shownNotices = computed(() => (this.allNotices() ? this.groupedNotices() : this.groupedNotices().slice(0, NOTICES_SHORT)));
 
   protected markNoticesSeen(): void {
-    const now = Date.now();
-    this.noticesSeenAt.set(now);
-    try {
-      localStorage.setItem(NOTICES_SEEN_KEY, String(now));
-    } catch {
-      // Sin almacenamiento, vuelven a verse como nuevos en la próxima visita.
-    }
+    // Cambio al instante; si el servidor no responde, el siguiente refresco los vuelve a mostrar como nuevos.
+    this.notices.update((rows) => rows.map((row) => ({ ...row, seen: true })));
+    this.dashboardApi.markNoticesSeen().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ error: () => undefined });
   }
 
   protected readonly linkCopied = signal(false);
@@ -249,7 +250,7 @@ export class HomePageComponent {
       });
     this.load();
     this.loadExtras();
-    const timer = setInterval(() => this.now.set(Date.now()), 60_000);
+    const timer = setInterval(() => this.now.set(this.clock.nowMs()), 60_000);
     this.destroyRef.onDestroy(() => clearInterval(timer));
   }
 
@@ -258,7 +259,7 @@ export class HomePageComponent {
     this.isLoading.set(true);
     this.loadError.set(null);
     forkJoin({
-      appointments: this.appointmentsApi.getAppointments({ start_date: inputDate(new Date()), end_date: inputDate(addDays(new Date(), 21)) }),
+      appointments: this.appointmentsApi.getAppointments({ start_date: inputDate(this.clock.now()), end_date: inputDate(addDays(this.clock.now(), 21)) }),
       services: this.servicesApi.getServices().pipe(catchError(() => of([] as Service[]))),
       notices: this.dashboardApi.getNotices().pipe(catchError(() => of([] as Notice[]))),
     })
@@ -286,11 +287,15 @@ export class HomePageComponent {
       .getClients()
       .pipe(catchError(() => of([])), takeUntilDestroyed(this.destroyRef))
       .subscribe((rows) => this.clients.set(rows));
+    this.bookingApi
+      .getBirthdays(7)
+      .pipe(catchError(() => of([] as BirthdayRow[])), takeUntilDestroyed(this.destroyRef))
+      .subscribe((rows) => this.birthdays.set(rows.filter((row) => !row.congratulated || row.days_until > 0)));
     this.shopApi
       .alerts()
       .pipe(catchError(() => of([])), takeUntilDestroyed(this.destroyRef))
       .subscribe((rows) => this.alerts.set(rows));
-    const today = new Date();
+    const today = this.clock.now();
     const monday = addDays(today, -((today.getDay() + 6) % 7));
     const total = (start: Date, end: Date): Observable<{ total: number; count: number } | null> =>
       this.shopApi.report(inputDate(start), inputDate(end)).pipe(
@@ -395,7 +400,7 @@ export class HomePageComponent {
     if (row.days_late > 0) {
       return `Le tocaba hace ${row.days_late} d · viene cada ${row.every_days} d`;
     }
-    return row.due_on === inputDate(new Date()) ? `Le toca hoy · viene cada ${row.every_days} d` : `Le toca pronto · viene cada ${row.every_days} d`;
+    return row.due_on === inputDate(this.clock.now()) ? `Le toca hoy · viene cada ${row.every_days} d` : `Le toca pronto · viene cada ${row.every_days} d`;
   }
 
   /** Al abrir el WhatsApp queda marcada como invitada (deja de estar arriba de la lista). */
@@ -432,7 +437,7 @@ export class HomePageComponent {
   protected markReminded(item: Appointment): void {
     this.reminded.update((ids) => (ids.includes(item.id) ? ids : [...ids, item.id]));
     try {
-      localStorage.setItem(REMINDED_KEY, JSON.stringify({ day: inputDate(new Date()), ids: this.reminded() }));
+      localStorage.setItem(REMINDED_KEY, JSON.stringify({ day: inputDate(this.clock.now()), ids: this.reminded() }));
     } catch {
       // Sin almacenamiento solo se pierde la marca de "recordado".
     }
@@ -454,36 +459,22 @@ export class HomePageComponent {
     return whatsappLink(item.client_phone, text);
   }
 
-  protected noticeText(message: string): string {
-    return message.replace(/\s*(?:anticipo\s*)?#\d+\s*$/, '');
-  }
-
   protected noticeWhen(value: string): string {
     const date = parseLocal(value);
     return `${this.dayFormat.format(date)} · ${this.timeFormat.format(date)}`;
   }
 
-  protected noticeCita(message: string): number | null {
-    const match = message.match(/#(\d+)\s*$/);
-    return match ? Number(match[1]) : null;
-  }
-
-  protected noticePhones(message: string): string[] {
-    return message.startsWith('Horario libre') ? [...message.matchAll(/\d{8,}/g)].map((match) => match[0]) : [];
-  }
-
-  /** El aviso dice "Horario libre 10:00. Avisar a Ana López 5511…, … Quedó libre el 16 oct a las 10:00". */
-  protected waitWhatsapp(message: string, phone: string): string {
+  /** Lista de espera: el aviso trae a quién avisar y de qué horario se trata. */
+  protected waitWhatsapp(notice: Notice, person: { name: string; phone: string }): string {
     const slug = this.auth.currentUser()?.slug ?? '';
-    const name = message.match(new RegExp(`(?:Avisar a |, )([^,]+?) ${phone}`))?.[1] ?? '';
     const text = this.copy.message('waitlist', {
-      nombre: firstName(name),
+      nombre: firstName(person.name),
       negocio: this.shopName(),
-      dia: message.match(/Quedó libre el (\d+ \w+)/)?.[1] ?? '',
-      hora: message.match(/\d{2}:\d{2}/)?.[0] ?? '',
+      dia: notice.data?.day ?? '',
+      hora: notice.data?.hour ?? '',
       enlace: slug ? this.bookingApi.shareUrl(slug) : '',
     });
-    return whatsappLink(phone, text);
+    return whatsappLink(person.phone, text);
   }
 
   /** Solo la hora ("11:00 a.m."), para listas que ya dicen de qué día son. */
@@ -493,7 +484,7 @@ export class HomePageComponent {
 
   protected slotLabel(value: string): string {
     const date = parseLocal(value);
-    const sameDay = startOfDay(date).getTime() === startOfDay(new Date()).getTime();
+    const sameDay = startOfDay(date).getTime() === startOfDay(this.clock.now()).getTime();
     const time = this.timeFormat.format(date);
     return sameDay ? `Hoy · ${time}` : `${this.dayFormat.format(date)} · ${time}`;
   }
@@ -502,7 +493,6 @@ export class HomePageComponent {
 const NOTICES_SHORT = 3;
 const AWAY_DAYS = 45;
 const CONTACT_COOLDOWN_DAYS = 14;
-const NOTICES_SEEN_KEY = 'nexia-notices-seen';
 
 function inputDate(date: Date): string {
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -537,22 +527,13 @@ function readError(error: unknown, fallback: string): string {
 
 const REMINDED_KEY = 'nexia-reminded';
 
-function readReminded(): number[] {
+function readReminded(today: Date): number[] {
   try {
     const saved = JSON.parse(localStorage.getItem(REMINDED_KEY) ?? 'null') as { day?: string; ids?: number[] } | null;
-    const today = new Date();
     const key = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     return saved?.day === key && Array.isArray(saved.ids) ? saved.ids : [];
   } catch {
     return [];
-  }
-}
-
-function readNumber(key: string): number {
-  try {
-    return Number(localStorage.getItem(key)) || 0;
-  } catch {
-    return 0;
   }
 }
 

@@ -5,13 +5,30 @@ import { Observable } from 'rxjs';
 import { API_BASE_URL } from '../config/api-base-url';
 import { DashboardStats, DashboardSummary } from '../models/dashboard.model';
 
+/** Aviso de Inicio: el servidor ya dice de qué tipo es, a qué cita se refiere y si se vio. */
+export interface HomeNotice {
+  id: number;
+  message: string;
+  created_at: string;
+  kind?: string | null;
+  appointment_id?: number | null;
+  seen?: boolean;
+  /** Lista de espera: a quién avisar y de qué horario se trata. */
+  data?: { people?: { name: string; phone: string }[]; day?: string; hour?: string } | null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class DashboardService {
   private readonly http = inject(HttpClient);
   private readonly apiBaseUrl = inject(API_BASE_URL);
 
-  getNotices(): Observable<{ id: number; message: string; created_at: string }[]> {
-    return this.http.get<{ id: number; message: string; created_at: string }[]>(`${this.apiBaseUrl}/notices`);
+  getNotices(): Observable<HomeNotice[]> {
+    return this.http.get<HomeNotice[]>(`${this.apiBaseUrl}/notices`);
+  }
+
+  /** "Marcar como vistos": queda guardado en el negocio, no en el navegador. */
+  markNoticesSeen(): Observable<void> {
+    return this.http.post<void>(`${this.apiBaseUrl}/notices/seen`, {});
   }
 
   getSummary(): Observable<DashboardSummary> {

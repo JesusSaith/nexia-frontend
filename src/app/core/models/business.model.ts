@@ -32,6 +32,7 @@ export interface BusinessBrand {
   min_notice_hours?: number;
   max_days_ahead?: number;
   cancel_policy?: string | null;
+  deposit_cancel_policy?: 'refund' | 'keep';
   resources?: string | null;
   payment_url?: string | null;
   bookings_paused?: boolean;
@@ -41,6 +42,8 @@ export interface BusinessBrand {
   approve_bookings?: boolean;
   /** Solo en /businesses/me: si le paga comisión a su equipo. */
   uses_commissions?: boolean;
+  /** Solo en /businesses/me: si el personal puede cambiar precios y quitar anticipos en cualquier servicio. */
+  staff_can_edit_price?: boolean;
   /** Hay CLABE válida: el cliente puede confirmar el anticipo con Banxico. */
   spei_check?: boolean;
   promo_text?: string | null;

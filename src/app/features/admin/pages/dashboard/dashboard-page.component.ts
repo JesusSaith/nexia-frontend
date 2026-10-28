@@ -352,7 +352,6 @@ export class DashboardPageComponent {
     const total = this.series().reduce((sum, point) => sum + point.amount, 0);
     return this.view() === 'income' && this.metric() === 'count' ? String(total) : this.money(total);
   });
-  private readonly pieColors = ['#b76e79', '#1E1B1E', '#c4a484', '#6f8f72', '#d4a0a7', '#8d8680'];
   protected readonly bars = computed(() => {
     const points = this.series();
     const max = Math.max(1, ...points.map((point) => point.amount));

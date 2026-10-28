@@ -38,6 +38,9 @@ export interface ManagedAppointment {
   variable_price: boolean;
   price_accepted: boolean;
   cancel_policy?: string | null;
+  deposit_cancel_policy?: 'refund' | 'keep';
+  deposit_reason?: string | null;
+  cancel_hours?: number | null;
   payment_url?: string | null;
   needs_approval?: boolean;
   spei_check?: boolean;
@@ -100,6 +103,17 @@ export interface ClientCard {
     price: number;
     status: string;
   }[];
+}
+
+export interface BirthdayRow {
+  id: number;
+  full_name: string;
+  phone: string;
+  birthday: string;
+  /** 0 = hoy, 1 = mañana… */
+  days_until: number;
+  /** Ya se le escribió para felicitarlo hace poco. */
+  congratulated: boolean;
 }
 
 export interface ClientRow {
@@ -222,6 +236,11 @@ export class BookingService {
   /** Borra sus datos (derechos ARCO); sus citas pasadas quedan anónimas. */
   deleteClient(id: number): Observable<void> {
     return this.http.delete<void>(`${this.apiBaseUrl}/clients/${id}`);
+  }
+
+  /** Cumpleaños de hoy a los próximos `days` días (el servidor ya los filtra). */
+  getBirthdays(days = 7): Observable<BirthdayRow[]> {
+    return this.http.get<BirthdayRow[]>(`${this.apiBaseUrl}/clients/birthdays`, { params: { days } });
   }
 
   getClients(): Observable<ClientRow[]> {

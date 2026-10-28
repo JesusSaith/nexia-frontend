@@ -11,6 +11,7 @@ import { BookingService, ManagedAppointment } from '@core/services/booking.servi
 import { DateFieldComponent } from '@shared/components/when-field/when-field';
 import { PlaceMap } from '@shared/components/place-map/place-map';
 import { Confirm } from '@shared/components/confirm/confirm';
+import { depositPolicyText, depositReasonText } from '@core/deposit-policy';
 import { CalendarEvent, downloadIcs, googleCalendarUrl } from '@core/calendar';
 import { canNavigate, googleMapsUrl } from '@core/maps';
 import { balanceDue, formatMinutes, minutesBetween } from '@core/appointment-summary';
@@ -117,6 +118,15 @@ export class ManageAppointmentComponent {
     if (item.deposit_account) {
       void navigator.clipboard.writeText(item.deposit_account).then(() => this.accountCopied.set(true));
     }
+  }
+
+  /** Qué pasa con el anticipo si cancela (solo cuando la cita lleva anticipo). */
+  protected depositPolicy(item: ManagedAppointment): string {
+    return item.deposit_amount ? depositPolicyText(item.deposit_cancel_policy, item.cancel_hours) : '';
+  }
+
+  protected depositReason(item: ManagedAppointment): string {
+    return depositReasonText(item.deposit_reason);
   }
 
   protected accountLabel(item: ManagedAppointment): string {
@@ -273,7 +283,7 @@ export class ManageAppointmentComponent {
     }
     const sure = await this.confirmDialog.ask({
       title: '¿Cancelar tu cita?',
-      message: current.cancel_policy ?? 'Se libera tu horario y el negocio recibe el aviso.',
+      message: [current.cancel_policy ?? 'Se libera tu horario y el negocio recibe el aviso.', this.depositPolicy(current)].filter(Boolean).join(' '),
       confirm: 'Sí, cancelar',
       cancel: 'No, conservarla',
       danger: true,

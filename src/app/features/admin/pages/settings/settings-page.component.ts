@@ -64,6 +64,19 @@ const PRESETS = {
     { value: 24, label: '1 día antes' },
     { value: 48, label: '2 días antes' },
   ],
+  maxDaily: [
+    { value: null, label: 'Sin tope' },
+    { value: 6, label: '6 citas' },
+    { value: 8, label: '8 citas' },
+    { value: 10, label: '10 citas' },
+    { value: 12, label: '12 citas' },
+  ],
+  noshowAfter: [
+    { value: null, label: 'Apagada' },
+    { value: 1, label: 'Tras 1 falta' },
+    { value: 2, label: 'Tras 2 faltas' },
+    { value: 3, label: 'Tras 3 faltas' },
+  ],
   depositHoldHours: [
     { value: 1, label: '1 h' },
     { value: 3, label: '3 h' },
@@ -127,6 +140,9 @@ export class SettingsPageComponent {
     maxDaysAhead: new FormControl<number | null>(90),
     bufferMinutes: new FormControl<number | null>(0),
     cancelHours: new FormControl<number | null>(null),
+    maxDaily: new FormControl<number | null>(null, [Validators.min(1), Validators.max(200)]),
+    noshowAfter: new FormControl<number | null>(null, [Validators.min(1), Validators.max(10)]),
+    noshowDeposit: new FormControl<number | null>(null, [Validators.min(1)]),
     timezone: new FormControl('America/Mexico_City', { nonNullable: true }),
     resources: new FormControl('', { nonNullable: true }),
     cancelPolicy: new FormControl('', { nonNullable: true }),
@@ -211,6 +227,9 @@ export class SettingsPageComponent {
   protected readonly paymentMethods = signal<ReadonlySet<string>>(new Set(PAYMENT_METHODS.map((item) => item.value)));
   protected readonly approveBookings = signal(false);
   protected readonly usesCommissions = signal(true);
+  protected readonly staffCanEditPrice = signal(false);
+  /** Qué pasa con el anticipo si el cliente cancela dentro del plazo. */
+  protected readonly depositCancelPolicy = signal<'refund' | 'keep'>('refund');
   protected readonly autoReminders = signal(false);
   protected readonly reminderHours = signal(24);
   protected readonly autoReturn = signal(false);
@@ -275,6 +294,10 @@ export class SettingsPageComponent {
       max_days_ahead: numberOr(value.maxDaysAhead, 90),
       buffer_minutes: numberOr(value.bufferMinutes, 0),
       cancel_hours: numberOrNull(value.cancelHours),
+      max_daily_appointments: numberOrNull(value.maxDaily),
+      deposit_cancel_policy: this.depositCancelPolicy(),
+      noshow_after: numberOrNull(value.noshowAfter),
+      noshow_deposit: numberOrNull(value.noshowAfter) ? numberOrNull(value.noshowDeposit) : null,
       timezone: value.timezone,
       cancel_policy: value.cancelPolicy.trim() || null,
       deposit_amount: numberOrNull(value.depositAmount),
@@ -289,6 +312,7 @@ export class SettingsPageComponent {
       payment_methods: PAYMENT_METHODS.map((item) => item.value).filter((value) => this.paymentMethods().has(value)),
       approve_bookings: this.approveBookings(),
       uses_commissions: this.usesCommissions(),
+      staff_can_edit_price: this.staffCanEditPrice(),
       auto_reminders: this.autoReminders(),
       reminder_hours: this.reminderHours(),
       auto_return: this.autoReturn(),
@@ -972,6 +996,8 @@ export class SettingsPageComponent {
     this.paymentMethods.set(new Set(settings.payment_methods?.length ? settings.payment_methods : PAYMENT_METHODS.map((item) => item.value)));
     this.approveBookings.set(Boolean(settings.approve_bookings));
     this.usesCommissions.set(settings.uses_commissions !== false);
+    this.staffCanEditPrice.set(settings.staff_can_edit_price === true);
+    this.depositCancelPolicy.set(settings.deposit_cancel_policy === 'keep' ? 'keep' : 'refund');
     this.autoReminders.set(Boolean(settings.auto_reminders));
     this.reminderHours.set(settings.reminder_hours || 24);
     this.autoReturn.set(Boolean(settings.auto_return));
@@ -996,6 +1022,9 @@ export class SettingsPageComponent {
       maxDaysAhead: settings.max_days_ahead ?? 90,
       bufferMinutes: settings.buffer_minutes ?? 0,
       cancelHours: settings.cancel_hours,
+      maxDaily: settings.max_daily_appointments ?? null,
+      noshowAfter: settings.noshow_after ?? null,
+      noshowDeposit: settings.noshow_deposit ?? null,
       timezone: settings.timezone || 'America/Mexico_City',
       resources: settings.resources ?? '',
       cancelPolicy: settings.cancel_policy ?? '',
@@ -1018,10 +1047,10 @@ export class SettingsPageComponent {
 const FIELD_SECTION: Record<string, SectionId> = {
   name: 'negocio', phone: 'negocio', description: 'negocio', address: 'negocio', latitude: 'negocio', longitude: 'negocio', map_embed: 'negocio', instagram: 'negocio', facebook: 'negocio', business_kind: 'negocio',
   logo_url: 'apariencia', primary_color: 'apariencia', gallery: 'apariencia', canvas_color: 'apariencia', accent_color: 'apariencia', button_shape: 'apariencia', button_fill: 'apariencia', font_style: 'apariencia', header_style: 'apariencia',
-  min_notice_hours: 'reservas', max_days_ahead: 'reservas', buffer_minutes: 'reservas', cancel_hours: 'reservas', timezone: 'reservas', resources: 'reservas', cancel_policy: 'reservas',
+  min_notice_hours: 'reservas', max_days_ahead: 'reservas', buffer_minutes: 'reservas', cancel_hours: 'reservas', timezone: 'reservas', resources: 'reservas', cancel_policy: 'reservas', max_daily_appointments: 'reservas', deposit_cancel_policy: 'reservas', noshow_after: 'anticipo', noshow_deposit: 'anticipo',
   deposit_amount: 'anticipo', deposit_percent: 'anticipo', deposit_account: 'anticipo', deposit_hold_hours: 'anticipo', payment_url: 'anticipo',
   promo_text: 'promociones', promo_until: 'promociones', loyalty_every: 'promociones', loyalty_percent: 'promociones', coupons: 'promociones',
-  message_templates: 'mensajes', auto_reminders: 'mensajes', reminder_hours: 'mensajes', auto_return: 'mensajes', bookings_paused: 'pausa', closures: 'pausa', payment_methods: 'anticipo', approve_bookings: 'reservas', uses_commissions: 'negocio', email_alerts: 'avisos', privacy_notice: 'privacidad',
+  message_templates: 'mensajes', auto_reminders: 'mensajes', reminder_hours: 'mensajes', auto_return: 'mensajes', bookings_paused: 'pausa', closures: 'pausa', payment_methods: 'anticipo', approve_bookings: 'reservas', uses_commissions: 'negocio', staff_can_edit_price: 'negocio', email_alerts: 'avisos', privacy_notice: 'privacidad',
 };
 
 function sectionOfError(error: unknown): SectionId | null {

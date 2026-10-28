@@ -5,6 +5,7 @@ import { Observable, map } from 'rxjs';
 import { API_BASE_URL } from '../config/api-base-url';
 import {
   Staff,
+  StaffAccount,
   StaffAccountCreate,
   StaffProfileUpdate,
   StaffUpdate,
@@ -34,8 +35,18 @@ export class StaffService {
       .pipe(map(() => undefined));
   }
 
-  createAccount(staffId: number, data: StaffAccountCreate): Observable<Staff> {
-    return this.http.post<Staff>(`${this.apiBaseUrl}/staff/${staffId}/account`, data);
+  createAccount(staffId: number, data: StaffAccountCreate): Observable<StaffAccount> {
+    return this.http.post<StaffAccount>(`${this.apiBaseUrl}/staff/${staffId}/account`, data);
+  }
+
+  resetAccount(staffId: number): Observable<StaffAccount> {
+    return this.http.post<StaffAccount>(`${this.apiBaseUrl}/staff/${staffId}/account/reset`, {});
+  }
+
+  removeAccount(staffId: number): Observable<void> {
+    return this.http
+      .delete(`${this.apiBaseUrl}/staff/${staffId}/account`, { responseType: 'text' })
+      .pipe(map(() => undefined));
   }
 
   updateStaffServices(staffId: number, serviceIds: number[]): Observable<Staff> {

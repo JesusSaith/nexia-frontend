@@ -11,6 +11,10 @@ export interface CurrentUser {
   tenantId: string;
   businessName?: string;
   slug?: string | null;
+  /** Entró con una contraseña temporal: debe elegir la suya antes de usar el panel. */
+  must_change_password?: boolean;
+  /** Zona horaria del negocio (por ejemplo America/Mexico_City). */
+  timezone?: string | null;
 }
 
 export interface LoginRequest {

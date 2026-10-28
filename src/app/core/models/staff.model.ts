@@ -37,8 +37,12 @@ export type StaffUpdate = Partial<StaffWrite>;
 
 export interface StaffAccountCreate {
   email: string;
-  password: string;
+  /** Sin contraseña, el servidor genera una temporal. */
+  password?: string;
 }
+
+/** Al dar o restablecer el acceso: la contraseña temporal solo se ve esta vez. */
+export type StaffAccount = Staff & { temporary_password: string };
 
 export interface StaffProfileUpdate {
   full_name?: string | null;

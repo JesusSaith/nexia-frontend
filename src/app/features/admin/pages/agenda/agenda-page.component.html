@@ -579,7 +579,10 @@
             <p class="card-title">Cobro</p>
             <label class="block">
               <span class="label">Precio del servicio</span>
-              <input class="input nums text-lg! font-semibold" type="number" min="0" inputmode="decimal" [value]="chargeAmount()" (input)="chargeAmount.set($any($event.target).value)" />
+              <input class="input nums text-lg! font-semibold" type="number" min="0" inputmode="decimal" [value]="chargeAmount()" [readOnly]="!canPrice(pop.appointment.service_id)" (input)="chargeAmount.set($any($event.target).value)" />
+              @if (!canPrice(pop.appointment.service_id)) {
+                <span class="field-hint">Este precio lo cambia la dueña o el administrador.</span>
+              }
             </label>
             <div class="flex flex-wrap gap-2" role="group" aria-label="Método de pago">
               @for (method of payMethods(); track method.value) {
@@ -666,8 +669,6 @@
           <div class="flex flex-col gap-1 px-2 pb-2">
             <button class="btn btn-ghost justify-start" type="button" (click)="repeat(pop.appointment, 3)">Repetir cada 3 semanas</button>
             <button class="btn btn-ghost justify-start" type="button" (click)="repeat(pop.appointment, 4)">Repetir cada 4 semanas</button>
-            <button class="btn btn-ghost justify-start" type="button" (click)="setStatus(pop.appointment, 'no_show')">No llegó</button>
-            <button class="btn btn-ghost justify-start text-(--nx-bad-fg)" type="button" (click)="setStatus(pop.appointment, 'cancelled')">Cancelar cita</button>
           </div>
         </details>
       }
@@ -710,12 +711,20 @@
             <button type="button" class="btn btn-secondary h-12" [class.col-span-2]="!chatHref(pop.appointment)" (click)="startMove(pop.appointment)">Cambiar día u hora</button>
           }
         </div>
+        <!-- Lo que se hace con más prisa (no llegó o cancelar) queda a un toque, sin buscarlo en "Más opciones". -->
+        @if (pop.appointment.status === 'scheduled') {
+          <div class="grid grid-cols-2 gap-2">
+            <button type="button" class="btn btn-ghost" (click)="setStatus(pop.appointment, 'no_show')">No llegó</button>
+            <button type="button" class="btn btn-ghost text-(--nx-bad-fg)" (click)="setStatus(pop.appointment, 'cancelled')">Cancelar cita</button>
+          </div>
+        }
       }
     </footer>
   </article>
 }
 
 <ng-template #quoteBox let-appointment>
+  @if (canPrice(appointment.service_id)) {
   <div class="flex flex-col gap-2">
     <label class="label mb-0!" for="quote-price">Precio acordado</label>
     <div class="flex gap-2">
@@ -737,11 +746,12 @@
       <a class="btn btn-whatsapp w-full" [href]="href" target="_blank" rel="noopener" (click)="quoteHref.set(null)">Enviar precio por WhatsApp</a>
     }
   </div>
+  }
 </ng-template>
 
 @if (undo(); as row) {
   <div class="fixed inset-x-4 top-4 z-50 mx-auto flex max-w-sm items-center justify-between gap-3 rounded-lg bg-ink px-4 py-2 text-sm text-surface md:bottom-4 md:top-auto" role="status">
-    <span>Cita cancelada · {{ row.appointment.client_name }}</span>
+    <span>Cita cancelada · {{ row.appointment.client_name }}@if (depositNote(row.appointment, row.previous); as note) { <span class="mt-1 block text-xs opacity-90">{{ note }}</span> }</span>
     <button type="button" class="min-h-11 px-2 font-semibold underline" (click)="undoCancel()">Deshacer</button>
   </div>
 }
@@ -819,15 +829,19 @@
           <span class="label">Notas</span>
           <textarea formControlName="notes" rows="3" class="input"></textarea>
         </label>
-        <label class="block">
-          <span class="label">Precio acordado</span>
-          <input type="number" min="0" inputmode="decimal" formControlName="quoted_price" class="input nums" placeholder="El del servicio" />
-        </label>
-        <p class="field-hint">El precio que cerraron por WhatsApp. Si lo dejas vacío, se usa el del servicio.</p>
-        <label class="flex min-h-11 items-start gap-2 text-sm">
-          <input type="checkbox" class="mt-0.5 h-5 w-5" formControlName="waive_deposit" />
-          <span>Sin anticipo. Es {{ copy.text().client.toLowerCase() }} de confianza.</span>
-        </label>
+        @if (canPrice(form.controls.service_id.value)) {
+          <label class="block">
+            <span class="label">Precio acordado</span>
+            <input type="number" min="0" inputmode="decimal" formControlName="quoted_price" class="input nums" placeholder="El del servicio" />
+          </label>
+          <p class="field-hint">El precio que cerraron por WhatsApp. Si lo dejas vacío, se usa el del servicio.</p>
+        }
+        @if (canWaiveDeposit()) {
+          <label class="flex min-h-11 items-start gap-2 text-sm">
+            <input type="checkbox" class="mt-0.5 h-5 w-5" formControlName="waive_deposit" />
+            <span>Sin anticipo. Es {{ copy.text().client.toLowerCase() }} de confianza.</span>
+          </label>
+        }
         @if (chargeHint(); as hint) {
           <p class="rounded-xl bg-accent-soft px-3 py-2 text-sm">{{ hint }}</p>
         }

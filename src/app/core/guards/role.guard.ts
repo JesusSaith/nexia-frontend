@@ -4,6 +4,14 @@ import { CanActivateFn, Router, UrlTree } from '@angular/router';
 import { CurrentUser, UserRole } from '../models/user.model';
 import { AuthService } from '../services/auth.service';
 
+export const CHANGE_PASSWORD_PATH = '/auth/cambiar-contrasena';
+
+/** Con contraseña temporal solo se puede entrar a elegir la propia. */
+export const passwordChosenGuard: CanActivateFn = () => {
+  const user = inject(AuthService).currentUser();
+  return user?.must_change_password ? inject(Router).parseUrl(CHANGE_PASSWORD_PATH) : true;
+};
+
 /** Fase 1: /cliente no muestra el directorio. Lleva al motor de reservas del negocio. */
 export const clientEntryGuard: CanActivateFn = () => {
   const slug = inject(AuthService).currentUser()?.slug;
@@ -43,6 +51,9 @@ function homeFor(role: UserRole | undefined): UrlTree {
 
 /** A dónde va cada rol al entrar. El cliente (fase 1) solo reserva en el motor de su negocio. */
 export function sessionHome(user: CurrentUser): string | null {
+  if (user.must_change_password) {
+    return CHANGE_PASSWORD_PATH;
+  }
   if (user.role === 'super_admin') {
     return '/super-admin';
   }

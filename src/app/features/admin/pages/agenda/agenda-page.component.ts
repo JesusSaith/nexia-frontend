@@ -29,6 +29,7 @@ import { DateFieldComponent, PickFieldComponent, TimeFieldComponent } from '@sha
 import { AgendaService } from '@core/services/agenda.service';
 import { AppointmentsService, StatusCharge, TimeBlock } from '@core/services/appointments.service';
 import { ShopProduct, ShopService } from '@core/services/shop.service';
+import { BusinessClock } from '@core/business-clock';
 import { AuthService } from '@core/services/auth.service';
 import { BookingService } from '@core/services/booking.service';
 import { ReviewsService } from '@core/services/reviews.service';
@@ -79,6 +80,8 @@ const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 })
 export class AgendaPageComponent {
   private readonly auth = inject(AuthService);
+  /** "Hoy" y "ahora" son los del negocio, no los del navegador. */
+  private readonly clock = inject(BusinessClock);
   private readonly confirm = inject(Confirm);
   private readonly reviewsApi = inject(ReviewsService);
   private readonly route = inject(ActivatedRoute);
@@ -127,7 +130,7 @@ export class AgendaPageComponent {
   // Abre en la última vista elegida; la primera vez, Día en celular y Semana en escritorio.
   protected readonly currentView = signal<CalendarView>(readView() ?? (typeof window !== 'undefined' && window.innerWidth < 768 ? 'day' : 'week'));
   /** Hora actual, al minuto: línea de "ahora" en Día y Semana. */
-  protected readonly now = signal(Date.now());
+  protected readonly now = signal(this.clock.nowMs());
   private scrolledToNow = false;
   protected readonly openTimes = signal<string[]>([]);
   protected readonly holdHours = signal(3);
@@ -140,7 +143,7 @@ export class AgendaPageComponent {
   protected readonly previewUrl = signal<string | null>(null);
   protected readonly linkCopied = signal(false);
   protected readonly monthService = computed(() => this.pickedService()?.name ?? '');
-  protected readonly cursor = signal(startOfDay(new Date()));
+  protected readonly cursor = signal(startOfDay(this.clock.now()));
   protected readonly serviceId = signal<number | null>(null);
   protected readonly staffId = signal<number | null>(null);
   protected readonly services = signal<Service[]>([]);
@@ -190,8 +193,7 @@ export class AgendaPageComponent {
       return false;
     }
     const day = new Date(`${iso}T12:00:00`);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = this.clock.today();
     return day >= today && this.workingWindow(staffId, day) !== null;
   };
 
@@ -428,6 +430,8 @@ export class AgendaPageComponent {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((brand) => {
         this.holdHours.set(brand.deposit_hold_hours || 3);
+        this.staffCanEditPrice.set(brand.staff_can_edit_price === true);
+        this.depositCancelPolicy.set(brand.deposit_cancel_policy === 'keep' ? 'keep' : 'refund');
         this.acceptedMethods.set(brand.payment_methods?.length ? brand.payment_methods : ALL_METHODS);
         this.depositRules.set({
           account: brand.deposit_account ?? null,
@@ -472,7 +476,7 @@ export class AgendaPageComponent {
     interval(20000)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
-        this.now.set(Date.now());
+        this.now.set(this.clock.nowMs());
         if (this.ownStaffReady()) {
           this.loadAppointments(this.range(), this.staffId(), this.serviceId(), true);
         }
@@ -526,7 +530,7 @@ export class AgendaPageComponent {
   }
 
   protected goToday(): void {
-    this.cursor.set(startOfDay(new Date()));
+    this.cursor.set(startOfDay(this.clock.now()));
     this.selected.set(null);
     this.scrolledToNow = false;
   }
@@ -842,7 +846,7 @@ export class AgendaPageComponent {
       const created = item.created_at ? new Date(item.created_at) : null;
       const amount = item.deposit_amount ? ` $${item.deposit_amount}` : '';
       if (created && !Number.isNaN(created.getTime())) {
-        const left = created.getTime() + this.holdHours() * 3_600_000 - Date.now();
+        const left = created.getTime() + this.holdHours() * 3_600_000 - this.clock.nowMs();
         if (left < 3_600_000) {
           return `Anticipo${amount} · ${Math.max(0, Math.round(left / 60000))} min`;
         }
@@ -926,7 +930,7 @@ export class AgendaPageComponent {
   }
 
   protected isToday(day: Date): boolean {
-    return toInputDate(day) === toInputDate(new Date());
+    return toInputDate(day) === toInputDate(this.clock.now());
   }
 
   protected inCurrentMonth(day: Date): boolean {
@@ -1087,6 +1091,19 @@ export class AgendaPageComponent {
     const service = this.services().find((item) => item.id === appointment.service_id);
     const open = appointment.status === 'scheduled' || appointment.status === 'awaiting_deposit';
     return open && !!service?.variable_price && appointment.quoted_price == null;
+  }
+
+  /** La dueña dejó que el personal cambie precios y quite anticipos en cualquier servicio. */
+  private readonly staffCanEditPrice = signal(false);
+  private readonly depositCancelPolicy = signal<'refund' | 'keep'>('refund');
+
+  /** Dueña y administración siempre; el personal, solo en servicios de precio variable o si la dueña lo permitió. */
+  protected canPrice(serviceId: number | null | undefined): boolean {
+    return !this.isStaff() || this.staffCanEditPrice() || !!this.services().find((item) => item.id === serviceId)?.variable_price;
+  }
+
+  protected canWaiveDeposit(): boolean {
+    return !this.isStaff() || this.staffCanEditPrice();
   }
 
   protected readonly quoteFocus = signal(false);
@@ -1332,7 +1349,7 @@ export class AgendaPageComponent {
     if (!phone || item.status !== 'scheduled' || attendanceState(item) !== 'pending' || item.needs_approval) {
       return null;
     }
-    const sameDay = toInputDate(new Date()) === item.starts_at.slice(0, 10);
+    const sameDay = toInputDate(this.clock.now()) === item.starts_at.slice(0, 10);
     return whatsappLink(phone, this.copy.message('reminder', { ...this.visitVars(item), cuando: sameDay ? 'hoy' : 'mañana', enlace: this.manageLink(item) }));
   }
 
@@ -2020,7 +2037,19 @@ export class AgendaPageComponent {
   private offerUndo(appointment: Appointment, previous: AppointmentStatus): void {
     this.dismissUndo();
     this.undo.set({ appointment, previous });
-    this.undoTimer = setTimeout(() => this.undo.set(null), 5000);
+    this.undoTimer = setTimeout(() => this.undo.set(null), this.depositNote(appointment, previous) ? 9000 : 5000);
+  }
+
+  /** Si la cita ya tenía el anticipo pagado, recuerda qué hacer con él (la dueña decide si la cancelación fue suya). */
+  protected depositNote(appointment: Appointment, previous: AppointmentStatus): string {
+    const paid = previous === 'scheduled' && (appointment.deposit_amount ?? 0) > 0;
+    if (!paid) {
+      return '';
+    }
+    const amount = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(appointment.deposit_amount ?? 0);
+    return this.depositCancelPolicy() === 'refund'
+      ? `Ya había pagado ${amount} de anticipo: devuélvelo.`
+      : `Pagó ${amount} de anticipo. Tu política dice que no se devuelve; si cancelas tú, devuélvelo.`;
   }
 
   protected dismissUndo(): void {

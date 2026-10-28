@@ -10,14 +10,15 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { RouterLink } from '@angular/router';
-import { forkJoin, of, switchMap, tap } from 'rxjs';
+import { Observable, forkJoin, of, switchMap, tap } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 
 import { BusinessCopy } from '@core/business-copy';
 import { examplesFor, kindOf } from '@core/business-kinds';
 import { Toasts } from '@core/toasts';
 import { Service } from '@core/models/service.model';
-import { Staff, StaffWrite } from '@core/models/staff.model';
+import { Staff, StaffAccount, StaffWrite } from '@core/models/staff.model';
+import { AuthService } from '@core/services/auth.service';
 import { ServicesService } from '@core/services/services.service';
 import { StaffService } from '@core/services/staff.service';
 import { ScheduleItem } from '@core/models/schedule.model';
@@ -27,7 +28,7 @@ import { ShopService, CommissionRow } from '@core/services/shop.service';
 import { STAFF_PALETTE, staffColorOf } from '@core/staff-colors';
 import { Confirm } from '@shared/components/confirm/confirm';
 
-type StaffSection = 'info' | 'services' | 'account';
+type StaffSection = 'info' | 'services';
 
 @Component({
   selector: 'app-staff-page',
@@ -75,6 +76,14 @@ export class StaffPageComponent {
   protected vacationFrom = '';
   protected vacationTo = '';
   protected readonly vacationError = signal<string | null>(null);
+  // Acceso al panel de una persona del equipo
+  private readonly auth = inject(AuthService);
+  protected readonly accessFor = signal<Staff | null>(null);
+  protected accessEmail = '';
+  protected readonly accessBusy = signal(false);
+  protected readonly accessError = signal<string | null>(null);
+  /** Contraseña temporal recién generada: solo se muestra una vez. */
+  protected readonly accessResult = signal<StaffAccount | null>(null);
   private readonly destroyRef = inject(DestroyRef);
   private readonly dialog = inject(MatDialog);
   private readonly editor = viewChild.required<TemplateRef<unknown>>('editor');
@@ -83,7 +92,6 @@ export class StaffPageComponent {
   protected readonly sections: { id: StaffSection; label: string }[] = [
     { id: 'info', label: 'Información' },
     { id: 'services', label: 'Servicios' },
-    // FUTURE_PHASE_2_UNIFIED_PLATFORM: { id: 'account', label: 'Cuenta de acceso' },
   ];
   protected readonly staff = signal<Staff[]>([]);
   protected readonly services = signal<Service[]>([]);
@@ -118,14 +126,6 @@ export class StaffPageComponent {
     tier_amount: new FormControl('', { nonNullable: true }),
     tier_percent: new FormControl('', { nonNullable: true }),
     color: new FormControl('', { nonNullable: true }),
-    account_email: new FormControl('', {
-      nonNullable: true,
-      validators: [Validators.email, Validators.maxLength(255)],
-    }),
-    account_password: new FormControl('', {
-      nonNullable: true,
-      validators: [Validators.maxLength(72)],
-    }),
   });
 
   private readonly formEvents = toSignal(this.form.events, { initialValue: undefined });
@@ -199,8 +199,6 @@ export class StaffPageComponent {
       tier_amount: '',
       tier_percent: '',
       color: '',
-      account_email: '',
-      account_password: '',
     });
     this.photoPreview.set(null);
     this.openEditor();
@@ -223,8 +221,6 @@ export class StaffPageComponent {
       tier_amount: member.tier_amount ? String(member.tier_amount) : '',
       tier_percent: member.tier_percent ? String(member.tier_percent) : '',
       color: member.color ?? '',
-      account_email: '',
-      account_password: '',
     });
     this.photoPreview.set(member.avatar_url || null);
     this.openEditor();
@@ -308,16 +304,6 @@ export class StaffPageComponent {
     }
 
     const raw = this.form.getRawValue();
-    const accountEmail = raw.account_email.trim();
-    const accountPassword = raw.account_password;
-    // FUTURE_PHASE_2_UNIFIED_PLATFORM: la cuenta de acceso del colaborador queda apagada.
-    const needsAccount = false && Boolean(accountEmail || accountPassword) && this.editing()?.user_id == null;
-    if (needsAccount && (!accountEmail || accountPassword.length < 8)) {
-      this.section.set('account');
-      this.formError.set('La cuenta necesita un correo y una contraseña de al menos 8 caracteres.');
-      return;
-    }
-
     const payload: StaffWrite = {
       full_name: raw.full_name.trim(),
       role_title: raw.role_title.trim(),
@@ -346,11 +332,6 @@ export class StaffPageComponent {
     request
       .pipe(
         switchMap((saved) => this.staffApi.updateStaffServices(saved.id, serviceIds)),
-        switchMap((saved) =>
-          needsAccount
-            ? this.staffApi.createAccount(saved.id, { email: accountEmail, password: accountPassword })
-            : of(saved),
-        ),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe({
@@ -359,13 +340,7 @@ export class StaffPageComponent {
           this.dialogRef?.close();
           this.load(true);
           const person = this.copy.text().person.toLowerCase();
-          this.toasts.show(
-            needsAccount
-              ? `Se creó la cuenta del ${person}.`
-              : current
-                ? `Se guardó el ${person}.`
-                : `Se creó el ${person}.`,
-          );
+          this.toasts.show(current ? `Se guardó el ${person}.` : `Se creó el ${person}.`);
         },
         error: (error: unknown) => {
           this.isSaving.set(false);
@@ -449,6 +424,102 @@ export class StaffPageComponent {
 
   protected selectAll(all: boolean): void {
     this.selectedServices.set(all ? this.activeServices().map((item) => item.id) : []);
+  }
+
+  /** La cuenta de la dueña también cuelga de su ficha del equipo: esa no se administra desde aquí. */
+  protected canManageAccess(member: Staff): boolean {
+    return member.user_id == null || String(member.user_id) !== this.auth.currentUser()?.id;
+  }
+
+  protected openAccess(member: Staff): void {
+    this.accessFor.set(member);
+    this.accessEmail = member.email ?? '';
+    this.accessError.set(null);
+    this.accessResult.set(null);
+  }
+
+  protected closeAccess(): void {
+    this.accessFor.set(null);
+    this.accessResult.set(null);
+    this.accessError.set(null);
+  }
+
+  private runAccess(request: Observable<StaffAccount | void>, done: (result: StaffAccount | void) => void): void {
+    this.accessBusy.set(true);
+    this.accessError.set(null);
+    request.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (result) => {
+        this.accessBusy.set(false);
+        done(result);
+        this.load(true);
+      },
+      error: (error: unknown) => {
+        this.accessBusy.set(false);
+        this.accessError.set(readError(error, 'No pudimos hacer el cambio. Inténtalo de nuevo.'));
+      },
+    });
+  }
+
+  protected giveAccess(): void {
+    const member = this.accessFor();
+    const email = this.accessEmail.trim();
+    if (!member || this.accessBusy()) {
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      this.accessError.set('Escribe un correo válido: con él va a entrar.');
+      return;
+    }
+    this.runAccess(this.staffApi.createAccount(member.id, { email }), (result) => this.accessResult.set(result as StaffAccount));
+  }
+
+  protected async resetAccess(): Promise<void> {
+    const member = this.accessFor();
+    if (!member || this.accessBusy()) {
+      return;
+    }
+    const ok = await this.confirm.ask({
+      title: `¿Nueva contraseña para ${member.full_name}?`,
+      message: 'Se cierra su sesión y la contraseña de ahora deja de servir. Tendrás que darle la nueva.',
+      confirm: 'Crear contraseña nueva',
+    });
+    if (ok) {
+      this.runAccess(this.staffApi.resetAccount(member.id), (result) => this.accessResult.set(result as StaffAccount));
+    }
+  }
+
+  protected async removeAccess(): Promise<void> {
+    const member = this.accessFor();
+    if (!member || this.accessBusy()) {
+      return;
+    }
+    const ok = await this.confirm.ask({
+      title: `¿Quitar el acceso a ${member.full_name}?`,
+      message: 'Ya no podrá entrar al panel. Sigue en tu equipo y su historial se queda.',
+      confirm: 'Quitar acceso',
+      danger: true,
+    });
+    if (ok) {
+      this.runAccess(this.staffApi.removeAccount(member.id), () => {
+        this.toasts.show('Se quitó el acceso.');
+        this.closeAccess();
+      });
+    }
+  }
+
+  /** Mensaje listo para mandar por WhatsApp con los datos de entrada. */
+  protected accessMessage(result: StaffAccount): string {
+    const origin = typeof location === 'undefined' ? '' : location.origin;
+    return `Hola ${result.full_name.split(' ')[0]}, ya tienes acceso al panel.\nEntra en ${origin}/auth/login\nCorreo: ${result.email}\nContraseña temporal: ${result.temporary_password}\nAl entrar te pedirá elegir la tuya.`;
+  }
+
+  protected async copyAccess(result: StaffAccount): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(this.accessMessage(result));
+      this.toasts.show('Copiado. Pégalo en un mensaje.');
+    } catch {
+      this.toasts.show('No pudimos copiar. Selecciona el texto y cópialo.');
+    }
   }
 
   protected openVacation(member: Staff): void {

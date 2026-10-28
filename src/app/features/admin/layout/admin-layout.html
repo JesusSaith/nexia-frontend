@@ -22,6 +22,20 @@
         </div>
       </div>
 
+      @if (readiness() !== null) {
+        <a
+          routerLink="/admin/home"
+          class="mx-3 mb-3 flex min-h-11 items-center gap-2 rounded-xl border border-[var(--nx-rail-line)] px-3 py-2 text-sm text-[var(--nx-rail-ink)]"
+          (click)="onNavigate()"
+        >
+          <span class="h-2.5 w-2.5 shrink-0 rounded-full" [style.background]="canTakeBookings() ? 'var(--nx-ok-fg)' : 'var(--nx-warn-fg)'" aria-hidden="true"></span>
+          <span class="min-w-0 flex-1">{{ canTakeBookings() ? 'Tu página recibe citas' : 'Aún no recibes citas' }}</span>
+          @if (!canTakeBookings()) {
+            <span class="text-xs text-[var(--nx-rail-soft)]">Falta{{ missingToBook().length === 1 ? '' : 'n' }} {{ missingToBook().length }}</span>
+          }
+        </a>
+      }
+
       <div class="flex-1 overflow-y-auto px-3 pb-4">
         @for (group of linkGroups(); track group.title) {
           @if (group.title) {
@@ -107,6 +121,14 @@
           </button>
         </div>
       </header>
+    }
+
+    @if (isHandset() && readiness() !== null && !canTakeBookings()) {
+      <a routerLink="/admin/home" class="flex min-h-11 items-center gap-2 border-b border-line bg-surface px-4 py-2 text-sm text-ink">
+        <mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-(--nx-warn-fg)">warning</mat-icon>
+        <span class="min-w-0 flex-1">Aún no recibes citas: {{ missingToBook()[0]?.label?.toLowerCase() }}{{ missingToBook().length > 1 ? ' y ' + (missingToBook().length - 1) + ' más' : '' }}</span>
+        <mat-icon class="shrink-0 text-muted">chevron_right</mat-icon>
+      </a>
     }
 
     @if (logoutError(); as message) {

@@ -291,15 +291,15 @@
                     @if (notice.unseen) {
                       <span class="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-accent" aria-label="Nuevo"></span>
                     }
-                    <span>{{ noticeText(notice.message) }}@if (notice.count > 1) { <span class="badge badge-neutral ml-1">{{ notice.count }} veces</span> }</span>
+                    <span>{{ notice.message }}@if (notice.count > 1) { <span class="badge badge-neutral ml-1">{{ notice.count }} veces</span> }</span>
                   </p>
                   <div class="mt-1 flex flex-wrap items-center gap-3 text-sm">
                     <span class="nums text-muted">{{ noticeWhen(notice.created_at) }}</span>
-                    @if (noticeCita(notice.message); as citaId) {
+                    @if (notice.appointment_id; as citaId) {
                       <a class="inline-flex min-h-11 items-center font-medium text-ink-soft hover:text-ink" [routerLink]="['/admin/agenda']" [queryParams]="{ cita: citaId }">Ver cita</a>
                     }
-                    @for (phone of noticePhones(notice.message); track phone) {
-                      <a class="inline-flex min-h-11 items-center font-medium text-(--nx-ok-fg) hover:underline" [href]="waitWhatsapp(notice.message, phone)" target="_blank" rel="noopener">WhatsApp</a>
+                    @for (person of notice.data?.people ?? []; track person.phone) {
+                      <a class="inline-flex min-h-11 items-center font-medium text-(--nx-ok-fg) hover:underline" [href]="waitWhatsapp(notice, person)" target="_blank" rel="noopener">WhatsApp a {{ person.name.split(' ')[0] }}</a>
                     }
                   </div>
                 </li>
@@ -363,13 +363,16 @@
           <section class="card">
             <div class="card-head">
               <span class="sec-icon"><mat-icon>cake</mat-icon></span>
-              <h2 class="card-title">Cumpleaños de hoy</h2>
+              <h2 class="card-title">{{ birthdaysTitle() }}</h2>
             </div>
             <ul class="mt-2 divide-y divide-line">
               @for (client of birthdays(); track client.id) {
                 <li class="flex items-center gap-3 py-2">
-                  <span class="min-w-0 flex-1 truncate text-sm font-medium text-ink">{{ client.full_name }}</span>
-                  @if (client.phone) {
+                  <span class="min-w-0 flex-1">
+                    <span class="block truncate text-sm font-medium text-ink">{{ client.full_name }}</span>
+                    <span class="block text-sm text-muted">{{ birthdayWhen(client) }}@if (client.congratulated) { · ya lo felicitaste }</span>
+                  </span>
+                  @if (client.phone && client.days_until === 0) {
                     <a class="btn btn-whatsapp shrink-0 px-3!" [href]="birthdayWhatsapp(client)" target="_blank" rel="noopener" (click)="markCongratulated(client)">Felicitar</a>
                   }
                 </li>

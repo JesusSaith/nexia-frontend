@@ -76,6 +76,9 @@
                   @if (!member.is_active) {
                     <span class="badge badge-neutral">Inactivo</span>
                   }
+                  @if (member.user_id && canManageAccess(member)) {
+                    <span class="badge badge-neutral">Con acceso</span>
+                  }
                 </span>
                 <span class="block truncate text-sm text-muted">{{ member.role_title }}@if (member.commission_percent && copy.commissions()) { · <span class="nums">{{ member.commission_percent }}%</span> comisión }</span>
                 <span class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm">
@@ -103,6 +106,9 @@
                     <a class="row-hover flex min-h-11 items-center rounded-lg px-3 text-sm text-ink" routerLink="/admin/schedules" [queryParams]="{ staff: member.id }">Cambiar su horario</a>
                   }
                   <button type="button" class="row-hover min-h-11 rounded-lg px-3 text-left text-sm text-ink" (click)="more.open = false; openVacation(member)">Vacaciones o días libres</button>
+                  @if (canManageAccess(member)) {
+                    <button type="button" class="row-hover min-h-11 rounded-lg px-3 text-left text-sm text-ink" (click)="more.open = false; openAccess(member)">Acceso al panel</button>
+                  }
                   <a class="row-hover flex min-h-11 items-center rounded-lg px-3 text-sm text-ink" routerLink="/admin/dashboard">Ver sus números</a>
                   @if (member.is_active) {
                     <button type="button" class="row-hover min-h-11 rounded-lg px-3 text-left text-sm text-(--nx-bad-fg)" (click)="more.open = false; deactivate(member)">Desactivar</button>
@@ -113,6 +119,43 @@
               </details>
             }
           </li>
+          @if (accessFor()?.id === member.id) {
+            <li class="bg-canvas px-5 py-4">
+              <div class="flex items-start justify-between gap-3">
+                <p class="text-sm font-semibold text-ink">Acceso al panel de {{ member.full_name.split(' ')[0] }}</p>
+                <button type="button" class="btn btn-ghost w-11! px-0!" (click)="closeAccess()" aria-label="Cerrar"><mat-icon>close</mat-icon></button>
+              </div>
+              @if (accessResult(); as result) {
+                <p class="mt-1 text-sm text-muted">Dale estos datos. La contraseña solo se muestra ahora; si se pierde, crea una nueva.</p>
+                <dl class="mt-3 grid gap-2 rounded-xl border border-line bg-surface p-4 text-sm">
+                  <div><dt class="text-muted">Correo</dt><dd class="break-all font-medium text-ink">{{ result.email }}</dd></div>
+                  <div><dt class="text-muted">Contraseña temporal</dt><dd class="nums text-base font-semibold text-ink select-all">{{ result.temporary_password }}</dd></div>
+                </dl>
+                <p class="field-hint mt-2">Al entrar por primera vez, {{ member.full_name.split(' ')[0] }} elige su propia contraseña.</p>
+                <div class="mt-3 flex flex-wrap gap-2">
+                  <button type="button" class="btn btn-primary" (click)="copyAccess(result)"><mat-icon>content_copy</mat-icon>Copiar mensaje</button>
+                  <button type="button" class="btn btn-ghost" (click)="closeAccess()">Listo</button>
+                </div>
+              } @else if (member.user_id) {
+                <p class="mt-1 text-sm text-muted">Ya puede entrar con su correo. Solo ve su propia agenda y sus clientes.</p>
+                <div class="mt-3 flex flex-wrap gap-2">
+                  <button type="button" class="btn btn-ghost" [disabled]="accessBusy()" (click)="resetAccess()">Crear contraseña nueva</button>
+                  <button type="button" class="btn btn-ghost text-(--nx-bad-fg)" [disabled]="accessBusy()" (click)="removeAccess()">Quitar acceso</button>
+                </div>
+              } @else {
+                <p class="mt-1 text-sm text-muted">Con su correo entra al panel y ve solo su agenda. Le creamos una contraseña temporal y la cambia al entrar.</p>
+                <form class="mt-3 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end" (submit)="$event.preventDefault(); giveAccess()">
+                  <label class="block"><span class="label">Correo</span>
+                    <input class="input" type="email" name="access_email" inputmode="email" autocomplete="off" [(ngModel)]="accessEmail" />
+                  </label>
+                  <button type="submit" class="btn btn-primary" [disabled]="accessBusy()">Dar acceso</button>
+                </form>
+              }
+              @if (accessError(); as message) {
+                <p role="alert" class="field-error mt-2">{{ message }}</p>
+              }
+            </li>
+          }
           @if (vacationFor()?.id === member.id) {
             <li class="bg-canvas px-5 py-4">
               <form class="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end" (submit)="$event.preventDefault(); saveVacation()">

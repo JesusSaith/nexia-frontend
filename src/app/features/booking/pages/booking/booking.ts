@@ -17,6 +17,7 @@ import { forkJoin, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 
 import { businessWords } from '@core/business-words';
+import { depositPolicyText } from '@core/deposit-policy';
 import { methodsSentence } from '@core/payment-methods';
 // FUTURE_PHASE_SPEI: import { SpeiCheckComponent } from '@shared/components/spei-check/spei-check';
 import { closureOn, closureSpan, liveOffer, nextClosure, noteOf } from '@core/shop-note';
@@ -134,6 +135,8 @@ export class Booking {
   protected readonly step = signal(1);
   protected readonly reached = signal(1);
   protected readonly brand = signal<BusinessBrand | null>(null);
+  /** Qué pasa con el anticipo si cancela, dicho antes de pagar. */
+  protected readonly depositPolicy = computed(() => depositPolicyText(this.brand()?.deposit_cancel_policy, this.brand()?.cancel_hours));
   /** Hay punto en el mapa o dirección: se ofrece "Cómo llegar". */
   protected readonly hasPlace = computed(() => canNavigate(this.brand()));
   /** El mapa del encabezado se carga solo al abrirlo, para no frenar la página. */
@@ -211,13 +214,6 @@ export class Booking {
     return groups.filter((group) => group.slots.length > 0);
   });
   protected readonly confirmation = signal<Appointment | null>(null);
-  protected readonly reviewRating = signal(5);
-  protected readonly reviewComment = signal('');
-  protected readonly reviewPhoto = signal<string | null>(null);
-  protected readonly reviewSaving = signal(false);
-  protected readonly reviewSent = signal(false);
-  protected readonly reviewError = signal<string | null>(null);
-  protected readonly reviewStars = [1, 2, 3, 4, 5];
 
   protected readonly isLoading = signal(true);
   protected readonly logoFailed = signal(false);
@@ -958,68 +954,6 @@ export class Booking {
       });
   }
 
-  protected setRating(value: number): void {
-    this.reviewRating.set(value);
-  }
-
-  protected onReviewComment(event: Event): void {
-    this.reviewComment.set((event.target as HTMLTextAreaElement).value);
-  }
-
-  protected onReviewPhoto(event: Event): void {
-    const file = (event.target as HTMLInputElement).files?.[0];
-    if (!file) {
-      return;
-    }
-    const image = new Image();
-    const url = URL.createObjectURL(file);
-    image.onload = () => {
-      const size = 480;
-      const scale = Math.min(1, size / Math.max(image.width, image.height));
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.max(1, Math.round(image.width * scale));
-      canvas.height = Math.max(1, Math.round(image.height * scale));
-      canvas.getContext('2d')?.drawImage(image, 0, 0, canvas.width, canvas.height);
-      URL.revokeObjectURL(url);
-      const data = canvas.toDataURL('image/jpeg', 0.72);
-      this.reviewPhoto.set(data.length > 180000 ? null : data);
-      if (data.length > 180000) {
-        this.reviewError.set('La foto es demasiado pesada.');
-      }
-    };
-    image.src = url;
-  }
-
-  protected sendReview(): void {
-    const appointment = this.confirmation();
-    const comment = this.reviewComment().trim();
-    if (!appointment || !comment || this.reviewSaving()) {
-      this.reviewError.set(comment ? null : 'Escribe un comentario.');
-      return;
-    }
-    this.reviewSaving.set(true);
-    this.reviewError.set(null);
-    this.reviewsApi
-      .createPublicReview(this.slug, {
-        client_name: appointment.client_name,
-        rating: this.reviewRating(),
-        comment,
-        photo_url: this.reviewPhoto(),
-        token: appointment.cancel_token ?? "",
-      })
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: () => {
-          this.reviewSaving.set(false);
-          this.reviewSent.set(true);
-        },
-        error: (error: unknown) => {
-          this.reviewSaving.set(false);
-          this.reviewError.set(readError(error, 'No pudimos publicar el comentario.'));
-        },
-      });
-  }
-
   protected restart(): void {
     this.step.set(1);
     this.reached.set(1);
@@ -1047,11 +981,6 @@ export class Booking {
     this.loyaltyPercent.set(null);
     this.confirmation.set(null);
     this.proofSent.set(false);
-    this.reviewRating.set(5);
-    this.reviewComment.set('');
-    this.reviewPhoto.set(null);
-    this.reviewSent.set(false);
-    this.reviewError.set(null);
     this.formError.set(null);
     this.clientForm.reset();
     this.showOptional.set(false);

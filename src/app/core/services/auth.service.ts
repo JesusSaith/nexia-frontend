@@ -91,6 +91,16 @@ export class AuthService {
     );
   }
 
+  /** Quien entró con contraseña temporal elige la suya; la sesión se renueva. */
+  changePassword(currentPassword: string, newPassword: string): Observable<CurrentUser> {
+    return this.http
+      .post<CurrentUser>(`${this.apiBaseUrl}/auth/change-password`, {
+        current_password: currentPassword,
+        new_password: newPassword,
+      })
+      .pipe(tap((user) => this.currentUserState.set(user)));
+  }
+
   logout(): Observable<void> {
     return this.http.post<void>(`${this.apiBaseUrl}/auth/logout`, {}).pipe(
       tap(() => this.currentUserState.set(null)),

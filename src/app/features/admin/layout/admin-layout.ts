@@ -17,6 +17,7 @@ import { BusinessCopy } from '@core/business-copy';
 import { BookingService } from '@core/services/booking.service';
 import { Toasts } from '@core/toasts';
 import { DashboardService } from '@core/services/dashboard.service';
+import { Readiness, SettingsService } from '@core/services/settings.service';
 
 interface AdminNavLink {
   label: string;
@@ -106,6 +107,15 @@ export class AdminLayoutComponent {
   protected readonly toasts = inject(Toasts);
   private readonly router = inject(Router);
   private readonly noticesApi = inject(DashboardService);
+  private readonly settingsApi = inject(SettingsService);
+  /** ¿La página ya puede recibir citas? Solo lo ven quienes administran el negocio. */
+  protected readonly readiness = signal<Readiness | null>(null);
+  protected readonly missingToBook = computed(() => {
+    const ready = this.readiness();
+    return ready ? ready.steps.filter((step) => step.group === 'arranque' && step.key !== 'share' && !step.done) : [];
+  });
+  protected readonly canTakeBookings = computed(() => this.readiness() !== null && this.missingToBook().length === 0);
+  private readinessAt = 0;
   private seenNotice = Number(readSeen() || 0);
   private toastedNotice = this.seenNotice;
   private toastTimer: ReturnType<typeof setTimeout> | null = null;
@@ -192,6 +202,9 @@ export class AdminLayoutComponent {
           this.copy.setLogo(brand.logo_url);
           this.copy.setTemplates(brand.message_templates);
         });
+      if (!this.authService.isStaff()) {
+        this.refreshReadiness();
+      }
       interval(20000)
         .pipe(
           startWith(0),
@@ -205,6 +218,9 @@ export class AdminLayoutComponent {
           takeUntilDestroyed(this.destroyRef),
         )
         .subscribe(() => {
+          if (!this.authService.isStaff()) {
+            this.refreshReadiness();
+          }
           if (this.router.url.startsWith('/admin/home')) {
             this.seenNotice = Math.max(this.seenNotice, this.toastedNotice);
             saveSeen(this.seenNotice);
@@ -219,7 +235,20 @@ export class AdminLayoutComponent {
     return role ? ROLE_LABELS[role] : 'Sin sesión';
   });
 
-  private applyNotices(rows: { id: number; message: string }[]): void {
+  /** Se vuelve a preguntar al cambiar de pantalla (máximo cada 5 s): así el aviso se apaga solo al terminar un paso. */
+  private refreshReadiness(): void {
+    const now = Date.now();
+    if (now - this.readinessAt < 5000) {
+      return;
+    }
+    this.readinessAt = now;
+    this.settingsApi
+      .getReadiness()
+      .pipe(catchError(() => of(null)), takeUntilDestroyed(this.destroyRef))
+      .subscribe((ready) => this.readiness.set(ready));
+  }
+
+  private applyNotices(rows: { id: number; message: string; seen?: boolean }[]): void {
     // Primera vez en este navegador: lo anterior cuenta como visto (sin aviso emergente de algo viejo).
     if (!this.seenNotice && rows.length) {
       this.seenNotice = this.toastedNotice = rows.reduce((top, row) => Math.max(top, row.id), 0);
@@ -235,11 +264,11 @@ export class AdminLayoutComponent {
       this.unread.set(0);
       return;
     }
-    this.unread.set(fresh.length);
+    this.unread.set(fresh.filter((row) => !row.seen).length);
     const newest = fresh[0];
     if (newest && newest.id > this.toastedNotice) {
       this.toastedNotice = newest.id;
-      this.toast.set(newest.message.replace(/\s*#\d+\s*$/, ''));
+      this.toast.set(newest.message);
       if (this.toastTimer) {
         clearTimeout(this.toastTimer);
       }

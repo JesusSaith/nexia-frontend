@@ -153,6 +153,13 @@
               </div>
               <button type="button" role="switch" class="switch" [attr.aria-checked]="usesCommissions()" (click)="usesCommissions.set(!usesCommissions())" aria-label="Le pago comisión a mi equipo"><span></span></button>
             </div>
+            <div class="flex items-center justify-between gap-4 rounded-xl border border-line p-4 sm:col-span-2">
+              <div>
+                <p class="text-sm font-semibold text-ink">Mi equipo puede cambiar precios y quitar anticipos</p>
+                <p class="field-hint">Apagado, {{ copy.text().people.toLowerCase() }} solo cobran el precio del servicio. Los servicios de precio variable siempre los pueden cotizar.</p>
+              </div>
+              <button type="button" role="switch" class="switch" [attr.aria-checked]="staffCanEditPrice()" (click)="staffCanEditPrice.set(!staffCanEditPrice())" aria-label="Mi equipo puede cambiar precios y quitar anticipos"><span></span></button>
+            </div>
             <div class="sm:col-span-2">
               <span class="label">Ubicación en el mapa</span>
               <p class="field-hint mb-2">Tus {{ copy.text().clients.toLowerCase() }} ven el mapa al reservar y abren la ruta en Google Maps o Waze.</p>
@@ -401,6 +408,19 @@
               <span class="label">¿Hasta cuándo pueden cancelar o cambiar?</span>
               <ng-container *ngTemplateOutlet="chips; context: { field: 'cancelHours', unit: 'h antes', max: 168 }" />
             </div>
+            <div>
+              <span class="label">Tope de citas al día por {{ copy.text().person.toLowerCase() }}</span>
+              <ng-container *ngTemplateOutlet="chips; context: { field: 'maxDaily', unit: 'citas', max: 200 }" />
+              <span class="field-hint mt-1 block">Al llegar al tope, ese día ya no aparece para reservar con esa persona. Tú puedes seguir agendando a mano.</span>
+            </div>
+            <div>
+              <span class="label">Si cancelan a tiempo, el anticipo</span>
+              <div class="flex flex-wrap gap-2">
+                <button type="button" class="chip" [class.chip-on]="depositCancelPolicy() === 'refund'" (click)="depositCancelPolicy.set('refund'); form.markAsDirty()">Se devuelve</button>
+                <button type="button" class="chip" [class.chip-on]="depositCancelPolicy() === 'keep'" (click)="depositCancelPolicy.set('keep'); form.markAsDirty()">No se devuelve</button>
+              </div>
+              <span class="field-hint mt-1 block">Se lo decimos a tu {{ copy.text().client.toLowerCase() }} antes de pagar y en su cita. Quien no llega pierde el anticipo en ambos casos.</span>
+            </div>
             <label class="block">
               <span class="label">Mensaje sobre cancelaciones</span>
               <textarea class="input" rows="2" formControlName="cancelPolicy" placeholder="Si no puedes venir, avísanos con 24 horas para darle tu lugar a alguien más."></textarea>
@@ -485,6 +505,20 @@
               <span class="label">Tiempo para pagarlo</span>
               <ng-container *ngTemplateOutlet="chips; context: { field: 'depositHoldHours', unit: 'horas', max: 72 }" />
               <span class="field-hint mt-1 block">Si no llega en ese tiempo, el horario se libera solo.</span>
+            </div>
+            <div class="rounded-xl border border-line p-4">
+              <span class="label">Anticipo para quien ya faltó</span>
+              <ng-container *ngTemplateOutlet="chips; context: { field: 'noshowAfter', unit: 'faltas', max: 10 }" />
+              @if (form.controls.noshowAfter.value) {
+                <label class="mt-3 block">
+                  <span class="label">Monto del anticipo</span>
+                  <input class="input nums w-40" type="number" min="1" inputmode="decimal" formControlName="noshowDeposit" placeholder="Ej. 100" />
+                  @if (!form.controls.noshowDeposit.value) {
+                    <span class="field-error mt-1 block">Escribe cuánto pedirás para que la regla funcione.</span>
+                  }
+                </label>
+              }
+              <span class="field-hint mt-2 block">Cuenta las citas en que el {{ copy.text().client.toLowerCase() }} no llegó. Se le pide este anticipo aunque el servicio no lo pida, y necesitas una cuenta para recibirlo.</span>
             </div>
             <label class="block">
               <span class="label">Enlace de pago (opcional)</span>
