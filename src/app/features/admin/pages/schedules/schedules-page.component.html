@@ -252,7 +252,11 @@
 
     <!-- Barra de guardar: siempre a la vista, dice si hay cambios pendientes. -->
     <div class="sticky bottom-0 z-10 -mx-4 flex items-center justify-between gap-3 border-t border-line bg-surface px-4 py-3 sm:bottom-4 sm:mx-0 sm:rounded-2xl sm:border sm:shadow-lg">
-      <span class="text-sm" [class.text-ink]="dirty()" [class.text-muted]="!dirty()">{{ dirty() ? 'Cambios sin guardar' : (notSaved() ? 'Sin guardar todavía' : 'Todo guardado') }}</span>
+      @if (!dirty() && notSaved() && !isLoading()) {
+        <span class="text-sm text-muted">Sin guardar todavía</span>
+      } @else {
+        <app-save-state [saving]="isLoading()" [changes]="dirty() ? 1 : 0" />
+      }
       <button class="btn btn-primary" type="button" [disabled]="isLoading() || (!dirty() && !notSaved())" (click)="save()">
         @if (isLoading()) { <mat-spinner diameter="18" /> } @else { <mat-icon>save</mat-icon> }
         {{ isLoading() ? 'Guardando…' : 'Guardar horario' }}

@@ -2,17 +2,19 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, HostListener, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { of } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { catchError, distinctUntilChanged, filter, map } from 'rxjs/operators';
 
 import { BusinessCopy } from '@core/business-copy';
 import { firstName, whatsappLink } from '@core/message-templates';
 import { AuthService } from '@core/services/auth.service';
 import { BookingService, ClientCard, ClientRow } from '@core/services/booking.service';
 import { PackagesService, VisitPackage } from '@core/services/packages.service';
+import { Toasts } from '@core/toasts';
 import { Confirm } from '@shared/components/confirm/confirm';
+import { Skeleton } from '@shared/components/skeleton/skeleton';
 
 type Filter = 'all' | 'best' | 'missing' | 'cancel' | 'birthday' | 'package';
 type Sort = 'name' | 'recent' | 'spent' | 'visits';
@@ -22,7 +24,7 @@ const AWAY_DAYS = 45;
 
 @Component({
   selector: 'app-customers',
-  imports: [MatIconModule, FormsModule, RouterLink],
+  imports: [MatIconModule, FormsModule, RouterLink, Skeleton],
   templateUrl: './customers.html',
 })
 export class Customers {
@@ -30,9 +32,11 @@ export class Customers {
   private readonly packagesApi = inject(PackagesService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly auth = inject(AuthService);
   protected readonly copy = inject(BusinessCopy);
   private readonly confirm = inject(Confirm);
+  private readonly toasts = inject(Toasts);
   protected readonly deleteError = signal<string | null>(null);
   private readonly money = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
   private readonly when = new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -44,6 +48,27 @@ export class Customers {
   protected readonly loadError = signal<string | null>(null);
   protected readonly query = signal('');
   protected readonly filter = signal<Filter>('all');
+
+  /** Qué decir cuando la lista queda vacía: depende de si es por la búsqueda o por el filtro. */
+  protected readonly emptyText = computed(() => {
+    if (this.query().trim()) {
+      return 'Nadie coincide con esa búsqueda. Revisa el nombre o prueba con el teléfono.';
+    }
+    const texts: Record<Filter, string> = {
+      all: 'Aún no hay nadie aquí.',
+      best: 'Aquí aparecerán quienes más gastan, en cuanto haya cobros.',
+      missing: 'Nadie ha dejado de venir. Buen trabajo.',
+      cancel: 'Nadie cancela ni falta seguido.',
+      birthday: 'No hay cumpleaños en los próximos 7 días.',
+      package: 'Nadie tiene un paquete con visitas por usar. Se agregan desde la ficha.',
+    };
+    return texts[this.filter()];
+  });
+
+  protected clearFilters(): void {
+    this.query.set('');
+    this.filter.set('all');
+  }
   protected readonly sort = signal<Sort>('name');
 
   private readonly today = localDay(new Date());
@@ -265,6 +290,128 @@ export class Customers {
       });
   }
 
+  // Acciones en bloque: seleccionar varios para etiquetarlos o escribirles uno tras otro.
+  /** Solo propietario y administración (la API también lo exige). */
+  protected readonly canBulk = computed(() => !this.auth.isStaff());
+  protected readonly selecting = signal(false);
+  protected readonly selected = signal<ReadonlySet<number>>(new Set());
+  protected readonly selectedRows = computed(() => this.visible().filter((row) => this.selected().has(row.id)));
+  protected readonly bulkPanel = signal<'tag' | 'chat' | null>(null);
+  protected bulkTag = '';
+  protected readonly bulkBusy = signal(false);
+  protected readonly bulkError = signal<string | null>(null);
+
+  protected readonly chatKinds: { key: 'miss_you' | 'birthday' | 'share_link'; label: string }[] = [
+    { key: 'miss_you', label: 'Te extrañamos' },
+    { key: 'birthday', label: 'Felicitar' },
+    { key: 'share_link', label: 'Invitar a reservar' },
+  ];
+  protected readonly chatKind = signal<'miss_you' | 'birthday' | 'share_link'>('miss_you');
+  private readonly chatRows = signal<ClientRow[]>([]);
+  protected readonly chatIndex = signal(0);
+  protected readonly chatCurrent = computed(() => this.chatRows()[this.chatIndex()] ?? null);
+  protected readonly chatTotal = computed(() => this.chatRows().length);
+
+  protected toggleSelecting(): void {
+    this.selecting.update((on) => !on);
+    this.clearSelection();
+  }
+
+  protected isSelected(id: number): boolean {
+    return this.selected().has(id);
+  }
+
+  protected toggleOne(id: number): void {
+    this.selected.update((current) => {
+      const next = new Set(current);
+      if (!next.delete(id)) {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  protected selectAllVisible(): void {
+    const all = this.visible().length > 0 && this.visible().every((row) => this.selected().has(row.id));
+    this.selected.set(all ? new Set() : new Set(this.visible().map((row) => row.id)));
+  }
+
+  protected clearSelection(): void {
+    this.selected.set(new Set());
+    this.bulkPanel.set(null);
+    this.bulkError.set(null);
+    this.chatRows.set([]);
+  }
+
+  protected openBulkTag(): void {
+    this.bulkTag = '';
+    this.bulkError.set(null);
+    this.bulkPanel.set('tag');
+  }
+
+  protected applyBulkTag(tag: string): void {
+    const clean = tag.trim();
+    const rows = this.selectedRows();
+    if (!clean || rows.length === 0 || this.bulkBusy()) {
+      return;
+    }
+    this.bulkBusy.set(true);
+    this.bulkError.set(null);
+    this.bookingApi
+      .bulkTags(rows.map((row) => row.id), [clean])
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (result) => {
+          this.bulkBusy.set(false);
+          const ids = new Set(rows.map((row) => row.id));
+          this.clients.update((all) =>
+            all.map((row) => {
+              const tags = row.tags ?? [];
+              return ids.has(row.id) && tags.length < 10 && !tags.some((item) => item.toLowerCase() === clean.toLowerCase()) ? { ...row, tags: [...tags, clean] } : row;
+            }),
+          );
+          this.toasts.show(result.full ? `Etiqueta puesta a ${result.updated - result.full}. ${result.full} ya tenían 10 etiquetas.` : `Etiqueta "${clean}" puesta a ${result.updated}.`);
+          this.clearSelection();
+        },
+        error: (error: unknown) => {
+          this.bulkBusy.set(false);
+          this.bulkError.set(readError(error, 'No pudimos poner la etiqueta. Inténtalo de nuevo.'));
+        },
+      });
+  }
+
+  /** WhatsApp no deja mandar a varios a la vez: se arma una fila y se abre un chat tras otro. */
+  protected startChat(): void {
+    this.chatRows.set(this.selectedRows());
+    this.chatIndex.set(0);
+    this.chatKind.set(this.filter() === 'birthday' ? 'birthday' : 'miss_you');
+    this.bulkPanel.set('chat');
+  }
+
+  protected chatHref(row: ClientRow): string {
+    const slug = this.auth.currentUser()?.slug ?? '';
+    const vars = { nombre: firstName(row.full_name), negocio: this.shopName(), enlace: slug ? this.bookingApi.shareUrl(slug) : '' };
+    return whatsappLink(row.phone, this.copy.message(this.chatKind(), vars));
+  }
+
+  /** Se abrió el chat de esta persona (el enlace lo abre el navegador): queda anotado y pasa a la siguiente. */
+  protected chatSent(): void {
+    const row = this.chatCurrent();
+    if (row) {
+      this.logContact(row, this.chatKind() === 'birthday' ? 'felicitar' : 'invitar');
+    }
+    this.chatNext();
+  }
+
+  protected chatNext(): void {
+    if (this.chatIndex() + 1 >= this.chatTotal()) {
+      this.toasts.show('Listo, recorriste a todos.');
+      this.clearSelection();
+      return;
+    }
+    this.chatIndex.update((index) => index + 1);
+  }
+
   // Importar CSV
   protected readonly importing = signal(false);
   protected readonly importNote = signal<string | null>(null);
@@ -332,6 +479,15 @@ export class Customers {
 
   constructor() {
     this.load();
+    // ?ficha=ID (buscador del panel): abre esa ficha, también si ya se estaba en Clientes.
+    this.route.queryParamMap
+      .pipe(
+        map((params) => Number(params.get('ficha'))),
+        distinctUntilChanged(),
+        filter((id) => id > 0),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((id) => this.open(id));
     this.packagesApi
       .list()
       .pipe(catchError(() => of([] as VisitPackage[])), takeUntilDestroyed(this.destroyRef))
@@ -379,6 +535,10 @@ export class Customers {
   protected close(): void {
     this.saveNotes();
     this.card.set(null);
+    if (this.route.snapshot.queryParamMap.has('ficha')) {
+      // Se quita de la dirección para poder abrir la misma ficha otra vez desde el buscador.
+      void this.router.navigate([], { queryParams: { ficha: null }, queryParamsHandling: 'merge', replaceUrl: true });
+    }
   }
 
   protected saveNotes(): void {

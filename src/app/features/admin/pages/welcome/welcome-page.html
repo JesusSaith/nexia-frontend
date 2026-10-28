@@ -1,18 +1,26 @@
 <section class="mx-auto max-w-2xl pb-16">
   <header class="page-head">
     <div>
-      <h1>Pon tu página en marcha</h1>
-      <p>Tres pasos y tus {{ copy.text().clients.toLowerCase() }} ya pueden reservar. Todo se puede cambiar después.</p>
+      <h1>{{ step() === 5 ? 'Tu página está lista' : 'Pon tu página en marcha' }}</h1>
+      <p>
+        @if (step() === 5) {
+          Así la ven tus {{ copy.text().clients.toLowerCase() }}. Compártela y empieza a recibir citas.
+        } @else {
+          Cuatro pasos y tus {{ copy.text().clients.toLowerCase() }} ya pueden reservar. Todo se puede cambiar después.
+        }
+      </p>
     </div>
-    <a routerLink="/admin/home" class="btn btn-ghost">Lo hago después</a>
+    @if (step() < 5) {
+      <a routerLink="/admin/home" class="btn btn-ghost">Lo hago después</a>
+    }
   </header>
 
   <!-- Avance -->
-  <ol class="mb-6 grid grid-cols-3 gap-2" aria-label="Pasos">
-    @for (label of ['Quién atiende', 'Horario', 'Servicios']; track label; let index = $index) {
+  <ol class="mb-6 grid grid-cols-4 gap-2" aria-label="Pasos">
+    @for (label of labels; track label; let index = $index) {
       <li class="flex flex-col gap-1.5">
         <span class="h-1.5 rounded-full" [class.bg-accent]="step() > index" [class.bg-line]="step() <= index"></span>
-        <span class="text-sm" [class.font-semibold]="step() === index + 1" [class.text-ink]="step() === index + 1" [class.text-muted]="step() !== index + 1">{{ index + 1 }}. {{ label }}</span>
+        <span class="text-xs sm:text-sm" [class.font-semibold]="step() === index + 1" [class.text-ink]="step() === index + 1" [class.text-muted]="step() !== index + 1">{{ index + 1 }}. {{ label }}</span>
       </li>
     }
   </ol>
@@ -106,6 +114,54 @@
             <p class="empty">Aún no tienes servicios. Créalos en <a routerLink="/admin/services" class="font-medium text-accent">Servicios</a>.</p>
           }
         }
+        @case (4) {
+          <div>
+            <h2 class="text-lg font-semibold text-ink">¿Quieres pedir un anticipo?</h2>
+            <p class="field-hint mt-1">Un anticipo ayuda a que tus {{ copy.text().clients.toLowerCase() }} no falten. Lo transfieren al reservar y se descuenta de lo que pagan en su {{ copy.text().visit.toLowerCase() }}. Puedes saltarlo y activarlo después en Configuración.</p>
+          </div>
+          <label class="flex items-center justify-between gap-4 rounded-xl border border-line p-4">
+            <span>
+              <span class="block text-sm font-semibold text-ink">Pedir anticipo al reservar</span>
+              <span class="field-hint block">Si lo apagas, tus {{ copy.text().clients.toLowerCase() }} reservan sin pagar.</span>
+            </span>
+            <button type="button" role="switch" class="switch" [attr.aria-checked]="askDeposit()" (click)="askDeposit.set(!askDeposit())" aria-label="Pedir anticipo al reservar"><span></span></button>
+          </label>
+          @if (askDeposit()) {
+            <div class="grid gap-4 sm:grid-cols-2">
+              <label class="block">
+                <span class="label">Monto del anticipo</span>
+                <span class="flex items-center gap-1.5 text-sm text-muted">
+                  $
+                  <input class="input nums" type="number" min="1" inputmode="decimal" placeholder="100" [value]="depositAmount()" (input)="depositAmount.set($any($event.target).value)" />
+                </span>
+              </label>
+              <label class="block">
+                <span class="label">CLABE o cuenta donde te depositan</span>
+                <input class="input nums" inputmode="numeric" maxlength="120" autocomplete="off" [value]="depositAccount()" (input)="depositAccount.set($any($event.target).value)" />
+              </label>
+            </div>
+          }
+        }
+        @case (5) {
+          <div class="flex flex-col gap-4">
+            @if (canBook()) {
+              <p class="badge-ok rounded-xl px-3 py-2 text-sm">Tu página ya puede recibir citas.</p>
+            } @else {
+              <p class="badge-warn rounded-xl px-3 py-2 text-sm" role="status">Todavía falta algo para recibir citas. Lo ves en Inicio, en "Pon tu negocio en marcha".</p>
+            }
+            @if (pageUrl) {
+              <a [href]="pageUrl" target="_blank" rel="noopener" class="btn btn-primary">
+                <mat-icon>visibility</mat-icon>
+                Ver mi página como la ve un {{ copy.text().client.toLowerCase() }}
+              </a>
+              <button type="button" class="btn btn-secondary" (click)="copyLink()">
+                <mat-icon>{{ copied() ? 'check' : 'content_copy' }}</mat-icon>
+                {{ copied() ? 'Enlace copiado' : 'Copiar mi enlace de reservas' }}
+              </button>
+            }
+            <p class="field-hint">Reserva una cita de prueba para ver lo que recibe tu {{ copy.text().client.toLowerCase() }}. La cancelas desde la Agenda.</p>
+          </div>
+        }
       }
 
       @if (error(); as message) {
@@ -113,7 +169,7 @@
       }
 
       <div class="flex items-center justify-between gap-3 border-t border-line pt-4">
-        @if (step() > 1) {
+        @if (step() > 1 && step() < 5) {
           <button type="button" class="btn btn-ghost" [disabled]="saving()" (click)="back()">Atrás</button>
         } @else {
           <span></span>
@@ -126,7 +182,13 @@
             <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="saveHours()">{{ saving() ? 'Guardando…' : 'Siguiente' }}</button>
           }
           @case (3) {
-            <button type="button" class="btn btn-primary" [disabled]="saving() || !services().length" (click)="saveServices()">{{ saving() ? 'Guardando…' : 'Terminar' }}</button>
+            <button type="button" class="btn btn-primary" [disabled]="saving() || !services().length" (click)="saveServices()">{{ saving() ? 'Guardando…' : 'Siguiente' }}</button>
+          }
+          @case (4) {
+            <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="saveDeposit()">{{ saving() ? 'Guardando…' : askDeposit() ? 'Terminar' : 'Saltar y terminar' }}</button>
+          }
+          @case (5) {
+            <a routerLink="/admin/home" class="btn btn-primary">Ir a mi Inicio</a>
           }
         }
       </div>

@@ -4,12 +4,17 @@
       <h1>Configuración</h1>
       <p>Lo que ven tus {{ copy.text().clients.toLowerCase() }} y las reglas para reservar.</p>
     </div>
-    @if (bookingUrl(); as url) {
-      <a class="btn btn-secondary" [href]="url" target="_blank" rel="noopener">
-        <mat-icon>open_in_new</mat-icon>
-        Ver mi página
-      </a>
-    }
+    <div class="flex flex-wrap items-center gap-2">
+      @if (!isLoading()) {
+        <app-save-state [saving]="saving()" [changes]="changeCount()" />
+      }
+      @if (bookingUrl(); as url) {
+        <a class="btn btn-secondary" [href]="url" target="_blank" rel="noopener">
+          <mat-icon>open_in_new</mat-icon>
+          Ver mi página
+        </a>
+      }
+    </div>
   </header>
 
   @if (errorMessage(); as message) {
@@ -323,7 +328,7 @@
               </div>
 
               <!-- Vista previa en vivo: la página de reservas con lo que se va eligiendo. -->
-              <div class="flex justify-center lg:block">
+              <div class="flex flex-col items-center gap-3 lg:items-start">
                 <div class="w-60 overflow-hidden rounded-[2rem] border-[8px] border-ink shadow-lg" [style.background]="canvasColor() || '#ffffff'" [style.font-family]="fontStacks[fontStyle()]" aria-label="Vista previa de tu página">
                   @if (headerStyle() === 'cover' && photos()[0]) {
                     <img [src]="photos()[0]" alt="" class="h-16 w-full object-cover" />
@@ -350,6 +355,16 @@
                       [style.box-shadow]="buttonFill() === 'outline' ? 'inset 0 0 0 2px ' + form.controls.primaryColor.value : null">Reservar cita</span>
                   </div>
                 </div>
+                <!-- La vista de arriba es de ejemplo y se mueve al escribir; la real solo cambia al guardar. -->
+                @if (bookingUrl(); as pageUrl) {
+                  <div class="flex max-w-60 flex-col gap-1 text-center lg:max-w-none lg:text-left">
+                    <a [href]="pageUrl" target="_blank" rel="noopener" class="btn btn-secondary">
+                      <mat-icon>open_in_new</mat-icon>
+                      Ver mi página real
+                    </a>
+                    <span class="field-hint">Se abre en otra pestaña. Guarda tus cambios para verlos ahí.</span>
+                  </div>
+                }
               </div>
             </div>
 
@@ -651,8 +666,10 @@
             <p class="text-sm text-ink-soft">
               Así se escriben los mensajes que mandas desde el panel. Las palabras entre llaves, como <code class="rounded bg-canvas px-1">{{ '{' }}nombre{{ '}' }}</code>, se cambian solas por los datos de cada cita. Si un dato falta, su línea no se manda.
             </p>
+            @for (group of messageGroups(); track group.id) {
+            <h3 class="mt-2 text-sm font-semibold text-ink">{{ group.title }}</h3>
             <ul class="divide-y divide-line rounded-xl border border-line">
-              @for (template of messageTemplates; track template.key) {
+              @for (template of group.items; track template.key) {
                 <li>
                   <button type="button" class="row-hover flex w-full items-center gap-3 px-4 py-3 text-left" [attr.aria-expanded]="openMessage() === template.key" (click)="toggleMessage(template.key)">
                     <span class="min-w-0 flex-1">
@@ -697,6 +714,7 @@
                 </li>
               }
             </ul>
+            }
           </div>
         </details>
 

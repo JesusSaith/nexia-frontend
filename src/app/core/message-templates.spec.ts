@@ -29,6 +29,23 @@ describe('fillTemplate', () => {
   });
 });
 
+describe('recibo de pago', () => {
+  it('muestra anticipo y propina cuando los hay', () => {
+    const text = fillTemplate(defaultText('receipt'), { nombre: 'Ana', negocio: 'Salón', servicio: 'Corte', dia: 'jueves 29 de octubre', precio: '$450', anticipo: '$150', propina: '$50', total: '$500', metodo: 'Efectivo' });
+    expect(text).toContain('Anticipo que ya habías pagado: $150');
+    expect(text).toContain('Propina: $50');
+    expect(text).toContain('Total pagado: $500');
+    expect(text).not.toContain('{');
+  });
+
+  it('sin anticipo ni propina quita esas líneas en lugar de dejarlas vacías', () => {
+    const text = fillTemplate(defaultText('receipt'), { nombre: 'Ana', negocio: 'Salón', servicio: 'Corte', dia: 'jueves', precio: '$450', total: '$450', metodo: 'Tarjeta' });
+    expect(text).not.toContain('Anticipo');
+    expect(text).not.toContain('Propina');
+    expect(text).toContain('Total pagado: $450');
+  });
+});
+
 describe('whatsappLink', () => {
   it('antepone 52 a números de 10 dígitos', () => {
     expect(whatsappLink('55 1234 5678', 'Hola')).toBe('https://wa.me/525512345678?text=Hola');
@@ -40,5 +57,14 @@ describe('whatsappLink', () => {
 describe('firstName', () => {
   it('toma el nombre de pila', () => {
     expect(firstName('  María José López ')).toBe('María');
+  });
+});
+
+describe('MESSAGE_MOMENTS', () => {
+  it('cada mensaje está en un solo momento', async () => {
+    const { MESSAGE_MOMENTS, MESSAGE_TEMPLATES } = await import('./message-templates');
+    const keys = MESSAGE_MOMENTS.flatMap((moment) => [...moment.keys]);
+    expect(new Set(keys).size).toBe(keys.length);
+    expect([...keys].sort()).toEqual(MESSAGE_TEMPLATES.map((template) => template.key).sort());
   });
 });

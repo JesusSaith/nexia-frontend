@@ -2,24 +2,30 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatIconModule } from '@angular/material/icon';
-import { Router, RouterLink } from '@angular/router';
-import { Observable, forkJoin, of, switchMap } from 'rxjs';
+import { RouterLink } from '@angular/router';
+import { Observable, catchError, forkJoin, of, switchMap } from 'rxjs';
 
 import { BusinessCopy } from '@core/business-copy';
 import { Service } from '@core/models/service.model';
 import { Staff } from '@core/models/staff.model';
 import { AuthService } from '@core/services/auth.service';
+import { BookingService } from '@core/services/booking.service';
 import { SchedulesService } from '@core/services/schedules.service';
 import { ServicesService } from '@core/services/services.service';
+import { Readiness, SettingsService } from '@core/services/settings.service';
 import { StaffService } from '@core/services/staff.service';
 import { Toasts } from '@core/toasts';
+
+import { firstStepLeft } from './welcome-steps';
 
 const DAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
 /**
- * Asistente de bienvenida (/admin/bienvenida): justo después del registro, en 3 pasos deja la
- * página lista para reservar: quién atiende, horario base y qué servicios se ofrecen.
- * Usa las mismas APIs que Equipo, Horarios y Servicios; se puede saltar y retomar desde Inicio.
+ * Asistente de bienvenida (/admin/bienvenida): justo después del registro, en 4 pasos deja la
+ * página lista para reservar: quién atiende, horario base, qué servicios se ofrecen y, si quiere, el anticipo.
+ * Al final enseña la página como la ve un cliente y deja copiar el enlace.
+ * Usa las mismas APIs que Equipo, Horarios y Servicios; se puede saltar y retomar desde Inicio,
+ * y al volver abre en el primer paso que falta (según /api/settings/readiness).
  */
 @Component({
   selector: 'app-welcome-page',
@@ -31,13 +37,16 @@ export class WelcomePageComponent {
   private readonly schedulesApi = inject(SchedulesService);
   private readonly servicesApi = inject(ServicesService);
   private readonly auth = inject(AuthService);
-  private readonly router = inject(Router);
+  private readonly settingsApi = inject(SettingsService);
+  private readonly bookingApi = inject(BookingService);
   private readonly toasts = inject(Toasts);
   private readonly destroyRef = inject(DestroyRef);
   protected readonly copy = inject(BusinessCopy);
 
   protected readonly days = DAYS;
+  /** 1 a 4 son los pasos; 5 es la pantalla final ("Tu página está lista"). */
   protected readonly step = signal(1);
+  protected readonly labels = ['Quién atiende', 'Horario', 'Servicios', 'Anticipo'];
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
   protected readonly error = signal<string | null>(null);
@@ -61,11 +70,31 @@ export class WelcomePageComponent {
 
   protected readonly pickedCount = computed(() => this.picked().size);
 
+  // Paso 4: anticipo (opcional).
+  protected readonly askDeposit = signal(false);
+  protected readonly depositAmount = signal('');
+  protected readonly depositAccount = signal('');
+
+  // Pantalla final.
+  protected readonly ready = signal<Readiness | null>(null);
+  protected readonly copied = signal(false);
+  private readonly slug = this.auth.currentUser()?.slug ?? null;
+  /** La página pública tal como la ve quien reserva. */
+  protected readonly pageUrl = this.slug ? `/${this.slug}/book` : null;
+  private readonly shareUrl = this.slug ? this.bookingApi.shareUrl(this.slug).split('?')[0] : '';
+  protected readonly canBook = computed(() => this.ready()?.can_book ?? true);
+
   constructor() {
-    forkJoin({ staff: this.staffApi.getStaff(), services: this.servicesApi.getServices() })
+    forkJoin({
+      staff: this.staffApi.getStaff(),
+      services: this.servicesApi.getServices(),
+      ready: this.settingsApi.getReadiness().pipe(catchError(() => of(null))),
+    })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: ({ staff, services }) => {
+        next: ({ staff, services, ready }) => {
+          this.ready.set(ready);
+          this.step.set(firstStepLeft(ready));
           const active = staff.filter((member) => member.is_active);
           this.existing.set(active);
           this.ownerWorks.set(!active.length);
@@ -168,11 +197,49 @@ export class WelcomePageComponent {
       (updates.length ? forkJoin(updates) : of([])).pipe(
         switchMap(() => forkJoin(this.existing().map((member) => this.staffApi.updateStaffServices(member.id, [...new Set([...(member.service_ids ?? []), ...ids])])))),
       ),
-      () => {
-        this.toasts.show('¡Listo! Tu página ya puede recibir reservas.');
-        void this.router.navigateByUrl('/admin/home');
-      },
+      () => this.step.set(4),
     );
+  }
+
+  /** Paso 4 → guarda el anticipo si se pidió y pasa a la pantalla final. */
+  protected saveDeposit(): void {
+    if (!this.askDeposit()) {
+      this.finish();
+      return;
+    }
+    const amount = Number(this.depositAmount());
+    const account = this.depositAccount().trim();
+    if (!(amount > 0) || amount > 100000) {
+      this.error.set('Escribe cuánto pedirás de anticipo, por ejemplo 100.');
+      return;
+    }
+    if (!account) {
+      this.error.set(`Pon la cuenta o CLABE donde tus ${this.copy.text().clients.toLowerCase()} te transfieren; sin ella no se puede cobrar el anticipo.`);
+      return;
+    }
+    this.run(this.settingsApi.updateProfile({ deposit_amount: amount, deposit_account: account }), () => this.finish());
+  }
+
+  protected finish(): void {
+    this.error.set(null);
+    this.settingsApi
+      .getReadiness()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({ next: (ready) => this.ready.set(ready), error: () => undefined });
+    this.step.set(5);
+  }
+
+  /** Copia el enlace que se manda por WhatsApp o Instagram y lo marca como compartido. */
+  protected copyLink(): void {
+    if (!this.shareUrl) {
+      return;
+    }
+    this.settingsApi.markShared().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ error: () => undefined });
+    void navigator.clipboard.writeText(this.shareUrl).then(() => {
+      this.copied.set(true);
+      this.toasts.show('Enlace copiado. Pégalo en tu WhatsApp o Instagram.');
+      setTimeout(() => this.copied.set(false), 2500);
+    });
   }
 
   protected back(): void {

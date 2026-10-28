@@ -2,7 +2,7 @@
  * - Navegación: network-first (si no hay red, se sirve el index.html guardado).
  * - Estáticos del mismo origen (js/css/fuentes/imágenes): stale-while-revalidate.
  * - /api/, /s/ (proxy al backend) y otros orígenes: nunca se cachean. */
-const CACHE = 'nexia-shell-v1';
+const CACHE = 'nexia-shell-v2';
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/nexia-mark.png', '/icons/icon-192.png', '/icons/icon-512.png'];
 
 self.addEventListener('install', (event) => {
@@ -54,4 +54,34 @@ self.addEventListener('fetch', (event) => {
       ),
     );
   }
+});
+
+/* Avisos al celular (Web Push). El servidor manda { title, body, url }. */
+self.addEventListener('push', (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { body: event.data ? event.data.text() : '' };
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'Nexia', {
+      body: data.body || '',
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      data: { url: data.url || '/admin/home' },
+    }),
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const target = new URL((event.notification.data && event.notification.data.url) || '/admin/home', self.location.origin).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
+      const open = windows.find((client) => client.url.startsWith(self.location.origin));
+      if (open) return open.focus().then(() => open.navigate(target));
+      return self.clients.openWindow(target);
+    }),
+  );
 });

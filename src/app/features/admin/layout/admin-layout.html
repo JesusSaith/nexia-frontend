@@ -36,6 +36,14 @@
         </a>
       }
 
+      @if (canSearch()) {
+        <button type="button" class="nx-rail-btn mx-3 mb-2 w-auto border border-[var(--nx-rail-line)]" (click)="openSearch()">
+          <mat-icon>search</mat-icon>
+          <span class="flex-1">Buscar</span>
+          <span class="text-xs">Ctrl K</span>
+        </button>
+      }
+
       <div class="flex-1 overflow-y-auto px-3 pb-4">
         @for (group of linkGroups(); track group.title) {
           @if (group.title) {
@@ -62,6 +70,12 @@
       </div>
 
       <div class="nx-rail-foot">
+        @if (canSearch()) {
+          <button type="button" class="nx-rail-btn" (click)="openHelp()">
+            <mat-icon>help</mat-icon>
+            <span class="flex-1">Ayuda</span>
+          </button>
+        }
         <button type="button" class="nx-rail-btn" [matMenuTriggerFor]="themeMenu" [attr.aria-label]="'Tema: ' + (isDark() ? 'oscuro' : 'claro')">
           <mat-icon>{{ isDark() ? 'dark_mode' : 'light_mode' }}</mat-icon>
           <span class="flex-1">Tema</span>
@@ -97,6 +111,14 @@
       <mat-icon>badge</mat-icon>
       <span>{{ roleLabel() }}</span>
     </button>
+    @if (canPush() && push.available()) {
+      <button mat-menu-item type="button" (click)="togglePush()" [disabled]="push.busy() || push.state() === 'blocked'">
+        <mat-icon>{{ push.state() === 'on' ? 'notifications_active' : 'notifications_off' }}</mat-icon>
+        <span>{{
+          push.state() === 'blocked' ? 'Avisos bloqueados en el navegador' : push.state() === 'on' ? 'Apagar avisos en este celular' : 'Recibir avisos en este celular'
+        }}</span>
+      </button>
+    }
     <button mat-menu-item type="button" (click)="logout()" [disabled]="loggingOut()">
       <mat-icon>logout</mat-icon>
       <span>{{ loggingOut() ? 'Cerrando…' : 'Cerrar sesión' }}</span>
@@ -116,6 +138,16 @@
             </span>
           }
           <span class="min-w-0 flex-1 truncate text-base font-semibold">{{ brandName() || businessName() }}</span>
+          @if (canSearch()) {
+            <button type="button" class="grid h-11 w-11 place-items-center rounded-full text-[var(--nx-rail-soft)]" aria-label="Buscar" (click)="openSearch()">
+              <mat-icon>search</mat-icon>
+            </button>
+          }
+          @if (canSearch()) {
+            <button type="button" class="grid h-11 w-11 place-items-center rounded-full text-[var(--nx-rail-soft)]" aria-label="Ayuda" (click)="openHelp()">
+              <mat-icon>help</mat-icon>
+            </button>
+          }
           <button type="button" class="grid h-11 w-11 place-items-center rounded-full text-[var(--nx-rail-soft)]" [matMenuTriggerFor]="userMenu" aria-label="Cuenta">
             <mat-icon>account_circle</mat-icon>
           </button>
@@ -129,6 +161,13 @@
         <span class="min-w-0 flex-1">Aún no recibes citas: {{ missingToBook()[0]?.label?.toLowerCase() }}{{ missingToBook().length > 1 ? ' y ' + (missingToBook().length - 1) + ' más' : '' }}</span>
         <mat-icon class="shrink-0 text-muted">chevron_right</mat-icon>
       </a>
+    }
+
+    @if (!online()) {
+      <p role="status" class="badge-warn flex min-h-11 items-center gap-2 px-4 py-2 text-sm">
+        <mat-icon class="shrink-0" aria-hidden="true">cloud_off</mat-icon>
+        <span class="min-w-0">Sin conexión. Puedes ver lo que ya cargó, pero no se guardará nada hasta que vuelva el internet.</span>
+      </p>
     }
 
     @if (logoutError(); as message) {

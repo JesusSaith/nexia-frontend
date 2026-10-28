@@ -61,6 +61,10 @@
   --nx-rail-soft: #b9b0a9;
   --nx-rail-hover: #2b2725;
   --nx-card-shadow: 0 1px 2px rgb(28 26 25 / 0.05), 0 2px 6px rgb(28 26 25 / 0.04);
+  /* Color de marca para TEXTO: oscurecido (claro) o aclarado (oscuro) para llegar a 4.5:1 con cualquier color de negocio. */
+  --primary-text: color-mix(in srgb, var(--primary) 75%, #000);
+  /* Borde de campos e interruptores apagados: ≥ 3:1 contra el fondo (los bordes decorativos siguen con --color-line). */
+  --color-control: #857e77;
 }
 
 /*
@@ -103,6 +107,8 @@
   --nx-rail-line: #262321;
   --nx-rail-hover: #1d1b1a;
   --nx-card-shadow: none;
+  --primary-text: color-mix(in srgb, var(--primary) 65%, #fff);
+  --color-control: #8a837c;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -137,6 +143,8 @@
     --nx-rail-line: #262321;
     --nx-rail-hover: #1d1b1a;
     --nx-card-shadow: none;
+    --primary-text: color-mix(in srgb, var(--primary) 65%, #fff);
+    --color-control: #8a837c;
   }
 }
 
@@ -152,8 +160,12 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Texto de acento legible en claro y oscuro (la marca del negocio puede ser clara u oscura). */
+.text-accent { color: var(--primary-text); }
+.sec-icon, .avatar, .stat-accent { color: var(--primary-text); }
+
 /* Enfoque visible con teclado (no al hacer clic), del color de la marca. */
-:where(a, button, [role='button'], [role='switch'], summary, select, input[type='checkbox'], input[type='radio'], input[type='file']):focus-visible {
+:where(a, button, [role='button'], [role='switch'], summary, select, input[type='checkbox'], input[type='radio'], input[type='file'], [tabindex]:not([tabindex='-1'])):focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
@@ -258,16 +270,16 @@ a.stat:hover { border-color: var(--color-line-strong); }
 
 /* Campo de formulario del panel: <label class="block"><span class="label">…</span><input class="input" /></label> */
 .label { display: block; margin-bottom: 0.375rem; font-size: 0.875rem; font-weight: 500; color: var(--color-ink-soft); }
-.input { display: block; width: 100%; height: 2.75rem; padding: 0 0.875rem; border: 1px solid var(--color-line-strong); border-radius: var(--radius-lg); background: var(--color-surface); font-size: 0.9375rem; color: var(--color-ink); outline: none; transition: border-color .15s, box-shadow .15s; }
+.input { display: block; width: 100%; height: 2.75rem; padding: 0 0.875rem; border: 1px solid var(--color-control); border-radius: var(--radius-lg); background: var(--color-surface); font-size: 0.9375rem; color: var(--color-ink); outline: none; transition: border-color .15s, box-shadow .15s; }
 textarea.input { height: auto; padding: 0.625rem 0.875rem; line-height: 1.5; }
 .input:focus { border-color: var(--color-accent); box-shadow: 0 0 0 3px var(--color-accent-soft); }
 .input.ng-invalid.ng-touched, .input-invalid { border-color: var(--nx-bad-fg); }
 /* Opciones rápidas (chips) para elegir un valor común a un toque. */
 .chip { display: inline-flex; align-items: center; height: 2.75rem; padding: 0 0.875rem; border: 1px solid var(--color-line-strong); border-radius: 999px; background: var(--color-surface); font-size: 0.875rem; color: var(--color-ink-soft); transition: background-color .15s, border-color .15s, color .15s; }
 .chip:hover { border-color: var(--color-accent); color: var(--color-ink); }
-.chip-on, .chip-on:hover { border-color: var(--color-accent); background: var(--color-accent-soft); color: var(--color-accent); font-weight: 600; }
+.chip-on, .chip-on:hover { border-color: var(--color-accent); background: var(--color-accent-soft); color: var(--primary-text); font-weight: 600; }
 /* Interruptor: <button role="switch" class="switch" [attr.aria-checked]="on"><span></span></button> */
-.switch { position: relative; flex-shrink: 0; width: 2.75rem; height: 1.5rem; border-radius: 999px; background: var(--color-line-strong); transition: background-color .15s; }
+.switch { position: relative; flex-shrink: 0; width: 2.75rem; height: 1.5rem; border-radius: 999px; background: var(--color-control); transition: background-color .15s; }
 .switch > span { position: absolute; top: 0.125rem; left: 0.125rem; width: 1.25rem; height: 1.25rem; border-radius: 999px; background: #fff; box-shadow: 0 1px 2px rgb(0 0 0 / 0.2); transition: transform .15s; }
 /* Zona táctil de 44 px sin cambiar el dibujo del interruptor. */
 .switch::before { content: ''; position: absolute; inset: -0.625rem -0.125rem; }
@@ -564,6 +576,18 @@ button[aria-label^='Agendar']:active {
 @media (prefers-reduced-motion: reduce) {
   main > :not(router-outlet) {
     animation: none;
+  }
+  /* Quien pidió menos movimiento no ve animaciones ni transiciones ni desplazamiento suave. */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .animate-pulse {
+    animation: none !important;
   }
 }
 

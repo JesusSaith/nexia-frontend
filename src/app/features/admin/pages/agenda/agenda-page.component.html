@@ -29,21 +29,34 @@
           <span class="hidden sm:inline">Día libre</span>
         </button>
       }
+      <button type="button" class="btn btn-ghost" aria-label="Compartir la agenda del día" (click)="shareDay()">
+        <mat-icon>ios_share</mat-icon>
+        <span class="hidden lg:inline">Compartir día</span>
+      </button>
+      <button type="button" class="btn btn-ghost max-md:hidden" aria-label="Imprimir la agenda del día" (click)="printDay()">
+        <mat-icon>print</mat-icon>
+        <span class="hidden lg:inline">Imprimir día</span>
+      </button>
       <button type="button" class="btn btn-secondary" aria-label="Bloquear horario" (click)="openBlock()">
         <mat-icon>block</mat-icon>
         <span class="hidden sm:inline">Bloquear horario</span>
       </button>
-      <button type="button" class="btn btn-primary" (click)="openCreate()">
+      <button type="button" class="btn btn-primary max-md:hidden" data-tour="nueva" (click)="openCreate()">
         <mat-icon>add</mat-icon>
         Nueva cita
       </button>
     </div>
   </header>
 
+  <!-- Celular: botón flotante al alcance del pulgar, encima de la barra inferior. -->
+  <button type="button" data-tour="nueva" class="btn btn-primary fixed right-4 bottom-20 z-30 h-14! w-14 rounded-full! p-0! shadow-[0_10px_30px_rgba(30,27,30,0.3)] md:hidden" [attr.aria-label]="'Nueva ' + copy.text().visit.toLowerCase()" (click)="openCreate()">
+    <mat-icon>add</mat-icon>
+  </button>
+
   <!-- Navegación del calendario: periodo, vista y filtros en una sola fila -->
   <div class="mb-4 flex flex-wrap items-center gap-2">
     <button type="button" class="btn btn-secondary" (click)="goToday()">Hoy</button>
-    <div class="flex">
+    <div class="flex" data-tour="navegar">
       <button type="button" class="btn btn-ghost w-11! px-0!" aria-label="Anterior" (click)="shift(-1)"><mat-icon>chevron_left</mat-icon></button>
       <button type="button" class="btn btn-ghost w-11! px-0!" aria-label="Siguiente" (click)="shift(1)"><mat-icon>chevron_right</mat-icon></button>
     </div>
@@ -70,6 +83,48 @@
         <app-pick-field class="block w-full sm:w-44" [options]="filterStaff()" [valueIn]="staffId() ?? ''" [placeholder]="'Todo el equipo'" (picked)="pickFilterStaff($event)" />
       }
     </div>
+  </div>
+
+  <!-- Estado de la lista y leyenda de colores -->
+  <div class="-mt-2 mb-4">
+    <div class="flex flex-wrap items-center gap-x-3 text-sm text-muted">
+      @if (updatedLabel(); as label) {
+        <span role="status">{{ label }}</span>
+        <button type="button" class="inline-flex min-h-11 items-center gap-1 px-1 font-medium text-accent" [disabled]="isLoading()" (click)="refreshNow()">
+          <mat-icon class="text-base!">refresh</mat-icon>Actualizar
+        </button>
+      }
+      <button type="button" class="inline-flex min-h-11 items-center gap-1 px-1 font-medium text-accent" [attr.aria-expanded]="legendOpen()" aria-controls="agenda-legend" (click)="legendOpen.set(!legendOpen())">
+        <mat-icon class="text-base!">palette</mat-icon>{{ legendOpen() ? 'Ocultar colores' : '¿Qué significan los colores?' }}
+      </button>
+    </div>
+    @if (legendOpen()) {
+      <div id="agenda-legend" class="card mt-1 grid gap-3 text-sm sm:grid-cols-2">
+        <div>
+          <p class="mb-1 font-semibold">Color del bloque: quién atiende</p>
+          <ul class="space-y-1">
+            @for (member of visibleStaff(); track member.id) {
+              <li class="flex items-center gap-2">
+                <span class="inline-block h-3 w-3 shrink-0 rounded-full" [style.background]="staffColor(member.id)" aria-hidden="true"></span>{{ member.full_name }}
+              </li>
+            }
+          </ul>
+        </div>
+        <div>
+          <p class="mb-1 font-semibold">Ícono: cómo va la {{ copy.text().visit.toLowerCase() }}</p>
+          <ul class="space-y-1">
+            <li class="flex items-center gap-2"><mat-icon class="text-base! text-accent">play_circle</mat-icon>En curso ahora</li>
+            <li class="flex items-center gap-2"><mat-icon class="text-base! text-(--nx-warn-fg)">pending_actions</mat-icon>Terminó y falta cobrar</li>
+            <li class="flex items-center gap-2"><mat-icon class="text-base! text-(--nx-warn-fg)">help</mat-icon>Sin confirmar</li>
+            <li class="flex items-center gap-2"><mat-icon class="text-base! text-(--nx-ok-fg)">check_circle</mat-icon>Confirmó o pagó anticipo</li>
+            <li class="flex items-center gap-2"><mat-icon class="text-base! text-(--nx-ok-fg)">paid</mat-icon>Finalizada y cobrada</li>
+            <li class="flex items-center gap-2"><mat-icon class="text-base! text-muted">event_busy</mat-icon>Cancelada (tachada)</li>
+            <li class="flex items-center gap-2"><mat-icon class="text-base! text-muted">person_off</mat-icon>No llegó (tachada)</li>
+          </ul>
+          <p class="mt-2 text-muted">Con contorno punteado: espera que la apruebes.</p>
+        </div>
+      </div>
+    }
   </div>
 
   @if (blocking()) {
@@ -112,8 +167,9 @@
 
   @if (reviewNotice(); as ask) {
     <p class="card card-tint mb-3 flex flex-wrap items-center justify-between gap-2 py-2! text-sm">
-      <span>Cobrado. ¿Le pides su opinión a {{ ask.name }}?</span>
-      <span class="flex gap-2">
+      <span>Cobrado. ¿Le mandas su recibo o le pides su opinión a {{ ask.name }}?</span>
+      <span class="flex flex-wrap gap-2">
+        <a class="btn btn-whatsapp" [href]="ask.receiptHref" target="_blank" rel="noopener">Enviar recibo</a>
         <a class="btn btn-whatsapp" [href]="ask.href" target="_blank" rel="noopener" (click)="reviewNotice.set(null)">Pedir opinión</a>
         <button type="button" class="btn btn-ghost" (click)="reviewNotice.set(null)">Cerrar</button>
       </span>
@@ -133,8 +189,11 @@
     <p role="alert" class="field-error mb-3">{{ message }}</p>
   }
 
-  <div class="overflow-hidden rounded-2xl border border-line bg-surface shadow-[var(--nx-card-shadow)] lg:grid lg:grid-cols-[minmax(0,1fr)_260px]">
+  <div data-tour="dia" class="overflow-hidden rounded-2xl border border-line bg-surface shadow-[var(--nx-card-shadow)] lg:grid lg:grid-cols-[minmax(0,1fr)_260px]" (touchstart)="swipeStart($event)" (touchend)="swipeEnd($event)">
     <div class="min-w-0 p-4 sm:p-5">
+  @if (firstLoad()) {
+    <app-skeleton kind="grid" [rows]="5" />
+  } @else {
   @switch (currentView()) {
     @case ('month') {
           <div class="grid grid-cols-7 border-b border-line text-center text-xs font-semibold uppercase tracking-wide text-muted">
@@ -286,6 +345,7 @@
       }
     }
   }
+  }
     </div>
     <aside class="flex flex-col border-t border-line bg-canvas p-4 lg:border-l lg:border-t-0">
       <div class="card-head -mx-4 -mt-4 mb-1 border-b border-line bg-accent-soft/40 px-4 py-3">
@@ -329,6 +389,7 @@
       </div>
     </aside>
   </div>
+  <app-tour tourId="agenda" [steps]="tourSteps()" />
 </section>
 
 <!-- Columna de horas de Semana y Día, con la marca de "ahora". -->
@@ -351,7 +412,8 @@
 <ng-template #slab let-item let-view="view">
   <button
     type="button"
-    class="absolute z-10 overflow-hidden rounded-md border-l-[3px] px-1.5 py-0.5 text-left text-xs text-ink shadow-sm"
+    class="absolute z-10 overflow-hidden rounded-md border-l-[3px] px-1.5 py-0.5 text-left text-xs text-ink shadow-sm select-none md:cursor-grab"
+    data-tour="cita"
     [class]="tone(item)"
     [style.border-left-color]="staffColor(item.staff_id)"
     [style.background]="staffTint(item.staff_id)"
@@ -359,8 +421,15 @@
     [style.height]="blockStyle(item).height"
     [style.left]="laneStyle(item, view).left"
     [style.width]="laneStyle(item, view).width"
+    [style.transform]="dragShift(item.id)"
+    [style.z-index]="drag()?.id === item.id ? 30 : null"
+    [style.opacity]="drag()?.id === item.id ? 0.85 : null"
     [attr.aria-label]="formatTime(item.starts_at) + ' ' + item.client_name + ' · ' + item.service_name + (mark(item) ? ' · ' + mark(item) : '')"
     (click)="openAppointment(item, $event)"
+    (pointerdown)="dragDown($event, item, view)"
+    (pointermove)="dragMove($event)"
+    (pointerup)="dragUp($event)"
+    (pointercancel)="dragCancel()"
   >
     @if (stateMark(item); as state) {
       <mat-icon class="absolute top-0.5 right-0.5 h-4! w-4! text-[14px]! {{ state.cls }}" [attr.title]="state.label">{{ state.icon }}</mat-icon>
@@ -393,7 +462,7 @@
   <ul class="mt-2 flex flex-col" [class]="main ? '' : 'max-h-128 overflow-y-auto'">
     @for (item of items; track item.id) {
       <li class="flex items-center gap-1 rounded-lg hover:bg-surface">
-        <button type="button" class="flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-2 text-left" [class]="tone(item)" (click)="openAppointment(item, $event)">
+        <button type="button" data-tour="cita" class="flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-2 text-left" [class]="tone(item)" (click)="openAppointment(item, $event)">
           <span class="h-10 w-1 shrink-0 rounded-full" [style.background]="staffColor(item.staff_id)"></span>
           <span class="min-w-0 flex-1">
             <span class="nums flex items-center gap-1.5 text-sm font-semibold text-ink">
@@ -498,6 +567,9 @@
         } @else {
           <p class="mt-1 text-ink">Sin teléfono</p>
         }
+        @if (packVisitsLeft(pop.appointment); as left) {
+          <p class="badge badge-ok mt-1 inline-flex w-fit items-center gap-1.5"><mat-icon class="h-4! w-4! text-[16px]!">card_membership</mat-icon>Paquete: le {{ left === 1 ? 'queda 1 visita' : 'quedan ' + left + ' visitas' }}</p>
+        }
         @if (pop.appointment.client_email) {
           <p class="text-ink">{{ pop.appointment.client_email }}</p>
         }
@@ -589,6 +661,9 @@
                 <button type="button" class="chip h-11!" [class.chip-on]="chargeMethod() === method.value" [attr.aria-pressed]="chargeMethod() === method.value" (click)="chargeMethod.set(method.value)">{{ method.label }}</button>
               }
             </div>
+            @if (packVisitsLeft(pop.appointment) > 0 && chargeMethod() !== 'paquete') {
+              <p class="field-hint">Tiene un paquete con visitas por usar. Elige "Paquete" para descontar una en lugar de cobrar.</p>
+            }
             <label class="block">
               <span class="label">Propina <span class="font-normal text-muted">(opcional)</span></span>
               <input class="input nums" type="number" min="0" inputmode="decimal" placeholder="0" [value]="chargeTip()" (input)="chargeTip.set($any($event.target).value)" />
@@ -753,6 +828,12 @@
   <div class="fixed inset-x-4 top-4 z-50 mx-auto flex max-w-sm items-center justify-between gap-3 rounded-lg bg-ink px-4 py-2 text-sm text-surface md:bottom-4 md:top-auto" role="status">
     <span>Cita cancelada · {{ row.appointment.client_name }}@if (depositNote(row.appointment, row.previous); as note) { <span class="mt-1 block text-xs opacity-90">{{ note }}</span> }</span>
     <button type="button" class="min-h-11 px-2 font-semibold underline" (click)="undoCancel()">Deshacer</button>
+  </div>
+}
+@if (stepUndo(); as row) {
+  <div class="fixed inset-x-4 top-4 z-50 mx-auto flex max-w-sm items-center justify-between gap-3 rounded-lg bg-ink px-4 py-2 text-sm text-surface md:bottom-4 md:top-auto" role="status">
+    <span>{{ row.label }}</span>
+    <button type="button" class="min-h-11 px-2 font-semibold underline" (click)="runStepUndo()">Deshacer</button>
   </div>
 }
 @if (blockUndo(); as row) {

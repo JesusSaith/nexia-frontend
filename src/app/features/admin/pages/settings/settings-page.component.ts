@@ -1,5 +1,7 @@
+import { scrollBehavior } from '@core/motion';
 import { NgTemplateOutlet } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { SaveStateComponent } from '@shared/components/save-state/save-state';
 import { Component, DestroyRef, HostListener, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
@@ -8,7 +10,7 @@ import { MatIconModule } from '@angular/material/icon';
 
 import { BUSINESS_KINDS, examplesFor, kindOf } from '@core/business-kinds';
 import { BusinessCopy } from '@core/business-copy';
-import { MESSAGE_TEMPLATES, MessageKey, MessageVars, VARIABLE_HELP, defaultText, fillTemplate, longDay } from '@core/message-templates';
+import { MESSAGE_MOMENTS, MESSAGE_TEMPLATES, MessageKey, MessageVars, VARIABLE_HELP, defaultText, fillTemplate, longDay } from '@core/message-templates';
 import { API_BASE_URL } from '@core/config/api-base-url';
 import { BusinessCoupon, Closure } from '@core/models/business.model';
 import { Holiday, upcomingHolidays } from '@core/holidays';
@@ -103,7 +105,7 @@ const ALERT_OPTIONS: readonly { value: string; label: string; hint: string }[] =
 
 @Component({
   selector: 'app-settings-page',
-  imports: [ReactiveFormsModule, NgTemplateOutlet, PickFieldComponent, MatIconModule, MapPicker, GoogleMapPicker],
+  imports: [ReactiveFormsModule, NgTemplateOutlet, PickFieldComponent, MatIconModule, MapPicker, GoogleMapPicker, SaveStateComponent],
   templateUrl: './settings-page.component.html',
 })
 export class SettingsPageComponent {
@@ -252,6 +254,16 @@ export class SettingsPageComponent {
   protected readonly emailAlerts = signal<ReadonlySet<string>>(new Set());
   protected readonly accountEmail = signal('');
   protected readonly messageTemplates = MESSAGE_TEMPLATES;
+  /** Los mensajes agrupados por momento, con títulos en las palabras del giro. */
+  protected readonly messageGroups = computed(() => {
+    const words = this.copy.text();
+    const titles = { before: `Antes de la ${words.visit.toLowerCase()}`, after: `Después de la ${words.visit.toLowerCase()}`, attract: `Para atraer ${words.clients.toLowerCase()}` };
+    return MESSAGE_MOMENTS.map((moment) => ({
+      id: moment.id,
+      title: titles[moment.id],
+      items: moment.keys.map((key) => MESSAGE_TEMPLATES.find((template) => template.key === key)).filter((template) => !!template),
+    }));
+  });
   protected readonly variableHelp = VARIABLE_HELP;
   /** Texto de cada mensaje tal como está en el editor (de fábrica si la dueña no lo cambió). */
   protected readonly messages = signal<Record<MessageKey, string>>(defaultMessages());
@@ -528,7 +540,7 @@ export class SettingsPageComponent {
 
   protected goTo(id: SectionId): void {
     this.openSections.update((current) => new Set([...current, id]));
-    setTimeout(() => document.getElementById(`sec-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    setTimeout(() => document.getElementById(`sec-${id}`)?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' }));
   }
 
   protected setPreset(field: PresetField, value: number | null): void {
@@ -590,6 +602,9 @@ export class SettingsPageComponent {
       cuando: 'mañana',
       precio: '$450.00',
       anticipo: '$150.00',
+      propina: '$50.00',
+      total: '$500.00',
+      metodo: 'Efectivo',
       fechas: [3, 6, 9].map((weeks) => `📅 ${longDay(iso(later(weeks)))}`).join('\n'),
       cita: this.copy.text().visit.toLowerCase(),
     };

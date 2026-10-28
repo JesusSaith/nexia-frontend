@@ -223,6 +223,11 @@ export class BookingService {
     return this.http.patch<ClientCard>(`${this.apiBaseUrl}/clients/${id}`, data);
   }
 
+  /** Pone o quita etiquetas a varios a la vez (solo propietario y administración). `full`: a cuántos no les cupo (máximo 10). */
+  bulkTags(ids: number[], add: string[], remove: string[] = []): Observable<{ updated: number; full: number }> {
+    return this.http.post<{ updated: number; full: number }>(`${this.apiBaseUrl}/clients/tags`, { client_ids: ids, add, remove });
+  }
+
   /** Agregar a mano a alguien que aún no ha reservado. */
   createClient(data: { full_name: string; phone: string; email?: string | null }): Observable<ClientCard> {
     return this.http.post<ClientCard>(`${this.apiBaseUrl}/clients`, data);

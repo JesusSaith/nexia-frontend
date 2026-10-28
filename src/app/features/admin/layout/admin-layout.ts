@@ -1,7 +1,8 @@
 import { BreakpointObserver } from '@angular/cdk/layout';
-import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
+import { Component, DestroyRef, HostListener, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatMenuModule } from '@angular/material/menu';
@@ -15,7 +16,12 @@ import { UserRole } from '@core/models/user.model';
 import { AuthService } from '@core/services/auth.service';
 import { BusinessCopy } from '@core/business-copy';
 import { BookingService } from '@core/services/booking.service';
+import { TabAlerts } from '@core/services/tab-alerts.service';
+import { ConnectionService } from '@core/services/connection.service';
+import { PushService } from '@core/services/push.service';
 import { Toasts } from '@core/toasts';
+import { HelpComponent } from '@shared/components/help/help';
+import { GlobalSearchComponent } from '@shared/components/global-search/global-search';
 import { DashboardService } from '@core/services/dashboard.service';
 import { Readiness, SettingsService } from '@core/services/settings.service';
 
@@ -108,6 +114,11 @@ export class AdminLayoutComponent {
   private readonly router = inject(Router);
   private readonly noticesApi = inject(DashboardService);
   private readonly settingsApi = inject(SettingsService);
+  private readonly dialog = inject(MatDialog);
+  protected readonly push = inject(PushService);
+  protected readonly online = inject(ConnectionService).online;
+  /** Los avisos al celular son de quien administra el negocio. */
+  protected readonly canPush = computed(() => !this.authService.isSuperAdmin() && !this.authService.isStaff());
   /** ¿La página ya puede recibir citas? Solo lo ven quienes administran el negocio. */
   protected readonly readiness = signal<Readiness | null>(null);
   protected readonly missingToBook = computed(() => {
@@ -152,6 +163,7 @@ export class AdminLayoutComponent {
   });
 
   protected readonly currentUser = this.authService.currentUser;
+  protected readonly canSearch = computed(() => !this.authService.isSuperAdmin());
   protected readonly logoUrl = signal<string | null>(null);
   protected readonly headerLogo = computed(() => this.copy.logo() ?? this.logoUrl());
   protected readonly brandName = signal<string | null>(null);
@@ -161,8 +173,14 @@ export class AdminLayoutComponent {
   protected readonly loggingOut = signal(false);
   protected readonly logoutError = signal<string | null>(null);
   protected readonly unread = signal(0);
+  private readonly tabAlerts = inject(TabAlerts);
   protected readonly toast = signal<string | null>(null);
   protected readonly isHandset = this.handset;
+
+  protected async togglePush(): Promise<void> {
+    const error = this.push.state() === 'on' ? await this.push.disable() : await this.push.enable();
+    this.toasts.show(error ?? (this.push.state() === 'on' ? 'Listo, te avisaremos en este celular.' : 'Apagamos los avisos en este celular.'));
+  }
   protected readonly themeOptions = THEME_OPTIONS;
   protected readonly themeMode = signal<ThemeMode>(readThemeMode());
   private readonly systemDark = signal(
@@ -177,6 +195,8 @@ export class AdminLayoutComponent {
   );
 
   constructor() {
+    // El número de avisos sin ver también va en el título de la pestaña y en el ícono de la app instalada.
+    this.destroyRef.onDestroy(() => this.tabAlerts.count.set(0));
     this.destroyRef.onDestroy(() => applyTheme('#E11D48', null));
     effect(() => applyTheme(this.brandColor(), this.canvasColor()));
     // Modo claro/oscuro solo dentro del panel: al salir (p. ej. a /:slug/book) se vuelve a claro.
@@ -187,6 +207,9 @@ export class AdminLayoutComponent {
       const onChange = (event: MediaQueryListEvent) => this.systemDark.set(event.matches);
       media.addEventListener?.('change', onChange);
       this.destroyRef.onDestroy(() => media.removeEventListener?.('change', onChange));
+    }
+    if (this.canPush()) {
+      void this.push.init();
     }
     if (!this.authService.isSuperAdmin()) {
       this.bookingApi
@@ -225,6 +248,7 @@ export class AdminLayoutComponent {
             this.seenNotice = Math.max(this.seenNotice, this.toastedNotice);
             saveSeen(this.seenNotice);
             this.unread.set(0);
+            this.tabAlerts.count.set(0);
           }
         });
     }
@@ -249,6 +273,8 @@ export class AdminLayoutComponent {
   }
 
   private applyNotices(rows: { id: number; message: string; seen?: boolean }[]): void {
+    // Lo que el servidor aún no marca como visto (aunque haya llegado antes de abrir la app); en Inicio ya se está viendo.
+    this.tabAlerts.count.set(this.router.url.startsWith('/admin/home') ? 0 : rows.filter((row) => !row.seen).length);
     // Primera vez en este navegador: lo anterior cuenta como visto (sin aviso emergente de algo viejo).
     if (!this.seenNotice && rows.length) {
       this.seenNotice = this.toastedNotice = rows.reduce((top, row) => Math.max(top, row.id), 0);
@@ -292,6 +318,46 @@ export class AdminLayoutComponent {
       localStorage.setItem(THEME_KEY, mode);
     } catch {
       // Sin almacenamiento la preferencia dura solo esta visita.
+    }
+  }
+
+  /** Buscador de clientes y citas. No existe para la cuenta de plataforma, que no tiene negocio. */
+  protected openSearch(): void {
+    if (this.authService.isSuperAdmin() || this.dialog.openDialogs.length) {
+      return;
+    }
+    this.closeSidebar();
+    this.dialog.open(GlobalSearchComponent, {
+      ariaLabel: 'Buscar',
+      width: '560px',
+      maxWidth: 'calc(100vw - 24px)',
+      position: { top: '6vh' },
+      panelClass: 'service-sheet',
+      autoFocus: 'first-tabbable',
+    });
+  }
+
+  /** Ayuda de la pantalla actual y de los demás temas. */
+  protected openHelp(): void {
+    if (this.authService.isSuperAdmin() || this.dialog.openDialogs.length) {
+      return;
+    }
+    this.closeSidebar();
+    this.dialog.open(HelpComponent, {
+      ariaLabel: 'Ayuda',
+      width: '560px',
+      maxWidth: 'calc(100vw - 24px)',
+      position: { top: '6vh' },
+      panelClass: 'service-sheet',
+      autoFocus: 'first-tabbable',
+    });
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  protected onShortcut(event: KeyboardEvent): void {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+      event.preventDefault();
+      this.openSearch();
     }
   }
 

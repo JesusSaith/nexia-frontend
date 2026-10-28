@@ -6,6 +6,8 @@ export interface AvailabilitySlot {
   starts_at: string;
   /** Quién atiende ese horario; útil cuando se pidió "cualquiera". */
   staff_id?: number | null;
+  /** Solo en clases con cupo: lugares que quedan en ese horario. */
+  spots_left?: number | null;
 }
 
 export interface AppointmentCreate {

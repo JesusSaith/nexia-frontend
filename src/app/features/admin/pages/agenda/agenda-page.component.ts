@@ -18,7 +18,13 @@ import { catchError, distinctUntilChanged, map, switchMap } from 'rxjs/operators
 import { BusinessCopy } from '@core/business-copy';
 import { Progress, appointmentProgress, attendanceState } from '@core/appointment-progress';
 import { staffColorOf } from '@core/staff-colors';
-import { ALL_METHODS, PAYMENT_METHODS } from '@core/payment-methods';
+import { ALL_METHODS, METHOD_LABELS, PAYMENT_METHODS } from '@core/payment-methods';
+import { agendaTourSteps } from '@core/tour';
+import { TourComponent } from '@shared/components/tour/tour';
+import { dragTarget } from '@core/drag-move';
+import { updatedAgo } from '@core/updated-ago';
+import { Skeleton } from '@shared/components/skeleton/skeleton';
+import { buildDaySheet, daySheetHtml, daySheetText } from '@core/day-sheet';
 import { MessageVars, firstName, longDay, whatsappLink } from '@core/message-templates';
 import { Toasts } from '@core/toasts';
 import { Appointment, AppointmentStatus } from '@core/models/appointment.model';
@@ -31,6 +37,7 @@ import { AppointmentsService, StatusCharge, TimeBlock } from '@core/services/app
 import { ShopProduct, ShopService } from '@core/services/shop.service';
 import { BusinessClock } from '@core/business-clock';
 import { AuthService } from '@core/services/auth.service';
+import { PackagesService, VisitPackage } from '@core/services/packages.service';
 import { BookingService } from '@core/services/booking.service';
 import { ReviewsService } from '@core/services/reviews.service';
 import { SchedulesService } from '@core/services/schedules.service';
@@ -63,6 +70,7 @@ const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
   selector: 'app-agenda-page',
   imports: [
     NgTemplateOutlet,
+    Skeleton,
     FormsModule,
     ReactiveFormsModule,
     MatButtonModule,
@@ -75,6 +83,7 @@ const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
     DateFieldComponent,
     TimeFieldComponent,
     PickFieldComponent,
+    TourComponent,
   ],
   templateUrl: './agenda-page.component.html',
 })
@@ -102,6 +111,9 @@ export class AgendaPageComponent {
   }
   private readonly toasts = inject(Toasts);
   protected readonly copy = inject(BusinessCopy);
+  private readonly packagesApi = inject(PackagesService);
+  /** Paquetes con visitas por usar, para avisar al abrir la cita y al cobrar. */
+  private readonly packages = signal<VisitPackage[]>([]);
   protected readonly petName = signal('');
   private readonly appointmentsApi = inject(AppointmentsService);
   private readonly servicesApi = inject(ServicesService);
@@ -126,11 +138,26 @@ export class AgendaPageComponent {
   protected readonly weekdayLabels = WEEKDAY_LABELS;
 
   protected readonly isStaff = this.auth.isStaff;
+  /** Recorrido de primera vez (se muestra una sola vez; la Ayuda lo repite). */
+  protected readonly tourSteps = computed(() => agendaTourSteps(typeof window !== 'undefined' && window.innerWidth < 768, this.copy.text().visit));
   protected readonly focus = signal<'missed' | 'deposit' | null>(null);
   // Abre en la última vista elegida; la primera vez, Día en celular y Semana en escritorio.
   protected readonly currentView = signal<CalendarView>(readView() ?? (typeof window !== 'undefined' && window.innerWidth < 768 ? 'day' : 'week'));
   /** Hora actual, al minuto: línea de "ahora" en Día y Semana. */
   protected readonly now = signal(this.clock.nowMs());
+  /** Cuándo llegó la última lista del servidor, para mostrar "Actualizado hace 1 min". */
+  protected readonly updatedAt = signal<number | null>(null);
+  protected readonly updatedLabel = computed(() => updatedAgo(this.updatedAt(), this.now()));
+  protected readonly legendOpen = signal(false);
+  /** Primera carga de la agenda: se muestra un esqueleto en lugar de una cuadrícula vacía. */
+  protected readonly firstLoad = computed(() => this.isLoading() && this.updatedAt() === null);
+
+  /** Botón "Actualizar": vuelve a pedir la agenda con el indicador de carga. */
+  protected refreshNow(): void {
+    if (!this.isLoading()) {
+      this.loadAppointments(this.range(), this.staffId(), this.serviceId());
+    }
+  }
   private scrolledToNow = false;
   protected readonly openTimes = signal<string[]>([]);
   protected readonly holdHours = signal(3);
@@ -424,6 +451,10 @@ export class AgendaPageComponent {
         });
     }
     this.destroyRef.onDestroy(() => this.dialogRef?.close());
+    this.packagesApi
+      .list()
+      .pipe(catchError(() => of([] as VisitPackage[])), takeUntilDestroyed(this.destroyRef))
+      .subscribe((rows) => this.packages.set(rows));
     this.loadCatalog();
     this.booking
       .getMyBrand()
@@ -529,6 +560,68 @@ export class AgendaPageComponent {
     this.selected.set(null);
   }
 
+  private swipeFrom: { x: number; y: number } | null = null;
+
+  /** Celular: deslizar el calendario a los lados pasa al día (o semana, o mes) anterior o siguiente. */
+  protected swipeStart(event: TouchEvent): void {
+    const target = event.target as HTMLElement | null;
+    const touch = event.touches[0];
+    // No se desliza si el dedo empezó en algo que ya se mueve o se escribe (campos, listas con scroll horizontal).
+    if (!touch || event.touches.length > 1 || (target?.closest('input, textarea, select, [data-no-swipe]') ?? null)) {
+      this.swipeFrom = null;
+      return;
+    }
+    this.swipeFrom = { x: touch.clientX, y: touch.clientY };
+  }
+
+  protected swipeEnd(event: TouchEvent): void {
+    const from = this.swipeFrom;
+    const touch = event.changedTouches[0];
+    this.swipeFrom = null;
+    if (!from || !touch || typeof window === 'undefined' || window.innerWidth >= 768) {
+      return;
+    }
+    const dx = touch.clientX - from.x;
+    const dy = touch.clientY - from.y;
+    // Solo un gesto claramente horizontal: así no choca con bajar por la lista de citas.
+    if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.8) {
+      return;
+    }
+    this.shift(dx < 0 ? 1 : -1);
+  }
+
+  /** Citas del día que se está viendo: texto para compartir (celular) o una hoja para imprimir (escritorio). */
+  private daySheet() {
+    return buildDaySheet(this.appointments(), toInputDate(this.cursor()));
+  }
+
+  protected async shareDay(): Promise<void> {
+    const business = this.auth.currentUser()?.businessName ?? '';
+    const text = daySheetText(this.daySheet(), business);
+    if (navigator.share) {
+      try {
+        await navigator.share({ text });
+      } catch {
+        // La persona cerró el menú de compartir: no es un error.
+      }
+      return;
+    }
+    window.open(whatsappLink(null, text), '_blank', 'noopener');
+  }
+
+  protected printDay(): void {
+    const business = this.auth.currentUser()?.businessName ?? '';
+    const sheet = window.open('', '_blank');
+    if (!sheet) {
+      this.toasts.show('Tu navegador bloqueó la ventana. Permítela para imprimir la agenda.');
+      return;
+    }
+    sheet.document.write(daySheetHtml(this.daySheet(), business));
+    sheet.document.close();
+    sheet.focus();
+    sheet.print();
+  }
+
   protected goToday(): void {
     this.cursor.set(startOfDay(this.clock.now()));
     this.selected.set(null);
@@ -542,7 +635,7 @@ export class AgendaPageComponent {
 
   protected readonly clientNotice = signal<string | null>(null);
   /** Tras cobrar: WhatsApp listo para pedir la opinión del cliente. */
-  protected readonly reviewNotice = signal<{ name: string; href: string } | null>(null);
+  protected readonly reviewNotice = signal<{ name: string; href: string; receiptHref: string } | null>(null);
 
   protected pickFilterService(value: string | number | null): void {
     this.onService(typeof value === 'number' ? value : '');
@@ -1570,6 +1663,12 @@ export class AgendaPageComponent {
   protected readonly charging = signal<number | null>(null);
   protected readonly chargeAmount = signal('');
   protected readonly chargeMethod = signal('efectivo');
+
+  /** Visitas de paquete que le quedan a quien tiene esta cita (por teléfono, igual que en Clientes). */
+  protected packVisitsLeft(appointment: Appointment): number {
+    const key = (appointment.client_phone ?? '').replace(/\D/g, '').slice(-10);
+    return key.length < 10 ? 0 : this.packages().filter((pack) => pack.client_phone.replace(/\D/g, '').slice(-10) === key).reduce((sum, pack) => sum + pack.remaining, 0);
+  }
   protected readonly chargeTip = signal('');
   protected readonly chargeNote = signal('');
   /** Productos activos con existencia, para venderlos junto con el servicio. */
@@ -1660,10 +1759,30 @@ export class AgendaPageComponent {
       });
   }
 
+  /** El recibo para WhatsApp: servicio, anticipo, propina y total, con el método con el que pagó. */
+  private receiptText(appointment: Appointment, paid: { price: number; deposit: number; products: number; tip: number; method: string }, link: string): string {
+    const money = (amount: number) => (amount > 0 ? this.pesos(amount) : '');
+    const byPackage = paid.method === 'paquete';
+    return this.copy.message('receipt', {
+      nombre: firstName(appointment.client_name),
+      negocio: this.auth.currentUser()?.businessName ?? '',
+      servicio: this.services().find((item) => item.id === appointment.service_id)?.name ?? '',
+      dia: longDay(appointment.starts_at),
+      precio: byPackage ? '' : money(paid.price),
+      anticipo: byPackage ? '' : money(paid.deposit),
+      propina: money(paid.tip),
+      total: money((byPackage ? 0 : paid.price) + paid.products + paid.tip),
+      metodo: METHOD_LABELS[paid.method] ?? paid.method,
+      enlace: link,
+    });
+  }
+
   protected completeWithCharge(appointment: Appointment): void {
     const tip = toAmount(this.chargeTip());
     const note = this.chargeNote().trim();
     const sold = this.cart();
+    // Lo que se cobró, antes de que la pantalla de cobro se limpie: de aquí sale el recibo.
+    const paid = { price: this.serviceCharge(), deposit: this.chargeDeposit(), products: this.productsTotal(), tip: tip && tip > 0 ? tip : 0, method: this.chargeMethod() };
     void this.setStatus(
       appointment,
       'completed',
@@ -1680,7 +1799,7 @@ export class AgendaPageComponent {
     const link = this.manageLink(appointment);
     if (phone && link) {
       const text = this.copy.message('review', { nombre: firstName(appointment.client_name), enlace: link });
-      this.reviewNotice.set({ name: firstName(appointment.client_name), href: whatsappLink(phone, text) });
+      this.reviewNotice.set({ name: firstName(appointment.client_name), href: whatsappLink(phone, text), receiptHref: whatsappLink(phone, this.receiptText(appointment, paid, link)) });
     }
   }
 
@@ -1744,6 +1863,9 @@ export class AgendaPageComponent {
 
   protected openAppointment(appointment: Appointment, event: MouseEvent): void {
     event.stopPropagation();
+    if (this.justDragged) {
+      return;
+    }
     const margin = 8;
     const width = Math.min(320, window.innerWidth - margin * 2);
     const x = Math.max(margin, Math.min(event.clientX, window.innerWidth - width - margin));
@@ -1751,6 +1873,110 @@ export class AgendaPageComponent {
     const want = Math.min(560, room);
     const y = Math.max(margin, Math.min(event.clientY, window.innerHeight - want - margin));
     this.showAppointment({ appointment, x, y, maxHeight: window.innerHeight - y - margin, history: [] });
+  }
+
+  // Arrastrar citas (solo con ratón, en Semana y Día): la hora se ajusta a la cuadrícula y el servidor valida el cambio.
+  protected readonly drag = signal<{ id: number; dx: number; dy: number } | null>(null);
+  private dragStart: { appointment: Appointment; view: 'day' | 'week'; x: number; y: number; width: number; active: boolean } | null = null;
+  private justDragged = false;
+
+  protected dragDown(event: PointerEvent, appointment: Appointment, view: 'day' | 'week'): void {
+    if (event.pointerType !== 'mouse' || event.button !== 0 || this.pendingId() !== null) {
+      return;
+    }
+    if (appointment.status !== 'scheduled' && appointment.status !== 'awaiting_deposit') {
+      return;
+    }
+    const button = event.currentTarget as HTMLElement;
+    button.setPointerCapture(event.pointerId);
+    const width = button.parentElement?.getBoundingClientRect().width ?? 0;
+    this.dragStart = { appointment, view, x: event.clientX, y: event.clientY, width, active: false };
+  }
+
+  protected dragMove(event: PointerEvent): void {
+    const start = this.dragStart;
+    if (!start) {
+      return;
+    }
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    if (!start.active && Math.hypot(dx, dy) < 6) {
+      return;
+    }
+    start.active = true;
+    this.drag.set({ id: start.appointment.id, dx, dy });
+  }
+
+  protected dragCancel(): void {
+    this.dragStart = null;
+    this.drag.set(null);
+  }
+
+  protected dragShift(id: number): string | null {
+    const now = this.drag();
+    return now && now.id === id ? `translate(${now.dx}px, ${now.dy}px)` : null;
+  }
+
+  protected async dragUp(event: PointerEvent): Promise<void> {
+    const start = this.dragStart;
+    const shift = this.drag();
+    this.dragStart = null;
+    this.drag.set(null);
+    if (!start || !start.active || !shift) {
+      return;
+    }
+    // El clic que sigue a soltar el ratón no debe abrir la ficha.
+    this.justDragged = true;
+    setTimeout(() => (this.justDragged = false), 60);
+    const { appointment } = start;
+    const bounds = this.dayBounds();
+    const target = dragTarget({
+      startsAt: appointment.starts_at,
+      dx: shift.dx,
+      dy: shift.dy,
+      slotHeight: SLOT_HEIGHT,
+      slotMinutes: SLOT_MINUTES,
+      columnWidth: start.width,
+      dayStart: bounds.start,
+      dayEnd: bounds.end,
+      duration: this.durationMinutes(appointment),
+      view: start.view,
+      staffId: appointment.staff_id,
+      staffIds: this.visibleStaff().map((member) => member.id),
+      days: this.weekDays().map((day) => toInputDate(day)),
+    });
+    if (!target.changed) {
+      return;
+    }
+    const newStaff = this.staff().find((member) => member.id === target.staffId)?.full_name ?? appointment.staff_name;
+    const accepted = await this.confirm.ask({
+      title: `¿Mover la ${this.copy.text().visit.toLowerCase()}?`,
+      message: `${appointment.client_name} · ${appointment.service_name}. De ${this.whenLabel(appointment.starts_at)} a ${this.whenLabel(target.startsAt)}, con ${newStaff}.`,
+      confirm: 'Sí, mover',
+      cancel: 'Volver',
+    });
+    if (!accepted) {
+      return;
+    }
+    this.pendingId.set(appointment.id);
+    this.appointmentsApi
+      .move(appointment.id, target.startsAt, target.staffId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (moved) => {
+          this.pendingId.set(null);
+          this.patchLocal(moved);
+          this.refreshQuietly();
+          this.toasts.show('Cita movida. Avísale al cliente.');
+          this.clientNotice.set(this.clientWhatsapp(moved));
+          this.offerMoveUndo(appointment);
+        },
+        error: (error: unknown) => {
+          this.pendingId.set(null);
+          const detail = error instanceof HttpErrorResponse ? error.error?.detail : null;
+          this.toasts.show(typeof detail === 'string' ? detail : 'No pudimos mover la cita.');
+        },
+      });
   }
 
   protected readonly lastNote = signal<{ note: string; date: string | null } | null>(null);
@@ -1967,6 +2193,7 @@ export class AgendaPageComponent {
           this.refreshQuietly();
           this.toasts.show('Cita movida. Avísale al cliente.');
           this.clientNotice.set(this.clientWhatsapp(moved));
+          this.offerMoveUndo(appointment);
         },
         error: (error: unknown) => {
           this.pendingId.set(null);
@@ -2016,6 +2243,9 @@ export class AgendaPageComponent {
           if (status === 'cancelled' || status === 'no_show') {
             this.offerFreed(appointment);
           }
+          if (status === 'no_show') {
+            this.offerStepUndo(`Marcada como "No llegó" · ${appointment.client_name}`, () => this.undoNoShow(appointment, previous));
+          }
           after?.(next);
           this.refreshQuietly();
         },
@@ -2050,6 +2280,69 @@ export class AgendaPageComponent {
     return this.depositCancelPolicy() === 'refund'
       ? `Ya había pagado ${amount} de anticipo: devuélvelo.`
       : `Pagó ${amount} de anticipo. Tu política dice que no se devuelve; si cancelas tú, devuélvelo.`;
+  }
+
+  /** "Deshacer" de 6 segundos para "No llegó" y para mover una cita (mismo aviso que cancelar). */
+  protected readonly stepUndo = signal<{ label: string; run: () => void } | null>(null);
+  private stepUndoTimer: ReturnType<typeof setTimeout> | null = null;
+
+  private offerStepUndo(label: string, run: () => void): void {
+    this.dismissStepUndo();
+    this.stepUndo.set({ label, run });
+    this.stepUndoTimer = setTimeout(() => this.stepUndo.set(null), 6000);
+  }
+
+  protected dismissStepUndo(): void {
+    if (this.stepUndoTimer) {
+      clearTimeout(this.stepUndoTimer);
+      this.stepUndoTimer = null;
+    }
+    this.stepUndo.set(null);
+  }
+
+  protected runStepUndo(): void {
+    const row = this.stepUndo();
+    this.dismissStepUndo();
+    row?.run();
+  }
+
+  private undoNoShow(appointment: Appointment, previous: AppointmentStatus): void {
+    this.patchLocal({ ...appointment, status: previous });
+    this.freed.set([]);
+    this.appointmentsApi
+      .updateStatus(appointment.id, previous)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (updated) => {
+          this.patchLocal({ ...appointment, ...updated, status: previous });
+          this.toasts.show('Listo, ya no está marcada como "No llegó".');
+          this.refreshQuietly();
+        },
+        error: (error: unknown) => {
+          this.patchLocal({ ...appointment, status: 'no_show' });
+          this.loadError.set(readError(error, 'No pudimos deshacer el cambio.'));
+        },
+      });
+  }
+
+  private offerMoveUndo(before: Appointment): void {
+    this.offerStepUndo(`Cita movida · ${before.client_name}`, () => {
+      this.clientNotice.set(null);
+      this.appointmentsApi
+        .move(before.id, before.starts_at, before.staff_id)
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe({
+          next: (back) => {
+            this.patchLocal(back);
+            this.toasts.show('La cita volvió a su lugar. Si ya avisaste al cliente, avísale de nuevo.');
+            this.refreshQuietly();
+          },
+          error: (error: unknown) => {
+            const detail = error instanceof HttpErrorResponse ? error.error?.detail : null;
+            this.toasts.show(typeof detail === 'string' ? detail : 'No pudimos regresar la cita; ese horario ya no está libre.');
+          },
+        });
+    });
   }
 
   protected dismissUndo(): void {
@@ -2211,6 +2504,7 @@ export class AgendaPageComponent {
           this.appointments.set(items);
           this.blocks.set(blocks);
           this.isLoading.set(false);
+          this.updatedAt.set(this.clock.nowMs());
           const cita = Number(this.route.snapshot.queryParamMap.get('cita'));
           const found = items.find((item) => item.id === cita);
           if (!quiet && found && !this.citaOpened) {

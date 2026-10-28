@@ -383,7 +383,10 @@ export class ServicesPageComponent {
         finalize(() => this.pendingId.set(null)),
       )
       .subscribe({
-        next: (updated) => this.replaceService(service, updated),
+        next: (updated) => {
+          this.replaceService(service, updated);
+          this.toasts.show('Servicio activado.');
+        },
         error: onError,
       });
   }

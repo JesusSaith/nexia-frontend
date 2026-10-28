@@ -266,6 +266,7 @@
           }
         </section>
 
+        @if (shows('avisos')) {
         <section class="card">
           <div class="flex items-center justify-between gap-3">
             <div class="card-head">
@@ -284,19 +285,32 @@
           @if (groupedNotices().length === 0) {
             <p class="py-8 text-center text-sm text-muted">Sin avisos nuevos.</p>
           } @else {
+            @if (noticeChips().length) {
+              <div class="-mx-1 mt-3 flex gap-2 overflow-x-auto px-1 pb-1" role="group" aria-label="Filtrar avisos por tipo">
+                <button type="button" class="chip h-11! shrink-0" [class.chip-on]="!noticeFilter()" [attr.aria-pressed]="!noticeFilter()" (click)="noticeFilter.set(null)">Todos</button>
+                @for (chip of noticeChips(); track chip.key) {
+                  <button type="button" class="chip h-11! shrink-0" [class.chip-on]="noticeFilter() === chip.key" [attr.aria-pressed]="noticeFilter() === chip.key" (click)="noticeFilter.set(chip.key)">{{ chip.label }} <span class="nums text-muted">{{ chip.count }}</span></button>
+                }
+              </div>
+            }
             <ul class="mt-2 divide-y divide-line">
               @for (notice of shownNotices(); track notice.id) {
-                <li class="py-3" [class.opacity-60]="!notice.unseen">
-                  <p class="flex items-start gap-2 text-sm text-ink">
-                    @if (notice.unseen) {
-                      <span class="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-accent" aria-label="Nuevo"></span>
-                    }
-                    <span>{{ notice.message }}@if (notice.count > 1) { <span class="badge badge-neutral ml-1">{{ notice.count }} veces</span> }</span>
-                  </p>
-                  <div class="mt-1 flex flex-wrap items-center gap-3 text-sm">
-                    <span class="nums text-muted">{{ noticeWhen(notice.created_at) }}</span>
+                <li class="py-1" [class.opacity-60]="!notice.unseen">
+                  <button type="button" class="row-hover flex min-h-11 w-full items-start gap-2 rounded-lg px-1 py-2 text-left" [attr.aria-label]="'Ver el detalle: ' + notice.message" (click)="openNotice(notice)">
+                    <span class="flex min-w-0 flex-1 items-start gap-2">
+                      @if (notice.unseen) {
+                        <span class="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-accent" aria-label="Nuevo"></span>
+                      }
+                      <span class="min-w-0 text-sm text-ink">
+                        {{ notice.message }}@if (notice.count > 1) { <span class="badge badge-neutral ml-1">{{ notice.count }} veces</span> }
+                        <span class="nums mt-0.5 block text-muted">{{ noticeWhen(notice.created_at) }}</span>
+                      </span>
+                    </span>
+                    <mat-icon class="shrink-0 text-muted" aria-hidden="true">chevron_right</mat-icon>
+                  </button>
+                  <div class="flex flex-wrap items-center gap-3 px-1 text-sm">
                     @if (notice.appointment_id; as citaId) {
-                      <a class="inline-flex min-h-11 items-center font-medium text-ink-soft hover:text-ink" [routerLink]="['/admin/agenda']" [queryParams]="{ cita: citaId }">Ver cita</a>
+                      <a class="inline-flex min-h-11 items-center font-medium text-ink-soft hover:text-ink" [routerLink]="['/admin/agenda']" [queryParams]="{ cita: citaId }">{{ noticeAction(notice.kind) }}</a>
                     }
                     @for (person of notice.data?.people ?? []; track person.phone) {
                       <a class="inline-flex min-h-11 items-center font-medium text-(--nx-ok-fg) hover:underline" [href]="waitWhatsapp(notice, person)" target="_blank" rel="noopener">WhatsApp a {{ person.name.split(' ')[0] }}</a>
@@ -305,16 +319,18 @@
                 </li>
               }
             </ul>
-            @if (groupedNotices().length > shownNotices().length) {
-              <button type="button" class="btn btn-ghost mt-1 w-full" (click)="allNotices.set(true)">Ver todos ({{ groupedNotices().length }})</button>
-            } @else if (allNotices() && groupedNotices().length > NOTICES_SHORT) {
+            @if (filteredNotices().length > shownNotices().length) {
+              <button type="button" class="btn btn-ghost mt-1 w-full" (click)="allNotices.set(true)">Ver todos ({{ filteredNotices().length }})</button>
+            } @else if (allNotices() && filteredNotices().length > NOTICES_SHORT) {
               <button type="button" class="btn btn-ghost mt-1 w-full" (click)="allNotices.set(false)">Ver menos</button>
             }
           }
         </section>
+        }
       </div>
 
       <div class="flex min-w-0 flex-col gap-6">
+        @if (shows('manana')) {
         <section class="card">
           <div class="card-head">
             <span class="sec-icon"><mat-icon>event_upcoming</mat-icon></span>
@@ -358,8 +374,9 @@
             </ul>
           }
         </section>
+        }
 
-        @if (birthdays().length) {
+        @if (shows('cumpleanos') && birthdays().length) {
           <section class="card">
             <div class="card-head">
               <span class="sec-icon"><mat-icon>cake</mat-icon></span>
@@ -381,7 +398,7 @@
           </section>
         }
 
-        @if (dueShown().length) {
+        @if (shows('volver') && dueShown().length) {
           <section class="card">
             <div class="card-head">
               <span class="sec-icon"><mat-icon>event_repeat</mat-icon></span>
@@ -402,7 +419,7 @@
           </section>
         }
 
-        @if (awayShown().length) {
+        @if (shows('escribir') && awayShown().length) {
           <section class="card">
             <div class="card-head">
               <span class="sec-icon"><mat-icon>waving_hand</mat-icon></span>
@@ -428,7 +445,7 @@
           </section>
         }
 
-        @if (week(); as week) {
+        @if (shows('semana') && week(); as week) {
           <a routerLink="/admin/dashboard" class="card row-hover block">
             <div class="card-head">
               <span class="sec-icon"><mat-icon>trending_up</mat-icon></span>
@@ -448,5 +465,26 @@
         }
       </div>
     </div>
+
+    @if (canCustomize()) {
+      <div class="mt-6">
+        <button type="button" class="btn btn-ghost" [attr.aria-expanded]="customizing()" aria-controls="home-cards" (click)="customizing.set(!customizing())">
+          <mat-icon>tune</mat-icon>{{ customizing() ? 'Listo' : 'Elegir qué ver en Inicio' }}
+        </button>
+        @if (customizing()) {
+          <section id="home-cards" class="card mt-3">
+            <p class="mb-2 text-sm text-muted">Apaga lo que no usas. Se guarda para todo tu negocio y puedes volver a prenderlo cuando quieras.</p>
+            <ul class="divide-y divide-line">
+              @for (item of homeCards; track item.key) {
+                <li class="flex min-h-11 items-center justify-between gap-3 py-1">
+                  <span class="text-sm">{{ item.label }}</span>
+                  <button type="button" role="switch" class="switch" [attr.aria-checked]="shows(item.key)" [attr.aria-label]="item.label" (click)="toggleCard(item.key)"><span></span></button>
+                </li>
+              }
+            </ul>
+          </section>
+        }
+      </div>
+    }
   }
 </section>

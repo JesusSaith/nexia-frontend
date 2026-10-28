@@ -1,3 +1,4 @@
+import { incomeSentence } from '@core/income-sentence';
 import { KeyValuePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { METHOD_LABELS } from '@core/payment-methods';
@@ -484,6 +485,13 @@ export class DashboardPageComponent {
       winBooked: row.winback_booked ?? 0,
       winRevenue: row.winback_revenue ?? 0,
     };
+  });
+  /** La frase de arriba: cuánto cobró y cómo va contra el periodo elegido. */
+  protected readonly incomeLine = computed(() => {
+    const now = this.books();
+    return now
+      ? incomeSentence({ period: this.period(), compare: this.compareTo(), total: now.total, before: this.previous()?.total, money: (value) => this.money(value) })
+      : '';
   });
   /** Cómo se llama el periodo en las frases del resumen. */
   protected readonly periodWord = computed(() =>

@@ -14,7 +14,7 @@ export interface ConfirmOptions {
   selector: 'app-confirm-dialog',
   template: `
     <div class="w-full max-w-sm p-5">
-      <h2 class="text-base font-semibold text-ink">{{ data.title }}</h2>
+      <h2 id="confirm-title" class="text-base font-semibold text-ink">{{ data.title }}</h2>
       @if (data.message) {
         <p class="mt-1.5 text-sm text-ink-soft">{{ data.message }}</p>
       }
@@ -38,7 +38,7 @@ export class Confirm {
   private readonly dialog = inject(MatDialog);
 
   ask(options: ConfirmOptions): Promise<boolean> {
-    const ref = this.dialog.open(ConfirmDialogComponent, { data: options, autoFocus: 'dialog', maxWidth: '92vw' });
+    const ref = this.dialog.open(ConfirmDialogComponent, { data: options, autoFocus: 'dialog', maxWidth: '92vw', ariaLabelledBy: 'confirm-title', role: options.danger ? 'alertdialog' : 'dialog' });
     return firstValueFrom(ref.afterClosed()).then((answer) => answer === true);
   }
 }

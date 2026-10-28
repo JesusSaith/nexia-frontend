@@ -1,8 +1,10 @@
+import { scrollBehavior } from '@core/motion';
 import { attendanceState } from '@core/appointment-progress';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatIconModule } from '@angular/material/icon';
+import { MatDialog } from '@angular/material/dialog';
 import { RouterLink } from '@angular/router';
 import { Observable, forkJoin, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
@@ -15,8 +17,11 @@ import { ReadinessStep, SettingsService } from '@core/services/settings.service'
 import { Confirm } from '@shared/components/confirm/confirm';
 import { AppointmentsService } from '@core/services/appointments.service';
 import { AuthService } from '@core/services/auth.service';
+import { Toasts } from '@core/toasts';
 import { BusinessClock } from '@core/business-clock';
 import { BirthdayRow, BookingService, ClientRow, DueClient } from '@core/services/booking.service';
+import { NoticeDetailComponent } from '@shared/components/notice-detail/notice-detail';
+import { NOTICE_GROUPS, NoticeGroup, noticeAction, noticeGroup } from '@core/notice-groups';
 import { DashboardService, HomeNotice } from '@core/services/dashboard.service';
 import { ServicesService } from '@core/services/services.service';
 import { ShopService } from '@core/services/shop.service';
@@ -38,6 +43,7 @@ export class HomePageComponent {
   private readonly settingsApi = inject(SettingsService);
   private readonly shopApi = inject(ShopService);
   private readonly confirm = inject(Confirm);
+  private readonly toasts = inject(Toasts);
   private readonly destroyRef = inject(DestroyRef);
   /** "Hoy" y "ahora" son los del negocio, no los del navegador. */
   private readonly clock = inject(BusinessClock);
@@ -209,7 +215,21 @@ export class HomePageComponent {
     return [...groups.values()];
   });
   protected readonly unseenCount = computed(() => this.groupedNotices().filter((notice) => notice.unseen).length);
-  protected readonly shownNotices = computed(() => (this.allNotices() ? this.groupedNotices() : this.groupedNotices().slice(0, NOTICES_SHORT)));
+
+  /** Filtro por tipo: solo salen los tipos que sí hay, y solo si hay más de uno. */
+  protected readonly noticeFilter = signal<NoticeGroup | null>(null);
+  protected readonly noticeChips = computed(() => {
+    const rows = this.groupedNotices();
+    const chips = NOTICE_GROUPS.map((group) => ({ ...group, count: rows.filter((row) => noticeGroup(row.kind) === group.key).length })).filter((chip) => chip.count > 0);
+    return chips.length > 1 ? chips : [];
+  });
+  protected readonly filteredNotices = computed(() => {
+    const only = this.noticeFilter();
+    const rows = this.groupedNotices();
+    return only && this.noticeChips().some((chip) => chip.key === only) ? rows.filter((row) => noticeGroup(row.kind) === only) : rows;
+  });
+  protected readonly shownNotices = computed(() => (this.allNotices() ? this.filteredNotices() : this.filteredNotices().slice(0, NOTICES_SHORT)));
+  protected readonly noticeAction = noticeAction;
 
   protected markNoticesSeen(): void {
     // Cambio al instante; si el servidor no responde, el siguiente refresco los vuelve a mostrar como nuevos.
@@ -231,7 +251,39 @@ export class HomePageComponent {
 
   /** Pasos para dejar el negocio listo. Oculta la lista, los avisos (p. ej. falta la CLABE) se siguen viendo. */
   protected readonly setup = signal<ReadinessStep[]>([]);
-  protected readonly setupHidden = signal(readFlag('nexia-setup-hidden'));
+  protected readonly setupHidden = signal(false);
+
+  /** Tarjetas de Inicio que se pueden apagar (Hoy, Por resolver y Para tu negocio siempre se ven). */
+  protected readonly homeCards: { key: string; label: string }[] = [
+    { key: 'avisos', label: 'Avisos' },
+    { key: 'manana', label: 'Mañana' },
+    { key: 'cumpleanos', label: 'Cumpleaños' },
+    { key: 'volver', label: 'Les toca volver' },
+    { key: 'escribir', label: 'A quién escribirle hoy' },
+    { key: 'semana', label: 'Esta semana' },
+  ];
+  protected readonly hiddenCards = signal<string[]>([]);
+  protected readonly customizing = signal(false);
+  protected readonly canCustomize = computed(() => this.auth.userRole() !== 'staff');
+
+  protected shows(key: string): boolean {
+    return !this.hiddenCards().includes(key);
+  }
+
+  protected toggleCard(key: string): void {
+    const before = this.hiddenCards();
+    const next = before.includes(key) ? before.filter((item) => item !== key) : [...before, key];
+    this.hiddenCards.set(next);
+    this.settingsApi
+      .setHomeCards(next)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        error: () => {
+          this.hiddenCards.set(before);
+          this.toasts.show('No pudimos guardar el cambio. Intenta de nuevo.');
+        },
+      });
+  }
   protected readonly setupShown = computed(() =>
     this.setupHidden() ? this.setup().filter((step) => step.group === 'aviso' && !step.done) : this.setup(),
   );
@@ -245,7 +297,15 @@ export class HomePageComponent {
       .getReadiness()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: (ready) => this.setup.set(ready.steps.filter((step) => step.group !== 'perfil')),
+        next: (ready) => {
+          this.setup.set(ready.steps.filter((step) => step.group !== 'perfil'));
+          this.setupHidden.set(ready.setup_hidden === true);
+          this.hiddenCards.set(ready.home_hidden ?? []);
+          // Quien la ocultó antes de que se guardara en el negocio (en este navegador): se pasa al negocio una sola vez.
+          if (ready.setup_hidden !== true && readFlag('nexia-setup-hidden')) {
+            this.hideSetup();
+          }
+        },
         error: () => this.setup.set([]),
       });
     this.load();
@@ -332,11 +392,7 @@ export class HomePageComponent {
 
   protected hideSetup(): void {
     this.setupHidden.set(true);
-    try {
-      localStorage.setItem('nexia-setup-hidden', '1');
-    } catch {
-      // Se vuelve a mostrar en la próxima visita.
-    }
+    this.settingsApi.hideSetup().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ error: () => undefined });
   }
 
   /** "/admin/settings?sec=promos" → ruta y parámetros para routerLink. */
@@ -346,7 +402,7 @@ export class HomePageComponent {
   }
 
   protected scrollTo(id: string): void {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById(id)?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
   }
 
   protected pesos(amount: number): string {
@@ -457,6 +513,26 @@ export class HomePageComponent {
       enlace: item.cancel_token && slug ? `${location.origin}/${slug}/manage/${item.cancel_token}` : '',
     });
     return whatsappLink(item.client_phone, text);
+  }
+
+  private readonly dialog = inject(MatDialog);
+
+  /** Abre el detalle del aviso: para quien no lo vio cuando llegó (la notificación, el correo). */
+  protected openNotice(notice: Notice & { count: number }): void {
+    this.dialog.open(NoticeDetailComponent, {
+      width: '520px',
+      maxWidth: 'calc(100vw - 24px)',
+      panelClass: 'service-sheet',
+      ariaLabelledBy: 'notice-title',
+      data: {
+        message: notice.message,
+        when: this.noticeWhen(notice.created_at),
+        kind: notice.kind,
+        appointmentId: notice.appointment_id,
+        count: notice.count,
+        people: (notice.data?.people ?? []).map((person) => ({ name: person.name, href: this.waitWhatsapp(notice, person) })),
+      },
+    });
   }
 
   protected noticeWhen(value: string): string {

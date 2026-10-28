@@ -19,6 +19,10 @@ export interface ReadinessStep {
 
 export interface Readiness {
   can_book: boolean;
+  /** Ocultó la lista de arranque de Inicio. */
+  setup_hidden?: boolean;
+  /** Tarjetas de Inicio que la dueña ocultó. */
+  home_hidden?: string[];
   steps: ReadinessStep[];
 }
 
@@ -186,6 +190,16 @@ export class SettingsService {
 
   getReadiness(): Observable<Readiness> {
     return this.http.get<Readiness>(`${this.apiBaseUrl}/settings/readiness`);
+  }
+
+  /** "Ocultar" la lista de arranque de Inicio, en el negocio y no en este navegador. */
+  hideSetup(): Observable<void> {
+    return this.http.post<void>(`${this.apiBaseUrl}/settings/readiness/hidden`, {});
+  }
+
+  /** Guarda qué tarjetas de Inicio se ocultan, en el negocio. */
+  setHomeCards(hidden: string[]): Observable<{ hidden: string[] }> {
+    return this.http.put<{ hidden: string[] }>(`${this.apiBaseUrl}/settings/home-cards`, { hidden });
   }
 
   /** Marca "Comparte tu enlace" como hecho, en el negocio y no en este navegador. */

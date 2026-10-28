@@ -27,7 +27,7 @@
 /* Relleno de contorno: fondo transparente y borde del color de la marca. */
 :host(.fill-outline) :is(button, a):is(.brand-solid, .brand-fill, [style*='background: var(--booking-primary']) {
   background: transparent !important;
-  color: var(--booking-primary) !important;
+  color: var(--booking-ink, var(--booking-primary)) !important;
   box-shadow: inset 0 0 0 2px var(--booking-primary);
 }
 
@@ -53,6 +53,25 @@
   gap: 0.4rem;
   color: inherit;
   text-decoration: none;
+}
+
+.action-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0 1rem;
+  border: 1px solid color-mix(in srgb, var(--booking-primary, var(--primary)) 45%, white);
+  border-radius: 999px;
+  background: white;
+  color: var(--booking-ink, var(--primary));
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.action-pill[aria-expanded='true'] {
+  background: color-mix(in srgb, var(--booking-primary, var(--primary)) 10%, white);
 }
 
 .contact-chip:hover {
@@ -97,7 +116,7 @@
 
 .step-tab.is-current {
   border-bottom-color: var(--booking-primary);
-  color: var(--booking-primary);
+  color: var(--booking-ink, var(--booking-primary));
   font-weight: 600;
 }
 
@@ -106,7 +125,8 @@
 }
 
 .step-tab:disabled:not(.is-current) {
-  opacity: 0.4;
+  /* Pasos que aún no se alcanzan: se leen bien (contraste), solo que sin pulsarse. */
+  color: var(--color-muted);
 }
 
 .choice-selected {

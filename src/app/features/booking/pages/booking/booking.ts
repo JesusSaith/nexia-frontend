@@ -1,6 +1,14 @@
+import { spotsLabel } from '@core/spots';
+import { SEARCH_FROM, matchesQuery } from '@core/service-search';
+import { bookingShareText } from '@core/booking-share';
+import { LoadFailure, loadFailure, missing } from '@core/load-failure';
+import { phoneLabel, telLink } from '@core/phone-label';
+import { usefulDescription } from '@core/service-card';
+import { scrollBehavior } from '@core/motion';
+import { LAST_BOOKING_KEY, LastBooking, lastBookingFor, repeatable, withLastBooking } from '@core/last-booking';
 import { NgTemplateOutlet } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ButtonShape, FONT_STACKS, FontStyle, SHAPE_RADIUS, textOn } from '@core/theme';
+import { ButtonShape, FONT_STACKS, FontStyle, SHAPE_RADIUS, readableOn, textOn } from '@core/theme';
 import { Component, DestroyRef, HostListener, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import {
@@ -18,6 +26,7 @@ import { catchError, map } from 'rxjs/operators';
 
 import { businessWords } from '@core/business-words';
 import { depositPolicyText } from '@core/deposit-policy';
+import { nearestSlots } from '@core/nearest-slots';
 import { methodsSentence } from '@core/payment-methods';
 // FUTURE_PHASE_SPEI: import { SpeiCheckComponent } from '@shared/components/spei-check/spei-check';
 import { closureOn, closureSpan, liveOffer, nextClosure, noteOf } from '@core/shop-note';
@@ -78,6 +87,7 @@ function phoneDigits(control: AbstractControl): ValidationErrors | null {
     '[style.--booking-primary]': 'primaryColor()',
     '[style.--page-canvas]': 'canvasColor()',
     '[style.--booking-on]': 'onPrimary()',
+    '[style.--booking-ink]': 'inkColor()',
     '[style.--booking-accent]': 'accentColor()',
     '[style.--booking-radius]': 'buttonRadius()',
     '[style.font-family]': 'fontFamily()',
@@ -121,9 +131,13 @@ export class Booking {
     }
     return [...names].sort((a, b) => a.localeCompare(b, 'es'));
   });
+  protected readonly spotsLabel = spotsLabel;
+  protected readonly serviceQuery = signal('');
+  protected readonly searchable = computed(() => this.services().length > SEARCH_FROM);
   protected readonly visibleServices = computed(() => {
     const name = this.categoryFilter();
-    const rows = this.services();
+    const query = this.searchable() ? this.serviceQuery() : '';
+    const rows = this.services().filter((service) => matchesQuery(service, query));
     return name ? rows.filter((service) => service.category === name) : rows;
   });
   protected readonly slug =
@@ -140,7 +154,15 @@ export class Booking {
   /** Hay punto en el mapa o dirección: se ofrece "Cómo llegar". */
   protected readonly hasPlace = computed(() => canNavigate(this.brand()));
   /** El mapa del encabezado se carga solo al abrirlo, para no frenar la página. */
-  protected readonly mapOpen = signal(false);
+  /** Qué panel del encabezado está abierto: fotos y opiniones, o el mapa. */
+  protected readonly panel = signal<'info' | 'map' | null>(null);
+  protected readonly phoneLabel = phoneLabel;
+  protected readonly telLink = telLink;
+  protected readonly usefulDescription = usefulDescription;
+
+  protected togglePanel(name: 'info' | 'map'): void {
+    this.panel.set(this.panel() === name ? null : name);
+  }
   protected readonly petName = signal('');
   protected readonly copy = computed(() => businessWords(this.brand()?.staff_label));
   protected readonly opinions = signal<Review[]>([]);
@@ -179,6 +201,8 @@ export class Booking {
   protected readonly soonest = signal<AvailabilitySlot[]>([]);
   /** Aviso cuando el horario se ocupó mientras el cliente llenaba sus datos. */
   protected readonly bumpNotice = signal<string | null>(null);
+  /** Si les ganaron un horario: los libres más cercanos de ese mismo día. */
+  protected readonly nearby = signal<AvailabilitySlot[]>([]);
   protected readonly manageCopied = signal(false);
   /** Fotos de referencia para cotizar, ya comprimidas (data URL). */
   protected readonly refPhotos = signal<string[]>([]);
@@ -219,7 +243,7 @@ export class Booking {
   protected readonly logoFailed = signal(false);
   protected readonly slotsLoading = signal(false);
   protected readonly isSaving = signal(false);
-  protected readonly loadError = signal<string | null>(null);
+  protected readonly loadError = signal<LoadFailure | null>(null);
   protected readonly slotsError = signal<string | null>(null);
   protected readonly formError = signal<string | null>(null);
   private readonly validationTick = signal(0);
@@ -256,6 +280,8 @@ export class Booking {
   protected readonly primaryColor = computed(() => safeColor(this.brand()?.primary_color));
   /** Tema elegido en Configuración → Apariencia. */
   protected readonly onPrimary = computed(() => textOn(this.primaryColor()));
+  /** El color de marca como texto sobre fondo claro: se oscurece lo justo para pasar 4.5:1. */
+  protected readonly inkColor = computed(() => readableOn(this.primaryColor()));
   protected readonly accentColor = computed(() => {
     const value = this.brand()?.accent_color;
     return value && /^#[0-9a-f]{6}$/i.test(value) ? value : this.primaryColor();
@@ -449,7 +475,7 @@ export class Booking {
     setTimeout(() => {
       const anchor = document.getElementById('tras-servicio');
       if (anchor && anchor.getBoundingClientRect().top > window.innerHeight * 0.55) {
-        anchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        anchor.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
       }
     }, 120);
   }
@@ -820,6 +846,7 @@ export class Booking {
   private slotStaffId: number | null = null;
 
   protected selectSlot(slot: AvailabilitySlot): void {
+    this.nearby.set([]);
     this.selectedSlot.set(slot.starts_at);
     this.slotStaffId = slot.staff_id ?? null;
     this.bumpNotice.set(null);
@@ -828,6 +855,8 @@ export class Booking {
 
   /** Le ganaron el horario (o ya no cumple la anticipación): de regreso a Horario con lo actualizado. */
   private bounceToSchedule(detail: string | null): void {
+    const taken = this.selectedSlot();
+    this.nearby.set([]);
     this.selectedSlot.set(null);
     this.slotStaffId = null;
     this.bumpNotice.set(
@@ -840,6 +869,21 @@ export class Booking {
     this.pendingSoonest = true;
     this.dayHops = 0;
     this.loadOpenDays(true);
+    if (taken) {
+      this.loadNearby(taken);
+    }
+  }
+
+  /** Busca, en el mismo día, los horarios más cercanos al que se llevaron. */
+  private loadNearby(taken: string): void {
+    const service = this.selectedService();
+    if (!service) {
+      return;
+    }
+    this.bookingApi
+      .getAvailability(this.slug, service.id, this.selectedStaff()?.id ?? null, taken.slice(0, 10), this.extraIds(), this.resource(), this.selectedVariant())
+      .pipe(catchError(() => of([] as AvailabilitySlot[])), takeUntilDestroyed(this.destroyRef))
+      .subscribe((rows) => this.nearby.set(nearestSlots(rows, taken)));
   }
 
   protected goToDetails(): void {
@@ -967,6 +1011,7 @@ export class Booking {
     this.slots.set([]);
     this.openDays.set([]);
     this.soonest.set([]);
+    this.nearby.set([]);
     this.bumpNotice.set(null);
     this.manageCopied.set(false);
     this.refPhotos.set([]);
@@ -1019,6 +1064,50 @@ export class Booking {
     }
     const rows = this.readMine().filter((row) => row.token !== token);
     this.writeMine([...rows, { token, slug: this.slug, starts_at: appointment.starts_at }]);
+    try {
+      const last: LastBooking = {
+        service_id: appointment.service_id,
+        staff_id: appointment.staff_id ?? null,
+        service_name: appointment.service_name,
+        staff_name: appointment.staff_name ?? null,
+      };
+      localStorage.setItem(LAST_BOOKING_KEY, withLastBooking(localStorage.getItem(LAST_BOOKING_KEY), this.slug, last));
+      this.lastTick.update((n) => n + 1);
+    } catch {
+      // Recordarlo es una comodidad.
+    }
+  }
+
+  /** "Reservar lo mismo": el servicio y la persona de la última vez, si siguen disponibles. */
+  protected readonly again = computed(() => {
+    this.lastTick();
+    let raw: string | null = null;
+    try {
+      raw = localStorage.getItem(LAST_BOOKING_KEY);
+    } catch {
+      return null;
+    }
+    const last = lastBookingFor(raw, this.slug);
+    const service = repeatable(last, this.services());
+    if (!last || !service || this.shopNote().pause) {
+      return null;
+    }
+    const member = this.staff().find((row) => row.id === last.staff_id) ?? null;
+    return { service, member, label: member ? `${service.name} con ${member.full_name}` : service.name };
+  });
+  private readonly lastTick = signal(0);
+
+  protected repeatLast(): void {
+    const again = this.again();
+    if (!again) {
+      return;
+    }
+    this.selectService(again.service);
+    if (again.member && this.eligibleStaff().some((row) => row.id === again.member?.id)) {
+      this.selectStaff(again.member);
+    } else if (this.step() === 1) {
+      this.chooseAnyStaff();
+    }
   }
 
   /** Muestra las citas futuras guardadas en este dispositivo; descarta canceladas o pasadas. */
@@ -1118,10 +1207,17 @@ export class Booking {
     this.lookPackage('');
   }
 
+  /** "Reintentar" en la pantalla de error. */
+  protected retryLoad(): void {
+    this.loadError.set(null);
+    this.isLoading.set(true);
+    this.loadCatalog();
+  }
+
   private loadCatalog(): void {
     if (!this.slug) {
       this.isLoading.set(false);
-      this.loadError.set('Falta el enlace del negocio.');
+      this.loadError.set(missing());
       return;
     }
 
@@ -1150,7 +1246,7 @@ export class Booking {
         },
         error: (error: unknown) => {
           this.isLoading.set(false);
-          this.loadError.set(readError(error, 'No pudimos cargar el negocio.'));
+          this.loadError.set(loadFailure(error));
         },
       });
   }
@@ -1389,6 +1485,27 @@ export class Booking {
   }
 
   /** Archivo .ics con la cita y dos avisos (un día y dos horas antes). */
+  /** Compartir la cita: menú del teléfono si existe; si no, WhatsApp con el texto listo. */
+  protected async shareVisit(appointment: Appointment): Promise<void> {
+    const text = bookingShareText({
+      business: this.brand()?.name || 'el negocio',
+      service: appointment.service_name || this.selectedService()?.name || '',
+      when: `${this.formatDate(appointment.starts_at)} · ${this.formatTime(appointment.starts_at)}`,
+      who: appointment.staff_name || this.selectedStaff()?.full_name || null,
+      address: this.brand()?.address,
+    });
+    try {
+      if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+        await navigator.share({ text });
+        return;
+      }
+    } catch {
+      // Cerró el menú de compartir: no hay nada más que hacer.
+      return;
+    }
+    window.open(whatsappLink(null, text), '_blank', 'noopener');
+  }
+
   protected downloadIcs(appointment: Appointment): void {
     downloadIcs(this.calendarEvent(appointment));
   }
@@ -1530,7 +1647,7 @@ function canShareImages(): boolean {
 /** Fecha local "flotante" (sin zona) para calendarios: 20261016T093000. */
 function scrollToTop(): void {
   if (typeof window !== 'undefined') {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: scrollBehavior() });
   }
 }
 

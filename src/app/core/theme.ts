@@ -28,6 +28,25 @@ export function textOn(hex: string): string {
   return contrast(hex, '#ffffff') >= contrast(hex, '#1c1a19') ? '#ffffff' : '#1c1a19';
 }
 
+/**
+ * El color de marca, oscurecido solo lo necesario para leerse como texto sobre `bg` (contraste mínimo 4.5:1).
+ * Si ya se lee bien, se devuelve igual.
+ */
+export function readableOn(hex: string, bg = '#ffffff', min = 4.5): string {
+  if (!/^#[0-9a-f]{6}$/i.test(hex)) {
+    return '#1c1a19';
+  }
+  const [r, g, b] = channels(hex);
+  for (let step = 0; step <= 20; step++) {
+    const keep = 1 - step * 0.05;
+    const next = '#' + [r, g, b].map((value) => Math.round(value * keep).toString(16).padStart(2, '0')).join('');
+    if (contrast(next, bg) >= min) {
+      return next;
+    }
+  }
+  return '#000000';
+}
+
 /** Mezcla con blanco (amount 0–1): para fondos suaves con el tono de la marca. */
 export function tint(hex: string, amount: number): string {
   return '#' + channels(hex).map((value) => Math.round(value + (255 - value) * amount).toString(16).padStart(2, '0')).join('');

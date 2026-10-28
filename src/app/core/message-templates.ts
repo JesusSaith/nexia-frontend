@@ -16,6 +16,7 @@ export type MessageKey =
   | 'chat'
   | 'repeat'
   | 'review'
+  | 'receipt'
   | 'birthday'
   | 'miss_you'
   | 'opening'
@@ -27,7 +28,7 @@ export type MessageKey =
 
 export type MessageVars = Partial<Record<MessageVar, string>>;
 
-export type MessageVar = 'nombre' | 'negocio' | 'servicio' | 'dia' | 'hora' | 'equipo' | 'enlace' | 'cuando' | 'precio' | 'anticipo' | 'fechas' | 'cita';
+export type MessageVar = 'nombre' | 'negocio' | 'servicio' | 'dia' | 'hora' | 'equipo' | 'enlace' | 'cuando' | 'precio' | 'anticipo' | 'fechas' | 'cita' | 'propina' | 'total' | 'metodo';
 
 export const VARIABLE_HELP: Record<MessageVar, string> = {
   nombre: 'Nombre del cliente',
@@ -42,6 +43,9 @@ export const VARIABLE_HELP: Record<MessageVar, string> = {
   anticipo: 'Monto del anticipo',
   fechas: 'Lista de fechas',
   cita: 'Cómo le dices a la cita (cita, consulta, clase…)',
+  propina: 'Propina (si la hubo)',
+  total: 'Total que pagó',
+  metodo: 'Forma de pago',
 };
 
 export interface MessageTemplate {
@@ -136,6 +140,14 @@ export const MESSAGE_TEMPLATES: readonly MessageTemplate[] = [
     text: '¡Gracias por venir, {nombre}! 💛 ¿Nos ayudas con tu opinión? Toma 10 segundos:\n\n{enlace}',
   },
   {
+    key: 'receipt',
+    label: 'Recibo de pago',
+    where: 'Agenda → después de cobrar',
+    vars: ['nombre', 'negocio', 'servicio', 'dia', 'precio', 'anticipo', 'propina', 'total', 'metodo'],
+    text:
+      '¡Gracias por venir, {nombre}! 💛 Este es tu recibo de {negocio}:\n\n📋 {servicio}\n📅 {dia}\n💵 Servicio: {precio}\n✅ Anticipo que ya habías pagado: {anticipo}\n🙏 Propina: {propina}\n🧾 Total pagado: {total}\n💳 Forma de pago: {metodo}',
+  },
+  {
     key: 'birthday',
     label: 'Feliz cumpleaños',
     where: 'Inicio y Clientes → cumpleaños de hoy',
@@ -172,6 +184,15 @@ export const MESSAGE_TEMPLATES: readonly MessageTemplate[] = [
     vars: ['negocio', 'enlace'],
     text: '¡Hola! 👋 Ya puedes reservar tu cita en {negocio} en línea: eliges servicio, día y hora en segundos.\n\n{enlace}',
   },
+];
+
+export type MessageMoment = 'before' | 'after' | 'attract';
+
+/** Los mensajes por momento, para que la dueña encuentre cada uno sin leer toda la lista. */
+export const MESSAGE_MOMENTS: readonly { id: MessageMoment; keys: readonly MessageKey[] }[] = [
+  { id: 'before', keys: ['reminder', 'booked', 'approved', 'declined', 'deposit_ok', 'proof_retry', 'quote', 'repeat', 'chat'] },
+  { id: 'after', keys: ['receipt', 'review'] },
+  { id: 'attract', keys: ['due', 'birthday', 'miss_you', 'opening', 'waitlist', 'share_link'] },
 ];
 
 const DEFAULTS = new Map(MESSAGE_TEMPLATES.map((template) => [template.key, template.text]));

@@ -21,7 +21,7 @@
       }
       <div>
         @if (!compact) {
-          <p class="text-xs font-medium uppercase tracking-wide" style="color: var(--booking-primary, var(--primary))">Reservas</p>
+          <p class="text-xs font-medium uppercase tracking-wide" style="color: var(--booking-ink, var(--primary))">Reservas</p>
         }
         <h1 class="font-semibold" [class.text-2xl]="!compact" [class.text-xl]="compact">{{ brand()?.name || 'Reservar ' + copy().visit.toLowerCase() }}</h1>
         @if (!compact && brand()?.description) {
@@ -39,51 +39,65 @@
       <p class="mx-5 rounded-2xl px-4 py-2 text-sm text-white" style="background: var(--booking-primary, var(--primary))">{{ text }}</p>
     }
     @if (closedLabel(); as label) {
-      <p class="px-5 text-sm" style="color: var(--booking-primary, var(--primary))">Cerramos: {{ label }}.</p>
+      <p class="px-5 text-sm" style="color: var(--booking-ink, var(--primary))">Cerramos: {{ label }}.</p>
     }
-    @if (!compact && (gallery().length || opinions().length)) {
-      <!-- Plegado para que en celular los servicios queden a la vista desde el inicio. -->
-      <details class="more-info px-5">
-        <summary class="min-h-11 cursor-pointer py-3 text-sm font-medium" style="color: var(--booking-primary, var(--primary))">
-          Ver {{ gallery().length ? 'fotos' : '' }}{{ gallery().length && opinions().length ? ' y ' : '' }}{{ opinions().length ? 'opiniones (' + opinions().length + ')' : '' }}
-        </summary>
-        @if (gallery().length) {
-          <div class="mt-3 flex gap-2 overflow-x-auto">
-            @for (photo of gallery(); track photo) {
-              <img [src]="photo" alt="Trabajo del negocio" class="h-28 w-28 shrink-0 rounded-2xl object-cover" />
+    @if (!compact && (gallery().length || opinions().length || hasPlace())) {
+      <!-- Acciones del negocio: botones grandes y a la vista; el contenido se abre debajo. -->
+      <div class="flex flex-wrap gap-2 px-5">
+        @if (gallery().length || opinions().length) {
+          <button type="button" class="action-pill" [attr.aria-expanded]="panel() === 'info'" aria-controls="panel-info" aria-label="Ver fotos y opiniones" (click)="togglePanel('info')">
+            @if (rating(); as score) {
+              <span aria-hidden="true">★</span>&nbsp;{{ score.label }} · {{ score.count }} {{ score.count === 1 ? 'opinión' : 'opiniones' }}
+            } @else {
+              Ver fotos
             }
-          </div>
+          </button>
         }
-        @if (opinions().length) {
-          <section class="mt-3 flex flex-col gap-2">
-            @for (review of opinions(); track review.id) {
-              <p class="text-sm text-ink-soft"><span class="font-medium text-ink">{{ review.client_name }}:</span> {{ review.comment }}</p>
-              @if (review.reply) {
-                <p class="text-sm">Respuesta del negocio: {{ review.reply }}</p>
+        @if (hasPlace()) {
+          <button type="button" class="action-pill" [attr.aria-expanded]="panel() === 'map'" aria-controls="panel-map" (click)="togglePanel('map')">Cómo llegar</button>
+        }
+      </div>
+      @if (panel() === 'info') {
+        <div id="panel-info" class="px-5">
+          @if (gallery().length) {
+            <div class="mt-3 flex gap-2 overflow-x-auto">
+              @for (photo of gallery(); track photo) {
+                <img loading="lazy" decoding="async" [src]="photo" alt="Trabajo del negocio" class="h-28 w-28 shrink-0 rounded-2xl object-cover" />
               }
-            }
-          </section>
-        }
-      </details>
-    }
-    @if (!compact && hasPlace()) {
-      <details class="more-info px-5" (toggle)="mapOpen.set($any($event.target).open)">
-        <summary class="min-h-11 cursor-pointer py-3 text-sm font-medium" style="color: var(--booking-primary, var(--primary))">Cómo llegar</summary>
-        @if (mapOpen()) {
-          <app-place-map class="mt-3 block" [place]="brand()!" [name]="brand()?.name" [color]="brand()?.primary_color" />
-        }
-      </details>
+            </div>
+          }
+          @if (opinions().length) {
+            <section class="mt-3 flex flex-col gap-2">
+              @for (review of opinions(); track review.id) {
+                <p class="text-sm text-ink-soft"><span class="font-medium text-ink">{{ review.client_name }}:</span> {{ review.comment }}</p>
+                @if (review.reply) {
+                  <p class="text-sm">Respuesta del negocio: {{ review.reply }}</p>
+                }
+              }
+            </section>
+          }
+  
+        </div>
+      }
+      @if (panel() === 'map') {
+        <div id="panel-map" class="px-5">
+          <app-place-map class="block" [place]="brand()!" [name]="brand()?.name" [color]="brand()?.primary_color" />
+        </div>
+      }
     }
     <ng-template #contacts>
-    <div class="flex flex-wrap items-center gap-4 px-5 pb-4 text-sm">
+    <div class="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 pb-4 pt-1 text-sm">
       @if (brand()?.phone) {
         <a class="contact-chip" [href]="businessWhatsapp(brand()!.phone!)" target="_blank" rel="noopener">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-5 w-5" aria-hidden="true">
             <path fill="#25D366" d="M12.04 2C6.58 2 2.15 6.4 2.15 11.83c0 1.74.46 3.44 1.34 4.94L2 22l5.39-1.41a10 10 0 0 0 4.65 1.18h.01c5.46 0 9.89-4.4 9.89-9.83C21.94 6.4 17.5 2 12.04 2z"/>
             <path fill="#fff" d="M17.1 14.55c-.22-.11-1.28-.63-1.48-.7-.2-.07-.34-.11-.48.11-.14.22-.55.7-.67.84-.12.15-.25.16-.47.05-.22-.11-.92-.34-1.75-1.08-.65-.57-1.09-1.28-1.21-1.5-.13-.22-.01-.34.1-.45.1-.1.22-.25.33-.37.11-.13.15-.22.22-.37.07-.14.04-.27-.02-.38-.06-.11-.48-1.16-.66-1.59-.17-.41-.35-.36-.48-.36h-.41c-.14 0-.37.05-.56.27-.2.22-.74.72-.74 1.76s.76 2.04.86 2.18c.11.15 1.49 2.28 3.61 3.2.5.22.9.35 1.2.45.51.16.97.14 1.33.08.41-.06 1.28-.52 1.46-1.03.18-.5.18-.94.13-1.03-.05-.1-.2-.15-.42-.26z"/>
           </svg>
-          {{ brand()!.phone }}
+          {{ phoneLabel(brand()!.phone) }}
         </a>
+        @if (telLink(brand()!.phone); as call) {
+          <a class="contact-chip font-medium" style="color: var(--booking-ink, var(--primary))" [href]="call">Llamar</a>
+        }
       }
       @if (brand()?.instagram) {
         <a class="contact-chip" [href]="externalHref(brand()!.instagram!, 'instagram.com')" target="_blank" rel="noopener">
@@ -112,7 +126,7 @@
     </ng-template>
     @if (compact) {
       <details class="more-info px-5 pb-3">
-        <summary class="min-h-11 cursor-pointer py-3 text-sm font-medium" style="color: var(--booking-primary, var(--primary))">Contacto y ubicación</summary>
+        <summary class="min-h-11 cursor-pointer py-3 text-sm font-medium" style="color: var(--booking-ink, var(--primary))">Contacto y ubicación</summary>
         @if (brand()?.address) {
           <p class="mb-2 text-sm text-ink-soft">{{ brand()?.address }}</p>
         }
@@ -126,7 +140,7 @@
     }
   </header>
 
-  @if (!confirmation()) {
+  @if (!confirmation() && !loadError()) {
     <nav class="step-tabs" aria-label="Pasos de la reserva">
       @for (item of steps; track item.id) {
         <button
@@ -149,7 +163,13 @@
   }
 
   @if (loadError(); as message) {
-    <p role="alert" class="text-sm text-[var(--nx-bad-fg)]">{{ message }}</p>
+    <section role="alert" class="card flex flex-col items-start gap-3">
+      <h2 class="text-lg font-semibold">{{ message.title }}</h2>
+      <p class="text-sm text-ink-soft">{{ message.message }}</p>
+      @if (message.kind !== 'missing') {
+        <button type="button" class="btn btn-primary" (click)="retryLoad()">Reintentar</button>
+      }
+    </section>
   } @else if (isLoading()) {
     <div class="flex justify-center py-16">
       <mat-spinner diameter="36" />
@@ -177,8 +197,23 @@
           </ul>
         </section>
       }
+      @if (again(); as repeat) {
+        <section class="card flex items-center gap-3" aria-label="Reservar lo mismo">
+          <div class="min-w-0 flex-1 text-sm">
+            <p class="font-medium text-ink">Reservar lo mismo de la vez pasada</p>
+            <p class="truncate text-muted">{{ repeat.label }}</p>
+          </div>
+          <button type="button" class="btn btn-secondary shrink-0" (click)="repeatLast()">Elegir horario</button>
+        </section>
+      }
       <div>
         <h2 class="mb-3 text-base font-medium">Servicio</h2>
+        @if (searchable()) {
+          <label class="mb-3 block rounded-xl border border-line bg-surface px-3 py-2">
+            <span class="block text-xs text-muted">Buscar servicio</span>
+            <input class="w-full bg-transparent text-base outline-none" type="search" enterkeyhint="search" autocomplete="off" placeholder="Ej. corte, uñas, masaje" [value]="serviceQuery()" (input)="serviceQuery.set($any($event.target).value)" />
+          </label>
+        }
         @if (categories().length) {
           <div class="mb-3 flex flex-wrap gap-2">
             <button type="button" class="min-h-11 rounded-full border px-4 py-1 text-sm" [class.brand-solid]="!categoryFilter()" (click)="categoryFilter.set('')">Todas</button>
@@ -193,6 +228,11 @@
             <a class="mt-3 inline-flex h-11 items-center rounded-full px-4 text-sm text-white" style="background: var(--booking-primary, var(--primary))" [href]="businessWhatsapp(phone)" target="_blank" rel="noopener">Escribir por WhatsApp</a>
           }
         } @else {
+          @if (visibleServices().length === 0) {
+            <p class="text-sm text-ink-soft">No encontramos servicios con eso.
+              <button type="button" class="min-h-11 px-1 font-medium underline" style="color: var(--booking-ink, var(--booking-primary))" (click)="serviceQuery.set(''); categoryFilter.set('')">Ver todos</button>
+            </p>
+          }
           <div class="grid gap-3 sm:grid-cols-2">
             @for (service of visibleServices(); track service.id) {
               <button
@@ -202,12 +242,9 @@
                 (click)="selectService(service)"
               >
                 @if (service.image_url) {
-                  <img class="h-16 w-16 shrink-0 rounded-xl object-cover" [src]="service.image_url" alt="" />
+                  <img loading="lazy" decoding="async" class="h-16 w-16 shrink-0 rounded-xl object-cover" [src]="service.image_url" alt="" />
                 }
                 <span class="min-w-0">
-                  @if (service.category && service.category.trim().toLowerCase() !== service.name.trim().toLowerCase()) {
-                    <span class="block text-xs text-muted">{{ service.category }}</span>
-                  }
                   <span class="block font-medium">{{ service.name }}</span>
                   @if (service.featured) {
                     <span class="mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium text-white" style="background: var(--booking-primary, var(--primary))">El más pedido</span>
@@ -216,11 +253,11 @@
                     @if ((service.variants ?? []).length) {
                       Desde {{ formatPrice(minVariant(service)) }} · {{ (service.variants ?? []).length }} opciones
                     } @else {
-                      {{ formatMinutes(service.duration_minutes) }} · {{ service.variable_price ? 'Te confirmamos el precio' : formatPrice(service.price) }}
+                      {{ formatMinutes(service.duration_minutes) }} · {{ service.variable_price ? 'Precio por confirmar' : formatPrice(service.price) }}
                     }
                   </span>
-                  @if (service.description) {
-                    <span class="mt-1 block text-sm text-muted">{{ service.description }}</span>
+                  @if (usefulDescription(service.name, service.description); as detail) {
+                    <span class="mt-1 block text-sm text-muted">{{ detail }}</span>
                   }
                 </span>
               </button>
@@ -257,7 +294,7 @@
                       (click)="toggleExtra(service.id)"
                     >
                       @if (service.image_url) {
-                        <img class="h-11 w-11 shrink-0 rounded-lg object-cover" [src]="service.image_url" alt="" />
+                        <img loading="lazy" decoding="async" class="h-11 w-11 shrink-0 rounded-lg object-cover" [src]="service.image_url" alt="" />
                       }
                       <span class="min-w-0 flex-1">
                         <span class="block truncate text-sm font-medium">{{ service.name }}</span>
@@ -282,22 +319,10 @@
         }
       </div>
 
+      @if (selectedService()) {
       <div>
         <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 class="text-base font-medium">{{ brand()?.staff_label || 'Colaborador' }}</h2>
-          @if (rating(); as score) {
-            <p class="flex items-center gap-1.5 text-sm text-ink-soft" [attr.aria-label]="'Calificación del negocio ' + score.label + ' de 5, ' + score.count + ' opiniones'">
-              <span class="flex" aria-hidden="true">
-                @for (on of stars(score.filled); track $index) {
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" class="h-4 w-4" [attr.fill]="on ? 'var(--booking-primary)' : 'var(--color-line-strong)'">
-                    <path d="M10 1.7l2.5 5.2 5.7.8-4.1 4 1 5.6L10 14.6l-5.1 2.7 1-5.6-4.1-4 5.7-.8z"/>
-                  </svg>
-                }
-              </span>
-              <span class="nums font-medium text-ink">{{ score.label }}</span>
-              <span class="nums text-muted">({{ score.count }} {{ score.count === 1 ? 'opinión' : 'opiniones' }})</span>
-            </p>
-          }
         </div>
         @if (!selectedService()) {
           <p class="text-sm text-ink-soft">Elige un servicio para ver quién lo realiza.</p>
@@ -309,7 +334,7 @@
             @let only = eligibleStaff()[0];
             <div class="flex items-center gap-3 rounded-2xl border border-line bg-surface p-3">
               @if (only.avatar_url) {
-                <img [src]="only.avatar_url" [alt]="only.full_name" class="h-12 w-12 shrink-0 rounded-full object-cover" />
+                <img loading="lazy" decoding="async" [src]="only.avatar_url" [alt]="only.full_name" class="h-12 w-12 shrink-0 rounded-full object-cover" />
               } @else {
                 <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-canvas text-sm font-medium text-ink-soft">{{ initials(only.full_name) }}</span>
               }
@@ -342,7 +367,7 @@
                 (click)="selectStaff(member)"
               >
                 @if (member.avatar_url) {
-                  <img [src]="member.avatar_url" [alt]="member.full_name" class="h-20 w-20 shrink-0 rounded-2xl object-cover" />
+                  <img loading="lazy" decoding="async" [src]="member.avatar_url" [alt]="member.full_name" class="h-20 w-20 shrink-0 rounded-2xl object-cover" />
                 } @else {
                   <span class="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-canvas text-lg font-medium text-ink-soft">
                     {{ initials(member.full_name) }}
@@ -363,11 +388,25 @@
           }
         }
       </div>
+      }
     </section>
   } @else if (step() === 2) {
     <section class="flex flex-col gap-4">
       @if (bumpNotice(); as notice) {
         <p role="alert" class="rounded-xl badge-warn px-3 py-2 text-sm">{{ notice }}</p>
+      }
+      @if (nearby().length) {
+        <div>
+          <h2 class="mb-2 text-base font-medium">Horarios libres cerca del que querías</h2>
+          <div class="grid grid-cols-3 gap-2">
+            @for (slot of nearby(); track slot.starts_at) {
+              <button type="button" class="choice-card flex flex-col items-center px-2 py-3 text-center" (click)="pickSoonest(slot)">
+                <span class="block text-xs first-letter:uppercase text-muted">{{ dayLabel(slot.starts_at) }}</span>
+                <span class="text-base font-semibold">{{ formatTime(slot.starts_at) }}</span>
+              </button>
+            }
+          </div>
+        </div>
       }
       @if (soonest().length) {
         <div>
@@ -440,11 +479,11 @@
           <div class="flex flex-col gap-2 sm:max-w-sm">
             <label class="rounded-xl border border-line bg-surface px-3 py-2">
               <span class="block text-xs text-muted">Nombre</span>
-              <input class="w-full bg-transparent text-sm outline-none" [value]="waitName()" (input)="waitName.set($any($event.target).value)" />
+              <input class="w-full bg-transparent text-base outline-none" [value]="waitName()" (input)="waitName.set($any($event.target).value)" />
             </label>
             <label class="rounded-xl border border-line bg-surface px-3 py-2">
               <span class="block text-xs text-muted">Teléfono</span>
-              <input class="w-full bg-transparent text-sm outline-none" [value]="waitPhone()" (input)="waitPhone.set($any($event.target).value)" />
+              <input class="w-full bg-transparent text-base outline-none" [value]="waitPhone()" (input)="waitPhone.set($any($event.target).value)" />
             </label>
             <button type="button" class="brand-solid rounded-full px-4 py-2 text-sm" (click)="joinWait()">Avisarme</button>
           </div>
@@ -467,6 +506,9 @@
                   (click)="selectSlot(slot)"
                 >
                   {{ formatTime(slot.starts_at) }}
+                  @if (spotsLabel(slot.spots_left); as spots) {
+                    <span class="block text-xs opacity-80">{{ spots }}</span>
+                  }
                 </button>
               }
             </div>
@@ -484,7 +526,7 @@
             <p class="mt-1 text-base font-semibold first-letter:uppercase">{{ info.when }}</p>
           }
           <p class="text-sm text-ink-soft">{{ info.title }} · {{ info.detail }}@if (info.who) { · con {{ info.who }}}</p>
-          <button type="button" class="mt-1 min-h-11 text-sm underline underline-offset-2" style="color: var(--booking-primary)" (click)="openStep(2)">Cambiar día u hora</button>
+          <button type="button" class="mt-1 min-h-11 text-sm underline underline-offset-2" style="color: var(--booking-ink, var(--booking-primary))" (click)="openStep(2)">Cambiar día u hora</button>
         </section>
       }
       <!-- Campo trampa contra bots: invisible para las personas, no lo llenes. -->
@@ -501,7 +543,7 @@
       <label class="rounded-xl border border-line bg-surface px-3 py-2">
         <span class="block text-xs text-muted">Teléfono (WhatsApp)</span>
         <input
-          class="w-full bg-transparent text-sm outline-none"
+          class="w-full bg-transparent text-base outline-none"
           type="tel"
           inputmode="tel"
           placeholder="10 dígitos"
@@ -515,12 +557,12 @@
       }
       @if (loyaltyPercent() && !usePackage()) {
         <p class="text-sm text-ink-soft" role="status">
-          Esta {{ copy().visit.toLowerCase() }} tiene <span class="nums font-medium" style="color: var(--booking-primary)">{{ loyaltyPercent() }}%</span> de descuento por ser cliente frecuente.
+          Esta {{ copy().visit.toLowerCase() }} tiene <span class="nums font-medium" style="color: var(--booking-ink, var(--booking-primary))">{{ loyaltyPercent() }}%</span> de descuento por ser cliente frecuente.
         </p>
       }
       <label class="rounded-xl border border-line bg-surface px-3 py-2">
         <span class="block text-xs text-muted">Tu nombre</span>
-        <input class="w-full bg-transparent text-sm outline-none" formControlName="client_name" autocomplete="name" />
+        <input class="w-full bg-transparent text-base outline-none" formControlName="client_name" autocomplete="name" />
       </label>
       @if (nameError(); as message) {
         <p class="text-sm text-[var(--nx-bad-fg)]">{{ message }}</p>
@@ -528,7 +570,7 @@
       @if (copy().pet) {
         <label class="rounded-xl border border-line bg-surface px-3 py-2">
           <span class="block text-xs text-muted">Mascota</span>
-          <input class="w-full bg-transparent text-sm outline-none" [value]="petName()" (input)="petName.set($any($event.target).value)" />
+          <input class="w-full bg-transparent text-base outline-none" [value]="petName()" (input)="petName.set($any($event.target).value)" />
         </label>
       }
       @if (packageLeft(); as pack) {
@@ -540,13 +582,13 @@
       @if (selectedService()?.questions) {
         <label class="rounded-xl border border-line bg-surface px-3 py-2">
           <span class="block whitespace-pre-line text-xs text-muted">{{ selectedService()!.questions }}</span>
-          <textarea class="mt-1 w-full resize-none bg-transparent text-sm outline-none" rows="3" placeholder="Tus respuestas" [value]="answers()" (input)="answers.set($any($event.target).value)"></textarea>
+          <textarea class="mt-1 w-full resize-none bg-transparent text-base outline-none" rows="3" placeholder="Tus respuestas" [value]="answers()" (input)="answers.set($any($event.target).value)"></textarea>
         </label>
       }
       @if (selectedService()?.variable_price) {
         <label class="rounded-xl border border-line bg-surface px-3 py-2">
           <span class="block text-xs text-muted">Qué necesitas</span>
-          <textarea class="w-full resize-none bg-transparent text-sm outline-none" rows="2" placeholder="Ej. lo que necesitas, medidas, estilo o alguna preferencia" formControlName="notes"></textarea>
+          <textarea class="w-full resize-none bg-transparent text-base outline-none" rows="2" placeholder="Ej. lo que necesitas, medidas, estilo o alguna preferencia" formControlName="notes"></textarea>
         </label>
         <!-- Fotos para cotizar: se guardan con la cita y van como enlace en el WhatsApp al negocio. -->
         <div class="rounded-xl border border-dashed border-line-strong bg-surface px-3 py-3">
@@ -554,7 +596,7 @@
           <div class="mt-2 flex flex-wrap gap-2">
             @for (photo of refPhotos(); track $index) {
               <div class="relative">
-                <img [src]="photo" alt="Foto de referencia {{ $index + 1 }}" class="h-20 w-20 rounded-xl object-cover" />
+                <img loading="lazy" decoding="async" [src]="photo" alt="Foto de referencia {{ $index + 1 }}" class="h-20 w-20 rounded-xl object-cover" />
                 <button
                   type="button"
                   class="btn btn-primary w-6 justify-center"
@@ -579,7 +621,7 @@
       @if (showOptional()) {
         <label class="rounded-xl border border-line bg-surface px-3 py-2">
           <span class="block text-xs text-muted">Correo (opcional)</span>
-          <input class="w-full bg-transparent text-sm outline-none" type="email" formControlName="client_email" autocomplete="email" />
+          <input class="w-full bg-transparent text-base outline-none" type="email" formControlName="client_email" autocomplete="email" />
         </label>
         @if (emailError(); as message) {
           <p class="text-sm text-[var(--nx-bad-fg)]">{{ message }}</p>
@@ -587,11 +629,11 @@
         @if (!selectedService()?.variable_price) {
           <label class="rounded-xl border border-line bg-surface px-3 py-2">
             <span class="block text-xs text-muted">Nota para el negocio (opcional)</span>
-            <textarea class="w-full resize-none bg-transparent text-sm outline-none" rows="2" formControlName="notes"></textarea>
+            <textarea class="w-full resize-none bg-transparent text-base outline-none" rows="2" formControlName="notes"></textarea>
           </label>
         }
       } @else {
-        <button type="button" class="min-h-11 self-start text-sm underline underline-offset-2" style="color: var(--booking-primary)" (click)="showOptional.set(true)">
+        <button type="button" class="min-h-11 self-start text-sm underline underline-offset-2" style="color: var(--booking-ink, var(--booking-primary))" (click)="showOptional.set(true)">
           + Agregar correo o nota
         </button>
       }
@@ -601,7 +643,7 @@
           <label class="min-w-0 flex-1 rounded-xl border border-line bg-surface px-3 py-2">
             <span class="block text-xs text-muted">¿Tienes un cupón?</span>
             <input
-              class="w-full bg-transparent text-sm uppercase outline-none"
+              class="w-full bg-transparent text-base uppercase outline-none"
               maxlength="40"
               autocomplete="off"
               placeholder="Código"
@@ -618,7 +660,7 @@
           <p class="text-sm text-ink-soft" role="status">Cupón {{ couponChecked() }}: <span class="nums">{{ couponPercent() }}%</span> de descuento.</p>
         }
       } @else {
-        <button type="button" class="min-h-11 self-start text-sm underline underline-offset-2" style="color: var(--booking-primary)" (click)="couponOpen.set(true)">
+        <button type="button" class="min-h-11 self-start text-sm underline underline-offset-2" style="color: var(--booking-ink, var(--booking-primary))" (click)="couponOpen.set(true)">
           ¿Tienes un cupón?
         </button>
       }
@@ -648,7 +690,7 @@
           } @else if (cash.deposit) {
             <div class="flex justify-between gap-3">
               <span>Pagas hoy (anticipo)</span>
-              <span class="font-semibold" style="color: var(--booking-primary)">{{ formatPrice(cash.deposit) }}</span>
+              <span class="font-semibold" style="color: var(--booking-ink, var(--booking-primary))">{{ formatPrice(cash.deposit) }}</span>
             </div>
             <div class="mt-1 flex justify-between gap-3 text-ink-soft">
               <span>En la {{ copy().visit.toLowerCase() }}</span>
@@ -805,6 +847,13 @@
           </a>
         }
       </div>
+      <button type="button" class="btn btn-secondary mt-2 w-full justify-center" (click)="shareVisit(appointment)">Compartir mi {{ copy().visit.toLowerCase() }}</button>
+      @if (brand()?.cancel_policy; as policy) {
+        <div class="mt-4 w-full rounded-2xl bg-canvas px-4 py-3 text-left text-sm">
+          <p class="font-medium">Política de cancelación</p>
+          <p class="mt-1 whitespace-pre-line text-muted">{{ policy }}</p>
+        </div>
+      }
       <p class="mt-2 text-sm text-muted">
         Te avisa un día y dos horas antes.
         <a class="underline" [href]="googleCalendarHref(appointment)" target="_blank" rel="noopener">Usar Google Calendar</a>
@@ -814,7 +863,7 @@
           <p class="font-medium">¿Necesitas cambiarla o cancelarla?</p>
           <p class="mt-1 text-muted">Guarda este enlace; ahí ves tu {{ copy().visit.toLowerCase() }}, la cambias o la cancelas.</p>
           <div class="mt-2 flex items-center gap-3">
-            <a class="inline-flex min-h-11 items-center font-medium underline" style="color: var(--booking-primary)" [href]="link">Ver mi {{ copy().visit.toLowerCase() }}</a>
+            <a class="inline-flex min-h-11 items-center font-medium underline" style="color: var(--booking-ink, var(--booking-primary))" [href]="link">Ver mi {{ copy().visit.toLowerCase() }}</a>
             <button type="button" class="min-h-11 px-2 text-sm underline" (click)="copyManage(link)">{{ manageCopied() ? 'Enlace copiado' : 'Copiar enlace' }}</button>
           </div>
         </div>
@@ -862,7 +911,7 @@
             {{ info.detail }}@if (info.who) { · con {{ info.who }}}
           </p>
           @if (info.when && step() !== 3) {
-            <p class="truncate font-medium first-letter:uppercase" style="color: var(--booking-primary)">{{ info.when }}</p>
+            <p class="truncate font-medium first-letter:uppercase" style="color: var(--booking-ink, var(--booking-primary))">{{ info.when }}</p>
           }
         </div>
         @if (step() > 1) {

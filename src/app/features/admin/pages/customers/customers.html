@@ -52,6 +52,8 @@
 
   @if (loadError(); as message) {
     <p role="alert" class="field-error">{{ message }}</p>
+  } @else if (!loaded()) {
+    <app-skeleton [rows]="7" />
   } @else if (loaded() && clients().length === 0) {
     <div class="empty">
       <mat-icon>person_search</mat-icon>
@@ -89,6 +91,20 @@
         <input class="input pl-10!" type="search" placeholder="Buscar por nombre o teléfono" [ngModel]="query()" (ngModelChange)="query.set($event)" />
       </label>
 
+      @if (canBulk() && visible().length > 1) {
+        <div class="mt-3 flex flex-wrap items-center gap-2">
+          <button type="button" class="btn btn-secondary" [attr.aria-pressed]="selecting()" (click)="toggleSelecting()">
+            <mat-icon>{{ selecting() ? 'close' : 'checklist' }}</mat-icon>
+            {{ selecting() ? 'Salir de seleccionar' : 'Seleccionar varios' }}
+          </button>
+          @if (selecting()) {
+            <button type="button" class="btn btn-ghost" (click)="selectAllVisible()">
+              {{ selectedRows().length === visible().length ? 'Quitar todos' : 'Seleccionar los ' + visible().length + ' de la lista' }}
+            </button>
+          }
+        </div>
+      }
+
       @if (allTags().length) {
         <div class="mt-3 flex flex-wrap gap-2" aria-label="Filtrar por etiqueta">
           @for (tag of allTags(); track tag) {
@@ -117,12 +133,27 @@
       }
 
       @if (visible().length === 0) {
-        <p class="py-8 text-center text-sm text-muted">Nadie coincide con esa búsqueda.</p>
+        <div class="flex flex-col items-center gap-2 py-8 text-center">
+          <p class="max-w-sm text-sm text-muted">{{ emptyText() }}</p>
+          @if (query().trim() || filter() !== 'all') {
+            <button type="button" class="btn btn-secondary" (click)="clearFilters()">Ver todos</button>
+          }
+        </div>
       } @else {
         <ul class="mt-2 divide-y divide-line">
           @for (client of visible(); track client.id) {
             <li class="flex items-center gap-2">
-              <button type="button" class="row-hover -mx-2 flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-3 text-left" (click)="open(client.id)">
+              <button
+                type="button"
+                class="row-hover -mx-2 flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-3 text-left"
+                [class.bg-accent-soft]="selecting() && isSelected(client.id)"
+                [attr.role]="selecting() ? 'checkbox' : null"
+                [attr.aria-checked]="selecting() ? isSelected(client.id) : null"
+                (click)="selecting() ? toggleOne(client.id) : open(client.id)"
+              >
+                @if (selecting()) {
+                  <mat-icon class="shrink-0" [class.text-accent]="isSelected(client.id)" [class.text-muted]="!isSelected(client.id)" aria-hidden="true">{{ isSelected(client.id) ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+                }
                 <span class="avatar">{{ initials(client.full_name) }}</span>
                 <span class="min-w-0 flex-1">
                   <span class="block truncate text-sm font-medium text-ink">{{ client.full_name }}</span>
@@ -171,6 +202,52 @@
     </section>
   }
 </section>
+
+<!-- Barra de acciones en bloque: aparece cuando hay alguien seleccionado. bottom-20 en celular para no tapar la navegación inferior. -->
+@if (selecting() && selectedRows().length > 0) {
+  <div class="fixed inset-x-3 bottom-20 z-30 md:bottom-6 md:left-[calc(15rem+1.5rem)] md:right-6" role="region" aria-label="Acciones para los seleccionados">
+    <div class="mx-auto max-w-3xl rounded-2xl border border-line bg-surface p-3 shadow-[0_18px_50px_rgba(30,27,30,0.25)]">
+      @if (bulkPanel() === 'tag') {
+        <p class="text-sm font-semibold text-ink">Etiqueta para {{ selectedRows().length }} {{ selectedRows().length === 1 ? copy.text().client.toLowerCase() : copy.text().clients.toLowerCase() }}</p>
+        @if (allTags().length) {
+          <div class="mt-2 flex flex-wrap gap-2">
+            @for (tag of allTags(); track tag) {
+              <button type="button" class="chip" [disabled]="bulkBusy()" (click)="applyBulkTag(tag)">{{ tag }}</button>
+            }
+          </div>
+        }
+        <form class="mt-2 flex gap-2" (submit)="$event.preventDefault(); applyBulkTag(bulkTag)">
+          <input class="input min-w-0 flex-1" name="bulkTag" maxlength="30" placeholder="Etiqueta nueva, por ejemplo VIP" autocomplete="off" [(ngModel)]="bulkTag" />
+          <button type="submit" class="btn btn-primary" [disabled]="bulkBusy() || !bulkTag.trim()">{{ bulkBusy() ? 'Guardando…' : 'Poner' }}</button>
+        </form>
+        @if (bulkError(); as message) {
+          <p class="field-error mt-2" role="alert">{{ message }}</p>
+        }
+        <button type="button" class="btn btn-ghost mt-2" (click)="bulkPanel.set(null)">Volver</button>
+      } @else if (bulkPanel() === 'chat' && chatCurrent(); as person) {
+        <p class="text-sm font-semibold text-ink"><span class="nums">{{ chatIndex() + 1 }}</span> de <span class="nums">{{ chatTotal() }}</span>: {{ person.full_name }}</p>
+        <p class="field-hint">WhatsApp no deja mandar a varios a la vez. Abre cada chat, envía y regresa aquí para el siguiente.</p>
+        <div class="mt-2 flex flex-wrap gap-2" role="group" aria-label="Mensaje">
+          @for (kind of chatKinds; track kind.key) {
+            <button type="button" class="chip" [class.chip-on]="chatKind() === kind.key" [attr.aria-pressed]="chatKind() === kind.key" (click)="chatKind.set(kind.key)">{{ kind.label }}</button>
+          }
+        </div>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <a class="btn btn-whatsapp" [href]="chatHref(person)" target="_blank" rel="noopener" (click)="chatSent()">Abrir WhatsApp</a>
+          <button type="button" class="btn btn-secondary" (click)="chatNext()">Saltar</button>
+          <button type="button" class="btn btn-ghost" (click)="bulkPanel.set(null)">Terminar</button>
+        </div>
+      } @else {
+        <div class="flex flex-wrap items-center gap-2">
+          <p class="min-w-0 flex-1 text-sm"><span class="nums font-semibold text-ink">{{ selectedRows().length }}</span> seleccionado{{ selectedRows().length === 1 ? '' : 's' }}</p>
+          <button type="button" class="btn btn-secondary" (click)="openBulkTag()"><mat-icon>sell</mat-icon>Etiquetar</button>
+          <button type="button" class="btn btn-whatsapp" (click)="startChat()">WhatsApp</button>
+          <button type="button" class="btn btn-ghost" (click)="clearSelection()">Quitar</button>
+        </div>
+      }
+    </div>
+  </div>
+}
 
 @if (card(); as person) {
   <div class="fixed inset-0 z-30 bg-ink/20" (click)="close()" aria-hidden="true"></div>

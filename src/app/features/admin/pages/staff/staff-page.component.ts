@@ -573,6 +573,7 @@ export class StaffPageComponent {
               items.map((item) => (item.id === member.id ? { ...item, is_active: false } : item)),
             );
             this.pendingId.set(null);
+            this.toasts.show('Pausado: ya no recibe citas.');
           },
           error: onError,
         });
@@ -585,6 +586,7 @@ export class StaffPageComponent {
         next: (updated) => {
           this.staff.update((items) => items.map((item) => (item.id === member.id ? updated : item)));
           this.pendingId.set(null);
+          this.toasts.show('Activado: ya puede recibir citas.');
         },
         error: onError,
       });

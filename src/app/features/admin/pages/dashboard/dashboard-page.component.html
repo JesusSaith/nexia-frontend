@@ -108,6 +108,7 @@
           <a routerLink="/admin/agenda" class="btn btn-secondary mt-1">Ir a la agenda</a>
         </div>
       } @else {
+        <p class="mb-3 text-base font-medium text-ink" role="status">{{ incomeLine() }}</p>
         <!-- Las tres preguntas de la dueña, con su respuesta y a dónde ir. -->
         @if (glance(); as g) {
           <section class="card mb-4 p-4!" aria-label="Resumen de tu negocio">
@@ -433,7 +434,13 @@
           <p class="nums mt-3 text-3xl font-semibold tracking-tight text-ink">{{ headline() }}</p>
           <p class="mt-1 text-sm text-muted">{{ chartCaption() }}</p>
           @if (bars().length === 0) {
-            <p class="py-8 text-center text-sm text-muted">Nada en este periodo.</p>
+            <p class="py-8 text-center text-sm text-muted">
+              @if (view() === 'expenses') {
+                Aún no anotas gastos en este periodo. Agrégalos más abajo para saber cuánto te queda de verdad.
+              } @else {
+                Nada en este periodo.
+              }
+            </p>
           } @else if (view() === 'expenses') {
             <div class="mt-4 flex flex-1 flex-wrap items-center gap-6">
               <div class="relative mx-auto h-36 w-36 shrink-0 sm:mx-0" role="img" aria-label="Reparto de gastos">

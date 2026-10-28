@@ -1,4 +1,6 @@
+import { scrollBehavior } from '@core/motion';
 import { HttpErrorResponse } from '@angular/common/http';
+import { SaveStateComponent } from '@shared/components/save-state/save-state';
 import { Component, DestroyRef, HostListener, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -36,6 +38,7 @@ const DAY_LABELS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sába
     MatSlideToggleModule,
     PickFieldComponent,
     TimeFieldComponent,
+    SaveStateComponent,
   ],
   templateUrl: './schedules-page.component.html',
 })
@@ -295,7 +298,7 @@ export class SchedulesPageComponent {
     if (staffId !== this.staffId()) {
       await this.pickStaff(staffId);
     }
-    setTimeout(() => document.getElementById(`day-${dayOfWeek}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
+    setTimeout(() => document.getElementById(`day-${dayOfWeek}`)?.scrollIntoView({ behavior: scrollBehavior(), block: 'center' }), 300);
   }
 
   /** Citas próximas de esta persona que el horario nuevo deja fuera. */
