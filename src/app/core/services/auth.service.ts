@@ -8,7 +8,7 @@ import { CurrentUser, LoginRequest, RegisterRequest } from '../models/user.model
 const SESSION_PROBE_TIMEOUT_MS = 8_000;
 
 /** Páginas que abre cualquier persona sin cuenta (reservar, ver su cita, avisos legales): ahí no hace falta preguntar por la sesión. */
-const PUBLIC_PATH = /^\/(?:terminos|privacidad|s\/[^/]+|[^/]+\/(?:book|manage|privacidad))(?:[/?#]|$)/;
+const PUBLIC_PATH = /^\/(?:terminos|privacidad|s\/[^/]+|(?!(?:admin|auth|super-admin|cliente)\/)[^/]+\/(?:book|manage|privacidad))(?:[/?#]|$)/;
 
 export function isPublicPath(path: string): boolean {
   return PUBLIC_PATH.test(path);
