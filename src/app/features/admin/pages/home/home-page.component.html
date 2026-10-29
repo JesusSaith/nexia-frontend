@@ -8,18 +8,13 @@
   } @else if (isLoading()) {
     <div class="animate-pulse space-y-4" aria-label="Cargando">
       <div class="h-8 w-48 rounded-lg bg-line"></div>
-      <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <div class="h-20 rounded-2xl bg-line"></div>
-        <div class="h-20 rounded-2xl bg-line"></div>
-        <div class="h-20 rounded-2xl bg-line"></div>
-        <div class="h-20 rounded-2xl bg-line"></div>
-      </div>
+      <div class="h-24 rounded-2xl bg-line"></div>
       <div class="h-64 rounded-2xl bg-line"></div>
     </div>
   } @else {
     <header class="page-head">
       <div>
-        <h1>Inicio</h1>
+        <h1>{{ greeting() }}</h1>
         <p class="first-letter:uppercase">{{ todayLabel }}</p>
       </div>
       <a routerLink="/admin/agenda" [queryParams]="{ nueva: 1 }" class="btn btn-primary">
@@ -36,7 +31,7 @@
     }
 
     <!-- Indicadores del día: cada uno lleva a donde se resuelve. -->
-    <div class="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div class="stat-group mb-6 grid-cols-2 lg:grid-cols-4">
       <a routerLink="/admin/agenda" [queryParams]="{ vista: 'day' }" class="stat">
         <span class="stat-icon stat-accent"><mat-icon>event</mat-icon></span>
         <span class="min-w-0">
@@ -54,6 +49,7 @@
           }
         </span>
       </a>
+      @if (dayBrief().unconfirmed || dayBrief().todos) {
       <button type="button" class="stat text-left" [class.stat-quiet]="!dayBrief().unconfirmed" (click)="scrollTo('hoy')">
         <span class="stat-icon" [class.stat-warn]="dayBrief().unconfirmed" [class.stat-idle]="!dayBrief().unconfirmed">
           <mat-icon>{{ dayBrief().unconfirmed ? 'mark_chat_unread' : 'done_all' }}</mat-icon>
@@ -72,15 +68,15 @@
           <span class="stat-label block">Por resolver</span>
         </span>
       </button>
-    </div>
-
-    <!-- Lo que se hace todos los días, a un toque. -->
-    <div class="mb-6 flex flex-wrap gap-2">
-      <a routerLink="/admin/clientes" class="btn btn-secondary"><mat-icon>groups</mat-icon>{{ copy.text().clients }}</a>
-      <button type="button" class="btn btn-secondary" (click)="copyLink()">
-        <mat-icon>{{ linkCopied() ? 'check' : 'link' }}</mat-icon>{{ linkCopied() ? 'Enlace copiado' : 'Copiar mi enlace de reservas' }}
-      </button>
-      <a routerLink="/admin/dashboard" class="btn btn-secondary"><mat-icon>insights</mat-icon>Ver reportes</a>
+      } @else {
+        <div class="stat col-span-2">
+          <span class="stat-icon stat-ok"><mat-icon>done_all</mat-icon></span>
+          <span class="min-w-0">
+            <span class="stat-value block">Todo al día</span>
+            <span class="stat-label block">Nada por confirmar ni por resolver</span>
+          </span>
+        </div>
+      }
     </div>
 
     <!-- Lo urgente primero: hay un cliente esperando respuesta. -->
@@ -186,7 +182,7 @@
     <!-- Dos columnas independientes: cada una apila sus tarjetas y ninguna deja hueco bajo la más corta. -->
     <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
       <div class="flex min-w-0 flex-col gap-6">
-        <section id="hoy" class="card scroll-mt-24">
+        <section id="hoy" class="card scroll-mt-24 pb-3!">
           <div class="flex items-center justify-between gap-3">
             <div class="card-head">
               <span class="sec-icon"><mat-icon>today</mat-icon></span>
@@ -197,9 +193,9 @@
                 }
               </div>
             </div>
-            <a routerLink="/admin/agenda" [queryParams]="{ vista: 'day' }" class="btn btn-ghost">Ver agenda</a>
+            <a routerLink="/admin/agenda" [queryParams]="{ vista: 'day' }" class="btn btn-ghost text-(--primary-text)!">Ver agenda<mat-icon>chevron_right</mat-icon></a>
           </div>
-          @if (today().length) {
+          @if (todayDone() > 0) {
             <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-canvas">
               <div class="h-full rounded-full transition-all" [class.bg-accent]="todayDone() < today().length" [class.bg-(--nx-ok-fg)]="todayDone() === today().length" [style.width.%]="(todayDone() / today().length) * 100"></div>
             </div>
@@ -210,11 +206,11 @@
               <a routerLink="/admin/negocio" class="btn btn-secondary">Compartir mi enlace</a>
             </div>
           } @else {
-            <ul class="mt-3 divide-y divide-line">
+            <ul class="mt-2 divide-y divide-line">
               @for (item of today(); track item.id) {
                 @let done = item.status === 'completed';
                 @let isNow = current() === item.id;
-                <li class="flex items-center gap-3 py-2.5" [class.opacity-60]="done">
+                <li class="flex items-center gap-3 py-2" [class.opacity-60]="done">
                   <a
                     class="row-hover -mx-2 flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-1"
                     routerLink="/admin/agenda"
@@ -295,23 +291,25 @@
             }
             <ul class="mt-2 divide-y divide-line">
               @for (notice of shownNotices(); track notice.id) {
-                <li class="py-1" [class.opacity-60]="!notice.unseen">
-                  <button type="button" class="row-hover flex min-h-11 w-full items-start gap-2 rounded-lg px-1 py-2 text-left" [attr.aria-label]="'Ver el detalle: ' + notice.message" (click)="openNotice(notice)">
+                <li class="flex flex-wrap items-center gap-x-2 py-1">
+                  <button type="button" class="row-hover flex min-h-11 min-w-0 flex-1 items-start gap-2 rounded-lg px-1 py-2 text-left" [attr.aria-label]="'Ver el detalle: ' + notice.message" (click)="openNotice(notice)">
                     <span class="flex min-w-0 flex-1 items-start gap-2">
                       @if (notice.unseen) {
                         <span class="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-accent" aria-label="Nuevo"></span>
                       }
-                      <span class="min-w-0 text-sm text-ink">
+                      <span class="min-w-0 text-sm" [class.text-ink]="notice.unseen" [class.text-ink-soft]="!notice.unseen">
                         {{ notice.message }}@if (notice.count > 1) { <span class="badge badge-neutral ml-1">{{ notice.count }} veces</span> }
                         <span class="nums mt-0.5 block text-muted">{{ noticeWhen(notice.created_at) }}</span>
                       </span>
                     </span>
-                    <mat-icon class="shrink-0 text-muted" aria-hidden="true">chevron_right</mat-icon>
-                  </button>
-                  <div class="flex flex-wrap items-center gap-3 px-1 text-sm">
-                    @if (notice.appointment_id; as citaId) {
-                      <a class="inline-flex min-h-11 items-center font-medium text-ink-soft hover:text-ink" [routerLink]="['/admin/agenda']" [queryParams]="{ cita: citaId }">{{ noticeAction(notice.kind) }}</a>
+                    @if (!notice.appointment_id) {
+                      <mat-icon class="shrink-0 text-muted" aria-hidden="true">chevron_right</mat-icon>
                     }
+                  </button>
+                  @if (notice.appointment_id; as citaId) {
+                    <a class="btn btn-ghost shrink-0 px-3! text-(--primary-text)!" [routerLink]="['/admin/agenda']" [queryParams]="{ cita: citaId }">{{ noticeAction(notice.kind) }}<mat-icon>chevron_right</mat-icon></a>
+                  }
+                  <div class="flex w-full flex-wrap items-center gap-3 px-1 text-sm empty:hidden">
                     @for (person of notice.data?.people ?? []; track person.phone) {
                       <a class="inline-flex min-h-11 items-center font-medium text-(--nx-ok-fg) hover:underline" [href]="waitWhatsapp(notice, person)" target="_blank" rel="noopener">WhatsApp a {{ person.name.split(' ')[0] }}</a>
                     }
@@ -331,7 +329,7 @@
 
       <div class="flex min-w-0 flex-col gap-6">
         @if (shows('manana')) {
-        <section class="card">
+        <section class="card pb-3!">
           <div class="card-head">
             <span class="sec-icon"><mat-icon>event_upcoming</mat-icon></span>
             <div>
@@ -449,19 +447,37 @@
           <a routerLink="/admin/dashboard" class="card row-hover block">
             <div class="card-head">
               <span class="sec-icon"><mat-icon>trending_up</mat-icon></span>
-              <h2 class="card-title">Esta semana</h2>
+              <h2 class="card-title">Lo que va de la semana</h2>
               <mat-icon class="ml-auto text-muted">chevron_right</mat-icon>
             </div>
             <p class="mt-3 flex flex-wrap items-baseline gap-x-2">
               <span class="nums text-2xl font-semibold text-ink">{{ pesos(week.total) }}</span>
               @if (week.change !== null) {
                 <span class="nums text-sm font-medium" [class]="week.change >= 0 ? 'text-(--nx-ok-fg)' : 'text-(--nx-bad-fg)'">
-                  {{ week.change >= 0 ? '↑' : '↓' }} {{ week.change >= 0 ? week.change : -week.change }}% vs. la semana pasada
+                  {{ week.change >= 0 ? '↑' : '↓' }} {{ week.change >= 0 ? week.change : -week.change }}%
                 </span>
               }
             </p>
-            <p class="nums mt-1 text-sm text-muted">{{ week.count }} {{ week.count === 1 ? 'cita cobrada' : 'citas cobradas' }} · Ver reportes</p>
+            <p class="nums mt-1 text-sm text-muted">
+              {{ week.count }} {{ week.count === 1 ? 'cita cobrada' : 'citas cobradas' }}@if (week.change !== null) { · frente a los mismos días de la semana pasada }
+            </p>
           </a>
+        }
+
+        @if (bookingLink()) {
+          <section class="card">
+            <div class="card-head">
+              <span class="sec-icon"><mat-icon>link</mat-icon></span>
+              <div>
+                <h2 class="card-title">Tu enlace de reservas</h2>
+                <p class="text-sm text-muted">Compártelo para que reserven solos</p>
+              </div>
+            </div>
+            <p class="mt-3 rounded-lg bg-canvas px-3 py-2.5 text-sm break-all text-ink-soft select-all">{{ bookingLink() }}</p>
+            <button type="button" class="btn btn-secondary mt-3 w-full" (click)="copyLink()">
+              <mat-icon>{{ linkCopied() ? 'check' : 'content_copy' }}</mat-icon>{{ linkCopied() ? 'Enlace copiado' : 'Copiar enlace' }}
+            </button>
+          </section>
         }
       </div>
     </div>

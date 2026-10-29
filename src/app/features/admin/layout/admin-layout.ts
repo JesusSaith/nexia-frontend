@@ -16,6 +16,9 @@ import { UserRole } from '@core/models/user.model';
 import { AuthService } from '@core/services/auth.service';
 import { BusinessCopy } from '@core/business-copy';
 import { BookingService } from '@core/services/booking.service';
+import { AppointmentsService } from '@core/services/appointments.service';
+import { BusinessClock } from '@core/business-clock';
+import { attendanceState } from '@core/appointment-progress';
 import { TabAlerts } from '@core/services/tab-alerts.service';
 import { ConnectionService } from '@core/services/connection.service';
 import { PushService } from '@core/services/push.service';
@@ -127,6 +130,14 @@ export class AdminLayoutComponent {
   });
   protected readonly canTakeBookings = computed(() => this.readiness() !== null && this.missingToBook().length === 0);
   private readinessAt = 0;
+  private countsAt = 0;
+  private readonly appointmentsApi = inject(AppointmentsService);
+  private readonly clock = inject(BusinessClock);
+  /** Citas de hoy que aún no confirman asistencia (punto en Agenda). */
+  protected readonly pendingToday = signal(0);
+  /** Cumpleaños de hoy sin felicitar (punto en Clientes). */
+  protected readonly birthdaysToday = signal(0);
+  private touchX = 0;
   private seenNotice = Number(readSeen() || 0);
   private toastedNotice = this.seenNotice;
   private toastTimer: ReturnType<typeof setTimeout> | null = null;
@@ -243,6 +254,7 @@ export class AdminLayoutComponent {
         .subscribe(() => {
           if (!this.authService.isStaff()) {
             this.refreshReadiness();
+            this.refreshCounts();
           }
           if (this.router.url.startsWith('/admin/home')) {
             this.seenNotice = Math.max(this.seenNotice, this.toastedNotice);
@@ -251,6 +263,50 @@ export class AdminLayoutComponent {
             this.tabAlerts.count.set(0);
           }
         });
+    }
+  }
+
+  /** Número pendiente de cada enlace del menú; 0 no muestra nada. */
+  protected countFor(path: string): number {
+    if (path === '/admin/home') {
+      return this.unread();
+    }
+    if (path === '/admin/agenda') {
+      return this.pendingToday();
+    }
+    return path === '/admin/clientes' ? this.birthdaysToday() : 0;
+  }
+
+  /** Cada minuto como máximo, al cambiar de pantalla. Si falla, el menú simplemente no muestra números. */
+  private refreshCounts(): void {
+    const now = Date.now();
+    if (now - this.countsAt < 60_000 || this.authService.isSuperAdmin()) {
+      return;
+    }
+    this.countsAt = now;
+    const day = this.clock.now();
+    const iso = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+    this.appointmentsApi
+      .getAppointments({ start_date: iso, end_date: iso })
+      .pipe(catchError(() => of([])), takeUntilDestroyed(this.destroyRef))
+      .subscribe((rows) =>
+        this.pendingToday.set(rows.filter((item) => item.status === 'scheduled' && item.starts_at.slice(0, 10) === iso && attendanceState(item) === 'pending').length),
+      );
+    this.bookingApi
+      .getBirthdays(0)
+      .pipe(catchError(() => of([])), takeUntilDestroyed(this.destroyRef))
+      .subscribe((rows) => this.birthdaysToday.set(rows.filter((row) => row.days_until === 0 && !row.congratulated).length));
+  }
+
+  /** Celular: deslizar el cajón hacia la izquierda lo cierra. */
+  protected railTouchStart(event: TouchEvent): void {
+    this.touchX = event.changedTouches[0]?.clientX ?? 0;
+  }
+
+  protected railTouchEnd(event: TouchEvent): void {
+    const end = event.changedTouches[0]?.clientX ?? 0;
+    if (this.isHandset() && this.touchX - end > 60) {
+      this.closeSidebar();
     }
   }
 

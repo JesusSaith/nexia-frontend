@@ -6,6 +6,8 @@
     [disableClose]="!isHandset()"
     (closedStart)="closeSidebar()"
     class="w-60"
+    (touchstart)="railTouchStart($event)"
+    (touchend)="railTouchEnd($event)"
   >
     <nav class="nx-rail" aria-label="Secciones">
       <div class="flex items-center gap-3 px-4 pb-2 pt-5">
@@ -25,11 +27,11 @@
       @if (readiness() !== null) {
         <a
           routerLink="/admin/home"
-          class="mx-3 mb-3 flex min-h-11 items-center gap-2 rounded-xl border border-[var(--nx-rail-line)] px-3 py-2 text-sm text-[var(--nx-rail-ink)]"
+          class="nx-rail-status"
           (click)="onNavigate()"
         >
           <span class="h-2.5 w-2.5 shrink-0 rounded-full" [style.background]="canTakeBookings() ? 'var(--nx-ok-fg)' : 'var(--nx-warn-fg)'" aria-hidden="true"></span>
-          <span class="min-w-0 flex-1">{{ canTakeBookings() ? 'Tu página recibe citas' : 'Aún no recibes citas' }}</span>
+          <span class="min-w-0 flex-1 truncate">{{ canTakeBookings() ? 'Tu página recibe citas' : 'Aún no recibes citas' }}</span>
           @if (!canTakeBookings()) {
             <span class="text-xs text-[var(--nx-rail-soft)]">Falta{{ missingToBook().length === 1 ? '' : 'n' }} {{ missingToBook().length }}</span>
           }
@@ -37,11 +39,15 @@
       }
 
       @if (canSearch()) {
-        <button type="button" class="nx-rail-btn mx-3 mb-2 w-auto border border-[var(--nx-rail-line)]" (click)="openSearch()">
-          <mat-icon>search</mat-icon>
-          <span class="flex-1">Buscar</span>
-          <span class="text-xs">Ctrl K</span>
-        </button>
+        <div class="mx-3 mb-2 flex items-center gap-2">
+          <button type="button" class="nx-rail-btn min-w-0 flex-1 border border-[var(--nx-rail-line)]" (click)="openSearch()">
+            <mat-icon>search</mat-icon>
+            <span class="flex-1">Buscar</span>
+          </button>
+          <button type="button" class="nx-rail-btn w-11 shrink-0 justify-center px-0" aria-label="Ayuda" (click)="openHelp()">
+            <mat-icon>help</mat-icon>
+          </button>
+        </div>
       }
 
       <div class="flex-1 overflow-y-auto px-3 pb-4">
@@ -61,8 +67,8 @@
             >
               <mat-icon>{{ link.icon }}</mat-icon>
               <span class="flex-1 truncate">{{ link.label }}</span>
-              @if (link.path === '/admin/home' && unread() > 0) {
-                <span class="rounded-full px-1.5 text-xs font-semibold leading-4 text-white" style="background: var(--primary)">{{ unread() }}</span>
+              @if (countFor(link.path); as count) {
+                <span class="nx-rail-count" [attr.aria-label]="count + ' pendientes'">{{ count }}</span>
               }
             </a>
           }
@@ -70,17 +76,6 @@
       </div>
 
       <div class="nx-rail-foot">
-        @if (canSearch()) {
-          <button type="button" class="nx-rail-btn" (click)="openHelp()">
-            <mat-icon>help</mat-icon>
-            <span class="flex-1">Ayuda</span>
-          </button>
-        }
-        <button type="button" class="nx-rail-btn" [matMenuTriggerFor]="themeMenu" [attr.aria-label]="'Tema: ' + (isDark() ? 'oscuro' : 'claro')">
-          <mat-icon>{{ isDark() ? 'dark_mode' : 'light_mode' }}</mat-icon>
-          <span class="flex-1">Tema</span>
-          <span class="text-xs">{{ isDark() ? 'Oscuro' : 'Claro' }}</span>
-        </button>
         <button type="button" class="nx-rail-btn" [matMenuTriggerFor]="userMenu">
           <span class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[var(--nx-rail-hover)] text-xs font-semibold text-[var(--nx-rail-ink)]">
             {{ (currentUser()?.fullName || '?').slice(0, 1) }}
@@ -110,6 +105,10 @@
     <button mat-menu-item type="button" disabled>
       <mat-icon>badge</mat-icon>
       <span>{{ roleLabel() }}</span>
+    </button>
+    <button mat-menu-item type="button" [matMenuTriggerFor]="themeMenu">
+      <mat-icon>{{ isDark() ? 'dark_mode' : 'light_mode' }}</mat-icon>
+      <span>Apariencia: {{ isDark() ? 'oscura' : 'clara' }}</span>
     </button>
     @if (canPush() && push.available()) {
       <button mat-menu-item type="button" (click)="togglePush()" [disabled]="push.busy() || push.state() === 'blocked'">

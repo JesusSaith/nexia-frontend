@@ -62,7 +62,7 @@
   --nx-rail-hover: #2b2725;
   --nx-card-shadow: 0 1px 2px rgb(28 26 25 / 0.05), 0 2px 6px rgb(28 26 25 / 0.04);
   /* Color de marca para TEXTO: oscurecido (claro) o aclarado (oscuro) para llegar a 4.5:1 con cualquier color de negocio. */
-  --primary-text: color-mix(in srgb, var(--primary) 75%, #000);
+  --primary-text: color-mix(in srgb, var(--primary) 58%, #000);
   /* Borde de campos e interruptores apagados: ≥ 3:1 contra el fondo (los bordes decorativos siguen con --color-line). */
   --color-control: #857e77;
 }
@@ -183,7 +183,7 @@ body {
 /* ---------- Componentes base ---------- */
 .nums { font-variant-numeric: tabular-nums; }
 
-.page-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 0.75rem; margin-bottom: 1.25rem; }
+.page-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 0.75rem; margin-bottom: 1.5rem; }
 .page-head h1 { font-size: 1.5rem; line-height: 2rem; font-weight: 600; letter-spacing: -0.015em; color: var(--color-ink); }
 .page-head p { margin-top: 0.125rem; font-size: 0.9375rem; color: var(--color-muted); }
 
@@ -210,6 +210,10 @@ body {
 
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; height: 2.75rem; padding: 0 1.125rem; border-radius: var(--radius-lg); font-size: 0.9375rem; font-weight: 500; border: 1px solid transparent; transition: background-color .15s, border-color .15s; white-space: nowrap; }
 .btn:disabled { opacity: .5; pointer-events: none; }
+/* Pulsado suave: se nota el toque en el celular sin brincos. */
+.btn { -webkit-tap-highlight-color: transparent; }
+.btn:active:not(:disabled) { transform: scale(0.98); filter: brightness(0.96); }
+a.stat:active, button.stat:active { transform: scale(0.985); }
 .btn-primary { background: var(--color-ink); color: var(--color-surface); }
 .btn-primary:hover { background: var(--nx-primary-hover); }
 .btn-secondary { background: var(--color-surface); color: var(--color-ink); border-color: var(--color-line-strong); }
@@ -235,6 +239,11 @@ body {
 /* Tarjeta de número (Inicio, Clientes): ícono de color + cifra + etiqueta. */
 .stat { display: flex; align-items: center; gap: 0.875rem; background: var(--color-surface); border: 1px solid var(--color-line); border-radius: var(--radius-2xl); padding: 1rem; box-shadow: var(--nx-card-shadow); transition: border-color .15s; }
 a.stat:hover { border-color: var(--color-line-strong); }
+/* Cifras relacionadas en una sola tarjeta, separadas por una línea fina (en vez de 4 cajas con borde). */
+.stat-group { display: grid; gap: 1px; overflow: hidden; background: var(--color-line); border: 1px solid var(--color-line); border-radius: var(--radius-2xl); box-shadow: var(--nx-card-shadow); }
+.stat-group > .stat { align-items: flex-start; }
+.stat-group > * { background: var(--color-surface); border: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
+a.stat-group > :hover, .stat-group > a:hover { background: var(--color-canvas); }
 .stat-icon { display: grid; place-items: center; flex-shrink: 0; width: 2.5rem; height: 2.5rem; border-radius: 0.75rem; }
 .stat-icon .mat-icon { width: 20px; height: 20px; font-size: 20px; }
 .stat-value { font-size: 1.5rem; line-height: 1.75rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--color-ink); }
@@ -256,14 +265,24 @@ a.stat:hover { border-color: var(--color-line-strong); }
 
 /* Menú lateral oscuro del panel. */
 .nx-rail { display: flex; height: 100%; flex-direction: column; background: var(--nx-rail-bg); color: var(--nx-rail-ink); }
-.nx-rail-group { padding: 0 0.75rem; margin-top: 1.25rem; font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--nx-rail-soft); opacity: 0.75; }
+.nx-rail-group { padding: 0 0.75rem; margin-top: 1.5rem; margin-bottom: 0.25rem; font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--nx-rail-soft); opacity: 0.65; }
 .nx-rail-link { position: relative; display: flex; align-items: center; gap: 0.75rem; height: 2.75rem; padding: 0 0.75rem; margin-top: 0.125rem; border-radius: 0.625rem; font-size: 0.875rem; color: var(--nx-rail-soft); text-decoration: none; transition: background-color .15s, color .15s; }
 .nx-rail-link .mat-icon { width: 20px; height: 20px; font-size: 20px; }
 .nx-rail-link:hover { background: var(--nx-rail-hover); color: var(--nx-rail-ink); }
-.nx-rail-on, .nx-rail-on:hover { background: color-mix(in srgb, var(--primary) 22%, var(--nx-rail-bg)); color: #fff; font-weight: 600; }
+.nx-rail-on, .nx-rail-on:hover { background: color-mix(in srgb, var(--primary) 22%, var(--nx-rail-bg)); color: #fff; font-weight: 600; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 30%, transparent); }
 .nx-rail-on::before { content: ''; position: absolute; left: -0.75rem; top: 0.5rem; bottom: 0.5rem; width: 3px; border-radius: 0 3px 3px 0; background: var(--primary); }
 .nx-rail-on .mat-icon { color: color-mix(in srgb, var(--primary) 55%, #fff); }
-.nx-rail-foot { border-top: 1px solid var(--nx-rail-line); padding: 0.75rem; }
+.nx-rail-foot { border-top: 1px solid var(--nx-rail-line); padding: 0.75rem; padding-bottom: calc(0.75rem + env(safe-area-inset-bottom)); }
+/* Estado de la página: punto y texto, sin caja. */
+.nx-rail-status { display: flex; align-items: center; gap: 0.5rem; min-height: 2.75rem; margin: 0 0.75rem 0.25rem; padding: 0 0.75rem; border-radius: 0.625rem; font-size: 0.8125rem; color: var(--nx-rail-soft); text-decoration: none; transition: background-color .15s, color .15s; }
+.nx-rail-status:hover { background: var(--nx-rail-hover); color: var(--nx-rail-ink); }
+.nx-rail-kbd { font-family: inherit; font-size: 0.75rem; padding: 0.0625rem 0.375rem; border-radius: 0.375rem; border: 1px solid var(--nx-rail-line); color: var(--nx-rail-soft); }
+/* Número pendiente junto a cada opción. */
+.nx-rail-count { min-width: 1.25rem; padding: 0 0.375rem; border-radius: 999px; background: var(--primary); color: #fff; font-size: 0.75rem; font-weight: 600; line-height: 1.25rem; text-align: center; font-variant-numeric: tabular-nums; }
+/* El aro de foco solo con teclado; con el ratón o el dedo no se queda pegado. */
+.nx-rail-btn:focus:not(:focus-visible), .nx-rail-link:focus:not(:focus-visible) { outline: none; box-shadow: none; }
+.nx-rail-btn:focus-visible, .nx-rail-link:focus-visible, .nx-rail-status:focus-visible { outline: 2px solid color-mix(in srgb, var(--primary) 70%, #fff); outline-offset: -2px; }
+.nx-rail-link:active, .nx-rail-btn:active, .nx-rail-status:active { background: var(--nx-rail-hover); transform: scale(0.98); }
 .nx-rail-btn { display: flex; width: 100%; align-items: center; gap: 0.75rem; height: 2.75rem; padding: 0 0.75rem; border-radius: 0.625rem; font-size: 0.875rem; color: var(--nx-rail-soft); text-align: left; }
 .nx-rail-btn:hover { background: var(--nx-rail-hover); color: var(--nx-rail-ink); }
 .nx-rail-btn .mat-icon { width: 20px; height: 20px; font-size: 20px; flex-shrink: 0; }
@@ -275,6 +294,13 @@ textarea.input { height: auto; padding: 0.625rem 0.875rem; line-height: 1.5; }
 .input:focus { border-color: var(--color-accent); box-shadow: 0 0 0 3px var(--color-accent-soft); }
 .input.ng-invalid.ng-touched, .input-invalid { border-color: var(--nx-bad-fg); }
 /* Opciones rápidas (chips) para elegir un valor común a un toque. */
+/* Barra de opciones (reporte, periodo, comparar): un solo contorno suave y la opción activa levantada. Se desliza si no cabe. */
+.seg { display: inline-flex; max-width: 100%; gap: 0.125rem; padding: 0.25rem; overflow-x: auto; scrollbar-width: none; border-radius: 0.875rem; background: var(--color-canvas); border: 1px solid var(--color-line); }
+.seg::-webkit-scrollbar { display: none; }
+.seg > button { flex-shrink: 0; min-height: 2.75rem; padding: 0 1rem; border-radius: 0.625rem; font-size: 0.875rem; font-weight: 500; white-space: nowrap; color: var(--color-ink-soft); transition: background-color .15s, color .15s, box-shadow .15s; }
+.seg > button:hover:not(.is-on) { color: var(--color-ink); }
+.seg > button.is-on { background: var(--color-surface); color: var(--color-ink); font-weight: 600; box-shadow: 0 1px 3px rgb(0 0 0 / 0.14), 0 0 0 1px var(--color-line); }
+.seg-label { font-size: 0.8125rem; color: var(--color-muted); }
 .chip { display: inline-flex; align-items: center; height: 2.75rem; padding: 0 0.875rem; border: 1px solid var(--color-line-strong); border-radius: 999px; background: var(--color-surface); font-size: 0.875rem; color: var(--color-ink-soft); transition: background-color .15s, border-color .15s, color .15s; }
 .chip:hover { border-color: var(--color-accent); color: var(--color-ink); }
 .chip-on, .chip-on:hover { border-color: var(--color-accent); background: var(--color-accent-soft); color: var(--primary-text); font-weight: 600; }
@@ -502,8 +528,8 @@ main h1 {
 
 main article,
 main .rounded.border,
-main .overflow-x-auto,
-main .overflow-auto {
+main .overflow-x-auto:has(> table),
+main .overflow-auto:has(> table) {
   border-radius: 0.9rem;
   background: var(--surface-card);
   border: 1px solid var(--border-subtle);

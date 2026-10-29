@@ -37,7 +37,7 @@
         <mat-icon>print</mat-icon>
         <span class="hidden lg:inline">Imprimir día</span>
       </button>
-      <button type="button" class="btn btn-secondary" aria-label="Bloquear horario" (click)="openBlock()">
+      <button type="button" class="btn btn-ghost" aria-label="Bloquear horario" (click)="openBlock()">
         <mat-icon>block</mat-icon>
         <span class="hidden sm:inline">Bloquear horario</span>
       </button>
@@ -60,15 +60,12 @@
       <button type="button" class="btn btn-ghost w-11! px-0!" aria-label="Anterior" (click)="shift(-1)"><mat-icon>chevron_left</mat-icon></button>
       <button type="button" class="btn btn-ghost w-11! px-0!" aria-label="Siguiente" (click)="shift(1)"><mat-icon>chevron_right</mat-icon></button>
     </div>
-    <div class="inline-flex rounded-lg border border-line-strong bg-surface p-0.5" role="tablist" aria-label="Vista">
+    <div class="seg" role="tablist" aria-label="Vista">
       @for (view of views; track view.id) {
         <button
           type="button"
           role="tab"
-          class="h-11 rounded-md px-3.5 text-sm font-medium transition-colors"
-          [class.bg-ink]="currentView() === view.id"
-          [class.text-surface]="currentView() === view.id"
-          [class.text-ink-soft]="currentView() !== view.id"
+          [class.is-on]="currentView() === view.id"
           [attr.aria-selected]="currentView() === view.id"
           (click)="setView(view.id)"
         >{{ view.label }}</button>

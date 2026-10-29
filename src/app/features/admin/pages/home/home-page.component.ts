@@ -237,6 +237,11 @@ export class HomePageComponent {
     this.dashboardApi.markNoticesSeen().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ error: () => undefined });
   }
 
+  /** La dirección para mostrar (sin https://), tal como la verán tus clientes. */
+  protected readonly bookingLink = computed(() => {
+    const slug = this.auth.currentUser()?.slug ?? '';
+    return slug ? this.bookingApi.shareUrl(slug).replace(/^https?:\/\//, '') : '';
+  });
   protected readonly linkCopied = signal(false);
   protected copyLink(): void {
     const slug = this.auth.currentUser()?.slug ?? '';
@@ -264,6 +269,11 @@ export class HomePageComponent {
   ];
   protected readonly hiddenCards = signal<string[]>([]);
   protected readonly customizing = signal(false);
+  /** "Hola, Nombre": más cálido que solo el título de la pantalla. */
+  protected readonly greeting = computed(() => {
+    const name = firstName(this.auth.currentUser()?.fullName);
+    return name ? `Hola, ${name}` : 'Inicio';
+  });
   protected readonly canCustomize = computed(() => this.auth.userRole() !== 'staff');
 
   protected shows(key: string): boolean {

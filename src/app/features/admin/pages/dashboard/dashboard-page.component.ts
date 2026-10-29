@@ -212,6 +212,10 @@ export class DashboardPageComponent {
       { label: 'Ticket promedio', icon: 'receipt_long', value: this.money(now.average_ticket), delta: change(now.average_ticket, before?.average_ticket) },
     ];
   });
+  /** El botón dice contra qué se compara de verdad: ayer, la semana pasada, el mes pasado. */
+  protected readonly compareLabels = computed(() => ({
+    prev: this.period() === 'day' ? 'Ayer' : this.period() === 'week' ? 'Semana pasada' : this.period() === 'month' ? 'Mes pasado' : 'Periodo anterior',
+  }));
   /** Contra qué se compara: el periodo anterior o el mismo periodo del año pasado. */
   protected readonly compareTo = signal<'prev' | 'year'>('prev');
   protected readonly versus = computed(() =>

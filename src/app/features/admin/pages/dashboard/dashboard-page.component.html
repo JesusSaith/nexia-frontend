@@ -31,13 +31,13 @@
 
     @if (books(); as alert) {
       @if (alert.deposits_expired > 0) {
-        <p class="card mb-4 flex items-center gap-3 py-3! text-sm text-ink" role="status">
+        <p class="card mb-6 flex items-center gap-3 py-3! text-sm text-ink" role="status">
           <mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-(--nx-warn-fg)">schedule</mat-icon>
           <span>Se acabó el tiempo de {{ alert.deposits_expired }} anticipo{{ alert.deposits_expired === 1 ? '' : 's' }} y la cita sigue sin marcarse como pagada.</span>
         </p>
       }
       @if (copy.commissions() && team().owed > 0) {
-        <button type="button" class="card mb-4 flex w-full items-center gap-3 py-3! text-left text-sm text-ink hover:border-line-strong" (click)="view.set('commission')">
+        <button type="button" class="card mb-6 flex w-full items-center gap-3 py-3! text-left text-sm text-ink hover:border-line-strong" (click)="view.set('commission')">
           <mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">payments</mat-icon>
           <span class="min-w-0 flex-1">Hay <span class="nums font-medium">{{ money(team().owed) }}</span> de comisión por pagar en este periodo.</span>
           <mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">chevron_right</mat-icon>
@@ -45,49 +45,30 @@
       }
     }
 
-    <!-- Secciones y periodo -->
-    <div class="mb-4 flex flex-wrap items-center gap-2">
-      <div class="w-full overflow-x-auto sm:w-auto">
-        <div class="inline-flex rounded-lg border border-line-strong bg-surface p-0.5" role="tablist" aria-label="Reporte">
-          @for (tab of shownTabs(); track tab.id) {
-            <button
-              type="button"
-              role="tab"
-              class="h-11 whitespace-nowrap rounded-md px-3 text-sm font-medium transition-colors"
-              [class.bg-ink]="view() === tab.id"
-              [class.text-surface]="view() === tab.id"
-              [class.text-ink-soft]="view() !== tab.id"
-              [attr.aria-selected]="view() === tab.id"
-              (click)="view.set(tab.id)"
-            >{{ tab.label }}</button>
-          }
-        </div>
-      </div>
-      @if (view() !== 'cash') {
-      <div class="inline-flex rounded-lg border border-line-strong bg-surface p-0.5 sm:ml-auto" role="tablist" aria-label="Periodo">
-        @for (item of periods; track item.id) {
-          <button
-            type="button"
-            role="tab"
-            class="h-11 rounded-md px-3 text-sm font-medium transition-colors"
-            [class.bg-ink]="period() === item.id"
-            [class.text-surface]="period() === item.id"
-            [class.text-ink-soft]="period() !== item.id"
-            [attr.aria-selected]="period() === item.id"
-            (click)="period.set(item.id)"
-          >{{ item.label }}</button>
+    <!-- Controles: qué reporte (arriba) y de qué periodo (abajo), con el mismo estilo de barra. -->
+    <div class="mb-6 flex flex-col gap-3">
+      <div class="seg" role="tablist" aria-label="Reporte">
+        @for (tab of shownTabs(); track tab.id) {
+          <button type="button" role="tab" [class.is-on]="view() === tab.id" [attr.aria-selected]="view() === tab.id" (click)="view.set(tab.id)">{{ tab.label }}</button>
         }
       </div>
+      @if (view() !== 'cash') {
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+          <div class="seg" role="tablist" aria-label="Periodo">
+            @for (item of periods; track item.id) {
+              <button type="button" role="tab" [class.is-on]="period() === item.id" [attr.aria-selected]="period() === item.id" (click)="period.set(item.id)">{{ item.label }}</button>
+            }
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <span id="compare-label" class="seg-label">Comparar con</span>
+            <div class="seg" role="group" aria-labelledby="compare-label">
+              <button type="button" [class.is-on]="compareTo() === 'prev'" [attr.aria-pressed]="compareTo() === 'prev'" (click)="compareTo.set('prev')">{{ compareLabels().prev }}</button>
+              <button type="button" [class.is-on]="compareTo() === 'year'" [attr.aria-pressed]="compareTo() === 'year'" (click)="compareTo.set('year')">Hace un año</button>
+            </div>
+          </div>
+        </div>
       }
     </div>
-
-    @if (view() !== 'cash') {
-      <div class="mb-4 flex items-center gap-2 text-sm text-muted">
-        <span>Comparar con:</span>
-        <button type="button" class="chip h-11!" [class.chip-on]="compareTo() === 'prev'" (click)="compareTo.set('prev')">Periodo anterior</button>
-        <button type="button" class="chip h-11!" [class.chip-on]="compareTo() === 'year'" (click)="compareTo.set('year')">Hace un año</button>
-      </div>
-    }
 
     @if (period() === 'range' && view() !== 'cash') {
       <div class="mb-4 grid grid-cols-2 gap-2 sm:flex">
@@ -102,7 +83,7 @@
 
     @if (view() === 'income') {
       @if (isEmpty()) {
-        <div class="empty mb-4">
+        <div class="empty mb-6">
           <mat-icon>insights</mat-icon>
           <p>Aún no hay cobros ni gastos en este periodo. Cuando completes citas en la Agenda, aquí verás cuánto entró y cuánto te quedó.</p>
           <a routerLink="/admin/agenda" class="btn btn-secondary mt-1">Ir a la agenda</a>
@@ -111,7 +92,7 @@
         <p class="mb-3 text-base font-medium text-ink" role="status">{{ incomeLine() }}</p>
         <!-- Las tres preguntas de la dueña, con su respuesta y a dónde ir. -->
         @if (glance(); as g) {
-          <section class="card mb-4 p-4!" aria-label="Resumen de tu negocio">
+          <section class="card mb-6 p-4!" aria-label="Resumen de tu negocio">
             <div class="grid gap-4 lg:grid-cols-3 lg:gap-0 lg:divide-x lg:divide-line">
               <div class="lg:pr-5">
                 <p class="flex items-center gap-1.5 text-sm text-muted"><mat-icon class="h-4! w-4! text-[16px]!">savings</mat-icon>¿Gané o perdí?</p>
@@ -173,9 +154,9 @@
           </section>
         }
         <!-- Lo importante de un vistazo, cada número contra el periodo anterior. -->
-        <div class="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div class="stat-group mb-6 grid-cols-2 lg:grid-cols-4">
           @for (item of kpis(); track item.label) {
-            <div class="card p-4!">
+            <div class="p-4">
               <p class="flex items-center gap-1.5 text-sm text-muted"><mat-icon class="h-4! w-4! text-[16px]!">{{ item.icon }}</mat-icon>{{ item.label }}</p>
               <p class="nums mt-1 text-2xl font-semibold tracking-tight text-ink">{{ item.value }}</p>
               <p class="nums mt-0.5 text-sm" [class]="kpiTone(item.delta)">{{ item.delta.text }} <span class="text-muted">{{ item.delta.up === null ? '' : versus() }}</span></p>
@@ -184,7 +165,7 @@
         </div>
         @if (view() === 'income' && books(); as sale) {
           @if ((sale.uncollected_count ?? 0) > 0) {
-            <div class="card mb-4 p-4!">
+            <div class="card mb-6 p-4!">
               <div class="flex flex-wrap items-start gap-x-4 gap-y-2">
                 <span class="stat-icon stat-warn"><mat-icon>hourglass_top</mat-icon></span>
                 <div class="min-w-0 flex-1">
@@ -204,7 +185,7 @@
           }
         }
         @if (projection(); as plan) {
-          <div class="card card-tint mb-4 flex flex-wrap items-center gap-x-6 gap-y-2 p-4!">
+          <div class="card card-tint mb-6 flex flex-wrap items-center gap-x-6 gap-y-2 p-4!">
             <span class="sec-icon"><mat-icon>insights</mat-icon></span>
             <p class="min-w-0 flex-1 text-sm text-ink-soft">
               Llevas <strong class="nums text-ink">{{ money(plan.done) }}</strong> y tienes <strong class="nums text-ink">{{ money(plan.expected) }}</strong> agendados ({{ plan.count }} {{ plan.count === 1 ? 'cita' : 'citas' }}).
@@ -215,7 +196,7 @@
         }
         <!-- Lo que te queda va arriba: es la pregunta principal de esta pantalla. -->
         @if (books(); as row) {
-      <div class="mb-4">
+      <div class="mb-6">
         <article class="card card-tint h-full">
           <div class="card-head">
             <span class="sec-icon"><mat-icon>account_balance_wallet</mat-icon></span>
@@ -592,9 +573,9 @@
                 } @else if (editingGoal()) {
                   <div class="flex items-center justify-between gap-3">
                     <p class="text-sm font-semibold text-ink">Tu meta de ganancia</p>
-                    <div class="inline-flex rounded-lg border border-line-strong bg-surface p-0.5" role="tablist" aria-label="Tipo de meta">
-                      <button type="button" role="tab" class="h-11 rounded-md px-2.5 text-xs font-medium transition-colors" [class.bg-ink]="goalMode() === 'money'" [class.text-white]="goalMode() === 'money'" [class.text-ink-soft]="goalMode() !== 'money'" [attr.aria-selected]="goalMode() === 'money'" (click)="setGoalMode('money')">Pesos</button>
-                      <button type="button" role="tab" class="h-11 rounded-md px-2.5 text-xs font-medium transition-colors" [class.bg-ink]="goalMode() === 'percent'" [class.text-white]="goalMode() === 'percent'" [class.text-ink-soft]="goalMode() !== 'percent'" [attr.aria-selected]="goalMode() === 'percent'" (click)="setGoalMode('percent')">Porcentaje</button>
+                    <div class="seg" role="tablist" aria-label="Tipo de meta">
+                      <button type="button" role="tab" [class.is-on]="goalMode() === 'money'" [attr.aria-selected]="goalMode() === 'money'" (click)="setGoalMode('money')">Pesos</button>
+                      <button type="button" role="tab" [class.is-on]="goalMode() === 'percent'" [attr.aria-selected]="goalMode() === 'percent'" (click)="setGoalMode('percent')">Porcentaje</button>
                     </div>
                   </div>
                   <label class="mt-3 block">

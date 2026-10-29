@@ -326,9 +326,9 @@
 
         <div>
           <span class="label">Estado</span>
-          <div class="inline-flex rounded-lg border border-line-strong bg-surface p-0.5" role="group" aria-label="Estado">
-            <button type="button" class="h-11 rounded-md px-3 text-sm font-medium" [class.bg-ink]="form.controls.is_active.value" [class.text-surface]="form.controls.is_active.value" [class.text-ink-soft]="!form.controls.is_active.value" [attr.aria-pressed]="form.controls.is_active.value" (click)="form.controls.is_active.setValue(true)">Activo</button>
-            <button type="button" class="h-11 rounded-md px-3 text-sm font-medium" [class.bg-ink]="!form.controls.is_active.value" [class.text-surface]="!form.controls.is_active.value" [class.text-ink-soft]="form.controls.is_active.value" [attr.aria-pressed]="!form.controls.is_active.value" (click)="form.controls.is_active.setValue(false)">Pausado</button>
+          <div class="seg" role="group" aria-label="Estado">
+            <button type="button" [class.is-on]="form.controls.is_active.value" [attr.aria-pressed]="form.controls.is_active.value" (click)="form.controls.is_active.setValue(true)">Activo</button>
+            <button type="button" [class.is-on]="!form.controls.is_active.value" [attr.aria-pressed]="!form.controls.is_active.value" (click)="form.controls.is_active.setValue(false)">Pausado</button>
           </div>
           <label class="mt-2 flex min-h-11 items-center gap-2 text-sm text-ink">
             <input class="h-5 w-5" type="checkbox" formControlName="featured" />
