@@ -149,13 +149,15 @@ export class BusinessPageComponent {
     if (!shop || !this.qr()) {
       return;
     }
+    // El color entra en un <style>: solo se acepta un hex de 6 dígitos (el servidor ya lo exige; aquí es el segundo candado).
+    const color = /^#[0-9a-fA-F]{6}$/.test(shop.primary_color) ? shop.primary_color : '#1c1a19';
     const big = size === 'letter';
     const page = big ? 'letter' : '5.5in 8.5in';
-    const logo = shop.logo_url ? `<img src="${shop.logo_url}" style="width:${big ? 110 : 70}px;height:${big ? 110 : 70}px;border-radius:24px;object-fit:cover">` : '';
+    const logo = shop.logo_url ? `<img src="${escapeHtml(shop.logo_url)}" style="width:${big ? 110 : 70}px;height:${big ? 110 : 70}px;border-radius:24px;object-fit:cover">` : '';
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>Cartel</title><style>
       @page{size:${page};margin:0} body{margin:0;font-family:system-ui,sans-serif;color:#1c1a19}
-      .sheet{height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:${big ? 22 : 12}px;text-align:center;border-top:18px solid ${shop.primary_color}}
-      h1{margin:0;font-size:${big ? 40 : 26}px} h2{margin:0;font-size:${big ? 30 : 20}px;color:${shop.primary_color}}
+      .sheet{height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:${big ? 22 : 12}px;text-align:center;border-top:18px solid ${color}}
+      h1{margin:0;font-size:${big ? 40 : 26}px} h2{margin:0;font-size:${big ? 30 : 20}px;color:${color}}
       p{margin:0;font-size:${big ? 18 : 13}px;color:#4a4542} img.qr{width:${big ? 340 : 210}px;height:auto}
     </style></head><body><div class="sheet">${logo}<h1>${escapeHtml(shop.name)}</h1><h2>Agenda tu cita aquí</h2>
       <img class="qr" src="${this.qr()}"><p>Escanea con la cámara de tu celular</p><p><strong>${escapeHtml(this.bookingUrl().replace(/^https?:\/\//, ''))}</strong></p>
