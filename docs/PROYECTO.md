@@ -19,7 +19,7 @@ Este documento explica cómo está armado, cómo fluye cada proceso y qué queda
 
 **Cómo se conectan**
 - En local, el frontend llama a `http://localhost:8001/api` (`src/app/core/config/api-base-url.ts`).
-- Publicado, llama a `/api` de su propio dominio, y Vercel reenvía esas peticiones al backend (`vercel.json`). Así la cookie de sesión es del mismo sitio y no hay problemas de CORS.
+- Publicado en Cloudflare Workers (`wrangler.jsonc`, solo archivos estáticos). Desde `app.nexiacitas.com` llama a `api.nexiacitas.com` (mismo sitio: la cookie de sesión funciona y no hay problemas de CORS). Sin dominio propio no hay `/api`, así que en `*.workers.dev` no se puede iniciar sesión.
 - La sesión es un JWT en una cookie `httpOnly` (`access_token`).
 
 **Roles:** `owner` (dueña), `admin`, `staff` (colaboradora, con acceso solo a su agenda, sus clientes —en su menú— y su perfil) y `super_admin` (plataforma). La creación de cuentas para colaboradoras está apagada por ahora. Los permisos se aplican en la API, no solo ocultando pantallas (ver "Roles y permisos" en la sección 5).
@@ -248,7 +248,7 @@ Están programados y probados, pero **apagados y sin mostrarse** hasta decidir e
 - **Lo que ve la clienta** (`src/app/shared/components/place-map/`, enlaces en `src/app/core/maps.ts`): un **mapa fijo**, sin librería ni iframe, para que cargue rápido en celular: con llave, una sola imagen de Google (Maps Static API, `googleStaticMapUrl`, pin del color de la marca); sin llave o si esa imagen falla, 15 imágenes de OpenStreetMap (`staticMap`). Tocarlo abre Google Maps; debajo, botones a Google Maps y Waze.
 - **Para encender Google:**
   1. En Google Cloud, crear un proyecto con facturación y activar **Maps JavaScript API**, **Maps Static API** y **Places API (New)**.
-  2. Crear una llave y **restringirla** a "Sitios web" (el dominio de Vercel y `localhost:*`) y a esas 3 APIs. Va en el navegador, así que la restricción es lo que la protege.
+  2. Crear una llave y **restringirla** a "Sitios web" (`app.nexiacitas.com` y `localhost:*`) y a esas 3 APIs. Va en el navegador, así que la restricción es lo que la protege.
   3. En Gestión de mapas, crear un **ID de mapa** de tipo JavaScript y ponerlo en `GOOGLE_MAP_ID` (`DEMO_MAP_ID` solo sirve para probar).
   4. **Costo:** desde marzo de 2025, cada API tiene un tope mensual gratis (unas 10,000 cargas de mapa, de mapa fijo y de búsquedas); con pocos negocios no se paga. Poner una alerta de presupuesto en Google Cloud.
 - **Qué le falta:** el paso "Marca tu local en el mapa" (`location`) se suma a "para dar confianza".
@@ -462,18 +462,18 @@ npx ng test --watch=false
 
 | Pieza | Para demos ($0) | Para negocios reales |
 |---|---|---|
-| Frontend | Vercel | Vercel |
+| Frontend | Cloudflare Workers (archivos estáticos, gratis) | Cloudflare Workers (gratis; Vercel Hobby no permite uso comercial) |
 | API | Render (plan gratis; se duerme tras unos 15 minutos sin uso) | Railway (~$5 USD/mes) o un plan de pago de Render |
 | Base | Neon (PostgreSQL gratis) | La base de Railway o un plan de pago |
 | Correo | Resend (plan gratis) | Resend con dominio propio |
 
 - **Todos los negocios usan la misma instalación**; cada uno se registra en `/auth/register`.
-- **Ya está listo:** `render.yaml` (con `TRUSTED_PROXY_HOPS=2`), el endpoint `/api/health`, la compatibilidad con PostgreSQL y `vercel.json`, que apunta a `https://nexia-api.onrender.com`. Los pasos están en `nexia-backend/DEPLOY.md`.
+- **Ya está listo:** `render.yaml` (con `TRUSTED_PROXY_HOPS=2`), el endpoint `/api/health`, la compatibilidad con PostgreSQL, `wrangler.jsonc` y `public/_headers` (frontend en Cloudflare Workers). Los pasos están en `nexia-backend/DEPLOY.md`.
 - **Pendiente antes de las demos:**
-  - confirmar en los logs de Render que `X-Forwarded-For` llega como `clienta, vercel` (si llega con otro número de saltos, ajustar `TRUSTED_PROXY_HOPS`);
+  - con Cloudflare delante y `ORIGIN_SECRET`, la IP sale de `CF-Connecting-IP`; revisar en los logs de Render que el throttle ve la IP real de quien reserva;
   - ~~ajustar `render.yaml` para usar Neon como base~~ (hecho: `DATABASE_URL` se pega en Render a mano; ya no crea la base gratis de Render, que se borra a los 30 días).
 - **Con dominio propio (Cloudflare):** la API pasa a `api.tudominio.com` y la app a `app.tudominio.com`; `ORIGIN_SECRET` cierra la entrada directa a Render y la IP real sale de `CF-Connecting-IP`. Pasos en `nexia-backend/DEPLOY.md` (última sección).
-- **Riesgo que queda:** quien llame directo a `nexia-api.onrender.com` (sin pasar por Vercel) todavía puede inventar la IP. Cerrarlo del todo pide un proxy propio que agregue un encabezado secreto, o poner Cloudflare delante.
+- **Riesgo que queda:** quien llame directo a `nexia-api.onrender.com` todavía puede inventar la IP hasta que se active `ORIGIN_SECRET` con Cloudflare delante (`api.nexiacitas.com`).
 - **Correo en producción:** crear cuenta en Resend, verificar el dominio y poner `RESEND_API_KEY` y `MAIL_FROM` (p. ej. `Nexia <hola@tudominio.mx>`) en Render. Sin dominio verificado, Resend solo entrega a tu propio correo.
 - **Anticipos vencidos en segundo plano:** cada 10 minutos (`sweep_deposits`, junto al resumen diario en `app/main.py`) se liberan los horarios cuyo anticipo venció y se avisa a la dueña de los que siguen sin pagarse. Consultar los avisos (`GET /api/notices`, cada 20 segundos desde el panel) ya no escribe nada; de todos modos, las consultas de horarios y de citas siguen liberando lo vencido para que nadie vea un horario ocupado por un anticipo que ya no cuenta.
 - **Resumen diario:** en el plan gratis de Render llega tarde si la API está dormida a las 8 p. m.; en un plan de pago sale a tiempo.
@@ -706,3 +706,4 @@ Pruebas: backend 126 (1 omitida a propósito), frontend 33, todas pasando.
 | backend, frontend | (sin commit) | **Revisión de seguridad:** prueba de superficie de ataque (`tests/test_attack_surface.py`), API sin `/docs` en producción, encabezados de seguridad en la API y en `vercel.json` (CSP en modo solo reportar), PyJWT en lugar de `python-jose`, `dnspython>=2.9.0`, clave de plataforma de 12+ caracteres, cartel con todo escapado. |
 | backend, frontend | (sin commit) | **Preparado para dominio propio:** `ORIGIN_SECRET` (la API solo acepta lo que viene de Cloudflare; IP real desde `CF-Connecting-IP`), `render.yaml` ya no crea la base gratis de Render (va en Neon), la app habla con `api.*` cuando se abre desde `app.*` (`apiBaseUrl`), y guía de pasos en `DEPLOY.md`. |
 | frontend | (sin commit) | **Reportes → Gastos en celular:** las tarjetas ya no se salen por la derecha (las cuadrículas de la pantalla usan una sola columna `minmax(0,1fr)` en celular, no crecen con su contenido), los nombres de categoría de "Cuánto de lo que entra se va en cada cosa" ya no se cortan en "R…" (el nombre ocupa su propia línea) y la leyenda de la dona baja debajo de la dona en lugar de cortar "Insumos" y "Otros". |
+| frontend, backend | (sin commit) | **Publicación en Cloudflare (dominio `nexiacitas.com`):** el frontend pasa de Vercel a Cloudflare Workers (`wrangler.jsonc`, `public/_headers` con la CSP ya incluyendo `api.nexiacitas.com`, `.node-version`; se quita `vercel.json`); `DEPLOY.md` reescrito con el flujo `feature/*` → `dev` → `qa` → `prod` (se publica `prod`); se dejan de versionar `Claude outputs/` (150 MB de videos) y `_to_delete/`. |
