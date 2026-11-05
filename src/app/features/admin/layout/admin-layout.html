@@ -118,6 +118,10 @@
         }}</span>
       </button>
     }
+    <button mat-menu-item type="button" (click)="openFeedback()">
+      <mat-icon>rate_review</mat-icon>
+      <span>Enviar comentario</span>
+    </button>
     <button mat-menu-item type="button" (click)="logout()" [disabled]="loggingOut()">
       <mat-icon>logout</mat-icon>
       <span>{{ loggingOut() ? 'Cerrando…' : 'Cerrar sesión' }}</span>

@@ -17,12 +17,24 @@
   </section>
 
   <section class="flex min-w-0 items-center justify-center px-4 py-3 sm:px-8 sm:py-5">
+    @if (checking()) {
+      <p class="text-sm text-muted" role="status">Un momento…</p>
+    } @else if (closed()) {
+      <div class="w-full max-w-md text-center">
+        <img src="/nexia-mark.png" alt="" class="mx-auto h-12 w-auto" />
+        <h1 class="mt-4 text-xl font-semibold text-ink">Nexia está en beta cerrada</h1>
+        <p class="mt-2 text-sm text-ink-soft">Por ahora solo pueden crear su cuenta los negocios con invitación. Pide tu acceso y te escribimos en menos de 24 horas.</p>
+        <a class="btn btn-primary mt-5 w-full justify-center" href="/#beta">Pedir acceso a la beta</a>
+        <a class="btn btn-secondary mt-3 w-full justify-center" [href]="whatsappLink" target="_blank" rel="noopener">Escribirnos por WhatsApp</a>
+        <a class="btn btn-ghost mt-3 w-full justify-center" routerLink="/auth/login">Ya tengo cuenta</a>
+      </div>
+    } @else {
     <div class="w-full max-w-xl">
       <div class="mb-3 flex items-center gap-3 sm:mb-4">
         <img src="/nexia-mark.png" alt="" class="h-9 w-auto lg:hidden" />
         <div>
           <h1 class="text-lg font-semibold leading-tight text-ink">Crea tu página de reservas</h1>
-          <p class="text-sm text-muted">Los servicios y horarios los ajustas después.</p>
+          <p class="text-sm text-muted">{{ invited() ? "Te invitamos a la beta: revisa tus datos y crea tu contraseña." : "Los servicios y horarios los ajustas después." }}</p>
         </div>
       </div>
 
@@ -246,5 +258,6 @@
         ¿Trabajas en un negocio que ya usa Nexia? Quien administra el negocio te da de alta desde Equipo.
       </p>
     </div>
+    }
   </section>
 </main>

@@ -1,7 +1,7 @@
 import { Routes } from '@angular/router';
 
 import { authGuard } from './core/guards/auth.guard';
-import { clientEntryGuard, passwordChosenGuard, roleGuard } from './core/guards/role.guard';
+import { clientEntryGuard, landingGuard, passwordChosenGuard, roleGuard } from './core/guards/role.guard';
 
 export const routes: Routes = [
   {
@@ -57,7 +57,14 @@ export const routes: Routes = [
     path: ':businessSlug/book',
     loadChildren: () => import('./features/booking/booking.routes').then((m) => m.bookingRoutes),
   },
-  { path: '', pathMatch: 'full', redirectTo: 'auth' },
+  // Página de inicio de nexiacitas.com. Quien ya tiene sesión va directo a su panel (landingGuard).
+  {
+    path: '',
+    pathMatch: 'full',
+    title: 'Nexia · Reservas en línea para negocios con cita',
+    canActivate: [landingGuard],
+    loadComponent: () => import('./features/landing/landing-page').then((m) => m.LandingPage),
+  },
   {
     path: '**',
     title: 'Página no encontrada · Nexia',

@@ -3,13 +3,14 @@ import { Component, DestroyRef, ElementRef, computed, inject, signal } from '@an
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { of } from 'rxjs';
 import { catchError, debounceTime, distinctUntilChanged, map, switchMap } from 'rxjs/operators';
 
 import { BUSINESS_KINDS, clientsWordFor, examplesFor } from '@core/business-kinds';
 import { AuthService } from '@core/services/auth.service';
 import { Toasts } from '@core/toasts';
+import { WHATSAPP_NUMBER } from '../../../landing/landing-page';
 
 type FieldName = 'businessKind' | 'businessName' | 'phone' | 'usesCommissions' | 'fullName' | 'email' | 'password' | 'acceptTerms';
 
@@ -47,6 +48,14 @@ export class Register {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly route = inject(ActivatedRoute);
+  private readonly invitationCode = this.route.snapshot.queryParamMap.get('invitacion');
+
+  /** Durante la beta el registro es solo con invitación: sin una válida se muestra el aviso en lugar del formulario. */
+  protected readonly checking = signal(true);
+  protected readonly closed = signal(false);
+  protected readonly invited = signal(false);
+  protected readonly whatsappLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Hola, quiero pedir acceso a la beta de Nexia.')}`;
 
   protected readonly kindPicks = BUSINESS_KINDS;
   protected readonly commissionPicks = [
@@ -111,6 +120,30 @@ export class Register {
     { initialValue: '' },
   );
 
+  constructor() {
+    this.authService
+      .invitation(this.invitationCode)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (info) => {
+          this.checking.set(false);
+          if (info.valid) {
+            this.invited.set(true);
+            const f = this.form.controls;
+            f.fullName.setValue(info.name ?? '');
+            f.email.setValue(info.email ?? '');
+            f.phone.setValue((info.phone ?? '').replace(/\D/g, '').slice(-10));
+            f.businessName.setValue(info.business_name ?? '');
+            f.businessKind.setValue(info.kind ?? '');
+          } else {
+            this.closed.set(info.invite_only);
+          }
+        },
+        // Si no se pudo consultar, se deja el formulario; el servidor decide al enviar.
+        error: () => this.checking.set(false),
+      });
+  }
+
   /** Solo dígitos y máximo 10, aunque peguen "+52 (55) 1234-5678". */
   protected onPhoneInput(): void {
     const control = this.form.controls.phone;
@@ -147,6 +180,7 @@ export class Register {
         acceptTerms: raw.acceptTerms,
         usesCommissions: raw.usesCommissions === true,
         timezone: browserTimezone(),
+        invitation: this.invitationCode,
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
@@ -177,6 +211,10 @@ export class Register {
     }
     if (error.status === 429) {
       return 'Hiciste muchos intentos seguidos. Espera unos minutos y vuelve a intentarlo.';
+    }
+    if (error.status === 403) {
+      this.closed.set(true);
+      return 'Por ahora el registro es solo con invitación.';
     }
     return 'No pudimos crear la cuenta. Revisa los datos e inténtalo de nuevo.';
   }
