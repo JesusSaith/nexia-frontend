@@ -703,3 +703,8 @@ mat-icon {
   .sc-pop, .sc-grow, .sc-slide { opacity: 1; transform: none; animation: none; }
   .sc-scan { animation: none; top: 50%; }
 }
+
+/* Mano guía de la reserva tocable (landing): se apaga con "reducir movimiento". */
+.hand-tap { animation: nx-tap 1.6s ease-in-out infinite; }
+@keyframes nx-tap { 0%, 100% { transform: translate(6px, 6px) scale(1); } 50% { transform: translate(-4px, -4px) scale(.88); } }
+@media (prefers-reduced-motion: reduce) { .hand-tap { animation: none; } }

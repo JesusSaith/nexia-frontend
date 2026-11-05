@@ -11,6 +11,7 @@ import { LandingService, LandingStats } from '@core/services/landing.service';
 
 import { CountUpDirective } from './count-up.directive';
 import { RevealDirective } from './reveal.directive';
+import { TiltDirective } from './tilt.directive';
 
 /** WhatsApp de contacto: 10 dígitos más la clave de México. */
 export const WHATSAPP_NUMBER = '522712054908';
@@ -23,14 +24,14 @@ const WHATSAPP_TEXT = 'Hola, me interesa la beta de Nexia para mi negocio.';
  */
 @Component({
   selector: 'app-landing-page',
-  imports: [CountUpDirective, MatIconModule, ReactiveFormsModule, RevealDirective, RouterLink],
+  imports: [CountUpDirective, MatIconModule, ReactiveFormsModule, RevealDirective, RouterLink, TiltDirective],
   templateUrl: './landing-page.html',
 })
 export class LandingPage implements AfterViewInit {
   private readonly beta = inject(BetaService);
   private readonly landing = inject(LandingService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly formSection = viewChild<ElementRef<HTMLElement>>('formSection');
+  private readonly formDialog = viewChild<ElementRef<HTMLDialogElement>>('formDialog');
   private readonly successBox = viewChild<ElementRef<HTMLElement>>('successBox');
 
   readonly whatsappLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_TEXT)}`;
@@ -98,6 +99,7 @@ export class LandingPage implements AfterViewInit {
   }
 
   pickService(service: { name: string; time: string; price: number }): void {
+    this.mockTouched.set(true);
     this.mockService.set(service);
     this.mockStep.set('horario');
   }
@@ -120,10 +122,58 @@ export class LandingPage implements AfterViewInit {
   /** Línea de tiempo de "Cómo funciona": qué tanto se ha recorrido al bajar (0 a 1). */
   private readonly timeline = viewChild<ElementRef<HTMLElement>>('timeline');
   readonly progress = signal(0);
+  /** Avance de toda la página (barra fina de arriba) y sección actual (puntos laterales). */
+  readonly scrollPct = signal(0);
+  readonly activeSection = signal('inicio');
+  readonly sections = [
+    { id: 'inicio', label: 'Inicio' },
+    { id: 'explora', label: 'Explora' },
+    { id: 'funciones', label: 'Funciones' },
+    { id: 'como-funciona', label: 'Cómo funciona' },
+    { id: 'para-quien', label: 'Para quién' },
+    { id: 'preguntas', label: 'Preguntas' },
+  ];
+
+  /** Explora: pantallas, video y calculadora en un solo bloque. */
+  readonly exploreTabs = [
+    { id: 'pantallas', label: 'Pantallas', icon: 'devices' },
+    { id: 'video', label: 'Video', icon: 'play_circle' },
+    { id: 'calc', label: 'Cuánto pierdes', icon: 'calculate' },
+  ];
+  readonly explore = signal('pantallas');
+
+  /** Qué hace Nexia por cada giro (sigue al giro elegido arriba). */
+  private readonly kindPoints: Record<string, string[]> = {
+    belleza: ['Varias personas y comisiones por persona.', 'Servicios con duraciones distintas.', 'Anticipo para los servicios largos.'],
+    barberia: ['Agenda por barbero, sin choques.', 'Cortes de 20 a 45 minutos.', 'Recordatorios para que no falten.'],
+    unas: ['Duraciones largas, sin empalmes.', 'Anticipo para diseños y acrílicas.', 'Tu enlace y QR para el local.'],
+    spa: ['Terapeutas en una sola agenda.', 'Paquetes de sesiones.', 'Citas con anticipo.'],
+    dental: ['Recordatorios para evitar faltas.', 'Historial por paciente.', 'Valoración y tratamiento por separado.'],
+    veterinaria: ['Citas por mascota y por tutor.', 'Aviso de "te toca volver".', 'Historial de cada cliente.'],
+  };
+  readonly kindInfo = computed(() => {
+    const kind = this.heroKinds.find((k) => k.value === this.heroKind()) ?? this.heroKinds[0];
+    return { label: kind.label, icon: kind.icon, points: this.kindPoints[kind.value] ?? this.kindPoints['belleza'] };
+  });
+
+  readonly faqAll = signal(false);
+  readonly shownFaqs = computed(() => (this.faqAll() ? this.faqs : this.faqs.slice(0, 3)));
+  readonly mockTouched = signal(false);
 
   @HostListener('window:scroll')
   @HostListener('window:resize')
   updateProgress(): void {
+    const doc = document.documentElement;
+    const max = doc.scrollHeight - window.innerHeight;
+    this.scrollPct.set(max > 0 ? Math.min(Math.max(window.scrollY / max, 0), 1) : 0);
+    let current = this.sections[0].id;
+    for (const section of this.sections) {
+      const top = document.getElementById(section.id)?.getBoundingClientRect().top;
+      if (top !== undefined && top <= window.innerHeight * 0.4) {
+        current = section.id;
+      }
+    }
+    this.activeSection.set(current);
     const el = this.timeline()?.nativeElement;
     if (!el) {
       return;
@@ -197,18 +247,13 @@ export class LandingPage implements AfterViewInit {
     { icon: 'share', title: 'Comparte tu enlace', text: 'Ponlo en Instagram o WhatsApp y listo.' },
   ];
 
-  readonly audiences = [
-    { icon: 'content_cut', title: 'Salones y barberías', text: 'Varias personas, duraciones distintas y comisiones.' },
-    { icon: 'stethoscope', title: 'Consultorios y clínicas', text: 'Citas con recordatorio e historial por paciente.' },
-    { icon: 'pets', title: 'Veterinarias y estudios', text: 'Citas con anticipo cuando lo necesites.' },
-  ];
 
   readonly faqs = [
     { q: '¿Mis clientes tienen que descargar una app?', a: 'No. Reservan desde el navegador de su celular, con el enlace que les compartes.' },
-    { q: '¿Qué es la beta?', a: 'Estamos abriendo Nexia a pocos negocios para pulirla con su uso real. Quien entra a la beta nos ayuda a mejorarla y recibe acompañamiento.' },
-    { q: '¿Sirve para mi tipo de negocio?', a: 'Sirve para cualquier negocio que atienda con cita: salones, barberías, spas, consultorios, clínicas, veterinarias y estudios.' },
+    { q: '¿Qué es la beta?', a: 'Estamos abriendo Nexia a pocos negocios para pulirla con su uso real. Quien entra nos ayuda a mejorarla y recibe acompañamiento.' },
     { q: '¿Puedo pedir anticipo?', a: 'Sí. Tú decides si lo pides, de cuánto y qué pasa con él si el cliente cancela.' },
     { q: '¿Qué pasa con los datos de mis clientes?', a: 'Son tuyos. Los guardamos solo para darte el servicio y no los vendemos.' },
+    { q: '¿Sirve para mi tipo de negocio?', a: 'Sirve para cualquier negocio que atienda con cita: salones, barberías, spas, consultorios, clínicas, veterinarias y estudios.' },
   ];
 
   readonly submitting = signal(false);
@@ -237,18 +282,45 @@ export class LandingPage implements AfterViewInit {
 
   ngAfterViewInit(): void {
     this.updateProgress();
-    const el = this.formSection()?.nativeElement;
-    if (!el || typeof IntersectionObserver === 'undefined') {
+    // Quien llega desde "Pedir acceso" de otra página (/#beta) ve el formulario abierto.
+    if (location.hash === '#beta') {
+      setTimeout(() => this.openForm());
+    }
+  }
+
+  /** El formulario vive en una hoja emergente: todos los "Pedir acceso" la abren. */
+  openForm(event?: Event): void {
+    event?.preventDefault();
+    const dialog = this.formDialog()?.nativeElement;
+    if (!dialog || dialog.open) {
       return;
     }
-    const observer = new IntersectionObserver((entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) {
-        this.landing.track('form');
-        observer.disconnect();
-      }
-    }, { threshold: 0.2 });
-    observer.observe(el);
-    this.destroyRef.onDestroy(() => observer.disconnect());
+    this.menuOpen.set(false);
+    dialog.showModal();
+    document.documentElement.style.overflow = 'hidden';
+    this.landing.track('form');
+  }
+
+  closeForm(): void {
+    this.formDialog()?.nativeElement.close();
+  }
+
+  /** Al cerrar la hoja (botón, Escape o tocar fuera) vuelve el scroll de la página. */
+  onFormClosed(): void {
+    document.documentElement.style.overflow = '';
+  }
+
+  onDialogClick(event: MouseEvent): void {
+    if (event.target === this.formDialog()?.nativeElement) {
+      this.closeForm();
+    }
+  }
+
+  onMenu(event: Event, target: string): void {
+    this.menuOpen.set(false);
+    if (target === '#beta') {
+      this.openForm(event);
+    }
   }
 
   /** Valor numérico de un campo de la calculadora, acotado a un rango razonable. */
