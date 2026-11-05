@@ -5,9 +5,28 @@ export interface PlatformBusiness {
   staff_count: number;
   appointment_count: number;
   is_active: boolean;
+  is_demo?: boolean;
 }
 
-export type BetaStatus = 'nueva' | 'aprobada' | 'descartada';
+export type BetaStatus = 'nueva' | 'aprobada' | 'registrada' | 'descartada';
+
+/** Qué ha hecho con su cuenta quien entró a la beta. */
+export interface BetaActivation {
+  services: number;
+  staff: number;
+  appointments: number;
+  last_appointment: string | null;
+}
+
+export interface BetaInvite {
+  request: BetaRequestItem;
+  invite_url: string;
+}
+
+export interface DemoBusiness {
+  slug: string;
+  path: string;
+}
 
 /** Solicitud de acceso a la beta que llegó desde la landing. */
 export interface BetaRequestItem {
@@ -22,6 +41,10 @@ export interface BetaRequestItem {
   source: string | null;
   status: BetaStatus;
   created_at: string;
+  invited_at?: string | null;
+  business_id?: number | null;
+  business_slug?: string | null;
+  activation?: BetaActivation | null;
 }
 
 export interface LandingFunnel {

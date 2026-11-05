@@ -1,13 +1,13 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { AfterViewInit, Component, DestroyRef, ElementRef, inject, signal, viewChild } from '@angular/core';
+import { AfterViewInit, Component, DestroyRef, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 
-import { BUSINESS_KINDS } from '@core/business-kinds';
+import { BUSINESS_KINDS, examplesFor } from '@core/business-kinds';
 import { BetaService } from '@core/services/beta.service';
-import { LandingService } from '@core/services/landing.service';
+import { LandingService, LandingStats } from '@core/services/landing.service';
 
 import { RevealDirective } from './reveal.directive';
 
@@ -36,11 +36,58 @@ export class LandingPage implements AfterViewInit {
   readonly menuOpen = signal(false);
   readonly peopleOptions = [1, 2, 3, 4, 5, 6, 7];
 
-  readonly shots = [
-    { src: '/landing/reserva.webp', title: 'Tu cliente reserva', text: 'Elige servicio, persona y horario desde su celular.' },
-    { src: '/landing/agenda.webp', title: 'Tú ves tu agenda', text: 'Las citas del día, lo que falta por cobrar y tus horarios libres.' },
-    { src: '/landing/clientes.webp', title: 'Conoces a tus clientes', text: 'Quién viene, cuánto ha gastado y cuándo regresa.' },
+  /** Pantallas por pestañas: celular y computadora, con un negocio de ejemplo. */
+  readonly tabs = [
+    { id: 'agenda', label: 'Agenda', icon: 'calendar_month', phone: '/landing/agenda-nueva.webp', desk: '/landing/d-agenda.webp', text: 'Las citas del día por persona, con lo que falta por cobrar. Las reservas nuevas aparecen solas.' },
+    { id: 'clientes', label: 'Clientes', icon: 'groups', phone: '/landing/clientes.webp', desk: '/landing/d-clientes.webp', text: 'Quién viene, cuánto ha gastado y cuándo regresa.' },
+    { id: 'reportes', label: 'Reportes', icon: 'insights', phone: '/landing/reportes.webp', desk: '/landing/d-reportes.webp', text: 'Ingresos, citas y los servicios que más te dejan.' },
+    { id: 'qr', label: 'QR', icon: 'qr_code_2', phone: '/landing/qr.webp', desk: '/landing/d-qr.webp', text: 'Tu enlace, un código QR y un cartel para imprimir y pegar en tu local.' },
   ];
+  readonly tab = signal('agenda');
+  readonly currentTab = computed(() => this.tabs.find((t) => t.id === this.tab()) ?? this.tabs[0]);
+
+  /** Selector de giro del inicio: cambia el celular de ejemplo (nombres de examplesFor y servicios de muestra). */
+  readonly heroKinds = ['belleza', 'barberia', 'unas', 'spa', 'dental', 'veterinaria'].map((v) => BUSINESS_KINDS.find((k) => k.value === v)!);
+  readonly heroKind = signal('belleza');
+  private readonly heroServices: Record<string, { name: string; time: string; price: number }[]> = {
+    belleza: [{ name: 'Corte y peinado', time: '45 min', price: 350 }, { name: 'Tinte completo', time: '2 h', price: 1200 }, { name: 'Peinado de fiesta', time: '1 h', price: 600 }],
+    barberia: [{ name: 'Corte y barba', time: '45 min', price: 250 }, { name: 'Fade clásico', time: '30 min', price: 180 }, { name: 'Arreglo de barba', time: '20 min', price: 100 }],
+    unas: [{ name: 'Gelish en manos', time: '1 h', price: 300 }, { name: 'Acrílicas', time: '2 h', price: 550 }, { name: 'Diseño a mano', time: '30 min', price: 120 }],
+    spa: [{ name: 'Masaje relajante', time: '1 h', price: 700 }, { name: 'Facial hidratante', time: '1 h', price: 650 }, { name: 'Descontracturante', time: '1 h 30', price: 900 }],
+    dental: [{ name: 'Limpieza dental', time: '45 min', price: 600 }, { name: 'Valoración', time: '30 min', price: 300 }, { name: 'Resina', time: '1 h', price: 800 }],
+    veterinaria: [{ name: 'Consulta veterinaria', time: '30 min', price: 400 }, { name: 'Vacuna', time: '15 min', price: 250 }, { name: 'Baño y corte', time: '1 h', price: 350 }],
+  };
+  readonly heroMock = computed(() => {
+    const kind = this.heroKind();
+    const ex = examplesFor(kind);
+    return { name: ex.name, initial: ex.name.charAt(0), description: ex.description, services: this.heroServices[kind] ?? this.heroServices['belleza'] };
+  });
+
+  /** Calculadora de faltas: citas por semana, porcentaje que no llega y precio promedio. */
+  readonly calcWeekly = signal(30);
+  readonly calcMiss = signal(15);
+  readonly calcPrice = signal(350);
+  readonly calcLoss = computed(() => Math.round(this.calcWeekly() * 4.33 * (this.calcMiss() / 100) * this.calcPrice()));
+  readonly calcLossYear = computed(() => this.calcLoss() * 12);
+
+  /** Cifras reales: solo se muestran cuando ya dan confianza (no queremos presumir "3 citas"). */
+  readonly stats = signal<LandingStats | null>(null);
+  readonly showStats = computed(() => {
+    const s = this.stats();
+    return !!s && s.appointments >= 25 && s.businesses >= 3;
+  });
+
+  /** Lo que incluye la beta. */
+  readonly offer = [
+    { icon: 'redeem', title: 'Gratis mientras dure la beta', text: 'No pagas nada por usar Nexia en esta etapa.' },
+    { icon: 'support_agent', title: 'Acompañamiento por WhatsApp', text: 'Te ayudamos a configurar y resolvemos tus dudas.' },
+    { icon: 'sell', title: 'Precio especial al terminar', text: 'Quienes entran a la beta tendrán un precio preferente.' },
+    { icon: 'forum', title: 'Tu opinión define lo que sigue', text: 'Lo que nos pidas se convierte en la siguiente mejora.' },
+  ];
+
+  readonly moreOpen = signal(false);
+
+  readonly DEMO_PATH = '/demo/book';
 
   readonly before = [
     'Contestar mensajes a todas horas para dar una cita.',
@@ -97,7 +144,7 @@ export class LandingPage implements AfterViewInit {
 
   readonly form = new FormGroup({
     name: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(2)] }),
-    businessName: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(2)] }),
+    businessName: new FormControl('', { nonNullable: true }),
     kind: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     email: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email] }),
     people: new FormControl('', { nonNullable: true }),
@@ -111,6 +158,7 @@ export class LandingPage implements AfterViewInit {
     // Primer movimiento en el formulario: la persona empezó a llenarlo.
     this.form.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.landing.track('start'));
     this.landing.track('visit');
+    this.landing.stats().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ next: (s) => this.stats.set(s), error: () => undefined });
   }
 
   ngAfterViewInit(): void {
@@ -128,6 +176,23 @@ export class LandingPage implements AfterViewInit {
     this.destroyRef.onDestroy(() => observer.disconnect());
   }
 
+  /** Valor numérico de un campo de la calculadora, acotado a un rango razonable. */
+  setCalc(target: 'weekly' | 'miss' | 'price', event: Event): void {
+    const raw = Number((event.target as HTMLInputElement).value);
+    const value = Number.isFinite(raw) ? raw : 0;
+    if (target === 'weekly') {
+      this.calcWeekly.set(Math.min(Math.max(value, 0), 500));
+    } else if (target === 'miss') {
+      this.calcMiss.set(Math.min(Math.max(value, 0), 100));
+    } else {
+      this.calcPrice.set(Math.min(Math.max(value, 0), 20000));
+    }
+  }
+
+  money(value: number): string {
+    return value.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
+  }
+
   toggleMenu(): void {
     this.menuOpen.update((open) => !open);
   }
@@ -137,14 +202,13 @@ export class LandingPage implements AfterViewInit {
   }
 
   /** Mensaje de error de un campo: al salir de él o después de intentar enviar. */
-  fieldError(name: 'name' | 'businessName' | 'kind' | 'email' | 'phone'): string | null {
+  fieldError(name: 'name' | 'kind' | 'email' | 'phone'): string | null {
     const control = this.form.controls[name];
     if (!(this.touched() || control.touched) || control.valid) {
       return null;
     }
     const texts = {
       name: 'Escribe tu nombre.',
-      businessName: 'Escribe el nombre de tu negocio.',
       kind: 'Elige el tipo de negocio.',
       email: 'Revisa el correo; parece incompleto.',
       phone: 'El WhatsApp debe tener 10 dígitos.',
@@ -165,7 +229,7 @@ export class LandingPage implements AfterViewInit {
         name: v.name.trim(),
         email: v.email.trim(),
         phone: v.phone,
-        business_name: v.businessName.trim(),
+        business_name: v.businessName.trim() || null,
         kind: v.kind,
         message: v.message.trim() || null,
         people: v.people ? Number(v.people) : null,

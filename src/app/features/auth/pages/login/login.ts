@@ -3,7 +3,7 @@ import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 
 import { sessionHome } from '@core/guards/role.guard';
 import { AuthService } from '@core/services/auth.service';
@@ -15,7 +15,6 @@ type Mode = 'login' | 'forgot' | 'sent';
   selector: 'app-login',
   imports: [
     ReactiveFormsModule,
-    RouterLink,
     MatIconModule,
   ],
   templateUrl: './login.html',

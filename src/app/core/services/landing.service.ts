@@ -1,7 +1,13 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
+import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../config/api-base-url';
+
+export interface LandingStats {
+  appointments: number;
+  businesses: number;
+}
 
 export type LandingStep = 'visit' | 'form' | 'start' | 'sent' | 'whatsapp';
 
@@ -27,6 +33,11 @@ export class LandingService {
     } catch {
       return null;
     }
+  }
+
+  /** Citas y negocios reales (sin la demo); la landing los muestra solo cuando ya son una cifra que da confianza. */
+  stats(): Observable<LandingStats> {
+    return this.http.get<LandingStats>(`${this.apiBaseUrl}/landing/stats`);
   }
 
   track(step: LandingStep): void {

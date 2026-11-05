@@ -3,7 +3,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { Observable, catchError, map, of, tap, timeout } from 'rxjs';
 
 import { API_BASE_URL } from '../config/api-base-url';
-import { CurrentUser, LoginRequest, RegisterRequest } from '../models/user.model';
+import { CurrentUser, InvitationInfo, LoginRequest, RegisterRequest } from '../models/user.model';
 
 const SESSION_PROBE_TIMEOUT_MS = 8_000;
 
@@ -70,6 +70,11 @@ export class AuthService {
     return this.http.post<CurrentUser>(`${this.apiBaseUrl}/auth/register`, payload).pipe(
       tap((user) => this.currentUserState.set(user)),
     );
+  }
+
+  /** Dice si el registro está cerrado y si la invitación del enlace sirve (sin invitación pregunta solo el estado). */
+  invitation(token: string | null): Observable<InvitationInfo> {
+    return this.http.get<InvitationInfo>(`${this.apiBaseUrl}/auth/invitation`, { params: token ? { token } : {} });
   }
 
   /** Enlace que recibiría un negocio con este nombre (con sufijo -2, -3… si ya existe). */

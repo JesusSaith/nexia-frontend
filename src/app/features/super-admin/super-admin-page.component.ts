@@ -8,9 +8,12 @@ import { MatTableModule } from '@angular/material/table';
 import { Router } from '@angular/router';
 
 import { BUSINESS_KINDS } from '@core/business-kinds';
-import { BetaRequestItem, BetaStatus, LandingFunnel, PlatformBusiness } from '@core/models/platform-business.model';
+import { Toasts } from '@core/toasts';
+import { BetaRequestItem, BetaStatus, DemoBusiness, LandingFunnel, PlatformBusiness } from '@core/models/platform-business.model';
 import { AuthService } from '@core/services/auth.service';
 import { SuperAdminService } from '@core/services/super-admin.service';
+
+import { weekOneMessages, whatsappUrl } from './beta-messages';
 
 @Component({
   selector: 'app-super-admin-page',
@@ -21,6 +24,7 @@ export class SuperAdminPageComponent {
   private readonly platformApi = inject(SuperAdminService);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly toasts = inject(Toasts);
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly columns = ['name', 'slug', 'staff', 'appointments', 'status', 'actions'];
@@ -35,6 +39,12 @@ export class SuperAdminPageComponent {
   protected readonly betaPendingId = signal<number | null>(null);
   protected readonly newRequests = computed(() => this.betaRequests().filter((item) => item.status === 'nueva').length);
 
+  protected readonly inviteLinks = signal<Record<number, string>>({});
+  protected readonly demo = signal<DemoBusiness | null>(null);
+  protected readonly demoPending = signal(false);
+  protected readonly weekMessages = weekOneMessages;
+  protected readonly whatsappUrl = whatsappUrl;
+
   constructor() {
     this.load();
     this.loadBeta();
@@ -48,6 +58,58 @@ export class SuperAdminPageComponent {
   protected whatsappLink(item: BetaRequestItem): string {
     const text = `Hola ${item.name.split(' ')[0]}, te escribimos de Nexia. Recibimos tu solicitud para la beta de ${item.business_name}.`;
     return `https://wa.me/52${item.phone}?text=${encodeURIComponent(text)}`;
+  }
+
+  /** Aprueba, manda el correo con la invitación y deja a la vista el enlace por si se prefiere mandarlo por WhatsApp. */
+  protected invite(item: BetaRequestItem): void {
+    if (this.betaPendingId() !== null) {
+      return;
+    }
+    this.betaPendingId.set(item.id);
+    this.platformApi
+      .inviteBeta(item.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (result) => {
+          this.betaRequests.update((items) => items.map((row) => (row.id === result.request.id ? result.request : row)));
+          this.inviteLinks.update((links) => ({ ...links, [item.id]: result.invite_url }));
+          this.betaPendingId.set(null);
+          this.toasts.show('Invitación enviada por correo.');
+        },
+        error: (error: unknown) => {
+          this.betaPendingId.set(null);
+          this.loadError.set(readError(error, 'No pudimos enviar la invitación.'));
+        },
+      });
+  }
+
+  protected copyLink(url: string): void {
+    void navigator.clipboard?.writeText(url).then(
+      () => this.toasts.show('Enlace copiado.'),
+      () => this.toasts.show('No pudimos copiar el enlace.'),
+    );
+  }
+
+  protected createDemo(): void {
+    if (this.demoPending()) {
+      return;
+    }
+    this.demoPending.set(true);
+    this.platformApi
+      .createDemoBusiness()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (demo) => {
+          this.demo.set(demo);
+          this.demoPending.set(false);
+          this.load();
+          this.toasts.show('Negocio demo listo.');
+        },
+        error: (error: unknown) => {
+          this.demoPending.set(false);
+          this.loadError.set(readError(error, 'No pudimos crear el negocio demo.'));
+        },
+      });
   }
 
   protected setBetaStatus(item: BetaRequestItem, status: BetaStatus): void {

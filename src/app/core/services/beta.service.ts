@@ -8,7 +8,7 @@ export interface BetaRequestBody {
   name: string;
   email: string;
   phone: string;
-  business_name: string;
+  business_name: string | null;
   kind: string;
   message: string | null;
   /** Cuántas personas atienden en el negocio (opcional). */

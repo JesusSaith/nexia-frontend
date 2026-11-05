@@ -30,7 +30,7 @@
     <section class="mx-auto grid w-full max-w-6xl items-center gap-10 px-4 pb-14 pt-8 md:grid-cols-2 md:pt-14">
       <div class="hero-in">
         <span class="badge border border-line-strong bg-surface text-ink-soft">Beta cerrada · cupo limitado</span>
-        <h1 class="mt-4 text-4xl font-medium leading-tight tracking-tight sm:text-5xl">
+        <h1 class="mt-4 text-4xl font-medium leading-tight tracking-tight sm:text-6xl">
           Tus citas, <span class="hl">sin mensajes de ida y vuelta</span>
         </h1>
         <p class="mt-5 max-w-md text-base text-ink-soft sm:text-lg">
@@ -38,8 +38,19 @@
         </p>
         <div class="mt-7 flex flex-col gap-3 sm:flex-row">
           <a href="#beta" class="btn btn-primary">Pedir acceso a la beta</a>
-          <a href="#como-funciona" class="btn btn-secondary">Ver cómo funciona</a>
+          <a [routerLink]="DEMO_PATH" class="btn btn-secondary"><mat-icon aria-hidden="true">touch_app</mat-icon>Prueba cómo reserva tu cliente</a>
         </div>
+        <div class="mt-7">
+          <p class="text-sm font-medium text-ink-soft">Mira cómo se vería para tu negocio:</p>
+          <div class="mt-2 flex flex-wrap gap-2" role="group" aria-label="Tipo de negocio de ejemplo">
+            @for (k of heroKinds; track k.value) {
+              <button type="button" class="chip" [class.chip-on]="heroKind() === k.value" [attr.aria-pressed]="heroKind() === k.value" (click)="heroKind.set(k.value)">{{ k.label }}</button>
+            }
+          </div>
+        </div>
+        @if (showStats() && stats(); as st) {
+          <p class="mt-6 text-sm text-ink-soft"><strong class="text-ink">{{ st.appointments }}</strong> citas agendadas en <strong class="text-ink">{{ st.businesses }}</strong> negocios de la beta.</p>
+        }
       </div>
 
       <!-- Celular con la página de reservas real y formas de la marca -->
@@ -51,7 +62,26 @@
         <svg class="float absolute left-0 top-10 h-12 w-12" viewBox="0 0 48 48"><path d="M24 2l5 15 15 5-15 5-5 15-5-15-15-5 15-5z" class="fill-ink" /></svg>
         <span class="float absolute right-2 top-6 h-14 w-14 rounded-full bg-accent" style="--d: 1s"></span>
         <div class="absolute left-1/2 top-1/2 w-60 -translate-x-1/2 -translate-y-1/2 rotate-2 overflow-hidden rounded-[2rem] border-[8px] border-ink bg-surface shadow-2xl">
-          <img src="/landing/reserva.webp" alt="" width="585" height="1170" class="block h-auto w-full" fetchpriority="high" />
+          <div class="px-4 pb-5 pt-6">
+            <div class="flex items-center gap-3">
+              <span class="avatar h-11! w-11! text-base!">{{ heroMock().initial }}</span>
+              <div class="min-w-0">
+                <p class="truncate text-sm font-semibold">{{ heroMock().name }}</p>
+                <p class="text-xs text-muted">Reserva en línea</p>
+              </div>
+            </div>
+            <p class="mt-3 text-xs text-ink-soft">{{ heroMock().description }}</p>
+            <p class="mt-4 text-xs font-semibold uppercase tracking-wide text-muted">Elige un servicio</p>
+            <ul class="mt-2 grid gap-2">
+              @for (sv of heroMock().services; track sv.name) {
+                <li class="flex items-center justify-between gap-2 rounded-xl border border-line bg-canvas px-3 py-2.5">
+                  <span class="min-w-0"><span class="block truncate text-sm font-medium">{{ sv.name }}</span><span class="text-xs text-muted">{{ sv.time }}</span></span>
+                  <span class="shrink-0 text-sm font-semibold">{{ money(sv.price) }}</span>
+                </li>
+              }
+            </ul>
+            <span class="btn btn-primary mt-4 w-full">Reservar</span>
+          </div>
         </div>
         <div class="float absolute -left-2 bottom-24 flex items-center gap-2 rounded-xl border border-b-4 border-line border-b-ink bg-surface px-3 py-2 text-sm font-medium shadow-lg" style="--d: .5s">
           <mat-icon class="h-5! w-5! text-[20px]! text-[var(--nx-ok-fg)]">check_circle</mat-icon> Cita confirmada
@@ -75,29 +105,82 @@
       </div>
     </section>
 
-    <!-- Así se ve (capturas reales) -->
-    <section class="mx-auto w-full max-w-6xl px-4 pb-16" aria-labelledby="asi-se-ve">
-      <div class="flex flex-wrap items-center gap-x-6 gap-y-2" reveal>
-        <h2 id="asi-se-ve" class="hl text-2xl font-medium sm:text-3xl">Así se ve</h2>
-        <p class="max-w-md text-sm text-ink-soft">Capturas de Nexia en un celular, con un negocio de ejemplo.</p>
-      </div>
-      <ul class="mt-10 grid gap-10 sm:grid-cols-3">
-        @for (shot of shots; track shot.src; let i = $index) {
-          <li class="flex flex-col items-center text-center" reveal [revealDelay]="i * 0.12">
-            <div class="lift w-56 overflow-hidden rounded-[2rem] border-[8px] border-ink bg-surface shadow-xl">
-              <img [src]="shot.src" alt="" width="585" height="1170" loading="lazy" class="block h-auto w-full" />
+    <!-- Pantallas por pestañas -->
+    <section class="bg-line/50 py-16" aria-labelledby="asi-se-ve">
+      <div class="mx-auto w-full max-w-6xl px-4">
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-2" reveal>
+          <h2 id="asi-se-ve" class="hl text-3xl font-medium sm:text-4xl">Así se ve</h2>
+          <p class="max-w-md text-sm text-ink-soft">Capturas reales de Nexia con un negocio de ejemplo, en celular y en computadora.</p>
+        </div>
+        <div class="mt-8 flex flex-wrap gap-2" role="tablist" aria-label="Pantallas">
+          @for (t of tabs; track t.id) {
+            <button type="button" role="tab" class="chip" [class.chip-on]="tab() === t.id" [attr.aria-selected]="tab() === t.id" (click)="tab.set(t.id)">
+              <mat-icon class="h-5! w-5! text-[20px]!" aria-hidden="true">{{ t.icon }}</mat-icon>{{ t.label }}
+            </button>
+          }
+        </div>
+        <div class="mt-8 grid items-center gap-8 md:grid-cols-[1fr_16rem]" role="tabpanel">
+          <div class="order-2 md:order-1">
+            <div class="overflow-hidden rounded-2xl border border-b-4 border-ink bg-surface shadow-xl">
+              <div class="flex items-center gap-1.5 border-b border-line bg-canvas px-3 py-2" aria-hidden="true">
+                <span class="h-2.5 w-2.5 rounded-full bg-line-strong"></span><span class="h-2.5 w-2.5 rounded-full bg-line-strong"></span><span class="h-2.5 w-2.5 rounded-full bg-line-strong"></span>
+                <span class="ml-3 truncate rounded-md bg-surface px-3 py-0.5 text-xs text-muted">app.nexiacitas.com/admin</span>
+              </div>
+              <img [src]="currentTab().desk" alt="" width="1000" height="625" loading="lazy" class="block h-auto w-full" />
             </div>
-            <h3 class="mt-5 font-semibold">{{ shot.title }}</h3>
-            <p class="mt-1 max-w-56 text-sm text-ink-soft">{{ shot.text }}</p>
-          </li>
-        }
-      </ul>
+            <p class="mt-4 max-w-xl text-base text-ink-soft"><strong class="text-ink">{{ currentTab().label }}.</strong> {{ currentTab().text }}</p>
+          </div>
+          <div class="order-1 mx-auto w-56 overflow-hidden rounded-[2rem] border-[8px] border-ink bg-surface shadow-xl md:order-2">
+            <img [src]="currentTab().phone" alt="" width="585" height="1170" loading="lazy" class="block h-auto w-full" />
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Video -->
+    <section class="bg-ink py-16 text-surface" aria-labelledby="en-accion">
+      <div class="mx-auto grid w-full max-w-6xl items-center gap-10 px-4 md:grid-cols-2">
+        <div reveal>
+          <h2 id="en-accion" class="text-3xl font-medium sm:text-4xl">Míralo en acción</h2>
+          <p class="mt-4 max-w-md text-base opacity-85">En menos de un minuto tu cliente reserva desde su celular y la cita aparece sola en tu agenda. Sin mensajes, sin libreta.</p>
+          <a href="#beta" class="btn btn-secondary mt-6">Pedir acceso a la beta</a>
+        </div>
+        <div reveal [revealDelay]="0.12" class="mx-auto w-full max-w-xs overflow-hidden rounded-3xl border border-white/20 bg-black shadow-2xl">
+          <video class="block h-auto w-full" src="/landing/demo.mp4" poster="/landing/demo-poster.jpg" muted loop playsinline controls preload="none" aria-label="Cómo reserva un cliente y cómo le aparece la cita al dueño del negocio"></video>
+        </div>
+      </div>
+    </section>
+
+    <!-- Calculadora -->
+    <section class="bg-accent-soft py-16" aria-labelledby="calculadora">
+      <div class="mx-auto w-full max-w-6xl px-4">
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-2" reveal>
+          <h2 id="calculadora" class="hl bg-surface! text-3xl font-medium sm:text-4xl">¿Cuánto te cuestan las faltas?</h2>
+          <p class="max-w-md text-sm text-ink-soft">Cuando alguien no llega, ese horario se pierde. Haz la cuenta con tus números.</p>
+        </div>
+        <div reveal class="mt-8 grid gap-6 rounded-3xl border border-b-4 border-ink bg-surface p-5 sm:p-8 md:grid-cols-2">
+          <div class="grid gap-4">
+            <label class="field"><span class="field-label">Citas por semana</span><input class="field-input" type="number" inputmode="numeric" min="0" max="500" [value]="calcWeekly()" (input)="setCalc('weekly', $event)" /></label>
+            <label class="field"><span class="field-label">¿Qué porcentaje no llega? (%)</span><input class="field-input" type="number" inputmode="numeric" min="0" max="100" [value]="calcMiss()" (input)="setCalc('miss', $event)" /></label>
+            <label class="field"><span class="field-label">Precio promedio por cita (MXN)</span><input class="field-input" type="number" inputmode="numeric" min="0" max="20000" [value]="calcPrice()" (input)="setCalc('price', $event)" /></label>
+          </div>
+          <div class="flex flex-col justify-between gap-4 rounded-2xl bg-ink p-6 text-surface">
+            <div>
+              <p class="text-sm opacity-85">Dejas de ganar cada mes</p>
+              <p class="mt-1 text-4xl font-semibold tabular-nums sm:text-5xl" aria-live="polite">{{ money(calcLoss()) }}</p>
+              <p class="mt-1 text-sm opacity-85">Al año son {{ money(calcLossYear()) }}.</p>
+            </div>
+            <p class="text-sm opacity-85">Con recordatorios, anticipo y reservas claras, las faltas bajan. Es una estimación con los datos que pusiste.</p>
+            <a href="#beta" class="btn btn-secondary">Pedir acceso a la beta</a>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- Funciones -->
-    <section id="funciones" class="mx-auto w-full max-w-6xl scroll-mt-4 px-4 pb-16">
+    <section id="funciones" class="mx-auto w-full max-w-6xl scroll-mt-4 px-4 py-16">
       <div class="flex flex-wrap items-center gap-x-6 gap-y-2" reveal>
-        <h2 class="hl text-2xl font-medium sm:text-3xl">Funciones</h2>
+        <h2 class="hl text-3xl font-medium sm:text-4xl">Funciones</h2>
         <p class="max-w-md text-sm text-ink-soft">Todo lo que necesitas para atender, en un solo lugar.</p>
       </div>
       <ul class="mt-8 grid gap-4 sm:grid-cols-2">
@@ -132,7 +215,7 @@
     <!-- Antes y después -->
     <section class="mx-auto w-full max-w-6xl px-4 pb-16" aria-labelledby="antes-despues">
       <div class="flex flex-wrap items-center gap-x-6 gap-y-2" reveal>
-        <h2 id="antes-despues" class="hl text-2xl font-medium sm:text-3xl">Antes y después</h2>
+        <h2 id="antes-despues" class="hl text-3xl font-medium sm:text-4xl">Antes y después</h2>
         <p class="max-w-md text-sm text-ink-soft">Agendar por WhatsApp contra reservar con Nexia.</p>
       </div>
       <div class="mt-8 grid gap-4 md:grid-cols-2">
@@ -158,7 +241,7 @@
     <!-- Cómo funciona -->
     <section id="como-funciona" class="mx-auto w-full max-w-6xl scroll-mt-4 px-4 pb-16">
       <div class="flex flex-wrap items-center gap-x-6 gap-y-2" reveal>
-        <h2 class="hl text-2xl font-medium sm:text-3xl">Cómo funciona</h2>
+        <h2 class="hl text-3xl font-medium sm:text-4xl">Cómo funciona</h2>
         <p class="max-w-md text-sm text-ink-soft">De la solicitud a tu primera cita, en cuatro pasos.</p>
       </div>
       <div class="mt-8 grid gap-3">
@@ -178,7 +261,7 @@
     <!-- Para quién -->
     <section id="para-quien" class="mx-auto w-full max-w-6xl scroll-mt-4 px-4 pb-16">
       <div class="flex flex-wrap items-center gap-x-6 gap-y-2" reveal>
-        <h2 class="hl text-2xl font-medium sm:text-3xl">Para quién es</h2>
+        <h2 class="hl text-3xl font-medium sm:text-4xl">Para quién es</h2>
         <p class="max-w-md text-sm text-ink-soft">Cualquier negocio que atienda con cita.</p>
       </div>
       <div reveal class="mt-8 grid gap-6 rounded-3xl bg-ink p-6 text-surface sm:p-8 md:grid-cols-3 md:gap-0">
@@ -208,7 +291,7 @@
     <!-- Preguntas -->
     <section id="preguntas" class="mx-auto w-full max-w-6xl scroll-mt-4 px-4 pb-16">
       <div class="flex flex-wrap items-center gap-x-6 gap-y-2" reveal>
-        <h2 class="hl text-2xl font-medium sm:text-3xl">Preguntas</h2>
+        <h2 class="hl text-3xl font-medium sm:text-4xl">Preguntas</h2>
       </div>
       <div class="mt-8 grid gap-3">
         @for (f of faqs; track f.q) {
@@ -224,93 +307,115 @@
     </section>
 
     <!-- Beta -->
-    <section #formSection id="beta" class="mx-auto w-full max-w-6xl scroll-mt-4 px-4 pb-16">
-      <div class="flex flex-wrap items-center gap-x-6 gap-y-2" reveal>
-        <h2 class="hl text-2xl font-medium sm:text-3xl">Pide tu acceso</h2>
-        <p class="max-w-md text-sm text-ink-soft">Cuéntanos de tu negocio y te escribimos para abrirte la cuenta.</p>
-      </div>
+    <section #formSection id="beta" class="bg-line/50 py-16 scroll-mt-4">
+      <div class="mx-auto w-full max-w-6xl px-4">
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-2" reveal>
+          <h2 class="hl text-3xl font-medium sm:text-4xl">Pide tu acceso</h2>
+          <p class="max-w-md text-sm text-ink-soft">Cuatro datos y listo. Te escribimos en menos de 24 horas.</p>
+        </div>
 
-      <div reveal class="mt-8 rounded-3xl bg-line/60 p-5 sm:p-8">
-        @if (sent()) {
-          <div #successBox tabindex="-1" class="flex flex-col items-center py-8 text-center outline-none" role="status">
-            <mat-icon class="h-12! w-12! text-[48px]! text-accent" aria-hidden="true">mark_email_read</mat-icon>
-            <h3 class="mt-3 text-xl font-medium">Recibimos tu solicitud</h3>
-            <p class="mt-1 max-w-sm text-sm text-ink-soft">Te escribimos pronto, por correo o WhatsApp, para darte acceso. Revisa también tu carpeta de spam.</p>
+        <div class="mt-8 grid gap-6 md:grid-cols-[1fr_1.1fr]">
+          <div reveal class="rounded-3xl bg-ink p-6 text-surface sm:p-8">
+            <h3 class="text-xl font-medium">Qué incluye la beta</h3>
+            <ul class="mt-5 grid gap-4">
+              @for (o of offer; track o.title) {
+                <li class="flex gap-3">
+                  <mat-icon class="shrink-0" aria-hidden="true">{{ o.icon }}</mat-icon>
+                  <span><span class="block font-semibold">{{ o.title }}</span><span class="text-sm opacity-85">{{ o.text }}</span></span>
+                </li>
+              }
+            </ul>
           </div>
-        } @else {
-          <form [formGroup]="form" (ngSubmit)="submit()" novalidate class="mx-auto grid max-w-2xl gap-4 sm:grid-cols-2">
-            <div>
-              <label class="field" [class.field-invalid]="fieldError('name')">
-                <span class="field-label">Tu nombre</span>
-                <input class="field-input" formControlName="name" autocomplete="name" [attr.aria-invalid]="!!fieldError('name')" />
-              </label>
-              @if (fieldError('name')) { <p class="field-error mt-1">{{ fieldError('name') }}</p> }
-            </div>
-            <div>
-              <label class="field" [class.field-invalid]="fieldError('businessName')">
-                <span class="field-label">Nombre del negocio</span>
-                <input class="field-input" formControlName="businessName" autocomplete="organization" [attr.aria-invalid]="!!fieldError('businessName')" />
-              </label>
-              @if (fieldError('businessName')) { <p class="field-error mt-1">{{ fieldError('businessName') }}</p> }
-            </div>
-            <div class="sm:col-span-2">
-              <label class="field" [class.field-invalid]="fieldError('kind')">
-                <span class="field-label">Tipo de negocio</span>
-                <select class="field-input" formControlName="kind" [attr.aria-invalid]="!!fieldError('kind')">
-                  <option value="" disabled>Elige una opción</option>
-                  @for (k of kinds; track k.value) {
-                    <option [value]="k.value">{{ k.label }}</option>
-                  }
-                </select>
-              </label>
-              @if (fieldError('kind')) { <p class="field-error mt-1">{{ fieldError('kind') }}</p> }
-            </div>
-            <div>
-              <label class="field" [class.field-invalid]="fieldError('email')">
-                <span class="field-label">Correo</span>
-                <input class="field-input" type="email" formControlName="email" autocomplete="email" inputmode="email" [attr.aria-invalid]="!!fieldError('email')" />
-              </label>
-              @if (fieldError('email')) { <p class="field-error mt-1">{{ fieldError('email') }}</p> }
-            </div>
-            <div>
-              <label class="field" [class.field-invalid]="fieldError('phone')">
-                <span class="field-label">WhatsApp (10 dígitos)</span>
-                <input class="field-input" type="tel" formControlName="phone" autocomplete="tel-national" inputmode="numeric" [attr.aria-invalid]="!!fieldError('phone')" />
-              </label>
-              @if (fieldError('phone')) { <p class="field-error mt-1">{{ fieldError('phone') }}</p> }
-            </div>
-            <label class="field sm:col-span-2">
-              <span class="field-label">¿Cuántas personas atienden en tu negocio? (opcional)</span>
-              <select class="field-input" formControlName="people">
-                <option value="">Prefiero no decirlo</option>
-                @for (n of peopleOptions; track n) {
-                  <option [value]="n">{{ n === 1 ? 'Solo yo' : n === 7 ? '7 o más' : n + ' personas' }}</option>
+
+          <div reveal [revealDelay]="0.1" class="rounded-3xl border border-b-4 border-ink bg-surface p-5 sm:p-8">
+            @if (sent()) {
+              <div #successBox tabindex="-1" class="flex flex-col items-center py-8 text-center outline-none" role="status">
+                <mat-icon class="h-12! w-12! text-[48px]! text-accent" aria-hidden="true">mark_email_read</mat-icon>
+                <h3 class="mt-3 text-xl font-medium">Recibimos tu solicitud</h3>
+                <p class="mt-1 max-w-sm text-sm text-ink-soft">Te escribimos en menos de 24 horas, por correo o WhatsApp, para darte acceso. Revisa también tu carpeta de spam.</p>
+              </div>
+            } @else {
+              <form [formGroup]="form" (ngSubmit)="submit()" novalidate class="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label class="field" [class.field-invalid]="fieldError('name')">
+                    <span class="field-label">Tu nombre</span>
+                    <input class="field-input" formControlName="name" autocomplete="name" [attr.aria-invalid]="!!fieldError('name')" />
+                  </label>
+                  @if (fieldError('name')) { <p class="field-error mt-1">{{ fieldError('name') }}</p> }
+                </div>
+                <div>
+                  <label class="field" [class.field-invalid]="fieldError('phone')">
+                    <span class="field-label">WhatsApp (10 dígitos)</span>
+                    <input class="field-input" type="tel" formControlName="phone" autocomplete="tel-national" inputmode="numeric" [attr.aria-invalid]="!!fieldError('phone')" />
+                  </label>
+                  @if (fieldError('phone')) { <p class="field-error mt-1">{{ fieldError('phone') }}</p> }
+                </div>
+                <div>
+                  <label class="field" [class.field-invalid]="fieldError('kind')">
+                    <span class="field-label">Tipo de negocio</span>
+                    <select class="field-input" formControlName="kind" [attr.aria-invalid]="!!fieldError('kind')">
+                      <option value="" disabled>Elige una opción</option>
+                      @for (k of kinds; track k.value) {
+                        <option [value]="k.value">{{ k.label }}</option>
+                      }
+                    </select>
+                  </label>
+                  @if (fieldError('kind')) { <p class="field-error mt-1">{{ fieldError('kind') }}</p> }
+                </div>
+                <div>
+                  <label class="field" [class.field-invalid]="fieldError('email')">
+                    <span class="field-label">Correo (ahí te llega tu invitación)</span>
+                    <input class="field-input" type="email" formControlName="email" autocomplete="email" inputmode="email" [attr.aria-invalid]="!!fieldError('email')" />
+                  </label>
+                  @if (fieldError('email')) { <p class="field-error mt-1">{{ fieldError('email') }}</p> }
+                </div>
+
+                <div class="sm:col-span-2">
+                  <button type="button" class="flex min-h-11 items-center gap-1 text-sm font-medium underline underline-offset-2" [attr.aria-expanded]="moreOpen()" (click)="moreOpen.set(!moreOpen())">
+                    <mat-icon aria-hidden="true">{{ moreOpen() ? 'expand_less' : 'expand_more' }}</mat-icon>Más datos (opcional)
+                  </button>
+                </div>
+                @if (moreOpen()) {
+                  <label class="field sm:col-span-2">
+                    <span class="field-label">Nombre del negocio</span>
+                    <input class="field-input" formControlName="businessName" autocomplete="organization" />
+                  </label>
+                  <label class="field sm:col-span-2">
+                    <span class="field-label">¿Cuántas personas atienden en tu negocio?</span>
+                    <select class="field-input" formControlName="people">
+                      <option value="">Prefiero no decirlo</option>
+                      @for (n of peopleOptions; track n) {
+                        <option [value]="n">{{ n === 1 ? 'Solo yo' : n === 7 ? '7 o más' : n + ' personas' }}</option>
+                      }
+                    </select>
+                  </label>
+                  <label class="field sm:col-span-2">
+                    <span class="field-label">¿Algo que quieras contarnos?</span>
+                    <textarea class="field-input" rows="3" maxlength="600" formControlName="message"></textarea>
+                  </label>
                 }
-              </select>
-            </label>
-            <label class="field sm:col-span-2">
-              <span class="field-label">¿Algo que quieras contarnos? (opcional)</span>
-              <textarea class="field-input" rows="3" maxlength="600" formControlName="message"></textarea>
-            </label>
-            <!-- Campo trampa para robots: fuera de pantalla y sin foco. -->
-            <div class="absolute -left-[9999px]" aria-hidden="true">
-              <label>No lo llenes <input tabindex="-1" autocomplete="off" formControlName="website" /></label>
-            </div>
-            @if (error()) {
-              <p class="field-error sm:col-span-2" role="alert">{{ error() }}</p>
+                <!-- Campo trampa para robots: fuera de pantalla y sin foco. -->
+                <div class="absolute -left-[9999px]" aria-hidden="true">
+                  <label>No lo llenes <input tabindex="-1" autocomplete="off" formControlName="website" /></label>
+                </div>
+                @if (error()) {
+                  <p class="field-error sm:col-span-2" role="alert">{{ error() }}</p>
+                }
+                <button type="submit" class="btn btn-primary sm:col-span-2" [disabled]="submitting()">
+                  {{ submitting() ? 'Enviando…' : 'Enviar solicitud' }}
+                </button>
+                <p class="text-center text-sm font-medium sm:col-span-2">Te escribimos en menos de 24 horas.</p>
+                <p class="text-center text-sm text-ink-soft sm:col-span-2">¿Prefieres escribirnos? <a class="font-medium underline underline-offset-2" [href]="whatsappLink" target="_blank" rel="noopener" (click)="openWhatsapp()">Habla con nosotros por WhatsApp</a></p>
+                <p class="field-hint text-center sm:col-span-2">Usamos tus datos solo para contactarte sobre la beta. <a class="underline underline-offset-2" routerLink="/privacidad">Aviso de privacidad</a></p>
+              </form>
             }
-            <button type="submit" class="btn btn-primary sm:col-span-2" [disabled]="submitting()">
-              {{ submitting() ? 'Enviando…' : 'Enviar solicitud' }}
-            </button>
-            <p class="text-center text-sm text-ink-soft sm:col-span-2">¿Prefieres escribirnos? <a class="font-medium underline underline-offset-2" [href]="whatsappLink" target="_blank" rel="noopener" (click)="openWhatsapp()">Habla con nosotros por WhatsApp</a></p>
-            <p class="field-hint text-center sm:col-span-2">Usamos tus datos solo para contactarte sobre la beta. <a class="underline underline-offset-2" routerLink="/privacidad">Aviso de privacidad</a></p>
-          </form>
-        }
+          </div>
+        </div>
       </div>
     </section>
   </main>
 
-  <footer class="mx-auto w-full max-w-6xl px-4 pb-8">
+  <footer class="mx-auto w-full max-w-6xl px-4 pb-24 pt-16 md:pb-8">
     <div class="rounded-3xl bg-ink p-6 text-surface sm:p-8">
       <div class="flex flex-wrap items-center justify-between gap-4">
         <span class="flex items-center gap-2"><img src="/nexia-mark.png" alt="" class="h-10 w-auto rounded bg-surface p-1" /><span class="text-lg font-semibold">Nexia</span></span>
@@ -324,7 +429,11 @@
     </div>
   </footer>
 
-  <a class="btn btn-whatsapp fixed bottom-4 right-4 z-30 h-14 rounded-full px-5 shadow-lg" [href]="whatsappLink" target="_blank" rel="noopener" (click)="openWhatsapp()" aria-label="Escríbenos por WhatsApp">
+  <!-- Barra fija en celular -->
+  <div class="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-canvas/95 p-3 backdrop-blur md:hidden">
+    <a href="#beta" class="btn btn-primary w-full">Pedir acceso a la beta</a>
+  </div>
+  <a class="btn btn-whatsapp fixed bottom-20 right-4 z-30 h-14 rounded-full px-5 shadow-lg md:bottom-4" [href]="whatsappLink" target="_blank" rel="noopener" (click)="openWhatsapp()" aria-label="Escríbenos por WhatsApp">
     <mat-icon aria-hidden="true">chat</mat-icon><span class="hidden sm:inline">Escríbenos</span>
   </a>
 </div>
