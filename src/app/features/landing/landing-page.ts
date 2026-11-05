@@ -5,7 +5,7 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 
-import { BUSINESS_KINDS, examplesFor } from '@core/business-kinds';
+import { BUSINESS_KINDS, clientsWordFor, examplesFor } from '@core/business-kinds';
 import { BetaService } from '@core/services/beta.service';
 import { LandingService, LandingStats } from '@core/services/landing.service';
 
@@ -139,6 +139,8 @@ export class LandingPage implements AfterViewInit {
     { id: 'pantallas', label: 'Pantallas', icon: 'devices' },
     { id: 'video', label: 'Video', icon: 'play_circle' },
     { id: 'calc', label: 'Cuánto pierdes', icon: 'calculate' },
+    { id: 'comparar', label: 'Comparar', icon: 'compare_arrows' },
+    { id: 'dia', label: 'Tu día', icon: 'schedule' },
   ];
   readonly explore = signal('pantallas');
 
@@ -149,12 +151,126 @@ export class LandingPage implements AfterViewInit {
     unas: ['Duraciones largas, sin empalmes.', 'Anticipo para diseños y acrílicas.', 'Tu enlace y QR para el local.'],
     spa: ['Terapeutas en una sola agenda.', 'Paquetes de sesiones.', 'Citas con anticipo.'],
     dental: ['Recordatorios para evitar faltas.', 'Historial por paciente.', 'Valoración y tratamiento por separado.'],
-    veterinaria: ['Citas por mascota y por tutor.', 'Aviso de "te toca volver".', 'Historial de cada cliente.'],
+    veterinaria: ['Citas por mascota y por tutor.', 'Aviso de "te toca volver".', 'Historial de cada mascota.'],
   };
   readonly kindInfo = computed(() => {
     const kind = this.heroKinds.find((k) => k.value === this.heroKind()) ?? this.heroKinds[0];
     return { label: kind.label, icon: kind.icon, points: this.kindPoints[kind.value] ?? this.kindPoints['belleza'] };
   });
+
+
+  /** Cómo se llama a quien reserva según el giro elegido ("clientes", "pacientes", "tutores"); {c} y {C} en los textos. */
+  readonly clientWord = computed(() => clientsWordFor(this.heroKind()));
+  t(text: string): string {
+    const word = this.clientWord();
+    return text.replace(/\{c\}/g, word).replace(/\{C\}/g, word.charAt(0).toUpperCase() + word.slice(1));
+  }
+
+  /** Figura que flota junto al celular: cambia con el giro. */
+  private readonly shapePaths: Record<string, string> = {
+    belleza: 'M24 2l5 15 15 5-15 5-5 15-5-15-15-5 15-5z',
+    barberia: 'M24 2l20 22-20 22L4 24z',
+    unas: 'M24 4c10 8 16 14 16 22a16 16 0 0 1-32 0c0-8 6-14 16-22z',
+    spa: 'M24 4c6 8 6 14 0 22-6-8-6-14 0-22zM8 20c8 0 14 4 16 12-8 0-14-4-16-12zM40 20c-8 0-14 4-16 12 8 0 14-4 16-12z',
+    dental: 'M24 4l6 6h10v10l6 6-6 6v10H30l-6 6-6-6H8V32l-6-6 6-6V10h10z',
+    veterinaria: 'M24 6a6 6 0 1 1 0 12 6 6 0 0 1 0-12zM10 16a5 5 0 1 1 0 10 5 5 0 0 1 0-10zM38 16a5 5 0 1 1 0 10 5 5 0 0 1 0-10zM24 24c8 0 14 8 10 14-3 4-8 2-10 2s-7 2-10-2c-4-6 2-14 10-14z',
+  };
+  readonly heroShape = computed(() => this.shapePaths[this.heroKind()] ?? this.shapePaths['belleza']);
+
+  /** Agenda de ejemplo del giro: la usan la tarjeta "Hoy en tu agenda" y la pantalla "Tu giro". */
+  private readonly agendaNames: Record<string, string[]> = {
+    belleza: ['Mariana Ortega', 'Sofía Martínez', 'Daniela Torres'],
+    barberia: ['Carlos Ruiz', 'Luis Herrera', 'Andrés Pineda'],
+    unas: ['Paola Vega', 'Karla Soto', 'Ximena Lara'],
+    spa: ['Elena Cruz', 'Roberto Díaz', 'Ana Beltrán'],
+    dental: ['Laura Medina', 'Jorge Salas', 'Rosa Ibarra'],
+    veterinaria: ['Rocky · Luis', 'Luna · Ana', 'Max · Pedro'],
+  };
+  readonly agendaRows = computed(() => {
+    const kind = this.heroKind();
+    const names = this.agendaNames[kind] ?? this.agendaNames['belleza'];
+    const services = this.heroServices[kind] ?? this.heroServices['belleza'];
+    const times = ['10:00 a.m.', '12:00 p.m.', '4:30 p.m.'];
+    return services.slice(0, 3).map((sv, i) => ({ time: times[i], name: names[i], service: sv.name, price: sv.price }));
+  });
+  readonly agendaTotal = computed(() => this.agendaRows().reduce((sum, row) => sum + row.price, 0));
+
+  /** Mini quiz del formulario: giro, personas y cómo llevan hoy las citas; al final, el contacto. */
+  readonly quizStep = signal(0);
+  readonly quizKinds = BUSINESS_KINDS;
+  readonly quizPeople = [
+    { label: 'Solo yo', value: 1 },
+    { label: '2 o 3 personas', value: 3 },
+    { label: '4 a 6 personas', value: 5 },
+    { label: '7 o más', value: 7 },
+  ];
+  readonly quizHowOptions = [
+    { id: 'libreta', label: 'En una libreta', icon: 'edit_note', gain: 'Adiós a la libreta: tus citas se guardan solas.' },
+    { id: 'whatsapp', label: 'Por WhatsApp', icon: 'chat', gain: 'Tus clientes reservan sin escribirte.' },
+    { id: 'app', label: 'En otra app o Excel', icon: 'grid_on', gain: 'Agenda, clientes y cobros en un solo lugar.' },
+    { id: 'nada', label: 'Todavía no llevo control', icon: 'flag', gain: 'Empiezas con orden desde la primera cita.' },
+  ];
+  readonly quizHow = signal<string>('');
+  readonly quizPeopleValue = signal<number | null>(null);
+  readonly quizKind = signal('');
+  readonly quizResult = computed(() => {
+    const kind = this.quizKind();
+    const base = this.kindPoints[kind] ?? ['Servicios y horarios a tu medida.', 'Recordatorios para que no falten.', 'Historial de cada cliente.'];
+    const people = this.quizPeopleValue() ?? 1;
+    const how = this.quizHowOptions.find((o) => o.id === this.quizHow());
+    return [
+      how?.gain ?? base[0],
+      people > 1 ? 'Cada persona de tu equipo ve su propia agenda.' : 'Tu agenda y tus cobros, en un solo lugar.',
+      base[1] ?? base[0],
+    ];
+  });
+
+  pickKind(value: string): void {
+    this.quizKind.set(value);
+    this.form.controls.kind.setValue(value);
+    if (this.kindColors[value]) {
+      this.heroKind.set(value);
+    }
+    this.quizStep.set(1);
+  }
+
+  pickPeople(value: number): void {
+    this.quizPeopleValue.set(value);
+    this.form.controls.people.setValue(String(value));
+    this.quizStep.set(2);
+  }
+
+  pickHow(id: string): void {
+    this.quizHow.set(id);
+    const label = this.quizHowOptions.find((o) => o.id === id)?.label.toLowerCase() ?? '';
+    this.form.controls.message.setValue(`Hoy lleva sus citas: ${label}.`);
+    this.quizStep.set(3);
+  }
+
+  quizBack(): void {
+    this.quizStep.update((n) => Math.max(0, n - 1));
+  }
+
+  /** Comparador de formas de llevar las citas. */
+  readonly compareRows = [
+    { label: 'Reservan a cualquier hora', book: 'no', chat: 'no', nexia: 'yes' },
+    { label: 'Sin choques de horario', book: 'no', chat: 'meh', nexia: 'yes' },
+    { label: 'Recordatorios listos', book: 'no', chat: 'meh', nexia: 'yes' },
+    { label: 'Anticipo y cobros', book: 'no', chat: 'no', nexia: 'yes' },
+    { label: 'Historial de cada cliente', book: 'meh', chat: 'no', nexia: 'yes' },
+    { label: 'Reportes de lo que dejas', book: 'no', chat: 'no', nexia: 'yes' },
+  ];
+
+  /** Un día con Nexia: mañana, tarde y noche. */
+  readonly dayScenes = [
+    { id: 'manana', time: '8:00 a.m.', icon: 'wb_twilight', title: 'Abres y ves tu día', tone: 'light', items: ['Hoy: 6 citas', 'Primera: 10:00 a.m.', '2 por cobrar'] },
+    { id: 'tarde', time: '3:00 p.m.', icon: 'light_mode', title: 'Reservan solos', tone: 'accent', items: ['Nueva reserva · mañana 4:30', 'Anticipo recibido', 'Recordatorio enviado'] },
+    { id: 'noche', time: '9:00 p.m.', icon: 'dark_mode', title: 'Duermes tranquilo', tone: 'dark', items: ['3 reservas mientras dormías', 'Cobros del día al corriente', 'Mañana: agenda lista'] },
+  ];
+
+  /** Gráfica de ingresos de ejemplo (se dibuja sola al llegar). */
+  readonly chartLine = 'M0 78 L40 70 L80 74 L120 56 L160 60 L200 40 L240 44 L280 22 L320 12';
+  readonly chartDays = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
   readonly faqAll = signal(false);
   readonly shownFaqs = computed(() => (this.faqAll() ? this.faqs : this.faqs.slice(0, 3)));
@@ -229,30 +345,30 @@ export class LandingPage implements AfterViewInit {
   readonly kinds = BUSINESS_KINDS;
 
   readonly features = [
-    { scene: 'slots', icon: 'event_available', title: 'Reservas a cualquier hora', text: 'Tus clientes apartan solos, sin escribirte.', tone: 'light' },
+    { scene: 'slots', icon: 'event_available', title: 'Reservas a cualquier hora', text: 'Tus {c} apartan solos, sin escribirte.', tone: 'light' },
     { scene: 'pay', icon: 'payments', title: 'Anticipo y cobro', text: 'Pide anticipo y registra el cobro.', tone: 'accent' },
     { scene: 'agenda', icon: 'calendar_month', title: 'Agenda clara', text: 'Citas por persona, sin choques.', tone: 'dark' },
     { scene: 'chat', icon: 'chat', title: 'WhatsApp listo', text: 'Recordatorios escritos; los envías con un toque.', tone: 'light' },
     { scene: 'team', icon: 'groups', title: 'Equipo y comisiones', text: 'Cada persona ve su agenda; tú ves lo que deja.', tone: 'accent' },
-    { scene: 'clients', icon: 'hourglass_top', title: 'Clientes y lista de espera', text: 'Historial, cumpleaños y aviso si se libera un horario.', tone: 'dark' },
+    { scene: 'clients', icon: 'hourglass_top', title: '{C} y lista de espera', text: 'Historial, cumpleaños y aviso si se libera un horario.', tone: 'dark' },
     { scene: 'chart', icon: 'insights', title: 'Reportes sencillos', text: 'Ingresos, citas y servicios que más dejan.', tone: 'light' },
     { scene: 'qr', icon: 'qr_code_2', title: 'Enlace y código QR', text: 'Tu enlace, tu QR y un cartel para imprimir.', tone: 'accent' },
   ];
   readonly qrCells = [1,1,1,0,1, 1,0,1,1,0, 1,1,0,1,1, 0,1,1,0,1, 1,0,1,1,1];
 
   readonly steps = [
-    { icon: 'edit_square', title: 'Pide tu acceso', text: 'Llena el formulario; nos llega al instante.' },
-    { icon: 'mark_email_read', title: 'Recibe tu invitación', text: 'Te escribimos y te mandamos tu enlace.' },
-    { icon: 'tune', title: 'Configura tu negocio', text: 'Servicios, equipo y horarios, con un asistente.' },
-    { icon: 'share', title: 'Comparte tu enlace', text: 'Ponlo en Instagram o WhatsApp y listo.' },
+    { art: 'form', icon: 'edit_square', title: 'Pide tu acceso', text: 'Llena el formulario; nos llega al instante.' },
+    { art: 'mail', icon: 'mark_email_read', title: 'Recibe tu invitación', text: 'Te escribimos y te mandamos tu enlace.' },
+    { art: 'setup', icon: 'tune', title: 'Configura tu negocio', text: 'Servicios, equipo y horarios, con un asistente.' },
+    { art: 'share', icon: 'share', title: 'Comparte tu enlace', text: 'Ponlo en Instagram o WhatsApp y listo.' },
   ];
 
 
   readonly faqs = [
-    { q: '¿Mis clientes tienen que descargar una app?', a: 'No. Reservan desde el navegador de su celular, con el enlace que les compartes.' },
+    { q: '¿Mis {c} tienen que descargar una app?', a: 'No. Reservan desde el navegador de su celular, con el enlace que les compartes.' },
     { q: '¿Qué es la beta?', a: 'Estamos abriendo Nexia a pocos negocios para pulirla con su uso real. Quien entra nos ayuda a mejorarla y recibe acompañamiento.' },
     { q: '¿Puedo pedir anticipo?', a: 'Sí. Tú decides si lo pides, de cuánto y qué pasa con él si el cliente cancela.' },
-    { q: '¿Qué pasa con los datos de mis clientes?', a: 'Son tuyos. Los guardamos solo para darte el servicio y no los vendemos.' },
+    { q: '¿Qué pasa con los datos de mis {c}?', a: 'Son tuyos. Los guardamos solo para darte el servicio y no los vendemos.' },
     { q: '¿Sirve para mi tipo de negocio?', a: 'Sirve para cualquier negocio que atienda con cita: salones, barberías, spas, consultorios, clínicas, veterinarias y estudios.' },
   ];
 

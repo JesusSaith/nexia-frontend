@@ -708,3 +708,17 @@ mat-icon {
 .hand-tap { animation: nx-tap 1.6s ease-in-out infinite; }
 @keyframes nx-tap { 0%, 100% { transform: translate(6px, 6px) scale(1); } 50% { transform: translate(-4px, -4px) scale(.88); } }
 @media (prefers-reduced-motion: reduce) { .hand-tap { animation: none; } }
+
+/* Textura de puntos para las bandas de la landing, notificaciones que entran y gráfica que se dibuja. */
+.dots { background-image: radial-gradient(color-mix(in srgb, var(--color-ink) 16%, transparent) 1.2px, transparent 1.3px); background-size: 22px 22px; }
+.sc-notif { opacity: 0; animation: nx-notif 9s ease-out infinite; animation-delay: var(--d, 0s); }
+@keyframes nx-notif { 0%, 3% { opacity: 0; transform: translateY(14px); } 10%, 85% { opacity: 1; transform: none; } 95%, 100% { opacity: 0; transform: none; } }
+.draw .line { stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 1.8s ease .2s; }
+.draw .area { opacity: 0; transition: opacity 1.2s ease 1.2s; }
+.rv-in .draw .line { stroke-dashoffset: 0; }
+.rv-in .draw .area { opacity: .15; }
+@media (prefers-reduced-motion: reduce) {
+  .sc-notif { opacity: 1; animation: none; }
+  .draw .line { stroke-dashoffset: 0; transition: none; }
+  .draw .area { opacity: .15; transition: none; }
+}
