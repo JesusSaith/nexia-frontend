@@ -1659,6 +1659,8 @@ export class AgendaPageComponent {
     }
     const due = active
       .filter((item) => item.status !== 'completed')
+      // "Precio en la cita" sin precio acordado: aún no hay monto que cobrar.
+      .filter((item) => !this.priceOpen(item))
       // Sin anticipo ni cotización, bill() es null y se cobra el precio del servicio completo.
       .reduce((sum, item) => sum + (this.bill(item)?.rest ?? this.services().find((row) => row.id === item.service_id)?.price ?? 0), 0);
     const visit = this.copy.text().visit.toLowerCase();

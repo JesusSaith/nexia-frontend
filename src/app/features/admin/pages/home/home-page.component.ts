@@ -429,6 +429,10 @@ export class HomePageComponent {
 
   /** Lo que falta cobrar en la cita: precio (o cotización) menos el anticipo. */
   private rest(item: Appointment): number {
+    // "Precio en la cita" sin precio acordado: el precio del servicio es solo de referencia, aún no hay monto por cobrar.
+    if (item.quoted_price == null && this.services().find((row) => row.id === item.service_id)?.price_at_visit) {
+      return 0;
+    }
     const total = item.quoted_price ?? this.services().find((row) => row.id === item.service_id)?.price ?? 0;
     return Math.max(0, total - (item.deposit_amount ?? 0));
   }

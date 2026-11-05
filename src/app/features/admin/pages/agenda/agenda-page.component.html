@@ -830,7 +830,7 @@
       </button>
     }
     @if (priceOpen(appointment)) {
-      <p class="field-hint">Precio por definir: acuérdalo con {{ copy.text().client.toLowerCase() }} en la {{ copy.text().visit.toLowerCase() }} y escríbelo aquí antes de cobrar.</p>
+      <p class="field-hint">Precio por definir: acuérdalo con el {{ copy.text().client.toLowerCase() }} en la {{ copy.text().visit.toLowerCase() }} y escríbelo aquí antes de cobrar.</p>
     }
     @if (quoteHref(); as href) {
       <a class="btn btn-whatsapp w-full" [href]="href" target="_blank" rel="noopener" (click)="quoteHref.set(null)">Enviar precio por WhatsApp</a>
@@ -951,7 +951,7 @@
               </label>
               <p class="field-hint">La cita queda confirmada y ese anticipo se descuenta de lo que cobras al final.</p>
             } @else if (form.controls.deposit_mode.value === 'none') {
-              <p class="field-hint">Úsalo con {{ copy.text().client.toLowerCase() }} de confianza.</p>
+              <p class="field-hint">Úsalo con un {{ copy.text().client.toLowerCase() }} de confianza.</p>
             }
           </div>
         }
