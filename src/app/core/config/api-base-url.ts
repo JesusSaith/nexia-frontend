@@ -5,6 +5,7 @@ import { InjectionToken } from '@angular/core';
  * - En local apunta al backend en :8001.
  * - Con dominio propio, la app vive en app.tudominio.com y la API en api.tudominio.com (detrás de
  *   Cloudflare). Son del mismo sitio, así que la cookie de sesión sigue funcionando.
+ * - La landing vive en el dominio principal (tudominio.com y www.tudominio.com): también usa api.tudominio.com.
  * - En cualquier otro dominio usa /api del mismo origen: solo sirve si algo reenvía esas rutas a la API
  *   (ya no hay vercel.json; en *.workers.dev no existe ese reenvío, así que ahí la app no puede iniciar sesión).
  */
@@ -12,7 +13,11 @@ export function apiBaseUrl(hostname: string, origin: string): string {
   if (['localhost', '127.0.0.1'].includes(hostname)) {
     return 'http://localhost:8001/api';
   }
-  return hostname.startsWith('app.') ? `https://api.${hostname.slice(4)}/api` : `${origin}/api`;
+  if (hostname.startsWith('app.') || hostname.startsWith('www.')) {
+    return `https://api.${hostname.slice(4)}/api`;
+  }
+  // Dominio principal sin subdominio (dos partes, como nexiacitas.com).
+  return hostname.split('.').length === 2 ? `https://api.${hostname}/api` : `${origin}/api`;
 }
 
 export const API_BASE_URL = new InjectionToken<string>('API_BASE_URL', {
