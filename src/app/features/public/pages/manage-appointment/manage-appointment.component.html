@@ -79,6 +79,11 @@
             <dt class="text-muted">{{ item.variable_price ? 'Precio acordado' : 'Total' }}</dt>
             <dd class="font-medium">${{ item.quoted_price }}</dd>
           </div>
+        } @else if (item.price_at_visit) {
+          <div>
+            <dt class="text-muted">Precio</dt>
+            <dd class="font-medium">Se acuerda en tu cita</dd>
+          </div>
         } @else if (item.variable_price) {
           <div>
             <dt class="text-muted">Precio</dt>
@@ -105,10 +110,10 @@
       @if (item.price_accepted) {
         <p class="mt-4 text-sm text-[var(--nx-ok-fg)]">Aceptaste este precio.</p>
       }
-      @if (item.status === 'awaiting_deposit' && !item.deposit_amount) {
+      @if (item.status === 'awaiting_deposit' && !item.deposit_amount && !item.price_at_visit) {
         <p class="mt-4 text-sm">El anticipo se calcula cuando quede el precio acordado.</p>
       }
-      @let mustAccept = item.variable_price && !item.price_accepted;
+      @let mustAccept = item.variable_price && !item.price_at_visit && !item.price_accepted;
       @if (item.status === 'awaiting_deposit' && item.deposit_amount && mustAccept) {
         <p class="mt-4 rounded-xl bg-accent-soft px-3 py-2 text-sm" role="status">
           Primero revisa el precio de arriba. Cuando toques "Sí, ese precio" te mostramos cómo pagar el anticipo de ${{ item.deposit_amount }}.

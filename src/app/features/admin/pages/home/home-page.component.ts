@@ -73,11 +73,16 @@ export class HomePageComponent {
         continue;
       }
       const when = `${item.client_name} · ${item.service_name} · ${this.slotLabel(item.starts_at)}`;
+      const row = this.services().find((entry) => entry.id === item.service_id);
+      const open = item.status === 'scheduled' || item.status === 'awaiting_deposit';
       if (item.needs_approval && (item.status === 'scheduled' || item.status === 'awaiting_deposit')) {
         rows.push({ id: item.id, day, title: 'Aprobar solicitud', detail: when, action: 'Responder', tone: 'badge-warn' });
-      } else if ((item.status === 'scheduled' || item.status === 'awaiting_deposit') && item.quoted_price == null && this.services().find((row) => row.id === item.service_id)?.variable_price) {
+      } else if (open && item.quoted_price == null && row?.variable_price && !row.price_at_visit) {
         // Pidió cotización: quien espera el precio no puede seguir hasta que se lo mandes.
         rows.push({ id: item.id, day, title: 'Falta el precio', detail: when, action: 'Cotizar', tone: 'badge-warn' });
+      } else if (open && item.quoted_price == null && row?.price_at_visit && day === today) {
+        // "En la cita": no se cotiza antes; el día de la visita se recuerda definir el precio para cobrar.
+        rows.push({ id: item.id, day, title: 'Define el precio en la cita', detail: when, action: 'Abrir', tone: 'badge-info' });
       } else if (item.status === 'awaiting_deposit' && (item.payment_proof || item.paid_claim)) {
         rows.push({ id: item.id, day, title: 'Revisar comprobante', detail: when, action: 'Revisar', tone: 'badge-info' });
       } else if (item.status === 'awaiting_deposit') {

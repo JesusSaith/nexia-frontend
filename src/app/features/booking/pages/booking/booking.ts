@@ -366,12 +366,13 @@ export class Booking {
     }
     const minutes = this.totalMinutes();
     const variable = chosen.some((service) => service.variable_price);
+    const atVisitOnly = chosen.filter((service) => service.variable_price).every((service) => service.price_at_visit);
     const price = chosen.reduce((total, service) => total + (service.variable_price ? 0 : service.price), 0);
     const slot = this.selectedSlot();
     const who = this.selectedStaff()?.full_name ?? (this.anyStaff() ? 'quien esté disponible' : null);
     return {
       title: chosen.length > 1 ? `${chosen[0].name} + ${chosen.length - 1} más` : chosen[0].name,
-      detail: `${this.formatMinutes(minutes)} · ${variable ? (price ? `desde ${this.formatPrice(price)}` : 'precio por cotizar') : this.formatPrice(price)}`,
+      detail: `${this.formatMinutes(minutes)} · ${variable ? (price ? `desde ${this.formatPrice(price)}` : atVisitOnly ? 'precio en la cita' : 'precio por cotizar') : this.formatPrice(price)}`,
       who,
       when: slot ? `${this.formatDate(slot)} · ${this.formatTime(slot)}` : null,
     };
@@ -438,7 +439,8 @@ export class Booking {
 
   /** Servicio por cotizar y todavía sin precio: la pantalla de confirmación cambia a "falta el precio". */
   protected needsQuote(appointment: Appointment): boolean {
-    return Boolean(this.selectedService()?.variable_price) && appointment.quoted_price == null;
+    const service = this.selectedService();
+    return Boolean(service?.variable_price) && !service?.price_at_visit && appointment.quoted_price == null;
   }
 
   protected formatTime(value: string): string {
@@ -924,7 +926,8 @@ export class Booking {
     if (!account) {
       return null;
     }
-    if (this.selectedService()?.variable_price && this.brand()?.deposit_percent) {
+    // "En la cita" no tiene precio que cotizar: el anticipo es el monto fijo, nunca un porcentaje.
+    if (this.selectedService()?.variable_price && !this.selectedService()?.price_at_visit && this.brand()?.deposit_percent) {
       return null;
     }
     const own = this.selectedService()?.deposit_amount;
@@ -933,7 +936,7 @@ export class Booking {
   }
 
   protected holdsDeposit(): boolean {
-    return this.depositAmount() != null || Boolean(this.selectedService()?.variable_price && this.brand()?.deposit_percent && this.brand()?.deposit_account);
+    return this.depositAmount() != null || Boolean(this.selectedService()?.variable_price && !this.selectedService()?.price_at_visit && this.brand()?.deposit_percent && this.brand()?.deposit_account);
   }
 
   protected confirm(): void {
@@ -951,7 +954,7 @@ export class Booking {
     }
 
     const { client_name, client_phone, client_email, notes } = this.clientForm.getRawValue();
-    if (service.variable_price && !notes.trim()) {
+    if (service.variable_price && !service.price_at_visit && !notes.trim()) {
       this.formError.set('Cuéntanos qué necesitas para cotizar.');
       return;
     }
@@ -1375,13 +1378,16 @@ export class Booking {
   /** Mensaje para el negocio con todo lo necesario para atender (o cotizar) sin preguntar de nuevo. */
   private whatsappText(appointment: Appointment, withPhotoLinks: boolean): string {
     const brand = this.brand();
-    const quote = Boolean(this.selectedService()?.variable_price);
+    const atVisit = Boolean(this.selectedService()?.price_at_visit);
+    const quote = Boolean(this.selectedService()?.variable_price) && !atVisit;
     const visit = this.copy().visit.toLowerCase();
     const service = [appointment.service_name || this.selectedService()?.name, appointment.extra_label].filter(Boolean).join(' + ');
     const lines = [
       quote
         ? `¡Hola${brand?.name ? `, ${brand.name}` : ''}! 👋 Quiero *cotizar* un servicio. Ya aparté mi lugar en su página de reservas:`
-        : `¡Hola${brand?.name ? `, ${brand.name}` : ''}! 👋 Acabo de reservar en su página. Estos son los datos de mi ${visit}:`,
+        : atVisit
+          ? `¡Hola${brand?.name ? `, ${brand.name}` : ''}! 👋 Ya aparté mi lugar en su página de reservas. El diseño y el precio los acordamos en la ${visit}:`
+          : `¡Hola${brand?.name ? `, ${brand.name}` : ''}! 👋 Acabo de reservar en su página. Estos son los datos de mi ${visit}:`,
       '',
       `📋 *Servicio:* ${service}`,
       `📅 *Día:* ${this.formatDate(appointment.starts_at)}`,
