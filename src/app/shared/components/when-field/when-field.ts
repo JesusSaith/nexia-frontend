@@ -207,17 +207,17 @@ export class DateFieldComponent implements ControlValueAccessor {
     <ng-template #panel>
       @if (options() === null) {
         <!-- Hora y minutos por separado: 17 + 4 botones en vez de 65 horas en una lista larga. -->
-        <div class="rounded-2xl border border-line bg-surface p-3 text-ink shadow-lg" (click)="$event.stopPropagation()">
-          <p class="px-1 pb-1.5 text-xs font-semibold text-muted">1. Elige la hora</p>
-          <div class="grid grid-cols-6 gap-1">
+        <div class="rounded-2xl border border-line bg-surface p-4 text-ink shadow-lg" (click)="$event.stopPropagation()">
+          <p class="px-1 pb-2 text-xs font-semibold text-muted">1. Elige la hora</p>
+          <div class="grid grid-cols-6 gap-2">
             @for (hour of hourChoices(); track hour) {
-              <button type="button" class="h-11 rounded-full text-sm nums" [class.bg-accent]="pickedHour() === hour" [class.text-white]="pickedHour() === hour" [class.font-semibold]="pickedHour() === hour" [attr.aria-pressed]="pickedHour() === hour" [attr.aria-label]="'Hora ' + hour" (click)="pickHour(hour)">{{ hour }}</button>
+              <button type="button" class="h-11 w-full rounded-xl border text-sm nums" [class.border-line]="pickedHour() !== hour" [class.border-accent]="pickedHour() === hour" [class.bg-accent]="pickedHour() === hour" [class.text-white]="pickedHour() === hour" [class.font-semibold]="pickedHour() === hour" [attr.aria-pressed]="pickedHour() === hour" [attr.aria-label]="'Hora ' + hour" (click)="pickHour(hour)">{{ hour }}</button>
             }
           </div>
-          <p class="px-1 pb-1.5 pt-3 text-xs font-semibold text-muted">2. Elige los minutos</p>
-          <div class="grid grid-cols-4 gap-1">
+          <p class="px-1 pb-2 pt-4 text-xs font-semibold text-muted">2. Elige los minutos</p>
+          <div class="grid grid-cols-4 gap-2">
             @for (minute of minuteChoices(); track minute) {
-              <button type="button" class="h-11 rounded-full text-sm nums" [class.bg-accent]="pickedMinute() === minute" [class.text-white]="pickedMinute() === minute" [class.font-semibold]="pickedMinute() === minute" [attr.aria-pressed]="pickedMinute() === minute" [attr.aria-label]="'Minutos ' + minute" (click)="pickMinute(minute)">:{{ minute }}</button>
+              <button type="button" class="h-11 w-full rounded-xl border text-sm nums" [class.border-line]="pickedMinute() !== minute" [class.border-accent]="pickedMinute() === minute" [class.bg-accent]="pickedMinute() === minute" [class.text-white]="pickedMinute() === minute" [class.font-semibold]="pickedMinute() === minute" [attr.aria-pressed]="pickedMinute() === minute" [attr.aria-label]="'Minutos ' + minute" (click)="pickMinute(minute)">:{{ minute }}</button>
             }
           </div>
         </div>
@@ -310,7 +310,7 @@ export class TimeFieldComponent implements ControlValueAccessor {
       return;
     }
     const anchor = event.currentTarget as HTMLElement;
-    this.sheet = openSheet(this.overlay, this.view, anchor, this.panel(), Math.max(this.options() === null ? 300 : 220, anchor.offsetWidth));
+    this.sheet = openSheet(this.overlay, this.view, anchor, this.panel(), Math.max(this.options() === null ? 344 : 220, anchor.offsetWidth));
     this.open.set(true);
   }
 
