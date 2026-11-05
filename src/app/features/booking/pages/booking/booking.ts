@@ -1,4 +1,5 @@
 import { spotsLabel } from '@core/spots';
+import { MatIconModule } from '@angular/material/icon';
 import { hora12 } from '@core/hours';
 import { SEARCH_FROM, matchesQuery } from '@core/service-search';
 import { bookingShareText } from '@core/booking-share';
@@ -78,6 +79,7 @@ function phoneDigits(control: AbstractControl): ValidationErrors | null {
     // FUTURE_PHASE_SPEI: SpeiCheckComponent,
     NgTemplateOutlet,
     ReactiveFormsModule,
+    MatIconModule,
     MatProgressSpinnerModule,
     PickFieldComponent,
     PlaceMap,

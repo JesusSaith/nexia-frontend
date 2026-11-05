@@ -454,7 +454,7 @@
               <span class="nums text-2xl font-semibold text-ink">{{ pesos(week.total) }}</span>
               @if (week.change !== null) {
                 <span class="nums text-sm font-medium" [class]="week.change >= 0 ? 'text-(--nx-ok-fg)' : 'text-(--nx-bad-fg)'">
-                  {{ week.change >= 0 ? '↑' : '↓' }} {{ week.change >= 0 ? week.change : -week.change }}%
+                  <mat-icon class="h-4! w-4! align-middle text-[16px]!" aria-hidden="true">{{ week.change >= 0 ? 'arrow_upward' : 'arrow_downward' }}</mat-icon> {{ week.change >= 0 ? week.change : -week.change }}%
                 </span>
               }
             </p>

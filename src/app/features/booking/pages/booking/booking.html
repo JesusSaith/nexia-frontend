@@ -47,7 +47,7 @@
         @if (gallery().length || opinions().length) {
           <button type="button" class="action-pill" [attr.aria-expanded]="panel() === 'info'" aria-controls="panel-info" aria-label="Ver fotos y opiniones" (click)="togglePanel('info')">
             @if (rating(); as score) {
-              <span aria-hidden="true">★</span>&nbsp;{{ score.label }} · {{ score.count }} {{ score.count === 1 ? 'opinión' : 'opiniones' }}
+              <mat-icon class="h-4! w-4! text-[16px]!" aria-hidden="true">star</mat-icon>&nbsp;{{ score.label }} · {{ score.count }} {{ score.count === 1 ? 'opinión' : 'opiniones' }}
             } @else {
               Ver fotos
             }
@@ -312,7 +312,7 @@
                         class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-sm"
                         [class.brand-solid]="extraIds().includes(service.id)"
                         [class.border-transparent]="extraIds().includes(service.id)"
-                      >{{ extraIds().includes(service.id) ? '✓' : '+' }}</span>
+                      ><mat-icon class="h-4! w-4! text-[16px]!" aria-hidden="true">{{ extraIds().includes(service.id) ? 'check' : 'add' }}</mat-icon></span>
                     </button>
                   }
                 }
@@ -355,7 +355,7 @@
                 [class.choice-selected]="anyStaff()"
                 (click)="chooseAnyStaff()"
               >
-                <span class="brand-fill flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-lg" aria-hidden="true">★</span>
+                <span class="brand-fill flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-lg" aria-hidden="true"><mat-icon>star</mat-icon></span>
                 <span>
                   <span class="block font-medium">Cualquiera disponible</span>
                   <span class="mt-1 block text-sm text-ink-soft">Te mostramos más horarios</span>
@@ -433,8 +433,8 @@
           }
         </div>
         <div class="flex gap-2">
-          <button type="button" class="grid h-11 w-11 place-items-center rounded-full border text-sm" (click)="shiftMonth(-1)">‹</button>
-          <button type="button" class="grid h-11 w-11 place-items-center rounded-full border text-sm" (click)="shiftMonth(1)">›</button>
+          <button type="button" class="grid h-11 w-11 place-items-center rounded-full border text-sm" aria-label="Mes anterior" (click)="shiftMonth(-1)"><mat-icon aria-hidden="true">chevron_left</mat-icon></button>
+          <button type="button" class="grid h-11 w-11 place-items-center rounded-full border text-sm" aria-label="Mes siguiente" (click)="shiftMonth(1)"><mat-icon aria-hidden="true">chevron_right</mat-icon></button>
         </div>
       </div>
       <div class="grid grid-cols-7 text-center text-xs text-muted">
@@ -605,7 +605,7 @@
                   class="btn btn-primary w-6 justify-center"
                   [attr.aria-label]="'Quitar foto ' + ($index + 1)"
                   (click)="removeRefPhoto($index)"
-                >✕</button>
+                ><mat-icon class="h-4! w-4! text-[16px]!" aria-hidden="true">close</mat-icon></button>
               </div>
             }
             @if (refPhotos().length < 3) {

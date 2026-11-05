@@ -266,7 +266,7 @@
                   <label class="block"><span class="label">Detalles</span>
                     <span class="flex items-center gap-2">
                       <input type="color" class="h-11 w-12 shrink-0 cursor-pointer rounded-lg border border-line-strong bg-surface p-1" [value]="accentColor() || form.controls.primaryColor.value" (input)="accentColor.set($any($event.target).value)" aria-label="Color de los detalles" />
-                      <button type="button" class="btn btn-ghost px-2! text-sm" (click)="accentColor.set(null)">{{ accentColor() ? 'Igual que botones' : 'Igual que botones ✓' }}</button>
+                      <button type="button" class="btn btn-ghost px-2! text-sm" (click)="accentColor.set(null)">Igual que botones @if (!accentColor()) { <mat-icon class="h-4! w-4! text-[16px]!" aria-hidden="true">check</mat-icon> }</button>
                     </span>
                   </label>
                   <label class="block"><span class="label">Fondo</span>

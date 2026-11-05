@@ -1,4 +1,5 @@
 import { Overlay, OverlayRef } from '@angular/cdk/overlay';
+import { MatIconModule } from '@angular/material/icon';
 import { TemplatePortal } from '@angular/cdk/portal';
 import { Component, DestroyRef, ElementRef, HostListener, TemplateRef, ViewContainerRef, computed, forwardRef, inject, input, output, signal, viewChild } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
@@ -38,18 +39,19 @@ function openSheet(overlay: Overlay, view: ViewContainerRef, anchor: HTMLElement
 
 @Component({
   selector: 'app-date-field',
+  imports: [MatIconModule],
   template: `
     <div class="relative">
       <button type="button" class="flex h-11 w-full items-center justify-between rounded-lg border border-line-strong bg-surface px-3.5 text-left text-sm text-ink disabled:opacity-50" [disabled]="disabled()" aria-haspopup="dialog" (click)="toggle($event)">
         <span [class.text-muted]="!value()">{{ shown() }}</span>
-        <span class="text-muted" aria-hidden="true">▾</span>
+        <mat-icon class="text-muted" aria-hidden="true">expand_more</mat-icon>
       </button>
     <ng-template #panel>
       <div class="w-[280px] rounded-2xl border border-line bg-surface p-3 text-ink shadow-lg" (click)="$event.stopPropagation()">
         <div class="mb-2 flex items-center justify-between">
-          <button type="button" class="h-11 w-11 rounded-full text-muted" (click)="shift(-1)" aria-label="Mes anterior">‹</button>
+          <button type="button" class="h-11 w-11 rounded-full text-muted" (click)="shift(-1)" aria-label="Mes anterior"><mat-icon aria-hidden="true">chevron_left</mat-icon></button>
           <p class="text-sm font-medium">{{ monthLabel() }}</p>
-          <button type="button" class="h-11 w-11 rounded-full text-muted" (click)="shift(1)" aria-label="Mes siguiente">›</button>
+          <button type="button" class="h-11 w-11 rounded-full text-muted" (click)="shift(1)" aria-label="Mes siguiente"><mat-icon aria-hidden="true">chevron_right</mat-icon></button>
         </div>
         <div class="grid grid-cols-7 text-center text-xs text-muted">
           @for (label of labels; track label) { <span>{{ label }}</span> }
@@ -204,12 +206,12 @@ export class DateFieldComponent implements ControlValueAccessor {
 
 @Component({
   selector: 'app-time-field',
-  imports: [WheelColumnComponent],
+  imports: [MatIconModule, WheelColumnComponent],
   template: `
     <div class="relative">
       <button type="button" class="flex h-11 w-full items-center justify-between rounded-lg border border-line-strong bg-surface px-3.5 text-left text-sm text-ink disabled:opacity-50" [disabled]="disabled() || locked()" aria-haspopup="dialog" (click)="toggle($event)">
         <span class="nums" [class.text-muted]="!shown()">{{ shownLabel() || 'Elegir hora' }}</span>
-        <span class="text-muted" aria-hidden="true">▾</span>
+        <mat-icon class="text-muted" aria-hidden="true">expand_more</mat-icon>
       </button>
     <ng-template #panel>
       <div class="rounded-2xl border border-line bg-surface p-3 text-ink shadow-lg" (click)="$event.stopPropagation()">

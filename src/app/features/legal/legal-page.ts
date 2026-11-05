@@ -1,4 +1,5 @@
 import { Component, inject } from '@angular/core';
+import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { LEGAL } from './legal-info';
@@ -10,10 +11,10 @@ import { LEGAL } from './legal-info';
  */
 @Component({
   selector: 'app-legal-page',
-  imports: [RouterLink],
+  imports: [MatIconModule, RouterLink],
   template: `
     <main class="mx-auto w-full max-w-2xl px-4 py-10 text-ink">
-      <a class="text-sm text-muted underline underline-offset-2" routerLink="/auth/register">← Volver al registro</a>
+      <a class="text-sm text-muted underline underline-offset-2" routerLink="/auth/register"><mat-icon class="h-4! w-4! align-middle text-[16px]!" aria-hidden="true">arrow_back</mat-icon> Volver al registro</a>
 
       @if (doc === 'terms') {
         <h1 class="mt-4 text-2xl font-semibold">Términos y condiciones</h1>

@@ -159,7 +159,7 @@
             <div class="p-4">
               <p class="flex items-center gap-1.5 text-sm text-muted"><mat-icon class="h-4! w-4! text-[16px]!">{{ item.icon }}</mat-icon>{{ item.label }}</p>
               <p class="nums mt-1 text-2xl font-semibold tracking-tight text-ink">{{ item.value }}</p>
-              <p class="nums mt-0.5 text-sm" [class]="kpiTone(item.delta)">{{ item.delta.text }} <span class="text-muted">{{ item.delta.up === null ? '' : versus() }}</span></p>
+              <p class="nums mt-0.5 text-sm" [class]="kpiTone(item.delta)">@if (item.delta.up !== null && item.delta.text.endsWith('%')) { <mat-icon class="h-4! w-4! align-middle text-[16px]!" aria-hidden="true">{{ item.delta.up ? 'arrow_upward' : 'arrow_downward' }}</mat-icon> }{{ item.delta.text }} <span class="text-muted">{{ item.delta.up === null ? '' : versus() }}</span></p>
             </div>
           }
         </div>
@@ -524,7 +524,7 @@
                   <li class="flex flex-wrap items-center gap-x-3 gap-y-0.5 py-2.5">
                     <span class="w-full text-ink sm:w-auto sm:min-w-0 sm:flex-1 sm:truncate">{{ cat.label }}</span>
                     <span class="nums w-24 text-right text-muted">{{ cat.share === null ? '—' : cat.share + '% de ingresos' }}</span>
-                    <span class="nums w-20 text-right" [style.color]="cat.delta > 0 ? 'var(--nx-bad-fg)' : cat.delta < 0 ? 'var(--nx-ok-fg)' : 'var(--color-muted)'">{{ cat.delta > 0 ? '↑ ' + money(cat.delta) : cat.delta < 0 ? '↓ ' + money(-cat.delta) : 'igual' }}</span>
+                    <span class="nums w-20 text-right" [style.color]="cat.delta > 0 ? 'var(--nx-bad-fg)' : cat.delta < 0 ? 'var(--nx-ok-fg)' : 'var(--color-muted)'">@if (cat.delta !== 0) { <mat-icon class="h-4! w-4! align-middle text-[16px]!" aria-hidden="true">{{ cat.delta > 0 ? 'arrow_upward' : 'arrow_downward' }}</mat-icon> }{{ cat.delta > 0 ? money(cat.delta) : cat.delta < 0 ? money(-cat.delta) : 'igual' }}</span>
                     <span class="nums w-24 text-right font-semibold text-ink">{{ money(cat.amount) }}</span>
                   </li>
                 }

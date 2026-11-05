@@ -76,7 +76,7 @@
       </div>
 
       <div class="nx-rail-foot">
-        <button type="button" class="nx-rail-btn" [matMenuTriggerFor]="userMenu">
+        <button type="button" class="nx-rail-btn" aria-label="Menú de tu cuenta" [matMenuTriggerFor]="userMenu">
           <span class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[var(--nx-rail-hover)] text-xs font-semibold text-[var(--nx-rail-ink)]">
             {{ (currentUser()?.fullName || '?').slice(0, 1) }}
           </span>
