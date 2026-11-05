@@ -663,3 +663,6 @@ mat-icon {
     'opsz' 24;
   -webkit-font-smoothing: antialiased;
 }
+
+/* Resalte de los títulos de sección de la landing (marcador sobre el texto, como etiqueta). */
+.hl { background: var(--color-accent-soft); color: var(--color-ink); padding: 0.05em 0.35em; border-radius: 0.375rem; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
