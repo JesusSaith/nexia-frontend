@@ -87,8 +87,6 @@ export class LandingPage implements AfterViewInit {
 
   readonly moreOpen = signal(false);
 
-  readonly DEMO_PATH = '/demo/book';
-
   readonly before = [
     'Contestar mensajes a todas horas para dar una cita.',
     'Citas que se pierden por olvidos o se encimen.',
