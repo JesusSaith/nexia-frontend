@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -7,7 +7,8 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTableModule } from '@angular/material/table';
 import { Router } from '@angular/router';
 
-import { PlatformBusiness } from '@core/models/platform-business.model';
+import { BUSINESS_KINDS } from '@core/business-kinds';
+import { BetaRequestItem, BetaStatus, LandingFunnel, PlatformBusiness } from '@core/models/platform-business.model';
 import { AuthService } from '@core/services/auth.service';
 import { SuperAdminService } from '@core/services/super-admin.service';
 
@@ -29,9 +30,55 @@ export class SuperAdminPageComponent {
   protected readonly loggingOut = signal(false);
   protected readonly loadError = signal<string | null>(null);
   protected readonly currentUser = this.auth.currentUser;
+  protected readonly betaRequests = signal<BetaRequestItem[]>([]);
+  protected readonly funnel = signal<LandingFunnel | null>(null);
+  protected readonly betaPendingId = signal<number | null>(null);
+  protected readonly newRequests = computed(() => this.betaRequests().filter((item) => item.status === 'nueva').length);
 
   constructor() {
     this.load();
+    this.loadBeta();
+  }
+
+  protected kindLabel(kind: string): string {
+    return BUSINESS_KINDS.find((item) => item.value === kind)?.label ?? kind;
+  }
+
+  /** Mensaje listo para escribirle por WhatsApp a quien pidió acceso. */
+  protected whatsappLink(item: BetaRequestItem): string {
+    const text = `Hola ${item.name.split(' ')[0]}, te escribimos de Nexia. Recibimos tu solicitud para la beta de ${item.business_name}.`;
+    return `https://wa.me/52${item.phone}?text=${encodeURIComponent(text)}`;
+  }
+
+  protected setBetaStatus(item: BetaRequestItem, status: BetaStatus): void {
+    if (this.betaPendingId() !== null) {
+      return;
+    }
+    this.betaPendingId.set(item.id);
+    this.platformApi
+      .setBetaStatus(item.id, status)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (updated) => {
+          this.betaRequests.update((items) => items.map((row) => (row.id === updated.id ? updated : row)));
+          this.betaPendingId.set(null);
+        },
+        error: (error: unknown) => {
+          this.betaPendingId.set(null);
+          this.loadError.set(readError(error, 'No pudimos cambiar el estado de la solicitud.'));
+        },
+      });
+  }
+
+  private loadBeta(): void {
+    this.platformApi
+      .getBetaRequests()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({ next: (items) => this.betaRequests.set(items), error: () => undefined });
+    this.platformApi
+      .getLandingFunnel()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({ next: (data) => this.funnel.set(data), error: () => undefined });
   }
 
   protected toggle(business: PlatformBusiness): void {

@@ -1,11 +1,19 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, inject, signal } from '@angular/core';
+import { AfterViewInit, Component, DestroyRef, ElementRef, inject, signal, viewChild } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 
 import { BUSINESS_KINDS } from '@core/business-kinds';
 import { BetaService } from '@core/services/beta.service';
+import { LandingService } from '@core/services/landing.service';
+
+import { RevealDirective } from './reveal.directive';
+
+/** WhatsApp de contacto: 10 dígitos más la clave de México. */
+export const WHATSAPP_NUMBER = '522712054908';
+const WHATSAPP_TEXT = 'Hola, me interesa la beta de Nexia para mi negocio.';
 
 /**
  * Página de inicio de nexiacitas.com durante la beta: muestra qué es Nexia y recibe solicitudes de acceso
@@ -14,11 +22,39 @@ import { BetaService } from '@core/services/beta.service';
  */
 @Component({
   selector: 'app-landing-page',
-  imports: [MatIconModule, ReactiveFormsModule, RouterLink],
+  imports: [MatIconModule, ReactiveFormsModule, RevealDirective, RouterLink],
   templateUrl: './landing-page.html',
 })
-export class LandingPage {
+export class LandingPage implements AfterViewInit {
   private readonly beta = inject(BetaService);
+  private readonly landing = inject(LandingService);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly formSection = viewChild<ElementRef<HTMLElement>>('formSection');
+  private readonly successBox = viewChild<ElementRef<HTMLElement>>('successBox');
+
+  readonly whatsappLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_TEXT)}`;
+  readonly menuOpen = signal(false);
+  readonly peopleOptions = [1, 2, 3, 4, 5, 6, 7];
+
+  readonly shots = [
+    { src: '/landing/reserva.webp', title: 'Tu cliente reserva', text: 'Elige servicio, persona y horario desde su celular.' },
+    { src: '/landing/agenda.webp', title: 'Tú ves tu agenda', text: 'Las citas del día, lo que falta por cobrar y tus horarios libres.' },
+    { src: '/landing/clientes.webp', title: 'Conoces a tus clientes', text: 'Quién viene, cuánto ha gastado y cuándo regresa.' },
+  ];
+
+  readonly before = [
+    'Contestar mensajes a todas horas para dar una cita.',
+    'Citas que se pierden por olvidos o se encimen.',
+    'Anotar todo en una libreta o en las notas del celular.',
+    'No saber cuánto dejó cada servicio ni cada persona.',
+  ];
+  readonly after = [
+    'Tus clientes reservan solos, a cualquier hora.',
+    'Agenda por persona, sin choques y con recordatorios.',
+    'Clientes, anticipos y cobros en un solo lugar.',
+    'Reportes de lo que más te deja, cada semana.',
+  ];
+  readonly coming = ['Recordatorios automáticos por WhatsApp', 'Planes para cada tamaño de negocio', 'Más giros y plantillas listas'];
 
   readonly kinds = BUSINESS_KINDS;
 
@@ -64,16 +100,46 @@ export class LandingPage {
     businessName: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(2)] }),
     kind: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     email: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email] }),
+    people: new FormControl('', { nonNullable: true }),
     phone: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.pattern(/^\D*(\d\D*){10}$/)] }),
     message: new FormControl('', { nonNullable: true }),
     // Campo trampa: está fuera de pantalla; solo los robots lo llenan.
     website: new FormControl('', { nonNullable: true }),
   });
 
-  /** Mensaje de error de un campo, solo después del primer intento de enviar. */
+  constructor() {
+    // Primer movimiento en el formulario: la persona empezó a llenarlo.
+    this.form.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.landing.track('start'));
+    this.landing.track('visit');
+  }
+
+  ngAfterViewInit(): void {
+    const el = this.formSection()?.nativeElement;
+    if (!el || typeof IntersectionObserver === 'undefined') {
+      return;
+    }
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        this.landing.track('form');
+        observer.disconnect();
+      }
+    }, { threshold: 0.2 });
+    observer.observe(el);
+    this.destroyRef.onDestroy(() => observer.disconnect());
+  }
+
+  toggleMenu(): void {
+    this.menuOpen.update((open) => !open);
+  }
+
+  openWhatsapp(): void {
+    this.landing.track('whatsapp');
+  }
+
+  /** Mensaje de error de un campo: al salir de él o después de intentar enviar. */
   fieldError(name: 'name' | 'businessName' | 'kind' | 'email' | 'phone'): string | null {
     const control = this.form.controls[name];
-    if (!this.touched() || control.valid) {
+    if (!(this.touched() || control.touched) || control.valid) {
       return null;
     }
     const texts = {
@@ -102,12 +168,21 @@ export class LandingPage {
         business_name: v.businessName.trim(),
         kind: v.kind,
         message: v.message.trim() || null,
+        people: v.people ? Number(v.people) : null,
+        source: this.landing.source(),
         website: v.website,
       })
       .subscribe({
         next: () => {
           this.submitting.set(false);
           this.sent.set(true);
+          this.landing.track('sent');
+          // Lleva a la persona a la confirmación (el formulario desaparece y la página se acorta).
+          setTimeout(() => {
+            const box = this.successBox()?.nativeElement;
+            box?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            box?.focus({ preventScroll: true });
+          });
         },
         error: (err: HttpErrorResponse) => {
           this.submitting.set(false);

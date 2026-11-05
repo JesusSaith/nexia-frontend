@@ -11,6 +11,10 @@ export interface BetaRequestBody {
   business_name: string;
   kind: string;
   message: string | null;
+  /** Cuántas personas atienden en el negocio (opcional). */
+  people: number | null;
+  /** Fuente del enlace (?fuente=instagram), si la trae. */
+  source: string | null;
   /** Campo trampa para robots: siempre va vacío cuando lo llena una persona. */
   website: string;
 }

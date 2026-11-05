@@ -666,3 +666,23 @@ mat-icon {
 
 /* Resalte de los títulos de sección de la landing (marcador sobre el texto, como etiqueta). */
 .hl { background: var(--color-accent-soft); color: var(--color-ink); padding: 0.05em 0.35em; border-radius: 0.375rem; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+
+/* Animaciones de la landing. Todas se apagan con "reducir movimiento". */
+.rv { opacity: 0; transform: translateY(24px); transition: opacity .6s ease, transform .6s ease; transition-delay: var(--d, 0s); }
+.rv-in { opacity: 1; transform: none; }
+.hero-in { animation: nx-up .7s ease both; animation-delay: var(--d, 0s); }
+.float { animation: nx-float 6s ease-in-out infinite; animation-delay: var(--d, 0s); }
+.spin-slow { animation: nx-spin 40s linear infinite; transform-origin: center; }
+.lift { transition: transform .2s ease; }
+.lift:hover { transform: translateY(-4px); }
+.marquee { display: flex; width: max-content; animation: nx-marquee 38s linear infinite; }
+.marquee:hover { animation-play-state: paused; }
+@keyframes nx-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+@keyframes nx-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+@keyframes nx-spin { to { transform: rotate(360deg); } }
+@keyframes nx-marquee { to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) {
+  .rv { opacity: 1; transform: none; transition: none; }
+  .hero-in, .float, .spin-slow, .marquee { animation: none; }
+  .lift { transition: none; }
+}
