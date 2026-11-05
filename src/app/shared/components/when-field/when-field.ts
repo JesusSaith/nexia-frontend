@@ -205,6 +205,23 @@ export class DateFieldComponent implements ControlValueAccessor {
         <span class="text-muted" aria-hidden="true">▾</span>
       </button>
     <ng-template #panel>
+      @if (options() === null) {
+        <!-- Hora y minutos por separado: 17 + 4 botones en vez de 65 horas en una lista larga. -->
+        <div class="rounded-2xl border border-line bg-surface p-3 text-ink shadow-lg" (click)="$event.stopPropagation()">
+          <p class="px-1 pb-1.5 text-xs font-semibold text-muted">1. Elige la hora</p>
+          <div class="grid grid-cols-6 gap-1">
+            @for (hour of hourChoices(); track hour) {
+              <button type="button" class="h-11 rounded-full text-sm nums" [class.bg-accent]="pickedHour() === hour" [class.text-white]="pickedHour() === hour" [class.font-semibold]="pickedHour() === hour" [attr.aria-pressed]="pickedHour() === hour" [attr.aria-label]="'Hora ' + hour" (click)="pickHour(hour)">{{ hour }}</button>
+            }
+          </div>
+          <p class="px-1 pb-1.5 pt-3 text-xs font-semibold text-muted">2. Elige los minutos</p>
+          <div class="grid grid-cols-4 gap-1">
+            @for (minute of minuteChoices(); track minute) {
+              <button type="button" class="h-11 rounded-full text-sm nums" [class.bg-accent]="pickedMinute() === minute" [class.text-white]="pickedMinute() === minute" [class.font-semibold]="pickedMinute() === minute" [attr.aria-pressed]="pickedMinute() === minute" [attr.aria-label]="'Minutos ' + minute" (click)="pickMinute(minute)">:{{ minute }}</button>
+            }
+          </div>
+        </div>
+      } @else {
       <div class="max-h-64 overflow-auto rounded-2xl border border-line bg-surface p-2 text-ink shadow-lg" (click)="$event.stopPropagation()">
         @if (choices().length === 0) {
           <p class="px-2 py-3 text-sm text-muted">Sin horarios.</p>
@@ -216,6 +233,7 @@ export class DateFieldComponent implements ControlValueAccessor {
           </div>
         }
       </div>
+      }
     </ng-template>
     </div>
   `,
@@ -241,6 +259,18 @@ export class TimeFieldComponent implements ControlValueAccessor {
     const current = this.shown();
     return current && !base.includes(current) ? [current, ...base] : base;
   });
+  /** Horas del selector libre (de 06 a 22); si la hora actual queda fuera, se agrega. */
+  protected readonly hourChoices = computed(() => {
+    const base = Array.from({ length: 17 }, (_, index) => String(index + 6).padStart(2, '0'));
+    const current = this.shown().slice(0, 2);
+    return current && !base.includes(current) ? [current, ...base].sort() : base;
+  });
+  protected readonly minuteChoices = computed(() => {
+    const current = this.shown().slice(3, 5);
+    return [...new Set(['00', '15', '30', '45', ...(current ? [current] : [])])].sort();
+  });
+  protected readonly pickedHour = computed(() => this.shown().slice(0, 2));
+  protected readonly pickedMinute = computed(() => this.shown().slice(3, 5));
   private onChange: (value: string) => void = () => undefined;
   private onTouched: () => void = () => undefined;
 
@@ -280,7 +310,7 @@ export class TimeFieldComponent implements ControlValueAccessor {
       return;
     }
     const anchor = event.currentTarget as HTMLElement;
-    this.sheet = openSheet(this.overlay, this.view, anchor, this.panel(), Math.max(220, anchor.offsetWidth));
+    this.sheet = openSheet(this.overlay, this.view, anchor, this.panel(), Math.max(this.options() === null ? 300 : 220, anchor.offsetWidth));
     this.open.set(true);
   }
 
@@ -288,6 +318,22 @@ export class TimeFieldComponent implements ControlValueAccessor {
     this.sheet?.dispose();
     this.sheet = null;
     this.open.set(false);
+  }
+
+  /** La hora se aplica al momento y el panel sigue abierto para elegir los minutos. */
+  protected pickHour(hour: string): void {
+    this.apply(`${hour}:${this.pickedMinute() || '00'}`);
+  }
+
+  protected pickMinute(minute: string): void {
+    this.pick(`${this.pickedHour() || '09'}:${minute}`);
+  }
+
+  private apply(time: string): void {
+    this.value.set(time);
+    this.onChange(time);
+    this.onTouched();
+    this.picked.emit(time);
   }
 
   protected pick(time: string): void {
