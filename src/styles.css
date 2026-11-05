@@ -186,6 +186,11 @@ body {
 .page-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 0.75rem; margin-bottom: 1.5rem; }
 .page-head h1 { font-size: 1.5rem; line-height: 2rem; font-weight: 600; letter-spacing: -0.015em; color: var(--color-ink); }
 .page-head p { margin-top: 0.125rem; font-size: 0.9375rem; color: var(--color-muted); }
+/* Celular: el subtítulo explicativo se oculta (más espacio para el contenido); el que lleva `keep` es un dato (fecha, periodo). */
+@media (max-width: 639px) {
+  .page-head { margin-bottom: 1rem; }
+  .page-head p:not(.keep) { display: none; }
+}
 
 .card { background: var(--color-surface); border: 1px solid var(--color-line); border-radius: var(--radius-2xl); padding: 1.25rem; box-shadow: var(--nx-card-shadow); }
 .card-title { font-size: 0.9375rem; font-weight: 600; color: var(--color-ink); }
@@ -250,6 +255,8 @@ a.stat-group > :hover, .stat-group > a:hover { background: var(--color-canvas); 
 .stat-label { font-size: 0.8125rem; color: var(--color-muted); }
 .stat-accent { background: var(--color-accent-soft); color: var(--color-accent); }
 .stat-ok { background: var(--nx-ok-bg); color: var(--nx-ok-fg); }
+/* Un cero no pide atención: se ve apagado y el color queda para cuando haya algo que hacer. */
+.stat-zero { background: var(--color-canvas); color: var(--color-muted); }
 .stat-warn { background: var(--nx-warn-bg); color: var(--nx-warn-fg); }
 .stat-bad { background: var(--nx-bad-bg); color: var(--nx-bad-fg); }
 .stat-info { background: var(--nx-info-bg); color: var(--nx-info-fg); }

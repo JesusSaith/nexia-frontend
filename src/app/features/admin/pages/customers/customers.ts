@@ -4,6 +4,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
 import { of } from 'rxjs';
 import { catchError, distinctUntilChanged, filter, map } from 'rxjs/operators';
 
@@ -24,7 +25,7 @@ const AWAY_DAYS = 45;
 
 @Component({
   selector: 'app-customers',
-  imports: [MatIconModule, FormsModule, RouterLink, Skeleton],
+  imports: [MatIconModule, MatMenuModule, FormsModule, RouterLink, Skeleton],
   templateUrl: './customers.html',
 })
 export class Customers {
