@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { TimeFieldComponent } from '@shared/components/when-field/when-field';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 import { Observable, catchError, forkJoin, of, switchMap } from 'rxjs';
@@ -29,7 +30,7 @@ const DAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
  */
 @Component({
   selector: 'app-welcome-page',
-  imports: [MatIconModule, RouterLink],
+  imports: [MatIconModule, RouterLink, TimeFieldComponent],
   templateUrl: './welcome-page.html',
 })
 export class WelcomePageComponent {
