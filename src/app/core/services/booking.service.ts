@@ -192,6 +192,11 @@ export class BookingService {
     return this.http.get<string[]>(`${this.apiBaseUrl}/businesses/${slug}/availability/days`, { params });
   }
 
+  /** Anota un paso de la visita (entrar, elegir servicio, elegir hora, confirmar) para el embudo de Reportes. No avisa si falla. */
+  trackStep(slug: string, visitor: string, step: 'visit' | 'service' | 'slot' | 'confirmed'): void {
+    this.http.post(`${this.apiBaseUrl}/businesses/${slug}/events`, { visitor, step }).subscribe({ error: () => undefined });
+  }
+
   joinWaitlist(
     slug: string,
     body: { service_id: number; staff_id: number; day: string; client_name: string; client_phone: string },

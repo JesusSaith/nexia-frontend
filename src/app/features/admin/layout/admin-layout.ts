@@ -59,7 +59,7 @@ const MANAGER_LINKS: readonly AdminNavLink[] = [
   { label: 'Inicio', path: '/admin/home', exact: true, icon: 'home' },
   { label: 'Agenda', path: '/admin/agenda', exact: true, icon: 'calendar_month' },
   { label: 'Clientes', path: '/admin/clientes', exact: false, icon: 'person' },
-  { label: 'Reportes', path: '/admin/dashboard', exact: true, icon: 'space_dashboard' },
+  { label: 'Reportes', path: '/admin/dashboard', exact: true, icon: 'insights' },
   { label: 'Servicios', path: '/admin/services', exact: false, icon: 'category', group: 'Tu negocio' },
   { label: 'Equipo', path: '/admin/staff', exact: false, icon: 'groups', group: 'Tu negocio' },
   { label: 'Horarios', path: '/admin/schedules', exact: false, icon: 'schedule', group: 'Tu negocio' },
@@ -161,7 +161,10 @@ export class AdminLayoutComponent {
   /** Los enlaces en bloques para el menú lateral: [{ title, links }]. */
   protected readonly linkGroups = computed(() => {
     const groups: { title: string; links: AdminNavLink[] }[] = [];
-    for (const link of this.links()) {
+    // En celular los tres primeros ya están en la barra de abajo: el cajón de "Más" solo lleva el resto.
+    const all = this.links();
+    const shown = this.isHandset() && all.length > 3 ? all.slice(3) : all;
+    for (const link of shown) {
       const title = link.group ?? '';
       const last = groups.at(-1);
       if (last && last.title === title) {
@@ -208,7 +211,7 @@ export class AdminLayoutComponent {
   constructor() {
     // El número de avisos sin ver también va en el título de la pestaña y en el ícono de la app instalada.
     this.destroyRef.onDestroy(() => this.tabAlerts.count.set(0));
-    this.destroyRef.onDestroy(() => applyTheme('#E11D48', null));
+    this.destroyRef.onDestroy(() => applyTheme('#E11D48', null, false));
     effect(() => applyTheme(this.brandColor(), this.canvasColor()));
     // Modo claro/oscuro solo dentro del panel: al salir (p. ej. a /:slug/book) se vuelve a claro.
     effect(() => applyMode(this.themeMode(), this.isDark()));
@@ -468,8 +471,16 @@ function safeHexOrNull(value: string | null | undefined): string | null {
   return value && /^#[0-9a-f]{6}$/i.test(value) ? value : null;
 }
 
-function applyTheme(primary: string, canvas: string | null): void {
+function applyTheme(primary: string, canvas: string | null, remember = true): void {
   const root = document.documentElement;
+  if (remember) {
+    // Se guarda para que, al recargar, index.html pinte el panel con el color del negocio desde el primer cuadro.
+    try {
+      localStorage.setItem('nexia-brand', JSON.stringify({ primary, canvas }));
+    } catch {
+      // Sin almacenamiento solo se ve el color por defecto un instante.
+    }
+  }
   root.style.setProperty('--business-primary', primary);
   root.style.setProperty('--primary', primary);
   root.style.setProperty('--mat-sys-primary', primary);

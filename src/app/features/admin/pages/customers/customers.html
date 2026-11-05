@@ -4,7 +4,25 @@
       <h1>{{ copy.text().clients }}</h1>
       <p>Quien reserva con el mismo teléfono queda en una sola ficha.</p>
     </div>
-    <div class="flex flex-wrap gap-2">
+    <!-- Celular: descargar e importar van en un menú con texto; agregar queda a la vista. -->
+    <input #csvPhone type="file" accept=".csv,text/csv" class="sr-only" tabindex="-1" aria-hidden="true" [disabled]="importing()" (change)="importCsv($event)" />
+    <div class="flex gap-2 md:hidden">
+      <button type="button" class="btn btn-secondary" [matMenuTriggerFor]="moreClients">
+        <mat-icon>more_horiz</mat-icon>
+        Más
+      </button>
+      <mat-menu #moreClients="matMenu">
+        @if (clients().length) {
+          <button mat-menu-item type="button" (click)="exportCsv()"><mat-icon>download</mat-icon><span>Descargar lista</span></button>
+        }
+        <button mat-menu-item type="button" [disabled]="importing()" (click)="csvPhone.click()"><mat-icon>upload</mat-icon><span>{{ importing() ? 'Importando…' : 'Importar clientes' }}</span></button>
+      </mat-menu>
+      <button type="button" class="btn btn-primary" (click)="adding.set(!adding())">
+        <mat-icon>person_add</mat-icon>
+        Agregar
+      </button>
+    </div>
+    <div class="flex flex-wrap gap-2 max-md:hidden">
       @if (clients().length) {
         <button type="button" class="btn btn-ghost" aria-label="Descargar lista" (click)="exportCsv()">
           <mat-icon>download</mat-icon>
@@ -63,7 +81,16 @@
     </div>
   } @else if (loaded()) {
     <!-- Filtros como tarjetas: cada una dice cuántas hay y, al tocarla, filtra la lista. -->
-    <div class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6" role="tablist" aria-label="Filtrar clientes">
+    <!-- Celular: una fila de chips que se desliza de lado, con el número dentro. -->
+    <div class="-mx-3 mb-4 flex gap-2 overflow-x-auto px-3 pb-1 sm:hidden" role="tablist" aria-label="Filtrar clientes">
+      @for (chip of chips; track chip.key) {
+        <button type="button" role="tab" class="chip h-11! shrink-0 gap-2 px-4!" [class.chip-on]="filter() === chip.key" [attr.aria-selected]="filter() === chip.key" (click)="filter.set(chip.key)">
+          {{ chip.label }}
+          <span class="nums rounded-full bg-canvas px-1.5 text-xs" [class.text-muted]="!counts()[chip.key]" [class.text-ink]="counts()[chip.key]">{{ counts()[chip.key] }}</span>
+        </button>
+      }
+    </div>
+    <div class="mb-4 hidden grid-cols-3 gap-3 sm:grid xl:grid-cols-6" role="tablist" aria-label="Filtrar clientes">
       @for (chip of chips; track chip.key) {
         @let on = filter() === chip.key;
         <button
@@ -75,7 +102,7 @@
           [attr.aria-selected]="on"
           (click)="filter.set(chip.key)"
         >
-          <span class="stat-icon" [class]="counts()[chip.key] ? chip.tone : 'stat-ok'"><mat-icon>{{ chip.icon }}</mat-icon></span>
+          <span class="stat-icon" [class]="counts()[chip.key] ? chip.tone : 'stat-zero'"><mat-icon>{{ chip.icon }}</mat-icon></span>
           <span class="min-w-0">
             <span class="stat-value block">{{ counts()[chip.key] }}</span>
             <span class="stat-label block truncate">{{ chip.label }}</span>
@@ -116,7 +143,15 @@
       }
 
       @if (filter() !== 'best' && filter() !== 'missing' && filter() !== 'birthday') {
-        <div class="mt-2 flex items-center gap-2 text-sm text-muted">
+        <label class="mt-3 flex items-center gap-2 text-sm text-muted sm:hidden">
+          <span>Ordenar por</span>
+          <select class="input min-w-0 flex-1" [ngModel]="sort()" (ngModelChange)="sort.set($event)" name="sort-mobile">
+            @for (option of sorts; track option.key) {
+              <option [value]="option.key">{{ option.label }}</option>
+            }
+          </select>
+        </label>
+        <div class="mt-2 hidden items-center gap-2 text-sm text-muted sm:flex">
           <span>Ordenar:</span>
           @for (option of sorts; track option.key) {
             <button type="button" class="min-h-11 rounded-md px-2" [class.font-semibold]="sort() === option.key" [class.text-ink]="sort() === option.key" (click)="sort.set(option.key)">{{ option.label }}</button>

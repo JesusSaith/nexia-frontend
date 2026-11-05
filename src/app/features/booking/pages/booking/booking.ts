@@ -225,6 +225,8 @@ export class Booking {
   protected readonly waitName = signal('');
   protected readonly waitPhone = signal('');
   protected readonly waitSent = signal(false);
+  protected readonly waitBusy = signal(false);
+  protected readonly waitError = signal<string | null>(null);
   protected readonly openDays = signal<string[]>([]);
   protected readonly slots = signal<AvailabilitySlot[]>([]);
   protected readonly selectedSlot = signal<string | null>(null);
@@ -413,6 +415,26 @@ export class Booking {
     this.restoreClient();
     this.loadCatalog();
     this.loadMine();
+    this.track('visit');
+  }
+
+  /** Identificador al azar de esta visita (no es un dato personal): cuenta los pasos del embudo una vez por visita. */
+  private visitorId(): string {
+    try {
+      const saved = sessionStorage.getItem('nexia-visitor');
+      if (saved) {
+        return saved;
+      }
+      const fresh = (crypto.randomUUID?.() ?? `${Date.now()}${Math.random()}`).replace(/[^A-Za-z0-9]/g, '').slice(0, 24).padEnd(8, '0');
+      sessionStorage.setItem('nexia-visitor', fresh);
+      return fresh;
+    } catch {
+      return `v${Math.random().toString(36).slice(2, 14).padEnd(8, '0')}`;
+    }
+  }
+
+  private track(step: 'visit' | 'service' | 'slot' | 'confirmed'): void {
+    this.bookingApi.trackStep(this.slug, this.visitorId(), step);
   }
 
   /** Sin centavos cuando el precio es redondo: "$280", no "$280.00". */
@@ -467,6 +489,7 @@ export class Booking {
       this.selectedVariant.set(null);
     }
     this.selectedService.set(service);
+    this.track('service');
     this.selectedSlot.set(null);
     this.extraIds.update((ids) => ids.filter((id) => id !== service.id));
     this.settleStaff();
@@ -837,10 +860,20 @@ export class Booking {
     const service = this.selectedService();
     const memberId = this.selectedStaff()?.id ?? this.eligibleStaff()[0]?.id;
     const name = this.waitName().trim();
-    const phone = this.waitPhone().trim();
-    if (!service || !memberId || name.length < 2 || phone.length < 8 || this.waitSent()) {
+    const phone = this.waitPhone().replace(/\D/g, '');
+    if (!service || !memberId || this.waitSent() || this.waitBusy()) {
       return;
     }
+    if (name.length < 2) {
+      this.waitError.set('Escribe tu nombre.');
+      return;
+    }
+    if (phone.length !== 10) {
+      this.waitError.set('Escribe tu teléfono de 10 dígitos.');
+      return;
+    }
+    this.waitError.set(null);
+    this.waitBusy.set(true);
     this.bookingApi
       .joinWaitlist(this.slug, {
         service_id: service.id,
@@ -850,7 +883,16 @@ export class Booking {
         client_phone: phone,
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({ next: () => this.waitSent.set(true) });
+      .subscribe({
+        next: () => {
+          this.waitBusy.set(false);
+          this.waitSent.set(true);
+        },
+        error: (error: unknown) => {
+          this.waitBusy.set(false);
+          this.waitError.set(readError(error, 'No pudimos guardar tus datos. Intenta de nuevo.'));
+        },
+      });
   }
 
   private slotStaffId: number | null = null;
@@ -858,6 +900,7 @@ export class Booking {
   protected selectSlot(slot: AvailabilitySlot): void {
     this.nearby.set([]);
     this.selectedSlot.set(slot.starts_at);
+    this.track('slot');
     this.slotStaffId = slot.staff_id ?? null;
     this.bumpNotice.set(null);
     this.moveTo(3);
@@ -993,6 +1036,7 @@ export class Booking {
         next: (appointment) => {
           this.isSaving.set(false);
           this.confirmation.set(appointment);
+          this.track('confirmed');
           this.moveTo(4);
           this.saveClient(client_name, client_phone, client_email);
           this.rememberVisit(appointment);

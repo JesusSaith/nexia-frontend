@@ -18,7 +18,7 @@ import { Toasts } from '@core/toasts';
 import { DashboardService } from '@core/services/dashboard.service';
 import { ServicesService } from '@core/services/services.service';
 import { Confirm } from '@shared/components/confirm/confirm';
-import { CashDay, CashRow, SalesReport, ShopExpense, ShopService } from '@core/services/shop.service';
+import { BookingFunnel, CashDay, CashRow, SalesReport, ShopExpense, ShopService } from '@core/services/shop.service';
 import { PickFieldComponent } from '@shared/components/when-field/when-field';
 import { ReportSheet, downloadExcel, downloadPdf } from './dashboard-export';
 
@@ -115,6 +115,9 @@ export class DashboardPageComponent {
   protected readonly summary = signal<DashboardSummary | null>(null);
   protected readonly isLoading = signal(true);
   protected readonly books = signal<SalesReport | null>(null);
+  /** Embudo de la página de reservas del periodo (null si no se pudo cargar). */
+  protected readonly funnel = signal<BookingFunnel | null>(null);
+  protected readonly funnelTop = computed(() => this.funnel()?.steps[0]?.visitors ?? 0);
   protected readonly previous = signal<SalesReport | null>(null);
   protected readonly goal = signal(Number(localStorage.getItem('nexia-profit-goal') || 0));
   protected readonly goalMode = signal<'money' | 'percent'>(localStorage.getItem('nexia-profit-mode') === 'percent' ? 'percent' : 'money');
@@ -695,11 +698,13 @@ export class DashboardPageComponent {
       this.reportRequest = forkJoin({
         current: this.shop.report(start, end),
         previous: this.shop.report(prev.start, prev.end),
+        funnel: this.shop.funnel(start, end).pipe(catchError(() => of(null))),
         days: this.period() === 'range' ? this.appointmentsApi.getAppointments({ start_date: start, end_date: end }) : of([] as Appointment[]),
       })
         .pipe(takeUntilDestroyed(this.destroyRef))
-        .subscribe(({ current, previous, days }) => {
+        .subscribe(({ current, previous, days, funnel }) => {
           this.books.set(current);
+          this.funnel.set(funnel);
           this.pointAt.set(null);
           this.previous.set(previous);
           this.rangeData.set(this.period() === 'range' ? { start, end, days } : null);

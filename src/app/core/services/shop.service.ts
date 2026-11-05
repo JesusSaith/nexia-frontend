@@ -272,6 +272,11 @@ export class ShopService {
     return this.http.get<CashRow[]>(`${this.apiBaseUrl}/shop/cash/range`, { params: { start, end } });
   }
 
+  /** Embudo de la página de reservas: cuántas visitas llegan a cada paso. */
+  funnel(start: string, end: string): Observable<BookingFunnel> {
+    return this.http.get<BookingFunnel>(`${this.apiBaseUrl}/shop/funnel`, { params: { start, end } });
+  }
+
   report(start: string, end: string): Observable<SalesReport> {
     return this.http.get<SalesReport>(`${this.apiBaseUrl}/shop/report`, { params: { start, end } });
   }
@@ -279,4 +284,9 @@ export class ShopService {
   markCommission(staffId: number, start: string, end: string, amount: number, paid: boolean): Observable<string> {
     return this.http.post(`${this.apiBaseUrl}/shop/commissions`, { staff_id: staffId, start, end, amount, paid }, { responseType: 'text' });
   }
+}
+
+export interface BookingFunnel {
+  steps: { step: 'visit' | 'service' | 'slot' | 'confirmed'; label: string; visitors: number; kept_percent: number | null }[];
+  conversion_percent: number | null;
 }
