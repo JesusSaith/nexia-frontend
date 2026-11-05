@@ -65,6 +65,13 @@ export const routes: Routes = [
     canActivate: [landingGuard],
     loadComponent: () => import('./features/landing/landing-page').then((m) => m.LandingPage),
   },
+  // La misma página de inicio, sin redirigir a quien ya tiene sesión (enlace "Ver la página de inicio" desde la app).
+  {
+    path: 'inicio',
+    pathMatch: 'full',
+    title: 'Nexia · Reservas en línea para negocios con cita',
+    loadComponent: () => import('./features/landing/landing-page').then((m) => m.LandingPage),
+  },
   {
     path: '**',
     title: 'Página no encontrada · Nexia',
