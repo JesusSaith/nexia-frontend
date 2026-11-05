@@ -275,6 +275,14 @@ export class SettingsPageComponent {
 
   private readonly values = toSignal(this.form.valueChanges, { initialValue: this.form.getRawValue() });
 
+  /** "viernes 4 de diciembre": hasta qué día podrían apartar con los días a futuro que hay puestos. */
+  protected readonly aheadLabel = computed(() => {
+    const days = Number(this.values().maxDaysAhead ?? 90);
+    const last = new Date();
+    last.setDate(last.getDate() + (Number.isFinite(days) ? days : 90));
+    return new Intl.DateTimeFormat('es-MX', { weekday: 'long', day: 'numeric', month: 'long' }).format(last);
+  });
+
   /** Exactamente lo que se mandaría al guardar ahora mismo. */
   protected readonly payload = computed<ProfileUpdate>(() => {
     this.values();

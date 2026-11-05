@@ -75,6 +75,9 @@ export class SchedulesPageComponent {
   // Horario especial de un día (se guarda como bloqueos antes y después)
   protected special = { date: '', until: '', from: '10:00', to: '14:00', all: false, closed: false, note: '' };
   protected readonly specialError = signal<string | null>(null);
+  // Horas fijas del horario especial (opcional) y la hora que se está eligiendo.
+  protected readonly specialClocks = signal<string[]>([]);
+  protected readonly specialDraft = signal('09:00');
 
   protected readonly dayLabels = DAY_LABELS;
   protected readonly staff = signal<Staff[]>([]);
@@ -192,23 +195,45 @@ export class SchedulesPageComponent {
 
   /** Un día o un periodo (temporada) con horario distinto; manda sobre el turno normal. */
   protected saveSpecial(): void {
-    const { date, until, from, to, all, closed, note } = this.special;
-    if (!date || (!closed && (!from || !to || to <= from)) || (until && until < date)) {
+    const { date, until, all, closed, note } = this.special;
+    const clocks = closed ? [] : this.specialClocks();
+    // Con horas fijas, la apertura y el cierre salen de la primera y la última hora.
+    const from = clocks.length ? clocks[0] : this.special.from;
+    const to = clocks.length ? clocks[clocks.length - 1] : this.special.to;
+    if (!date || (!closed && (!from || !to || (clocks.length ? to < from : to <= from))) || (until && until < date)) {
       this.specialError.set('Revisa las fechas y que el cierre sea después de la apertura.');
       return;
     }
     this.schedulesApi
-      .addSpecial({ staff_id: all ? null : this.staffId(), date_from: date, date_to: until || date, start_time: from, end_time: to, closed, note: note.trim() || null })
+      .addSpecial({ staff_id: all ? null : this.staffId(), date_from: date, date_to: until || date, start_time: from, end_time: to, closed, note: note.trim() || null, slot_times: clocks.join(', ') || null })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (row) => {
           this.specialError.set(null);
           this.specials.update((rows) => [...rows, row].sort((a, b) => a.date_from.localeCompare(b.date_from)));
           this.special = { date: '', until: '', from: '10:00', to: '14:00', all: false, closed: false, note: '' };
+          this.specialClocks.set([]);
           this.toasts.show('Horario especial guardado.');
         },
         error: (error: unknown) => this.specialError.set(readError(error, 'No pudimos guardar el horario especial.')),
       });
+  }
+
+  protected addSpecialClock(): void {
+    const clock = this.specialDraft().slice(0, 5);
+    if (!/^\d{2}:\d{2}$/.test(clock) || this.specialClocks().includes(clock)) {
+      return;
+    }
+    this.specialClocks.set([...this.specialClocks(), clock].sort());
+  }
+
+  protected removeSpecialClock(clock: string): void {
+    this.specialClocks.set(this.specialClocks().filter((item) => item !== clock));
+  }
+
+  /** Empieza con las horas fijas de siempre de esta persona, para que solo agregue o quite las que cambian. */
+  protected copyClocksToSpecial(): void {
+    this.specialClocks.set([...this.clocks()]);
   }
 
   protected removeSpecial(row: SpecialHours): void {
@@ -222,7 +247,8 @@ export class SchedulesPageComponent {
     const day = (value: string) => new Intl.DateTimeFormat('es-MX', { weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(`${value}T12:00:00`));
     const when = row.date_from === row.date_to ? day(row.date_from) : `${day(row.date_from)} al ${day(row.date_to)}`;
     const who = row.staff_id === null ? 'Todo el equipo' : this.staff().find((member) => member.id === row.staff_id)?.full_name.split(' ')[0] ?? '';
-    return `${when} · ${row.closed ? 'Cerrado' : `${row.start_time}–${row.end_time}`} · ${who}${row.note ? ` · ${row.note}` : ''}`;
+    const hours = row.closed ? 'Cerrado' : row.slot_times ? `a las ${row.slot_times}` : `${row.start_time}–${row.end_time}`;
+    return `${when} · ${hours} · ${who}${row.note ? ` · ${row.note}` : ''}`;
   }
 
   /** ±30 min a la apertura o al cierre (más rápido en celular). */
