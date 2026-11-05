@@ -15,4 +15,9 @@ describe('apiBaseUrl', () => {
   it('con dominio propio, app.* habla con api.*', () => {
     expect(apiBaseUrl('app.ejemplo.com', 'https://app.ejemplo.com')).toBe('https://api.ejemplo.com/api');
   });
+
+  it('la landing en el dominio principal y en www también habla con api.*', () => {
+    expect(apiBaseUrl('ejemplo.com', 'https://ejemplo.com')).toBe('https://api.ejemplo.com/api');
+    expect(apiBaseUrl('www.ejemplo.com', 'https://www.ejemplo.com')).toBe('https://api.ejemplo.com/api');
+  });
 });
