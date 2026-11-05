@@ -50,7 +50,7 @@ export class HomePageComponent {
   protected readonly demoLoaded = signal(false);
   protected readonly demoBusy = signal(false);
 
-  private readonly timeFormat = new Intl.DateTimeFormat('es-MX', { hour: '2-digit', minute: '2-digit' });
+  private readonly timeFormat = new Intl.DateTimeFormat('es-MX', { hour: 'numeric', minute: '2-digit' });
   private readonly dayFormat = new Intl.DateTimeFormat('es-MX', { weekday: 'short', day: 'numeric', month: 'short' });
   private readonly pesosFormat = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
   protected readonly todayLabel = new Intl.DateTimeFormat('es-MX', { weekday: 'long', day: 'numeric', month: 'long' }).format(this.clock.now());

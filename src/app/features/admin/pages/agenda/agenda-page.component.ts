@@ -1,4 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { pesos } from '@core/money';
+import { hora12 } from '../../../../core/hours';
+import { HoraPipe } from '../../../../shared/pipes/hora.pipe';
 import { NgTemplateOutlet } from '@angular/common';
 import { Confirm } from '@shared/components/confirm/confirm';
 import { Component, DestroyRef, TemplateRef, computed, effect, inject, signal, viewChild, untracked } from '@angular/core';
@@ -71,6 +74,7 @@ const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 @Component({
   selector: 'app-agenda-page',
   imports: [
+    HoraPipe,
     NgTemplateOutlet,
     Skeleton,
     FormsModule,
@@ -128,7 +132,7 @@ export class AgendaPageComponent {
   private requestId = 0;
   private readonly ownStaffReady = signal(!inject(AuthService).isStaff());
   private readonly timeFormat = new Intl.DateTimeFormat('es-MX', {
-    hour: '2-digit',
+    hour: 'numeric',
     minute: '2-digit',
   });
 
@@ -217,7 +221,7 @@ export class AgendaPageComponent {
   protected readonly known = signal<{ visit_count: number; total_spent: number; cancel_count: number; full_name: string } | null>(null);
   protected readonly freshPhone = signal(false);
   protected readonly freed = signal<{ name: string; href: string }[]>([]);
-  private readonly pesosFormat = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
+  private readonly pesosFormat = { format: pesos };
   protected readonly bookableDay = (iso: string): boolean => {
     const staffId = this.form.controls.staff_id.value;
     if (staffId == null) {
@@ -1087,7 +1091,7 @@ export class AgendaPageComponent {
   }
 
   protected slotLabel(minutes: number): string {
-    return clockFromMinutes(minutes);
+    return hora12(clockFromMinutes(minutes), true);
   }
 
   protected statusBadge(appointment: Appointment): string {

@@ -256,6 +256,9 @@
                       {{ formatMinutes(service.duration_minutes) }} · {{ service.price_at_visit ? 'Precio en la cita' : service.variable_price ? 'Precio por confirmar' : formatPrice(service.price) }}
                     }
                   </span>
+                  @if (!(service.variants ?? []).length && (service.price_at_visit || service.variable_price)) {
+                    <span class="mt-0.5 block text-sm text-muted">{{ service.price_at_visit ? 'Lo acuerdas en tu cita' : 'Te lo cotizamos antes de tu cita' }}</span>
+                  }
                   @if (usefulDescription(service.name, service.description); as detail) {
                     <span class="mt-1 block text-sm text-muted">{{ detail }}</span>
                   }

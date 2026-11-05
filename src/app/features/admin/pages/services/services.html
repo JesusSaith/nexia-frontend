@@ -96,7 +96,7 @@
             Todas <span class="nums rounded-full bg-canvas px-1.5 text-xs text-muted">{{ services().length }}</span>
           </button>
           @for (name of categories(); track name) {
-            <button type="button" role="tab" class="chip h-11! gap-2 px-4!" [class.chip-on]="categoryFilter() === name" [attr.aria-selected]="categoryFilter() === name" (click)="categoryFilter.set(name)">
+            <button type="button" role="tab" class="chip h-11! gap-2 px-4!" [class.chip-on]="categoryFilter() === name" [class.border-dashed]="!countIn(name)" [attr.title]="countIn(name) ? null : 'Todavía no tiene servicios'" [attr.aria-selected]="categoryFilter() === name" (click)="categoryFilter.set(name)">
               {{ name }} <span class="nums rounded-full bg-canvas px-1.5 text-xs text-muted">{{ countIn(name) }}</span>
             </button>
           }
