@@ -1,0 +1,485 @@
+<section>
+  <header class="page-head">
+    <div>
+      <h1>{{ copy.text().clients }}</h1>
+      <p>Quien reserva con el mismo teléfono queda en una sola ficha.</p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      @if (clients().length) {
+        <button type="button" class="btn btn-ghost" aria-label="Descargar lista" (click)="exportCsv()">
+          <mat-icon>download</mat-icon>
+          <span class="hidden sm:inline">Descargar</span>
+        </button>
+      }
+      <label class="btn btn-ghost cursor-pointer" [class.opacity-50]="importing()" aria-label="Importar desde CSV">
+        <mat-icon>upload</mat-icon>
+        <span class="hidden sm:inline">{{ importing() ? 'Importando…' : 'Importar' }}</span>
+        <input type="file" accept=".csv,text/csv" class="sr-only" [disabled]="importing()" (change)="importCsv($event)" />
+      </label>
+      <button type="button" class="btn btn-primary" (click)="adding.set(!adding())">
+        <mat-icon>person_add</mat-icon>
+        Agregar {{ copy.text().client.toLowerCase() }}
+      </button>
+    </div>
+  </header>
+
+  @if (adding()) {
+    <form class="card mb-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end" (submit)="addClient($event)">
+      <label class="block">
+        <span class="label">Nombre</span>
+        <input class="input" name="name" autocomplete="off" [(ngModel)]="newName" />
+      </label>
+      <label class="block">
+        <span class="label">WhatsApp</span>
+        <input class="input nums" name="phone" type="tel" inputmode="numeric" placeholder="10 dígitos" [(ngModel)]="newPhone" />
+      </label>
+      <div class="flex gap-2">
+        <button type="submit" class="btn btn-primary">Guardar</button>
+        <button type="button" class="btn btn-ghost" (click)="adding.set(false)">Cancelar</button>
+      </div>
+      @if (addError(); as message) {
+        <p class="field-error sm:col-span-3" role="alert">{{ message }}</p>
+      }
+    </form>
+  }
+
+  @if (importNote(); as note) {
+    <p class="card card-tint mb-4 flex items-center justify-between gap-3 py-2! text-sm" role="status">
+      <span>{{ note }} El CSV necesita columnas de nombre y teléfono; correo y cumpleaños son opcionales.</span>
+      <button type="button" class="btn btn-ghost" (click)="importNote.set(null)">Cerrar</button>
+    </p>
+  }
+
+  @if (loadError(); as message) {
+    <p role="alert" class="field-error">{{ message }}</p>
+  } @else if (!loaded()) {
+    <app-skeleton [rows]="7" />
+  } @else if (loaded() && clients().length === 0) {
+    <div class="empty">
+      <mat-icon>person_search</mat-icon>
+      <p class="font-medium text-ink">Aún no tienes {{ copy.text().clients.toLowerCase() }}</p>
+      <p>Se agregan solos cuando alguien reserva o cuando creas una cita. También puedes agregarlos a mano.</p>
+      <a routerLink="/admin/negocio" class="btn btn-secondary">Compartir mi enlace de reservas</a>
+    </div>
+  } @else if (loaded()) {
+    <!-- Filtros como tarjetas: cada una dice cuántas hay y, al tocarla, filtra la lista. -->
+    <div class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6" role="tablist" aria-label="Filtrar clientes">
+      @for (chip of chips; track chip.key) {
+        @let on = filter() === chip.key;
+        <button
+          type="button"
+          role="tab"
+          class="stat text-left"
+          [style.border-color]="on ? 'var(--color-accent)' : null"
+          [style.background]="on ? 'var(--color-accent-soft)' : null"
+          [attr.aria-selected]="on"
+          (click)="filter.set(chip.key)"
+        >
+          <span class="stat-icon" [class]="counts()[chip.key] ? chip.tone : 'stat-ok'"><mat-icon>{{ chip.icon }}</mat-icon></span>
+          <span class="min-w-0">
+            <span class="stat-value block">{{ counts()[chip.key] }}</span>
+            <span class="stat-label block truncate">{{ chip.label }}</span>
+          </span>
+        </button>
+      }
+    </div>
+
+    <section class="card">
+      <label class="relative block">
+        <span class="sr-only">Buscar {{ copy.text().client.toLowerCase() }}</span>
+        <mat-icon class="pointer-events-none absolute left-3 top-1/2 h-5! w-5! -translate-y-1/2 text-[20px]! text-muted">search</mat-icon>
+        <input class="input pl-10!" type="search" placeholder="Buscar por nombre o teléfono" [ngModel]="query()" (ngModelChange)="query.set($event)" />
+      </label>
+
+      @if (canBulk() && visible().length > 1) {
+        <div class="mt-3 flex flex-wrap items-center gap-2">
+          <button type="button" class="btn btn-secondary" [attr.aria-pressed]="selecting()" (click)="toggleSelecting()">
+            <mat-icon>{{ selecting() ? 'close' : 'checklist' }}</mat-icon>
+            {{ selecting() ? 'Salir de seleccionar' : 'Seleccionar varios' }}
+          </button>
+          @if (selecting()) {
+            <button type="button" class="btn btn-ghost" (click)="selectAllVisible()">
+              {{ selectedRows().length === visible().length ? 'Quitar todos' : 'Seleccionar los ' + visible().length + ' de la lista' }}
+            </button>
+          }
+        </div>
+      }
+
+      @if (allTags().length) {
+        <div class="mt-3 flex flex-wrap gap-2" aria-label="Filtrar por etiqueta">
+          @for (tag of allTags(); track tag) {
+            <button type="button" class="chip h-11!" [class.chip-on]="tagFilter() === tag" [attr.aria-pressed]="tagFilter() === tag" (click)="tagFilter.set(tagFilter() === tag ? null : tag)">
+              <mat-icon class="mr-1 h-4! w-4! text-[16px]!">sell</mat-icon>{{ tag }}
+            </button>
+          }
+        </div>
+      }
+
+      @if (filter() !== 'best' && filter() !== 'missing' && filter() !== 'birthday') {
+        <div class="mt-2 flex items-center gap-2 text-sm text-muted">
+          <span>Ordenar:</span>
+          @for (option of sorts; track option.key) {
+            <button type="button" class="min-h-11 rounded-md px-2" [class.font-semibold]="sort() === option.key" [class.text-ink]="sort() === option.key" (click)="sort.set(option.key)">{{ option.label }}</button>
+          }
+        </div>
+      }
+      @if (filter() === 'cancel') {
+        <p class="card-tint mt-2 flex items-start gap-2 rounded-xl border px-3 py-2.5 text-sm text-ink-soft">
+          <mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-accent" aria-hidden="true">lightbulb</mat-icon>
+          <span>Dos o más cancelaciones o faltas. Pídeles anticipo para apartar su lugar.</span>
+        </p>
+      } @else if (filter() === 'missing') {
+        <p class="field-hint mt-2">Más de 45 días sin venir y sin cita próxima. Las que llevan más tiempo van primero.</p>
+      }
+
+      @if (visible().length === 0) {
+        <div class="flex flex-col items-center gap-2 py-8 text-center">
+          <p class="max-w-sm text-sm text-muted">{{ emptyText() }}</p>
+          @if (query().trim() || filter() !== 'all') {
+            <button type="button" class="btn btn-secondary" (click)="clearFilters()">Ver todos</button>
+          }
+        </div>
+      } @else {
+        <ul class="mt-2 divide-y divide-line">
+          @for (client of visible(); track client.id) {
+            <li class="flex items-center gap-2">
+              <button
+                type="button"
+                class="row-hover -mx-2 flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-3 text-left"
+                [class.bg-accent-soft]="selecting() && isSelected(client.id)"
+                [attr.role]="selecting() ? 'checkbox' : null"
+                [attr.aria-checked]="selecting() ? isSelected(client.id) : null"
+                (click)="selecting() ? toggleOne(client.id) : open(client.id)"
+              >
+                @if (selecting()) {
+                  <mat-icon class="shrink-0" [class.text-accent]="isSelected(client.id)" [class.text-muted]="!isSelected(client.id)" aria-hidden="true">{{ isSelected(client.id) ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+                }
+                <span class="avatar">{{ initials(client.full_name) }}</span>
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate text-sm font-medium text-ink">{{ client.full_name }}</span>
+                  <span class="block truncate text-sm text-muted">
+                    @if (filter() === 'birthday') {
+                      <span class="text-(--nx-info-fg)">{{ birthdayLabel(client) }}</span>
+                    } @else if (client.next_visit) {
+                      <span class="text-(--nx-info-fg)">Próxima: {{ nextLabel(client.next_visit) }}</span>
+                    } @else if (client.last_visit) {
+                      Última visita: {{ ago(client.last_visit).toLowerCase() }}
+                    } @else {
+                      <span class="nums">{{ client.phone }}</span>
+                    }
+                  </span>
+                </span>
+                <span class="flex shrink-0 flex-col items-end gap-1">
+                  @if (client.visit_count > 0) {
+                    <span class="nums text-sm font-semibold text-ink">{{ spent(client.total_spent) }}</span>
+                    <span class="nums text-sm text-muted">{{ client.visit_count }} {{ client.visit_count === 1 ? 'visita' : 'visitas' }}</span>
+                  } @else {
+                    <span class="badge badge-info">Primera vez</span>
+                  }
+                  @if (contactNote(client); as note) {
+                    <span class="text-sm text-muted">{{ note }}</span>
+                  }
+                  @if (isCanceller(client)) {
+                    <span class="badge badge-warn"><span class="nums">{{ client.cancel_count + (client.no_show_count ?? 0) }}</span> cancel./faltas</span>
+                  }
+                  @if (packLeft(client); as left) {
+                    <span class="badge badge-ok">Paquete: {{ left }}</span>
+                  }
+                  @for (tag of (client.tags ?? []).slice(0, 2); track tag) {
+                    <span class="badge badge-neutral">{{ tag }}</span>
+                  }
+                </span>
+              </button>
+              @if (filter() === 'missing') {
+                <a class="btn btn-whatsapp shrink-0 px-3!" [href]="missYou(client)" target="_blank" rel="noopener" (click)="logContact(client, 'invitar')">{{ client.last_contact_at ? 'Invitar otra vez' : 'Invitar' }}</a>
+              } @else if (filter() === 'birthday') {
+                <a class="btn btn-whatsapp shrink-0 px-3!" [href]="birthdayWish(client)" target="_blank" rel="noopener" (click)="logContact(client, 'felicitar')">Felicitar</a>
+              }
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  }
+</section>
+
+<!-- Barra de acciones en bloque: aparece cuando hay alguien seleccionado. bottom-20 en celular para no tapar la navegación inferior. -->
+@if (selecting() && selectedRows().length > 0) {
+  <div class="fixed inset-x-3 bottom-20 z-30 md:bottom-6 md:left-[calc(15rem+1.5rem)] md:right-6" role="region" aria-label="Acciones para los seleccionados">
+    <div class="mx-auto max-w-3xl rounded-2xl border border-line bg-surface p-3 shadow-[0_18px_50px_rgba(30,27,30,0.25)]">
+      @if (bulkPanel() === 'tag') {
+        <p class="text-sm font-semibold text-ink">Etiqueta para {{ selectedRows().length }} {{ selectedRows().length === 1 ? copy.text().client.toLowerCase() : copy.text().clients.toLowerCase() }}</p>
+        @if (allTags().length) {
+          <div class="mt-2 flex flex-wrap gap-2">
+            @for (tag of allTags(); track tag) {
+              <button type="button" class="chip" [disabled]="bulkBusy()" (click)="applyBulkTag(tag)">{{ tag }}</button>
+            }
+          </div>
+        }
+        <form class="mt-2 flex gap-2" (submit)="$event.preventDefault(); applyBulkTag(bulkTag)">
+          <input class="input min-w-0 flex-1" name="bulkTag" maxlength="30" placeholder="Etiqueta nueva, por ejemplo VIP" autocomplete="off" [(ngModel)]="bulkTag" />
+          <button type="submit" class="btn btn-primary" [disabled]="bulkBusy() || !bulkTag.trim()">{{ bulkBusy() ? 'Guardando…' : 'Poner' }}</button>
+        </form>
+        @if (bulkError(); as message) {
+          <p class="field-error mt-2" role="alert">{{ message }}</p>
+        }
+        <button type="button" class="btn btn-ghost mt-2" (click)="bulkPanel.set(null)">Volver</button>
+      } @else if (bulkPanel() === 'chat' && chatCurrent(); as person) {
+        <p class="text-sm font-semibold text-ink"><span class="nums">{{ chatIndex() + 1 }}</span> de <span class="nums">{{ chatTotal() }}</span>: {{ person.full_name }}</p>
+        <p class="field-hint">WhatsApp no deja mandar a varios a la vez. Abre cada chat, envía y regresa aquí para el siguiente.</p>
+        <div class="mt-2 flex flex-wrap gap-2" role="group" aria-label="Mensaje">
+          @for (kind of chatKinds; track kind.key) {
+            <button type="button" class="chip" [class.chip-on]="chatKind() === kind.key" [attr.aria-pressed]="chatKind() === kind.key" (click)="chatKind.set(kind.key)">{{ kind.label }}</button>
+          }
+        </div>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <a class="btn btn-whatsapp" [href]="chatHref(person)" target="_blank" rel="noopener" (click)="chatSent()">Abrir WhatsApp</a>
+          <button type="button" class="btn btn-secondary" (click)="chatNext()">Saltar</button>
+          <button type="button" class="btn btn-ghost" (click)="bulkPanel.set(null)">Terminar</button>
+        </div>
+      } @else {
+        <div class="flex flex-wrap items-center gap-2">
+          <p class="min-w-0 flex-1 text-sm"><span class="nums font-semibold text-ink">{{ selectedRows().length }}</span> seleccionado{{ selectedRows().length === 1 ? '' : 's' }}</p>
+          <button type="button" class="btn btn-secondary" (click)="openBulkTag()"><mat-icon>sell</mat-icon>Etiquetar</button>
+          <button type="button" class="btn btn-whatsapp" (click)="startChat()">WhatsApp</button>
+          <button type="button" class="btn btn-ghost" (click)="clearSelection()">Quitar</button>
+        </div>
+      }
+    </div>
+  </div>
+}
+
+@if (card(); as person) {
+  <div class="fixed inset-0 z-30 bg-ink/20" (click)="close()" aria-hidden="true"></div>
+  <aside class="fixed inset-y-0 right-0 z-40 flex w-full max-w-md flex-col gap-4 overflow-auto border-l border-line bg-surface p-5 shadow-xl" role="dialog" aria-modal="true" [attr.aria-label]="'Ficha de ' + person.full_name">
+    @if (editing()) {
+      <form class="flex flex-col gap-3" (submit)="$event.preventDefault(); saveEdit()">
+        <label class="block">
+          <span class="label">Nombre</span>
+          <input class="input" name="editName" [(ngModel)]="editName" />
+        </label>
+        <label class="block">
+          <span class="label">WhatsApp</span>
+          <input class="input nums" name="editPhone" type="tel" inputmode="numeric" [(ngModel)]="editPhone" />
+        </label>
+        @if (editError(); as message) {
+          <p class="field-error" role="alert">{{ message }}</p>
+        }
+        <div class="flex gap-2">
+          <button type="submit" class="btn btn-primary">Guardar</button>
+          <button type="button" class="btn btn-ghost" (click)="editing.set(false)">Cancelar</button>
+        </div>
+      </form>
+    } @else {
+      <div class="flex items-start gap-3">
+        <span class="avatar h-11! w-11! text-sm!">{{ initials(person.full_name) }}</span>
+        <div class="min-w-0 flex-1">
+          <h2 class="truncate text-lg font-semibold text-ink">{{ person.full_name }}</h2>
+          <p class="nums text-sm text-muted">{{ person.phone }}</p>
+        </div>
+        <button type="button" class="btn btn-ghost w-11! shrink-0 px-0!" aria-label="Editar nombre y teléfono" (click)="startEdit()">
+          <mat-icon>edit</mat-icon>
+        </button>
+        <button type="button" class="btn btn-ghost w-11! shrink-0 px-0!" aria-label="Cerrar" (click)="close()">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    }
+
+    <div class="grid grid-cols-2 gap-2">
+      <a class="btn btn-whatsapp" [href]="chat(person.phone)" target="_blank" rel="noopener">WhatsApp</a>
+      <a class="btn btn-secondary" [href]="tel(person.phone)">
+        <mat-icon>call</mat-icon>
+        Llamar
+      </a>
+      <button type="button" class="btn btn-primary col-span-2" (click)="newAppointment()">
+        <mat-icon>{{ lastVisit() ? 'replay' : 'add' }}</mat-icon>
+        {{ lastVisit() ? 'Nueva cita (como la última)' : 'Nueva cita' }}
+      </button>
+    </div>
+    @if (profile(); as info) {
+      @if (info.next; as next) {
+        <a class="card card-tint row-hover flex items-center gap-3 py-3!" routerLink="/admin/agenda" [queryParams]="{ cita: next.id, dia: next.starts_at.slice(0, 10) }">
+          <span class="sec-icon"><mat-icon>event</mat-icon></span>
+          <span class="min-w-0 flex-1">
+            <span class="block text-sm font-medium text-ink">Próxima cita · {{ visitWhen(next.starts_at) }}</span>
+            <span class="block truncate text-sm text-muted">{{ next.service_name }} con {{ next.staff_name }}</span>
+          </span>
+          <mat-icon class="text-muted">chevron_right</mat-icon>
+        </a>
+      } @else if (info.due; as due) {
+        <p class="card-tint flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm text-ink-soft">
+          <mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-accent" aria-hidden="true">event_repeat</mat-icon>
+          {{ dueLabel(due) }} · viene cada {{ info.every }} días
+        </p>
+      }
+      @if (info.service || info.ticket) {
+        <dl class="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+          @if (info.service) {
+            <div><dt class="text-muted">Pide más</dt><dd class="truncate font-medium text-ink">{{ info.service }}</dd></div>
+          }
+          @if (info.staff) {
+            <div><dt class="text-muted">La atiende</dt><dd class="truncate font-medium text-ink">{{ info.staff }}</dd></div>
+          }
+          @if (info.ticket) {
+            <div><dt class="text-muted">Ticket promedio</dt><dd class="nums font-medium text-ink">{{ spent(info.ticket) }}</dd></div>
+          }
+          @if (info.every) {
+            <div><dt class="text-muted">Viene cada</dt><dd class="nums font-medium text-ink">{{ info.every }} días</dd></div>
+          }
+        </dl>
+      }
+    }
+
+    <div>
+      <span class="label">Etiquetas</span>
+      <div class="flex flex-wrap items-center gap-2">
+        @for (tag of person.tags ?? []; track tag) {
+          <span class="chip chip-on gap-1 pr-1!">
+            {{ tag }}
+            <button type="button" class="grid h-11 w-11 place-items-center rounded-full" [attr.aria-label]="'Quitar ' + tag" (click)="removeTag(tag)"><mat-icon class="h-4! w-4! text-[16px]!">close</mat-icon></button>
+          </span>
+        }
+        <form class="flex gap-2" (submit)="$event.preventDefault(); addTag()">
+          <input class="input h-11! w-36!" name="newTag" maxlength="30" placeholder="VIP, alergia…" [(ngModel)]="newTag" />
+          <button type="submit" class="btn btn-secondary px-3!" aria-label="Agregar etiqueta"><mat-icon>add</mat-icon></button>
+        </form>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-3 gap-2">
+      <div class="rounded-xl border border-line px-3 py-2">
+        <p class="stat-label">Visitas</p>
+        <p class="nums text-lg font-semibold text-ink">{{ person.visit_count }}</p>
+      </div>
+      <div class="rounded-xl border border-line px-3 py-2">
+        <p class="stat-label">No llegó</p>
+        <p class="nums text-lg font-semibold" [class]="person.no_show_count ? 'text-(--nx-bad-fg)' : 'text-ink'">{{ person.no_show_count }}</p>
+      </div>
+      <div class="rounded-xl border border-line px-3 py-2">
+        <p class="stat-label">En total</p>
+        <p class="nums truncate text-lg font-semibold text-ink">{{ spent(person.total_spent) }}</p>
+      </div>
+    </div>
+
+    <section class="card">
+      <div class="card-head">
+        <span class="sec-icon"><mat-icon>card_membership</mat-icon></span>
+        <h3 class="card-title">Paquetes</h3>
+      </div>
+      @for (pack of cardPacks(); track pack.id) {
+        <div class="mt-2 flex items-center gap-2 text-sm">
+          <span class="min-w-0 flex-1 text-ink"><span class="nums font-semibold">{{ pack.remaining }}</span> de {{ pack.total }} visitas</span>
+          <button type="button" class="btn btn-secondary w-11! px-0!" aria-label="Una visita menos" [disabled]="pack.remaining === 0" (click)="stepPackage(pack, -1)"><mat-icon>remove</mat-icon></button>
+          <button type="button" class="btn btn-secondary w-11! px-0!" aria-label="Una visita más" [disabled]="pack.remaining >= pack.total" (click)="stepPackage(pack, 1)"><mat-icon>add</mat-icon></button>
+          <button type="button" class="btn btn-ghost w-11! px-0! text-(--nx-bad-fg)" aria-label="Quitar paquete" (click)="removePackage(pack)"><mat-icon>delete</mat-icon></button>
+        </div>
+      }
+      <div class="mt-3 flex items-end gap-2">
+        <label class="block w-24">
+          <span class="label">Visitas</span>
+          <input class="input nums" type="number" min="1" [(ngModel)]="packVisits" />
+        </label>
+        <button type="button" class="btn btn-secondary" (click)="addPackage()">Agregar paquete</button>
+      </div>
+      <p class="field-hint mt-2">Se descuenta una visita al cobrar con "Paquete".</p>
+      @if (packError(); as message) {
+        <p class="field-error mt-1" role="alert">{{ message }}</p>
+      }
+    </section>
+
+    <label class="block">
+      <span class="label">Cumpleaños (opcional)</span>
+      <input class="input" type="date" [value]="person.birthday ?? ''" (change)="saveBirthday($any($event.target).value)" />
+      @if (birthdayState() === 'error') {
+        <span class="field-error" role="alert">No pudimos guardar el cumpleaños.</span>
+      } @else if (birthdayState() === 'saved') {
+        <span class="field-hint text-(--nx-ok-fg)">Cumpleaños guardado.</span>
+      }
+    </label>
+
+    <label class="block">
+      <span class="label">Notas internas</span>
+      <textarea class="input" rows="3" placeholder="Solo las ves tú" [ngModel]="notes()" (ngModelChange)="notes.set($event)" (blur)="saveNotes()"></textarea>
+      <span class="field-hint" [style.color]="notesState() === 'error' ? 'var(--nx-bad-fg)' : null">
+        @switch (notesState()) {
+          @case ('saving') { Guardando… }
+          @case ('saved') { Notas guardadas. }
+          @case ('error') { No pudimos guardar las notas. }
+          @default { Se guardan solas al salir del campo. }
+        }
+      </span>
+    </label>
+
+    @if ((person.contacts ?? []).length) {
+      <section class="card">
+        <div class="card-head">
+          <span class="sec-icon"><mat-icon>chat</mat-icon></span>
+          <h3 class="card-title">Mensajes que le mandaste</h3>
+        </div>
+        <ul class="mt-2 divide-y divide-line text-sm">
+          @for (item of person.contacts ?? []; track item.at + item.kind) {
+            <li class="flex items-center justify-between gap-3 py-2">
+              <span class="text-ink">{{ contactKind(item.kind) }}</span>
+              <span class="nums text-muted">{{ ago(item.at.slice(0, 10)) }}{{ item.by ? ' · ' + item.by : '' }}</span>
+            </li>
+          }
+        </ul>
+      </section>
+    }
+
+    <section class="card">
+      <div class="card-head">
+        <span class="sec-icon"><mat-icon>history</mat-icon></span>
+        <h3 class="card-title">Historial</h3>
+      </div>
+      @if (person.visits.length === 0) {
+        <p class="py-6 text-center text-sm text-muted">Sin visitas todavía.</p>
+      } @else {
+        <ul class="mt-2 divide-y divide-line">
+          @for (visit of person.visits.slice(0, historyShown()); track visit.starts_at + visit.service_name) {
+            <li class="flex items-start justify-between gap-3 py-3 text-sm">
+              <span class="min-w-0">
+                <span class="block truncate font-medium text-ink">{{ visit.service_name }}</span>
+                <span class="block truncate text-muted"><span class="nums">{{ visitWhen(visit.starts_at) }}</span> · {{ visit.staff_name }}</span>
+                @if (visit.visit_note) {
+                  <span class="mt-1 block whitespace-pre-line rounded-lg bg-canvas px-2 py-1 text-ink-soft">{{ visit.visit_note }}</span>
+                }
+              </span>
+              <span class="flex shrink-0 flex-col items-end gap-1">
+                <span class="nums" [class.line-through]="visit.status === 'cancelled' || visit.status === 'no_show'" [class.text-muted]="visit.status !== 'completed'" [class.text-ink]="visit.status === 'completed'">{{ spent(visit.price) }}</span>
+                @switch (visit.status) {
+                  @case ('completed') { <span class="badge badge-ok">Cobrada</span> }
+                  @case ('cancelled') { <span class="badge badge-neutral">Cancelada</span> }
+                  @case ('no_show') { <span class="badge badge-bad">No llegó</span> }
+                  @case ('awaiting_deposit') { <span class="badge badge-warn">Falta anticipo</span> }
+                  @default {
+                    @if (isPast(visit.starts_at)) {
+                      <span class="badge badge-warn">Sin cobrar</span>
+                    } @else {
+                      <span class="badge badge-info">Próxima</span>
+                    }
+                  }
+                }
+              </span>
+            </li>
+          }
+        </ul>
+        @if (person.visits.length > historyShown()) {
+          <button type="button" class="btn btn-ghost mt-1 w-full" (click)="historyShown.set(person.visits.length)">Ver {{ person.visits.length - historyShown() }} más</button>
+        }
+      }
+    </section>
+
+    <div class="border-t border-line pt-4">
+      <button type="button" class="btn btn-ghost w-full text-(--nx-bad-fg)" (click)="deleteClient()">
+        <mat-icon>delete</mat-icon>
+        Borrar sus datos
+      </button>
+      <p class="field-hint mt-1 text-center">Si te lo pide, la ley te obliga a borrar sus datos.</p>
+      @if (deleteError(); as message) {
+        <p class="field-error mt-1 text-center" role="alert">{{ message }}</p>
+      }
+    </div>
+  </aside>
+}

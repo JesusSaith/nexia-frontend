@@ -1,0 +1,84 @@
+flowchart TD
+  subgraph ALTA["1. Alta de la dueña"]
+    A1["Registro: negocio, giro, comisiones sí o no"] --> A2["Asistente de bienvenida: servicios, equipo, horarios"]
+    A2 --> A3["Configuración: anticipo, cancelación, pausa y cierres, enlace propio"]
+    A3 --> A4["Enlace público /negocio/book"]
+  end
+
+  subgraph RESERVA["2. Reserva de la persona (celular)"]
+    B1["Servicio y extras"] --> B2["Horario: persona del equipo o cualquiera"]
+    B2 --> B3["Datos: teléfono de 10 dígitos, nombre, fotos opcionales"]
+    B3 --> B4{"Reglas de la API"}
+    B4 -- "horario ocupado, pausa, 3 citas por teléfono, persona no hace el servicio" --> B2
+    B4 -- "válida" --> B5["Cita creada con su enlace /manage/token"]
+  end
+
+  A4 --> B1
+
+  subgraph ESTADOS["3. Ciclo de la cita"]
+    C0{"Requiere aprobación o anticipo"}
+    C1["awaiting_deposit: espera anticipo"]
+    C2["scheduled: agendada"]
+    C3["completed: cobrada"]
+    C4["cancelled"]
+    C5["no_show: no llegó"]
+    C0 -- "anticipo" --> C1
+    C0 -- "sin anticipo" --> C2
+    C1 -- "comprobante o Ya pagué, la dueña acepta" --> C2
+    C1 -- "vence el tiempo, cada 10 min" --> C4
+    C2 -- "Cobrar y completar" --> C3
+    C2 --> C4
+    C2 --> C5
+    C4 -- "Deshacer, si el horario sigue libre" --> C2
+    C5 -- "Deshacer" --> C2
+    C3 -- "Deshacer" --> C2
+  end
+
+  B5 --> C0
+
+  subgraph CLIENTE["4. La persona desde su enlace"]
+    D1["Ver, confirmar Sí voy"]
+    D2["Cambiar fecha u hora: duración real, misma persona"]
+    D3["Cancelar con confirmación"]
+    D4["Subir comprobante de anticipo"]
+    D5["Dejar opinión: una por cita completada"]
+  end
+
+  C2 --> D1
+  D2 --> C2
+  D3 --> C4
+  D4 --> C1
+  C3 --> D5
+
+  subgraph PANEL["5. Panel de la dueña y del personal"]
+    E1["Inicio: por resolver, hoy, mañana, avisos"]
+    E2["Agenda: dueña ve todo, personal solo la suya"]
+    E3["WhatsApp: confirmar, aprobar, rechazar, te toca volver"]
+  end
+
+  C2 --> E1
+  E1 --> E2
+  E2 --> E3
+
+  subgraph DINERO["6. Dinero: Reportes y Caja"]
+    F1["Cobro: precio final, método, propina, venta de productos"]
+    F2["Reportes: ingresos, gastos fijos por fecha de pago, compras de producto"]
+    F3["Punto de equilibrio = gastos + compras sobre 1 menos la parte de comisiones"]
+    F4["Comisiones: pagos parciales que se suman y se reparten por días"]
+    F5["Corte de caja: fondo + efectivo (servicios, propinas, productos) ± movimientos; se cierra con responsable"]
+    F6["Contador: Excel por mes"]
+  end
+
+  E2 --> F1
+  C3 --> F1
+  F1 --> F2
+  F2 --> F3
+  F1 --> F4
+  F1 --> F5
+  F2 --> F6
+
+  subgraph SEG["Protecciones en toda la API"]
+    G1["Todo por business_id: un negocio nunca ve a otro"]
+    G2["Roles: dueña y admin manejan dinero y equipo; personal, su agenda"]
+    G3["Límites por IP, imágenes seguras, doble reserva bloqueada"]
+  end
