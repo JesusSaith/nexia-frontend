@@ -219,11 +219,11 @@ export class DateFieldComponent implements ControlValueAccessor {
           <div class="relative">
             <!-- Franja del centro: lo que cae aquí es lo elegido -->
             <div class="pointer-events-none absolute inset-x-0 top-1/2 h-11 -translate-y-1/2 rounded-xl bg-canvas" aria-hidden="true"></div>
-            <div class="relative flex items-stretch gap-1">
+            <div class="relative flex items-stretch gap-3 px-2">
               @if (options() === null) {
                 <app-wheel-column class="flex-1" label="Hora" [items]="hours" [selected]="hour12()" (changed)="setHour($event)" />
                 <app-wheel-column class="flex-1" label="Minutos" [items]="minuteItems()" [selected]="pickedMinute()" (changed)="setMinute($event)" />
-                <app-wheel-column class="flex-1" label="a. m. o p. m." [items]="meridiem" [selected]="pickedMeridiem()" (changed)="setMeridiem($event)" />
+                <app-wheel-column class="flex-[1.3]" label="a. m. o p. m." [items]="meridiem" [selected]="pickedMeridiem()" (changed)="setMeridiem($event)" />
               } @else {
                 <app-wheel-column class="flex-1" label="Hora" [items]="choiceItems()" [selected]="shown()" (changed)="setExact($event)" />
               }
@@ -319,7 +319,7 @@ export class TimeFieldComponent implements ControlValueAccessor {
       return;
     }
     const anchor = event.currentTarget as HTMLElement;
-    this.sheet = openSheet(this.overlay, this.view, anchor, this.panel(), Math.max(this.options() === null ? 344 : 220, anchor.offsetWidth));
+    this.sheet = openSheet(this.overlay, this.view, anchor, this.panel(), Math.max(300, anchor.offsetWidth));
     this.open.set(true);
   }
 

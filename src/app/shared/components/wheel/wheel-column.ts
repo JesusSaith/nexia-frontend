@@ -27,7 +27,7 @@ const ROW = 44;
       <div class="h-[88px]" aria-hidden="true"></div>
       @for (item of items(); track item.value) {
         <div
-          class="flex h-11 w-full cursor-pointer snap-center items-center justify-center text-base nums transition-colors"
+          class="flex h-11 w-full cursor-pointer whitespace-nowrap snap-center items-center justify-center text-base nums transition-colors"
           role="option"
           [attr.aria-selected]="item.value === selected()"
           [class.text-ink]="item.value === selected()"
