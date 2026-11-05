@@ -806,8 +806,9 @@
         <p class="mt-4 text-sm">El anticipo se calcula cuando quede el precio acordado.</p>
       }
       @if (needsQuote(appointment)) {
+        <div class="mt-6 w-full"><ng-container *ngTemplateOutlet="visitSummary; context: { $implicit: appointment }" /></div>
         <!-- Lo primero: pedir el precio. Los pasos dicen qué sigue para que nadie se quede esperando sin saber. -->
-        <div class="mt-5 w-full rounded-2xl border border-line bg-canvas p-4 text-left">
+        <div class="mt-4 w-full rounded-2xl border border-line bg-canvas p-4 text-left">
           <p class="text-sm font-medium text-ink">Qué sigue</p>
           <ol class="mt-3 space-y-3 text-sm">
             <li class="flex gap-3">
@@ -824,7 +825,10 @@
             </li>
           </ol>
           @if (brand()?.quote_hold_hours; as hold) {
-            <p class="mt-3 rounded-xl badge-warn px-3 py-2 text-sm">Te guardamos el horario <strong>{{ hold }} h</strong> mientras te mandan el precio. Si pasa ese tiempo sin respuesta, se libera.</p>
+            <p class="mt-3 flex items-start gap-2 text-sm text-ink-soft">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="mt-0.5 h-5 w-5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>
+              <span>Te guardamos el horario <strong class="font-medium text-ink">{{ hold }} h</strong> mientras te mandan el precio. Si pasa ese tiempo sin respuesta, se libera.</span>
+            </p>
           }
           @if (whatsappHref(appointment); as href) {
             <button type="button" class="btn btn-whatsapp mt-4 w-full justify-center" (click)="openWhatsapp(href)">
@@ -836,54 +840,22 @@
             <p class="mt-3 text-sm text-ink-soft">{{ brand()?.name || 'El negocio' }} te escribirá con el precio.</p>
           }
           @if (refPhotos().length && canShareFiles) {
-            <button type="button" class="btn btn-secondary mt-3 w-full justify-center" (click)="sharePhotos(appointment)">Enviar mis fotos como imagen</button>
+            <button type="button" class="btn btn-secondary mt-3 w-full justify-center" (click)="sharePhotos(appointment)">Enviar mis fotos como imagen (opcional)</button>
+            <p class="mt-1 text-center text-xs text-muted">Tus fotos ya van en el enlace del mensaje. Usa esto solo si prefieres mandarlas como imagen.</p>
           }
         </div>
       }
-      <dl class="mt-6 w-full space-y-2 text-sm">
-        <div>
-          <dt class="text-muted">Servicio</dt>
-          <dd class="font-medium">{{ appointment.service_name || selectedService()?.name }}</dd>
-        </div>
-        @if (appointment.extra_label) {
-          <div>
-            <dt class="text-muted">Extras</dt>
-            <dd class="font-medium">{{ appointment.extra_label }}</dd>
-          </div>
-        }
-        <div>
-          <dt class="text-muted">Día y hora</dt>
-          <dd class="font-medium">{{ formatDate(appointment.starts_at) }} · {{ formatTime(appointment.starts_at) }}</dd>
-        </div>
-        <div>
-          <dt class="text-muted">Con</dt>
-          <dd class="font-medium">{{ appointment.staff_name || selectedStaff()?.full_name }}</dd>
-        </div>
-        @if (durationOf(appointment); as time) {
-          <div>
-            <dt class="text-muted">Duración</dt>
-            <dd class="font-medium">{{ time }}</dd>
-          </div>
-        }
-        @if (totalOf(appointment); as total) {
-          <div>
-            <dt class="text-muted">Total</dt>
-            <dd class="font-medium">${{ total }}</dd>
-          </div>
-        } @else if (needsQuote(appointment)) {
-          <div>
-            <dt class="text-muted">Precio</dt>
-            <dd class="font-medium">Por cotizar</dd>
-          </div>
-        }
-      </dl>
+      @if (!needsQuote(appointment)) {
+        <div class="mt-6 w-full"><ng-container *ngTemplateOutlet="visitSummary; context: { $implicit: appointment }" /></div>
+      }
+      @if (!needsQuote(appointment)) {
       <!-- Lo que se hace justo después de reservar: guardarla en el calendario y saber cómo llegar. -->
-      <div class="mt-6 grid w-full gap-2" [class.grid-cols-2]="directionsHref()">
+      <div class="mt-6 grid w-full gap-2" [class.grid-cols-2]="!hasPlace() && directionsHref()">
         <button type="button" class="btn btn-secondary min-h-12 !h-auto !whitespace-normal py-2 text-center leading-tight justify-center" (click)="downloadIcs(appointment)">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>
           Agregar a mi calendario
         </button>
-        @if (directionsHref(); as route) {
+        @if (!hasPlace() && directionsHref(); as route) {
           <a class="btn btn-secondary h-12 justify-center" [href]="route" target="_blank" rel="noopener">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="M12 21s7-6.2 7-11.2A7 7 0 0 0 5 9.8C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.8" r="2.5"/></svg>
             Cómo llegar
@@ -891,16 +863,19 @@
         }
       </div>
       <button type="button" class="btn btn-secondary mt-2 w-full justify-center" (click)="shareVisit(appointment)">Compartir mi {{ copy().visit.toLowerCase() }}</button>
+      }
       @if (brand()?.cancel_policy; as policy) {
         <div class="mt-4 w-full rounded-2xl bg-canvas px-4 py-3 text-left text-sm">
           <p class="font-medium">Política de cancelación</p>
           <p class="mt-1 whitespace-pre-line text-muted">{{ policy }}</p>
         </div>
       }
-      <p class="mt-2 text-sm text-muted">
-        Tu calendario te avisa un día y dos horas antes.
-        <a class="underline" [href]="googleCalendarHref(appointment)" target="_blank" rel="noopener">Usar Google Calendar</a>
-      </p>
+      @if (!needsQuote(appointment)) {
+        <p class="mt-2 text-sm text-muted">
+          Tu calendario te avisa un día y dos horas antes.
+          <a class="underline" [href]="googleCalendarHref(appointment)" target="_blank" rel="noopener">Usar Google Calendar</a>
+        </p>
+      }
       @if (manageLink(appointment); as link) {
         <div class="mt-5 w-full rounded-2xl bg-canvas px-4 py-3 text-left text-sm">
           <p class="font-medium">¿Necesitas cambiarla o cancelarla?</p>
@@ -931,16 +906,57 @@
         <p class="mt-1 text-xs text-muted">Se abre el menú de compartir: elige WhatsApp y el chat de {{ brand()?.name || 'el negocio' }}.</p>
       }
       @if (hasPlace()) {
-        <div class="mt-6 w-full text-left">
-          <p class="mb-2 text-sm font-medium">Cómo llegar</p>
-          <app-place-map [place]="brand()!" [name]="brand()?.name" [color]="brand()?.primary_color" />
-        </div>
+        <details class="mt-4 w-full rounded-2xl border border-line text-left">
+          <summary class="flex min-h-11 cursor-pointer items-center justify-between gap-2 px-4 text-sm font-medium text-ink">Cómo llegar<span class="text-xs font-normal text-muted">Mapa, Google Maps y Waze</span></summary>
+          <div class="px-4 pb-4">
+            <app-place-map [place]="brand()!" [name]="brand()?.name" [color]="brand()?.primary_color" />
+          </div>
+        </details>
       }
       <button type="button" class="mt-3 h-11 text-sm text-muted underline-offset-2 hover:underline" (click)="restart()">
         Volver al inicio
       </button>
     </section>
   }
+<ng-template #visitSummary let-appointment>
+        <dl class="w-full divide-y divide-line rounded-2xl border border-line text-left text-sm">
+          <div class="flex items-baseline justify-between gap-4 px-4 py-2.5">
+            <dt class="shrink-0 text-muted">Servicio</dt>
+            <dd class="text-right font-medium">{{ appointment.service_name || selectedService()?.name }}</dd>
+          </div>
+          @if (appointment.extra_label) {
+            <div class="flex items-baseline justify-between gap-4 px-4 py-2.5">
+              <dt class="shrink-0 text-muted">Extras</dt>
+              <dd class="text-right font-medium">{{ appointment.extra_label }}</dd>
+            </div>
+          }
+          <div class="flex items-baseline justify-between gap-4 px-4 py-2.5">
+            <dt class="shrink-0 text-muted">Día y hora</dt>
+            <dd class="text-right font-medium">{{ formatDate(appointment.starts_at) }} · {{ formatTime(appointment.starts_at) }}</dd>
+          </div>
+          <div class="flex items-baseline justify-between gap-4 px-4 py-2.5">
+            <dt class="shrink-0 text-muted">Con</dt>
+            <dd class="text-right font-medium">{{ appointment.staff_name || selectedStaff()?.full_name }}</dd>
+          </div>
+          @if (durationOf(appointment); as time) {
+            <div class="flex items-baseline justify-between gap-4 px-4 py-2.5">
+              <dt class="shrink-0 text-muted">Duración</dt>
+              <dd class="text-right font-medium">{{ time }}</dd>
+            </div>
+          }
+          @if (totalOf(appointment); as total) {
+            <div class="flex items-baseline justify-between gap-4 px-4 py-2.5">
+              <dt class="shrink-0 text-muted">Total</dt>
+              <dd class="text-right font-medium">${{ total }}</dd>
+            </div>
+          } @else if (needsQuote(appointment)) {
+            <div class="flex items-baseline justify-between gap-4 px-4 py-2.5">
+              <dt class="shrink-0 text-muted">Precio</dt>
+              <dd class="text-right font-medium">Por cotizar</dd>
+            </div>
+          }
+        </dl>
+</ng-template>
 </main>
 
 @if (summary(); as info) {
