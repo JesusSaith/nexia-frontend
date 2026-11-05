@@ -1,0 +1,100 @@
+<div class="min-h-screen bg-canvas text-ink">
+  <header class="sticky top-0 z-10 border-b border-line bg-surface">
+    <div class="mx-auto flex h-16 w-full max-w-5xl items-center justify-between gap-3 px-4">
+      <a routerLink="/" aria-label="Nexia, inicio"><img src="/nexia-mark.png" alt="Nexia" class="h-8 w-auto" /></a>
+      <nav class="flex items-center gap-2">
+        <a class="btn btn-ghost" routerLink="/auth/login">Entrar</a>
+        <a class="btn btn-primary" routerLink="/auth/register">Crear cuenta</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="mx-auto w-full max-w-5xl px-4 pb-12 pt-12 text-center sm:pt-20">
+      <span class="badge badge-neutral">Reservas en línea para negocios con cita</span>
+      <h1 class="mx-auto mt-4 max-w-2xl text-3xl font-semibold tracking-tight sm:text-5xl">
+        Que tus clientes reserven solos, a cualquier hora
+      </h1>
+      <p class="mx-auto mt-4 max-w-xl text-base text-muted sm:text-lg">
+        Nexia te da una página de reservas con tu enlace y un panel para llevar tu agenda, tu equipo, tus clientes y tus cobros desde el celular.
+      </p>
+      <div class="mt-7 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
+        <a class="btn btn-primary" routerLink="/auth/register">Crear mi cuenta</a>
+        <a class="btn btn-secondary" routerLink="/auth/login">Ya tengo cuenta</a>
+      </div>
+
+      <ul class="mt-10 flex flex-wrap justify-center gap-2" aria-label="Giros que lo usan">
+        @for (k of kinds; track k.value) {
+          <li class="chip gap-1.5"><mat-icon class="h-5! w-5! text-[20px]!" aria-hidden="true">{{ k.icon }}</mat-icon> {{ k.label }}</li>
+        }
+        <li class="chip">y cualquier negocio con cita</li>
+      </ul>
+    </section>
+
+    <section class="border-y border-line bg-surface">
+      <div class="mx-auto w-full max-w-5xl px-4 py-12">
+        <h2 class="text-center text-2xl font-semibold">Así empiezas</h2>
+        <ol class="mt-8 grid gap-4 sm:grid-cols-3">
+          @for (s of steps; track s.title; let i = $index) {
+            <li class="card">
+              <div class="flex items-center gap-3">
+                <span class="badge badge-neutral" aria-hidden="true">{{ i + 1 }}</span>
+                <mat-icon class="text-accent" aria-hidden="true">{{ s.icon }}</mat-icon>
+              </div>
+              <h3 class="mt-3 font-semibold">{{ s.title }}</h3>
+              <p class="mt-1 text-sm text-muted">{{ s.text }}</p>
+            </li>
+          }
+        </ol>
+      </div>
+    </section>
+
+    <section class="mx-auto w-full max-w-5xl px-4 py-12">
+      <h2 class="text-center text-2xl font-semibold">Todo lo que necesitas para atender</h2>
+      <ul class="mt-8 grid gap-4 sm:grid-cols-2">
+        @for (f of features; track f.title) {
+          <li class="card flex gap-3">
+            <mat-icon class="shrink-0 text-accent" aria-hidden="true">{{ f.icon }}</mat-icon>
+            <div>
+              <h3 class="font-semibold">{{ f.title }}</h3>
+              <p class="mt-1 text-sm text-muted">{{ f.text }}</p>
+            </div>
+          </li>
+        }
+      </ul>
+    </section>
+
+    <section class="border-t border-line bg-surface">
+      <div class="mx-auto w-full max-w-2xl px-4 py-12">
+        <h2 class="text-center text-2xl font-semibold">Preguntas frecuentes</h2>
+        <div class="mt-6 grid gap-2">
+          @for (f of faqs; track f.q) {
+            <details class="card group p-0">
+              <summary class="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 font-medium">
+                {{ f.q }}
+                <mat-icon class="shrink-0 text-muted transition-transform group-open:rotate-180" aria-hidden="true">expand_more</mat-icon>
+              </summary>
+              <p class="px-4 pb-4 text-sm text-muted">{{ f.a }}</p>
+            </details>
+          }
+        </div>
+      </div>
+    </section>
+
+    <section class="mx-auto w-full max-w-5xl px-4 py-14 text-center">
+      <h2 class="text-2xl font-semibold">Deja de contestar mensajes para dar citas</h2>
+      <p class="mx-auto mt-2 max-w-md text-muted">Crea tu cuenta y comparte tu enlace hoy.</p>
+      <a class="btn btn-primary mt-6" routerLink="/auth/register">Crear mi cuenta</a>
+    </section>
+  </main>
+
+  <footer class="border-t border-line bg-surface">
+    <div class="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-6 text-sm text-muted">
+      <span>Nexia</span>
+      <nav class="flex gap-4">
+        <a class="underline underline-offset-2" routerLink="/terminos">Términos</a>
+        <a class="underline underline-offset-2" routerLink="/privacidad">Aviso de privacidad</a>
+      </nav>
+    </div>
+  </footer>
+</div>
