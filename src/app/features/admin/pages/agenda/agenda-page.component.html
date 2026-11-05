@@ -371,7 +371,7 @@
       } @else {
         <div class="mt-2 grid grid-cols-3 gap-1.5">
           @for (label of openTimes(); track label) {
-            <button type="button" class="btn btn-secondary px-2!" (click)="openAtTime(label)">{{ label }}</button>
+            <button type="button" class="btn btn-secondary px-2!" (click)="openAtTime(label)">{{ label | hora }}</button>
           }
         </div>
       }
@@ -659,7 +659,7 @@
               <span class="label">Precio del servicio</span>
               <input class="input nums text-lg! font-semibold" type="number" min="0" inputmode="decimal" [value]="chargeAmount()" [readOnly]="!canPrice(pop.appointment.service_id)" (input)="chargeAmount.set($any($event.target).value)" />
               @if (!canPrice(pop.appointment.service_id)) {
-                <span class="field-hint">Este precio lo cambia la dueña o el administrador.</span>
+                <span class="field-hint">Este precio lo cambia quien dirige el negocio o administra.</span>
               }
             </label>
             <div class="flex flex-wrap gap-2" role="group" aria-label="Método de pago">
@@ -805,7 +805,7 @@
 }
 
 <ng-template #quoteBox let-appointment>
-  @if (canPrice(appointment.service_id)) {
+  @if (canPrice(appointment.service_id) && appointment.status !== 'cancelled' && appointment.status !== 'no_show') {
   <div class="flex flex-col gap-2">
     <label class="label mb-0!" for="quote-price">Precio acordado</label>
     <div class="flex gap-2">
@@ -830,7 +830,7 @@
       </button>
     }
     @if (priceOpen(appointment)) {
-      <p class="field-hint">Precio por definir: acuérdalo con {{ copy.text().client.toLowerCase() }} en la {{ copy.text().visit.toLowerCase() }} y escríbelo aquí antes de cobrar.</p>
+      <p class="field-hint">Precio por definir: acuérdalo con el {{ copy.text().client.toLowerCase() }} en la {{ copy.text().visit.toLowerCase() }} y escríbelo aquí antes de cobrar.</p>
     }
     @if (quoteHref(); as href) {
       <a class="btn btn-whatsapp w-full" [href]="href" target="_blank" rel="noopener" (click)="quoteHref.set(null)">Enviar precio por WhatsApp</a>
@@ -951,7 +951,7 @@
               </label>
               <p class="field-hint">La cita queda confirmada y ese anticipo se descuenta de lo que cobras al final.</p>
             } @else if (form.controls.deposit_mode.value === 'none') {
-              <p class="field-hint">Úsalo con {{ copy.text().client.toLowerCase() }} de confianza.</p>
+              <p class="field-hint">Úsalo con un {{ copy.text().client.toLowerCase() }} de confianza.</p>
             }
           </div>
         }

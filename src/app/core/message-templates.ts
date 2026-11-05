@@ -234,7 +234,7 @@ export function longDay(value: string): string {
 /** "10:00 a.m." a partir de un timestamp local "2026-10-16T10:00:00". */
 export function shortTime(value: string): string {
   const [hours, minutes] = value.slice(11, 16).split(':').map(Number);
-  return new Date(2000, 0, 1, hours, minutes).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+  return new Date(2000, 0, 1, hours, minutes).toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' });
 }
 
 export function firstName(name: string | null | undefined): string {

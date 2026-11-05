@@ -1,4 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { pesos } from '@core/money';
 import { Component, DestroyRef, TemplateRef, computed, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -54,10 +55,6 @@ export class ServicesPageComponent {
   private readonly editor = viewChild.required<TemplateRef<unknown>>('editor');
   private readonly categoryEditor = viewChild.required<TemplateRef<unknown>>('categoryEditor');
   private dialogRef: MatDialogRef<unknown> | null = null;
-  private readonly currency = new Intl.NumberFormat('es-MX', {
-    style: 'currency',
-    currency: 'MXN',
-  });
 
   protected readonly services = signal<Service[]>([]);
   protected readonly catalog = signal<string[]>([]);
@@ -216,7 +213,7 @@ export class ServicesPageComponent {
   }
 
   protected formatPrice(price: number): string {
-    return this.currency.format(price);
+    return pesos(price);
   }
 
   protected openCategory(): void {

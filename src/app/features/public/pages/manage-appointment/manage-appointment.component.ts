@@ -33,10 +33,10 @@ export class ManageAppointmentComponent {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
-    hour: '2-digit',
+    hour: 'numeric',
     minute: '2-digit',
   });
-  private readonly clock = new Intl.DateTimeFormat('es-MX', { hour: '2-digit', minute: '2-digit' });
+  private readonly clock = new Intl.DateTimeFormat('es-MX', { hour: 'numeric', minute: '2-digit' });
 
   protected readonly tokenValue = this.route.snapshot.paramMap.get('token') ?? '';
   protected readonly slug = this.route.snapshot.paramMap.get('businessSlug') ?? '';

@@ -50,7 +50,7 @@ export class HomePageComponent {
   protected readonly demoLoaded = signal(false);
   protected readonly demoBusy = signal(false);
 
-  private readonly timeFormat = new Intl.DateTimeFormat('es-MX', { hour: '2-digit', minute: '2-digit' });
+  private readonly timeFormat = new Intl.DateTimeFormat('es-MX', { hour: 'numeric', minute: '2-digit' });
   private readonly dayFormat = new Intl.DateTimeFormat('es-MX', { weekday: 'short', day: 'numeric', month: 'short' });
   private readonly pesosFormat = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
   protected readonly todayLabel = new Intl.DateTimeFormat('es-MX', { weekday: 'long', day: 'numeric', month: 'long' }).format(this.clock.now());
@@ -306,6 +306,9 @@ export class HomePageComponent {
     this.setupHidden() ? this.setup().filter((step) => step.group === 'aviso' && !step.done) : this.setup(),
   );
   protected readonly setupLeft = computed(() => this.setup().filter((step) => !step.done).length);
+  /** Avance de la lista: los avisos (CLABE, página en pausa) no son pasos, así que no cuentan. */
+  protected readonly setupSteps = computed(() => this.setup().filter((step) => step.group !== 'aviso'));
+  protected readonly setupDone = computed(() => this.setupSteps().filter((step) => step.done).length);
   /** Falta algo para poder reservar (servicios, equipo u horario): se ofrece el asistente. */
   protected readonly needsWizard = computed(() => this.setup().some((step) => step.group === 'arranque' && step.key !== 'share' && !step.done));
 
@@ -429,6 +432,10 @@ export class HomePageComponent {
 
   /** Lo que falta cobrar en la cita: precio (o cotización) menos el anticipo. */
   private rest(item: Appointment): number {
+    // "Precio en la cita" sin precio acordado: el precio del servicio es solo de referencia, aún no hay monto por cobrar.
+    if (item.quoted_price == null && this.services().find((row) => row.id === item.service_id)?.price_at_visit) {
+      return 0;
+    }
     const total = item.quoted_price ?? this.services().find((row) => row.id === item.service_id)?.price ?? 0;
     return Math.max(0, total - (item.deposit_amount ?? 0));
   }

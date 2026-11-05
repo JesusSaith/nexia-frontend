@@ -1,4 +1,6 @@
 import { spotsLabel } from '@core/spots';
+import { MatIconModule } from '@angular/material/icon';
+import { hora12 } from '@core/hours';
 import { SEARCH_FROM, matchesQuery } from '@core/service-search';
 import { bookingShareText } from '@core/booking-share';
 import { LoadFailure, loadFailure, missing } from '@core/load-failure';
@@ -77,6 +79,7 @@ function phoneDigits(control: AbstractControl): ValidationErrors | null {
     // FUTURE_PHASE_SPEI: SpeiCheckComponent,
     NgTemplateOutlet,
     ReactiveFormsModule,
+    MatIconModule,
     MatProgressSpinnerModule,
     PickFieldComponent,
     PlaceMap,
@@ -110,7 +113,7 @@ export class Booking {
     maximumFractionDigits: 0,
   });
   private readonly timeFormat = new Intl.DateTimeFormat('es-MX', {
-    hour: '2-digit',
+    hour: 'numeric',
     minute: '2-digit',
   });
   private readonly dateFormat = new Intl.DateTimeFormat('es-MX', {
@@ -1596,7 +1599,7 @@ function safeColor(value: string | undefined): string {
 
 function formatSlotTime(value: string, formatter: Intl.DateTimeFormat): string {
   if (/^\d{2}:\d{2}/.test(value) && !value.includes('T')) {
-    return value.slice(0, 5);
+    return hora12(value);
   }
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? value : formatter.format(parsed);
