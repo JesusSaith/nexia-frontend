@@ -306,6 +306,9 @@ export class HomePageComponent {
     this.setupHidden() ? this.setup().filter((step) => step.group === 'aviso' && !step.done) : this.setup(),
   );
   protected readonly setupLeft = computed(() => this.setup().filter((step) => !step.done).length);
+  /** Avance de la lista: los avisos (CLABE, página en pausa) no son pasos, así que no cuentan. */
+  protected readonly setupSteps = computed(() => this.setup().filter((step) => step.group !== 'aviso'));
+  protected readonly setupDone = computed(() => this.setupSteps().filter((step) => step.done).length);
   /** Falta algo para poder reservar (servicios, equipo u horario): se ofrece el asistente. */
   protected readonly needsWizard = computed(() => this.setup().some((step) => step.group === 'arranque' && step.key !== 'share' && !step.done));
 

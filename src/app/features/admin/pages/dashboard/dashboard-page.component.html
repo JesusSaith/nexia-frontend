@@ -188,7 +188,7 @@
           <div class="card card-tint mb-6 flex flex-wrap items-center gap-x-6 gap-y-2 p-4!">
             <span class="sec-icon"><mat-icon>insights</mat-icon></span>
             <p class="min-w-0 flex-1 text-sm text-ink-soft">
-              Llevas <strong class="nums text-ink">{{ money(plan.done) }}</strong> y tienes <strong class="nums text-ink">{{ money(plan.expected) }}</strong> agendados ({{ plan.count }} {{ plan.count === 1 ? 'cita' : 'citas' }}).
+              Llevas <strong class="nums text-ink">{{ money(plan.done) }}</strong> y tienes unos <strong class="nums text-ink">{{ money(plan.expected) }}</strong> agendados, estimado con el precio de cada servicio ({{ plan.count }} {{ plan.count === 1 ? 'cita' : 'citas' }}).
               Si todas se cumplen, cierras en <strong class="nums text-ink">~{{ money(plan.total) }}</strong>{{ plan.goalPercent !== null ? ', el ' + plan.goalPercent + '% de tu meta' : '' }}.
             </p>
             <a routerLink="/admin/agenda" class="inline-flex min-h-11 items-center text-sm font-medium text-accent hover:underline">Ver huecos en la agenda</a>

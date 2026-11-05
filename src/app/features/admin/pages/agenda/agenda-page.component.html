@@ -805,7 +805,7 @@
 }
 
 <ng-template #quoteBox let-appointment>
-  @if (canPrice(appointment.service_id)) {
+  @if (canPrice(appointment.service_id) && appointment.status !== 'cancelled' && appointment.status !== 'no_show') {
   <div class="flex flex-col gap-2">
     <label class="label mb-0!" for="quote-price">Precio acordado</label>
     <div class="flex gap-2">
