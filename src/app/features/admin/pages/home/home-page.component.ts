@@ -265,6 +265,8 @@ export class HomePageComponent {
   /** Pasos para dejar el negocio listo. Oculta la lista, los avisos (p. ej. falta la CLABE) se siguen viendo. */
   protected readonly setup = signal<ReadinessStep[]>([]);
   protected readonly setupHidden = signal(false);
+  /** La lista de arranque va cerrada (una línea con el avance) y se abre al tocar "Ver pasos". */
+  protected readonly setupOpen = signal(false);
 
   /** Tarjetas de Inicio que se pueden apagar (Hoy, Por resolver y Para tu negocio siempre se ven). */
   protected readonly homeCards: { key: string; label: string }[] = [

@@ -13,6 +13,7 @@ import { MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dial
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { forkJoin, interval, of } from 'rxjs';
@@ -80,6 +81,7 @@ const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
     FormsModule,
     ReactiveFormsModule,
     MatButtonModule,
+    MatMenuModule,
     MatDialogModule,
     MatFormFieldModule,
     MatIconModule,
@@ -155,6 +157,8 @@ export class AgendaPageComponent {
   protected readonly updatedAt = signal<number | null>(null);
   protected readonly updatedLabel = computed(() => updatedAgo(this.updatedAt(), this.now()));
   protected readonly legendOpen = signal(false);
+  /** Celular: los filtros de servicio y equipo se abren con el botón "Filtros". */
+  protected readonly filtersOpen = signal(false);
   /** Primera carga de la agenda: se muestra un esqueleto en lugar de una cuadrícula vacía. */
   protected readonly firstLoad = computed(() => this.isLoading() && this.updatedAt() === null);
 

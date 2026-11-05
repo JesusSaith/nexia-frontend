@@ -475,20 +475,24 @@
           <mat-spinner diameter="32" />
         </div>
       } @else if (slots().length === 0) {
-        <p class="text-sm text-ink-soft">Ese día no tiene horarios libres. Déjanos tus datos y te avisamos.</p>
+        <p class="text-sm text-ink-soft">Ese día no tiene horarios libres. Prueba otro día o déjanos tus datos y te avisamos si se libera uno.</p>
         @if (waitSent()) {
-          <p class="text-sm text-[var(--nx-ok-fg)]">Listo. Te avisamos si se libera un horario.</p>
+          <p class="flex items-center gap-2 text-sm text-[var(--nx-ok-fg)]" role="status"><mat-icon class="h-5! w-5! text-[20px]!" aria-hidden="true">check_circle</mat-icon>Listo. Te avisamos por WhatsApp si se libera un horario.</p>
         } @else {
           <div class="flex flex-col gap-2 sm:max-w-sm">
             <label class="rounded-xl border border-line bg-surface px-3 py-2">
-              <span class="block text-xs text-muted">Nombre</span>
-              <input class="w-full bg-transparent text-base outline-none" [value]="waitName()" (input)="waitName.set($any($event.target).value)" />
+              <span class="block text-xs text-muted">Tu nombre</span>
+              <input class="w-full bg-transparent text-base outline-none" autocomplete="name" [value]="waitName()" (input)="waitName.set($any($event.target).value)" />
             </label>
             <label class="rounded-xl border border-line bg-surface px-3 py-2">
-              <span class="block text-xs text-muted">Teléfono</span>
-              <input class="w-full bg-transparent text-base outline-none" [value]="waitPhone()" (input)="waitPhone.set($any($event.target).value)" />
+              <span class="block text-xs text-muted">Teléfono (WhatsApp)</span>
+              <input class="w-full bg-transparent text-base outline-none" type="tel" inputmode="tel" autocomplete="tel" placeholder="10 dígitos" [value]="waitPhone()" (input)="waitPhone.set($any($event.target).value)" />
             </label>
-            <button type="button" class="brand-solid rounded-full px-4 py-2 text-sm" (click)="joinWait()">Avisarme</button>
+            @if (waitError(); as message) {
+              <p role="alert" class="text-sm text-[var(--nx-bad-fg)]">{{ message }}</p>
+            }
+            <button type="button" class="brand-solid min-h-11 rounded-full px-4 py-2 text-sm font-medium" [disabled]="waitBusy()" (click)="joinWait()">{{ waitBusy() ? 'Guardando…' : 'Avisarme si se libera' }}</button>
+            <p class="text-xs text-muted">Usamos tu teléfono solo para avisarte de este horario.</p>
           </div>
         }
       } @else {

@@ -2,7 +2,7 @@
   <header class="page-head">
     <div>
       <h1>{{ step() === 5 ? 'Tu página está lista' : 'Pon tu página en marcha' }}</h1>
-      <p>
+      <p class="keep">
         @if (step() === 5) {
           Así la ven tus {{ copy.text().clients.toLowerCase() }}. Compártela y empieza a recibir citas.
         } @else {

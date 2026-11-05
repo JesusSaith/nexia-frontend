@@ -26,6 +26,20 @@
           if (saved === 'light' || saved === 'dark' || saved === 'system') pref = saved;
         } catch (e) {}
         document.documentElement.dataset.theme = panel ? pref : 'light';
+        // Color del negocio de la última visita: evita el parpadeo del color por defecto al recargar el panel.
+        if (panel) {
+          try {
+            var brand = JSON.parse(localStorage.getItem('nexia-brand') || 'null');
+            var hex = /^#[0-9a-f]{6}$/i;
+            if (brand && hex.test(brand.primary)) {
+              var root = document.documentElement.style;
+              root.setProperty('--business-primary', brand.primary);
+              root.setProperty('--primary', brand.primary);
+              root.setProperty('--mat-sys-primary', brand.primary);
+              if (brand.canvas && hex.test(brand.canvas)) root.setProperty('--bg-app', brand.canvas);
+            }
+          } catch (e) {}
+        }
       })();
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
