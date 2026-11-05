@@ -20,7 +20,7 @@
         }
         <div class="min-w-0">
           <p class="truncate text-sm font-semibold text-[var(--nx-rail-ink)]">{{ brandName() || businessName() }}</p>
-          <p class="text-xs text-[var(--nx-rail-soft)]">Panel de Nexia</p>
+          <p class="text-xs text-[var(--nx-rail-soft)]">{{ roleLabel() }}</p>
         </div>
       </div>
 
@@ -38,7 +38,7 @@
         </a>
       }
 
-      @if (canSearch()) {
+      @if (canSearch() && !isHandset()) {
         <div class="mx-3 mb-2 flex items-center gap-2">
           <button type="button" class="nx-rail-btn min-w-0 flex-1 border border-[var(--nx-rail-line)]" (click)="openSearch()">
             <mat-icon>search</mat-icon>
