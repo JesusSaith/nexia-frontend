@@ -1,0 +1,62 @@
+<div class="flex max-h-[80dvh] w-full flex-col">
+  <div class="flex items-center gap-2 border-b border-line px-4 py-3">
+    <mat-icon class="shrink-0 text-muted">search</mat-icon>
+    <input
+      class="input h-11 min-w-0 flex-1 border-0! bg-transparent! px-0! shadow-none!"
+      type="search"
+      autocomplete="off"
+      [placeholder]="'Buscar ' + copy.text().clients.toLowerCase() + ' o citas'"
+      [attr.aria-label]="'Buscar ' + copy.text().clients.toLowerCase() + ' o citas'"
+      [value]="query()"
+      (input)="type($any($event.target).value)"
+    />
+    <button type="button" class="btn btn-ghost" (click)="close()">Cerrar</button>
+  </div>
+
+  <div class="min-h-24 overflow-y-auto p-2" aria-live="polite">
+    @if (tooShort) {
+      <p class="px-3 py-6 text-center text-sm text-muted">Escribe al menos 2 letras del nombre, o 3 números del teléfono.</p>
+    } @else if (failed()) {
+      <p class="px-3 py-6 text-center text-sm text-muted" role="alert">No pudimos buscar. Revisa tu conexión e inténtalo de nuevo.</p>
+    } @else if (loading() && !result()) {
+      <p class="px-3 py-6 text-center text-sm text-muted">Buscando…</p>
+    } @else if (empty) {
+      <p class="px-3 py-6 text-center text-sm text-muted">No encontramos nada. Prueba con otro nombre o con el teléfono.</p>
+    } @else if (result(); as found) {
+      @if (found.clients.length) {
+        <p class="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-muted">{{ copy.text().clients }}</p>
+        <ul>
+          @for (person of found.clients; track person.id) {
+            <li>
+              <button type="button" class="row-hover flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-left" (click)="showClient(person.id)">
+                <mat-icon class="shrink-0 text-muted">person</mat-icon>
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate text-sm font-medium text-ink">{{ person.full_name }}</span>
+                  <span class="nums block text-sm text-muted">{{ person.phone }}</span>
+                </span>
+                <mat-icon class="shrink-0 text-muted">chevron_right</mat-icon>
+              </button>
+            </li>
+          }
+        </ul>
+      }
+      @if (found.appointments.length) {
+        <p class="px-3 pb-1 pt-3 text-xs font-semibold uppercase tracking-wide text-muted">Citas</p>
+        <ul>
+          @for (item of found.appointments; track item.id) {
+            <li>
+              <button type="button" class="row-hover flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-left" (click)="showAppointment(item)">
+                <mat-icon class="shrink-0 text-muted">event</mat-icon>
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate text-sm font-medium text-ink">{{ item.client_name }} · {{ item.service_name }}</span>
+                  <span class="block truncate text-sm text-muted"><span class="first-letter:uppercase">{{ whenText(item) }}</span>{{ item.staff_name ? ' · ' + item.staff_name : '' }}</span>
+                </span>
+                <span class="chip shrink-0">{{ statusText(item) }}</span>
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    }
+  </div>
+</div>

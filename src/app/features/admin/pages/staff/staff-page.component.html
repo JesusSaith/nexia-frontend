@@ -1,0 +1,337 @@
+<section>
+  <header class="page-head">
+    <div>
+      <h1>Equipo</h1>
+      <p>Quién atiende, qué hace y cuándo trabaja.</p>
+    </div>
+    <button class="btn btn-primary" type="button" (click)="openCreate()">
+      <mat-icon>person_add</mat-icon>
+      Agregar {{ copy.text().person.toLowerCase() }}
+    </button>
+  </header>
+
+  @if (loadError(); as message) {
+    <p role="alert" class="field-error mb-4">{{ message }}</p>
+  }
+
+  @if (isLoading()) {
+    <div class="animate-pulse space-y-4" aria-label="Cargando">
+      <div class="grid grid-cols-3 gap-3">
+        <div class="h-20 rounded-2xl bg-line"></div>
+        <div class="h-20 rounded-2xl bg-line"></div>
+        <div class="h-20 rounded-2xl bg-line"></div>
+      </div>
+      <div class="h-64 rounded-2xl bg-line"></div>
+    </div>
+  } @else if (staff().length === 0) {
+    <div class="empty">
+      <mat-icon>groups</mat-icon>
+      <p class="font-medium text-ink">Aún no hay nadie en tu equipo</p>
+      <p>Agrega a quien atiende, aunque seas solo tú, para poder recibir citas.</p>
+      <button type="button" class="btn btn-primary" (click)="openCreate()">Agregar {{ copy.text().person.toLowerCase() }}</button>
+    </div>
+  } @else {
+    <!-- Lo que impide recibir citas va arriba, con su enlace para arreglarlo. -->
+    <div class="mb-4 grid grid-cols-3 gap-3">
+      <div class="stat">
+        <span class="stat-icon stat-accent hidden sm:grid"><mat-icon>groups</mat-icon></span>
+        <span class="min-w-0"><span class="stat-value block">{{ activeCount() }}</span><span class="stat-label block">Activos de {{ staff().length }}</span></span>
+      </div>
+      <a class="stat" routerLink="/admin/schedules">
+        <span class="stat-icon hidden sm:grid" [class.stat-warn]="problems().noSchedule" [class.stat-ok]="!problems().noSchedule"><mat-icon>schedule</mat-icon></span>
+        <span class="min-w-0"><span class="stat-value block">{{ problems().noSchedule }}</span><span class="stat-label block">Sin horario</span></span>
+      </a>
+      <div class="stat">
+        <span class="stat-icon hidden sm:grid" [class.stat-warn]="problems().noServices" [class.stat-ok]="!problems().noServices"><mat-icon>category</mat-icon></span>
+        <span class="min-w-0"><span class="stat-value block">{{ problems().noServices }}</span><span class="stat-label block">Sin servicios</span></span>
+      </div>
+    </div>
+
+    <section class="card">
+      <div class="card-head">
+        <span class="sec-icon"><mat-icon>badge</mat-icon></span>
+        <div>
+          <h2 class="card-title">Integrantes</h2>
+          <p class="text-sm text-muted">Toca a alguien para editar su perfil, servicios y pago.</p>
+        </div>
+      </div>
+      <ul class="-mx-5 mt-3 divide-y divide-line border-t border-line">
+        @for (member of staff(); track member.id) {
+          @let stats = month().get(member.id);
+          @let services = (member.service_ids ?? []).length;
+          @let scheduled = hasSchedule(member.id);
+          <li class="flex items-start gap-3 px-5 py-4" [class.opacity-60]="!member.is_active">
+            <button type="button" class="row-hover -my-2 flex min-w-0 flex-1 items-start gap-3 rounded-lg py-2 text-left" (click)="openEdit(member)">
+              <span class="relative shrink-0">
+                @if (member.avatar_url) {
+                  <img [src]="member.avatar_url" [alt]="member.full_name" class="h-11 w-11 rounded-full object-cover" />
+                } @else {
+                  <span class="avatar h-11! w-11!">{{ initials(member.full_name) }}</span>
+                }
+                <span class="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-surface" [style.background]="colorOf(member.id)" title="Su color en la agenda"></span>
+              </span>
+              <span class="min-w-0 flex-1">
+                <span class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span class="truncate text-sm font-medium text-ink">{{ member.full_name }}</span>
+                  @if (!member.is_active) {
+                    <span class="badge badge-neutral">Inactivo</span>
+                  }
+                  @if (member.user_id && canManageAccess(member)) {
+                    <span class="badge badge-neutral">Con acceso</span>
+                  }
+                </span>
+                <span class="block truncate text-sm text-muted">{{ member.role_title }}@if (member.commission_percent && copy.commissions()) { · <span class="nums">{{ member.commission_percent }}%</span> comisión }</span>
+                <span class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm">
+                  <span class="nums" [class]="scheduled ? 'text-ink-soft' : 'text-(--nx-warn-fg)'">{{ scheduleLabel(member.id) }}</span>
+                  <span [class]="services ? 'text-ink-soft' : 'text-(--nx-warn-fg)'">{{ services ? services + (services === 1 ? ' servicio' : ' servicios') : 'Sin servicios' }}</span>
+                </span>
+                @if (member.is_active && (!scheduled || !services)) {
+                  <span class="mt-1 flex items-center gap-1 text-sm font-medium text-(--nx-warn-fg)"><mat-icon class="h-4! w-4! text-[16px]!">warning</mat-icon>{{ !scheduled ? 'Sin horario propio: recibe citas todos los días de 9:00 a 18:00' : 'No recibe citas: falta asignarle servicios' }}</span>
+                }
+                @if (stats && stats.visits) {
+                  <span class="nums mt-1 block text-sm text-muted">Este mes: {{ stats.visits }} citas · {{ money(stats.income) }}@if (stats.goal) { · {{ ((stats.income / stats.goal) * 100).toFixed(0) }}% de su meta }</span>
+                }
+              </span>
+            </button>
+            @if (pendingId() === member.id) {
+              <span class="flex h-11 w-11 items-center justify-center"><mat-spinner diameter="20" /></span>
+            } @else {
+              <details class="relative shrink-0" #more>
+                <summary class="btn btn-ghost w-11! list-none px-0! [&::-webkit-details-marker]:hidden" aria-label="Más acciones"><mat-icon>more_horiz</mat-icon></summary>
+                <div class="absolute right-0 z-20 mt-1 flex w-56 flex-col rounded-xl border border-line bg-surface p-1 shadow-lg">
+                  <button type="button" class="row-hover min-h-11 rounded-lg px-3 text-left text-sm text-ink" (click)="more.open = false; openEdit(member)">Editar</button>
+                  @if (!scheduled) {
+                    <a class="row-hover flex min-h-11 items-center rounded-lg px-3 text-sm text-ink" routerLink="/admin/schedules" [queryParams]="{ staff: member.id }">Poner su horario</a>
+                  } @else {
+                    <a class="row-hover flex min-h-11 items-center rounded-lg px-3 text-sm text-ink" routerLink="/admin/schedules" [queryParams]="{ staff: member.id }">Cambiar su horario</a>
+                  }
+                  <button type="button" class="row-hover min-h-11 rounded-lg px-3 text-left text-sm text-ink" (click)="more.open = false; openVacation(member)">Vacaciones o días libres</button>
+                  @if (canManageAccess(member)) {
+                    <button type="button" class="row-hover min-h-11 rounded-lg px-3 text-left text-sm text-ink" (click)="more.open = false; openAccess(member)">Acceso al panel</button>
+                  }
+                  <a class="row-hover flex min-h-11 items-center rounded-lg px-3 text-sm text-ink" routerLink="/admin/dashboard">Ver sus números</a>
+                  @if (member.is_active) {
+                    <button type="button" class="row-hover min-h-11 rounded-lg px-3 text-left text-sm text-(--nx-bad-fg)" (click)="more.open = false; deactivate(member)">Desactivar</button>
+                  } @else {
+                    <button type="button" class="row-hover min-h-11 rounded-lg px-3 text-left text-sm text-ink" (click)="more.open = false; toggleActive(member)">Activar</button>
+                  }
+                </div>
+              </details>
+            }
+          </li>
+          @if (accessFor()?.id === member.id) {
+            <li class="bg-canvas px-5 py-4">
+              <div class="flex items-start justify-between gap-3">
+                <p class="text-sm font-semibold text-ink">Acceso al panel de {{ member.full_name.split(' ')[0] }}</p>
+                <button type="button" class="btn btn-ghost w-11! px-0!" (click)="closeAccess()" aria-label="Cerrar"><mat-icon>close</mat-icon></button>
+              </div>
+              @if (accessResult(); as result) {
+                <p class="mt-1 text-sm text-muted">Dale estos datos. La contraseña solo se muestra ahora; si se pierde, crea una nueva.</p>
+                <dl class="mt-3 grid gap-2 rounded-xl border border-line bg-surface p-4 text-sm">
+                  <div><dt class="text-muted">Correo</dt><dd class="break-all font-medium text-ink">{{ result.email }}</dd></div>
+                  <div><dt class="text-muted">Contraseña temporal</dt><dd class="nums text-base font-semibold text-ink select-all">{{ result.temporary_password }}</dd></div>
+                </dl>
+                <p class="field-hint mt-2">Al entrar por primera vez, {{ member.full_name.split(' ')[0] }} elige su propia contraseña.</p>
+                <div class="mt-3 flex flex-wrap gap-2">
+                  <button type="button" class="btn btn-primary" (click)="copyAccess(result)"><mat-icon>content_copy</mat-icon>Copiar mensaje</button>
+                  <button type="button" class="btn btn-ghost" (click)="closeAccess()">Listo</button>
+                </div>
+              } @else if (member.user_id) {
+                <p class="mt-1 text-sm text-muted">Ya puede entrar con su correo. Solo ve su propia agenda y sus clientes.</p>
+                <div class="mt-3 flex flex-wrap gap-2">
+                  <button type="button" class="btn btn-ghost" [disabled]="accessBusy()" (click)="resetAccess()">Crear contraseña nueva</button>
+                  <button type="button" class="btn btn-ghost text-(--nx-bad-fg)" [disabled]="accessBusy()" (click)="removeAccess()">Quitar acceso</button>
+                </div>
+              } @else {
+                <p class="mt-1 text-sm text-muted">Con su correo entra al panel y ve solo su agenda. Le creamos una contraseña temporal y la cambia al entrar.</p>
+                <form class="mt-3 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end" (submit)="$event.preventDefault(); giveAccess()">
+                  <label class="block"><span class="label">Correo</span>
+                    <input class="input" type="email" name="access_email" inputmode="email" autocomplete="off" [(ngModel)]="accessEmail" />
+                  </label>
+                  <button type="submit" class="btn btn-primary" [disabled]="accessBusy()">Dar acceso</button>
+                </form>
+              }
+              @if (accessError(); as message) {
+                <p role="alert" class="field-error mt-2">{{ message }}</p>
+              }
+            </li>
+          }
+          @if (vacationFor()?.id === member.id) {
+            <li class="bg-canvas px-5 py-4">
+              <form class="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end" (submit)="$event.preventDefault(); saveVacation()">
+                <label class="block"><span class="label">Desde</span>
+                  <input class="input" type="date" name="from" [(ngModel)]="vacationFrom" />
+                </label>
+                <label class="block"><span class="label">Hasta</span>
+                  <input class="input" type="date" name="to" [(ngModel)]="vacationTo" />
+                </label>
+                <div class="flex gap-2">
+                  <button type="submit" class="btn btn-primary">Guardar</button>
+                  <button type="button" class="btn btn-ghost" (click)="vacationFor.set(null)">Cancelar</button>
+                </div>
+                <p class="field-hint sm:col-span-3">Bloquea esos días solo para {{ member.full_name.split(' ')[0] }}. Si ya tiene citas, muévelas en la Agenda.</p>
+                @if (vacationError(); as message) {
+                  <p class="field-error sm:col-span-3">{{ message }}</p>
+                }
+              </form>
+            </li>
+          }
+        }
+      </ul>
+    </section>
+  }
+</section>
+
+@if (undoOff(); as member) {
+  <div class="fixed inset-x-4 top-4 z-50 mx-auto flex max-w-sm items-center justify-between gap-3 rounded-lg bg-ink px-4 py-2 text-sm text-surface md:bottom-4 md:top-auto" role="status">
+    <span class="truncate">Desactivado · {{ member.full_name }}</span>
+    <button type="button" class="min-h-11 shrink-0 px-2 font-semibold underline" (click)="undoDeactivate()">Deshacer</button>
+  </div>
+}
+
+<ng-template #editor>
+  <form id="staff-form" class="flex max-h-[92vh] flex-col bg-surface" [formGroup]="form" (ngSubmit)="save()">
+    <header class="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
+      <button type="button" class="btn btn-ghost w-11! px-0!" aria-label="Cerrar" (click)="closeForm()">
+        <mat-icon>close</mat-icon>
+      </button>
+      <h2 class="min-w-0 flex-1 truncate text-base font-semibold text-ink">{{ dialogTitle() }}</h2>
+      <button type="submit" class="btn btn-primary" [disabled]="isSaving() || photoPending()">
+        {{ photoPending() ? 'Preparando foto…' : isSaving() ? 'Guardando…' : 'Guardar' }}
+      </button>
+    </header>
+    <div class="grid gap-4 overflow-y-auto bg-canvas p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_300px]">
+      <div class="flex flex-col gap-4">
+        <section class="card flex flex-col gap-3">
+          <div>
+            <h3 class="card-title">Perfil público</h3>
+            <p class="field-hint">Tus {{ copy.text().clients.toLowerCase() }} lo ven en tu página al elegir con quién reservar.</p>
+          </div>
+          <div class="flex items-center gap-3">
+            @if (photoPreview(); as src) {
+              <img [src]="src" alt="" class="h-16 w-16 shrink-0 rounded-full object-cover" />
+            } @else {
+              <span class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-dashed border-line-strong text-muted"><mat-icon>add_a_photo</mat-icon></span>
+            }
+            <div class="flex flex-wrap gap-2">
+              <label class="btn btn-secondary cursor-pointer">
+                {{ photoPreview() ? 'Cambiar foto' : 'Subir foto' }}
+                <input type="file" accept="image/png,image/jpeg,image/webp" class="sr-only" (change)="onPhoto($event)" />
+              </label>
+              @if (photoPreview()) {
+                <button type="button" class="btn btn-ghost text-(--nx-bad-fg)" (click)="clearPhoto()">Quitar</button>
+              }
+            </div>
+          </div>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <label class="block"><span class="label">Nombre</span>
+              <input formControlName="full_name" class="input" />
+            </label>
+            <label class="block"><span class="label">Puesto</span>
+              <input formControlName="role_title" class="input" [placeholder]="copy.text().person" />
+            </label>
+          </div>
+          @if (nameError()) { <p class="field-error">{{ nameError() }}</p> }
+          @if (roleError()) { <p class="field-error">{{ roleError() }}</p> }
+          <label class="block"><span class="label">Descripción para tus {{ copy.text().clients.toLowerCase() }} (pública)</span>
+            <textarea formControlName="bio" rows="3" class="input" [placeholder]="bioExample()"></textarea>
+            <span class="field-hint">Se ve en tu página. No escribas aquí notas privadas.</span>
+          </label>
+        </section>
+
+        <section class="card flex flex-col gap-3">
+          <div>
+            <h3 class="card-title">{{ copy.commissions() ? 'Pago' : 'Meta' }}</h3>
+            <p class="field-hint">Solo lo ves tú.{{ copy.commissions() ? ' Se usa en Reportes → Comisiones.' : '' }}</p>
+          </div>
+          <div class="grid gap-3 sm:grid-cols-2">
+            @if (copy.commissions()) {
+              <label class="block"><span class="label">Comisión %</span>
+                <input type="number" min="0" max="100" formControlName="commission_percent" class="input nums" />
+              </label>
+            }
+            <label class="block"><span class="label">Meta de venta al mes ($)</span>
+              <input type="number" min="0" formControlName="goal" placeholder="Sin meta" class="input nums" />
+            </label>
+            @if (copy.commissions()) {
+              <label class="block"><span class="label">Desde vender ($)</span>
+                <input type="number" min="0" formControlName="tier_amount" placeholder="Opcional" class="input nums" />
+              </label>
+              <label class="block"><span class="label">Comisión sube a %</span>
+                <input type="number" min="0" max="100" formControlName="tier_percent" placeholder="Opcional" class="input nums" />
+              </label>
+            }
+          </div>
+          @if (copy.commissions()) {
+            <p class="field-hint">Comisión escalonada: si en el periodo vende desde ese monto, toda su comisión se calcula con el % más alto.</p>
+          }
+        </section>
+
+        <section class="card flex flex-col gap-3">
+          <div>
+            <h3 class="card-title">Contacto</h3>
+            <p class="field-hint">Para que la tengas a la mano; no se publica ni le llegan mensajes de Nexia.</p>
+          </div>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <label class="block"><span class="label">Teléfono</span>
+              <input type="tel" inputmode="numeric" formControlName="phone" class="input nums" />
+            </label>
+            <label class="block"><span class="label">Correo</span>
+              <input type="email" formControlName="email" class="input" />
+            </label>
+          </div>
+          @if (emailError()) { <p class="field-error">{{ emailError() }}</p> }
+        </section>
+        @if (formError(); as message) { <p role="alert" class="field-error">{{ message }}</p> }
+      </div>
+
+      <aside class="flex flex-col gap-4">
+        <section class="card">
+          <h3 class="card-title">Color en la agenda</h3>
+          <div class="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label="Color en la agenda">
+            @for (color of palette; track color) {
+              <button type="button" role="radio" class="grid h-11 w-11 place-items-center rounded-full" [style.background]="color" [attr.aria-checked]="form.controls.color.value === color" [attr.aria-label]="'Color ' + color" (click)="form.controls.color.setValue(color)">
+                @if (form.controls.color.value === color) { <mat-icon class="h-5! w-5! text-[20px]! text-white">check</mat-icon> }
+              </button>
+            }
+            <button type="button" class="chip h-11!" [class.chip-on]="!form.controls.color.value" (click)="form.controls.color.setValue('')">Automático</button>
+          </div>
+        </section>
+        <section class="card">
+          <div class="flex items-center justify-between gap-2">
+            <h3 class="card-title">Servicios que hace</h3>
+            <span class="nums text-sm text-muted">{{ selectedServices().length }} de {{ activeServices().length }}</span>
+          </div>
+          @if (activeServices().length === 0) {
+            <p class="mt-2 text-sm text-muted">No hay servicios activos.</p>
+          } @else {
+            <div class="mt-2 flex gap-2">
+              <button type="button" class="btn btn-ghost px-3!" (click)="selectAll(true)">Todos</button>
+              <button type="button" class="btn btn-ghost px-3!" (click)="selectAll(false)">Ninguno</button>
+            </div>
+            <div class="mt-1 max-h-80 overflow-y-auto">
+              @for (group of serviceGroups(); track group.name) {
+                @if (serviceGroups().length > 1) {
+                  <p class="mt-3 text-sm font-medium text-muted">{{ group.name }}</p>
+                }
+                @for (service of group.items; track service.id) {
+                  <mat-checkbox class="block text-sm text-ink" [checked]="hasService(service.id)" (change)="toggleService(service.id, $event.checked)">{{ service.name }}</mat-checkbox>
+                }
+              }
+            </div>
+          }
+        </section>
+        @if (editing()) {
+          <a class="card row-hover flex items-center gap-3" routerLink="/admin/schedules" [queryParams]="{ staff: editing()!.id }" (click)="closeForm()">
+            <span class="sec-icon"><mat-icon>schedule</mat-icon></span>
+            <span class="min-w-0 flex-1">
+              <span class="block text-sm font-medium text-ink">Horario</span>
+              <span class="nums block truncate text-sm text-muted">{{ scheduleLabel(editing()!.id) }}</span>
+            </span>
+            <mat-icon class="text-muted">chevron_right</mat-icon>
+          </a>
+        }
+      </aside>
+    </div>
+  </form>
+</ng-template>

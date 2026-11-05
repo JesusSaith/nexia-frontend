@@ -42,3 +42,6 @@ __screenshots__/
 # System files
 .DS_Store
 Thumbs.db
+
+# Videos y portadas generados para la promoción (pesan ~150 MB; no van en el repo)
+/Claude outputs/

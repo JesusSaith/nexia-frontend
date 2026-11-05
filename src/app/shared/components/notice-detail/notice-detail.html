@@ -1,0 +1,57 @@
+<div class="flex max-h-[80dvh] w-full flex-col">
+  <div class="flex items-center gap-2 border-b border-line px-4 py-3">
+    <mat-icon class="shrink-0 text-muted" aria-hidden="true">notifications</mat-icon>
+    <h2 id="notice-title" class="min-w-0 flex-1 text-base font-semibold text-ink">Detalle del aviso</h2>
+    <button type="button" class="btn btn-ghost" (click)="close()">Cerrar</button>
+  </div>
+
+  <div class="overflow-y-auto p-4">
+    <p class="text-base font-medium text-ink">{{ data.message }}</p>
+    <p class="nums mt-1 text-sm text-muted">{{ data.when }}@if (data.count > 1) { · pasó {{ data.count }} veces }</p>
+
+    @if (data.appointmentId) {
+      <section class="card mt-4 p-4" aria-live="polite">
+        @if (loading()) {
+          <p class="text-sm text-muted">Cargando la {{ copy.text().visit.toLowerCase() }}…</p>
+        } @else if (appointment(); as item) {
+          <p class="text-xs font-semibold uppercase tracking-wide text-muted">{{ copy.text().visit }}</p>
+          <p class="mt-1 text-sm font-semibold text-ink">{{ item.client_name }}</p>
+          <dl class="mt-2 space-y-1 text-sm">
+            <div class="flex gap-2"><dt class="w-24 shrink-0 text-muted">Servicio</dt><dd class="min-w-0 text-ink">{{ item.service_name }}</dd></div>
+            <div class="flex gap-2"><dt class="w-24 shrink-0 text-muted">Con</dt><dd class="min-w-0 text-ink">{{ item.staff_name }}</dd></div>
+            <div class="flex gap-2"><dt class="w-24 shrink-0 text-muted">Cuándo</dt><dd class="nums min-w-0 text-ink first-letter:uppercase">{{ when(item) }}</dd></div>
+            <div class="flex gap-2"><dt class="w-24 shrink-0 text-muted">Estado</dt><dd class="min-w-0 text-ink">{{ status(item) }}</dd></div>
+            @if (item.client_phone) {
+              <div class="flex gap-2"><dt class="w-24 shrink-0 text-muted">Teléfono</dt><dd class="nums min-w-0 text-ink">{{ item.client_phone }}</dd></div>
+            }
+            @if (item.notes) {
+              <div class="flex gap-2"><dt class="w-24 shrink-0 text-muted">Notas</dt><dd class="min-w-0 text-ink">{{ item.notes }}</dd></div>
+            }
+          </dl>
+          <div class="mt-4 flex flex-wrap gap-2">
+            <button type="button" class="btn btn-primary" (click)="openInAgenda()">{{ actionLabel }}</button>
+            @if (item.client_phone) {
+              <a class="btn btn-whatsapp" [href]="chat(item)" target="_blank" rel="noopener">WhatsApp</a>
+            }
+          </div>
+        } @else {
+          <p class="text-sm text-ink-soft">{{ missing() ? 'Esa ' + copy.text().visit.toLowerCase() + ' ya no existe.' : 'No pudimos cargar la ' + copy.text().visit.toLowerCase() + '. Revisa tu conexión e inténtalo de nuevo.' }}</p>
+        }
+      </section>
+    }
+
+    @if (data.people.length) {
+      <section class="card mt-4 p-4">
+        <p class="text-xs font-semibold uppercase tracking-wide text-muted">Para avisar</p>
+        <ul class="mt-2 space-y-2">
+          @for (person of data.people; track person.href) {
+            <li class="flex items-center justify-between gap-3">
+              <span class="min-w-0 truncate text-sm text-ink">{{ person.name }}</span>
+              <a class="btn btn-whatsapp shrink-0" [href]="person.href" target="_blank" rel="noopener">WhatsApp</a>
+            </li>
+          }
+        </ul>
+      </section>
+    }
+  </div>
+</div>

@@ -1,0 +1,12 @@
+{
+  // Frontend de Nexia en Cloudflare Workers (solo archivos estáticos, sin código de servidor).
+  // Compilación: `npx ng build` · Publicación: `npx wrangler deploy` (Workers Builds lo hace al subir a la rama prod).
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "nexia-frontend",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./dist/nexia-frontend/browser",
+    // Cualquier ruta que no sea un archivo (p. ej. /mi-negocio/book) devuelve index.html y Angular resuelve la ruta.
+    "not_found_handling": "single-page-application"
+  }
+}

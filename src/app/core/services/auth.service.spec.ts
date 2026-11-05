@@ -4,7 +4,7 @@ import { TestBed } from '@angular/core/testing';
 
 import { API_BASE_URL } from '../config/api-base-url';
 import { CurrentUser } from '../models/user.model';
-import { AuthService } from './auth.service';
+import { AuthService, isPublicPath } from './auth.service';
 
 const user: CurrentUser = {
   id: 'user-1',
@@ -54,5 +54,19 @@ describe('AuthService', () => {
 
     expect(service.currentUser()).toBeNull();
     expect(service.role()).toBeNull();
+  });
+});
+
+describe('isPublicPath', () => {
+  it('reconoce las páginas que abre cualquier persona sin cuenta', () => {
+    for (const path of ['/mi-salon/book', '/mi-salon/manage/abc-123', '/mi-salon/privacidad', '/terminos', '/privacidad', '/s/mi-salon']) {
+      expect(isPublicPath(path), path).toBe(true);
+    }
+  });
+
+  it('no confunde el panel ni el acceso con páginas públicas', () => {
+    for (const path of ['/', '/auth/login', '/admin/agenda', '/admin/book', '/super-admin', '/cliente']) {
+      expect(isPublicPath(path), path).toBe(false);
+    }
   });
 });

@@ -1,4 +1,4 @@
-export const USER_ROLES = ['owner', 'admin', 'staff'] as const;
+export const USER_ROLES = ['owner', 'admin', 'staff', 'client', 'super_admin'] as const;
 
 export type UserRole = (typeof USER_ROLES)[number];
 
@@ -10,6 +10,11 @@ export interface CurrentUser {
   role: UserRole;
   tenantId: string;
   businessName?: string;
+  slug?: string | null;
+  /** Entró con una contraseña temporal: debe elegir la suya antes de usar el panel. */
+  must_change_password?: boolean;
+  /** Zona horaria del negocio (por ejemplo America/Mexico_City). */
+  timezone?: string | null;
 }
 
 export interface LoginRequest {
@@ -22,4 +27,11 @@ export interface RegisterRequest {
   email: string;
   password: string;
   businessName: string;
+  phone: string;
+  businessKind?: string | null;
+  address?: string | null;
+  instagram?: string | null;
+  acceptTerms: boolean;
+  usesCommissions?: boolean;
+  timezone?: string | null;
 }

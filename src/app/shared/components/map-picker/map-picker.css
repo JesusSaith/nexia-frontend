@@ -1,0 +1,2 @@
+/* Va con el componente (sin encapsular) para que el mapa nunca se dibuje sin sus estilos. */
+@import 'leaflet/dist/leaflet.css';

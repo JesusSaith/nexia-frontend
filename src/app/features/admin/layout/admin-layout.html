@@ -1,105 +1,231 @@
-<div class="min-h-dvh bg-slate-50" (keydown.escape)="closeMenu()">
-  @if (sidebarOpen()) {
-    <button
-      type="button"
-      class="fixed inset-0 z-30 bg-slate-950/40 md:hidden"
-      aria-label="Cerrar menú"
-      (click)="closeSidebar()"
-    ></button>
-  }
-
-  <aside
-    class="fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-slate-200 bg-white transition-transform md:translate-x-0"
-    [class.translate-x-0]="sidebarOpen()"
-    [class.-translate-x-full]="!sidebarOpen()"
+<mat-sidenav-container class="h-dvh">
+  <!-- Escritorio: menú fijo. Celular: el mismo menú se abre como cajón desde "Más". -->
+  <mat-sidenav
+    [mode]="isHandset() ? 'over' : 'side'"
+    [opened]="isHandset() ? sidebarOpen() : true"
+    [disableClose]="!isHandset()"
+    (closedStart)="closeSidebar()"
+    class="w-60"
+    (touchstart)="railTouchStart($event)"
+    (touchend)="railTouchEnd($event)"
   >
-    <div class="flex h-16 items-center px-6">
-      <a routerLink="/admin" class="text-lg font-semibold tracking-tight text-slate-950">Nexia</a>
-    </div>
+    <nav class="nx-rail" aria-label="Secciones">
+      <div class="flex items-center gap-3 px-4 pb-2 pt-5">
+        @if (headerLogo(); as logo) {
+          <img [src]="logo" [alt]="brandName() || businessName()" class="h-10 w-10 shrink-0 rounded-xl bg-white object-contain" (error)="clearLogo()" />
+        } @else {
+          <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-base font-semibold text-white" style="background: var(--primary)">
+            {{ (brandName() || businessName() || 'N').slice(0, 1) }}
+          </span>
+        }
+        <div class="min-w-0">
+          <p class="truncate text-sm font-semibold text-[var(--nx-rail-ink)]">{{ brandName() || businessName() }}</p>
+          <p class="text-xs text-[var(--nx-rail-soft)]">Panel de Nexia</p>
+        </div>
+      </div>
 
-    <nav class="flex flex-1 flex-col gap-1 px-3 py-2" aria-label="Secciones del negocio">
-      @for (link of links; track link.path) {
+      @if (readiness() !== null) {
         <a
-          [routerLink]="link.path"
-          routerLinkActive="bg-primary-50 text-primary-700"
-          [routerLinkActiveOptions]="{ exact: link.exact }"
-          class="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-950"
-          (click)="closeSidebar()"
+          routerLink="/admin/home"
+          class="nx-rail-status"
+          (click)="onNavigate()"
         >
+          <span class="h-2.5 w-2.5 shrink-0 rounded-full" [style.background]="canTakeBookings() ? 'var(--nx-ok-fg)' : 'var(--nx-warn-fg)'" aria-hidden="true"></span>
+          <span class="min-w-0 flex-1 truncate">{{ canTakeBookings() ? 'Tu página recibe citas' : 'Aún no recibes citas' }}</span>
+          @if (!canTakeBookings()) {
+            <span class="text-xs text-[var(--nx-rail-soft)]">Falta{{ missingToBook().length === 1 ? '' : 'n' }} {{ missingToBook().length }}</span>
+          }
+        </a>
+      }
+
+      @if (canSearch()) {
+        <div class="mx-3 mb-2 flex items-center gap-2">
+          <button type="button" class="nx-rail-btn min-w-0 flex-1 border border-[var(--nx-rail-line)]" (click)="openSearch()">
+            <mat-icon>search</mat-icon>
+            <span class="flex-1">Buscar</span>
+          </button>
+          <button type="button" class="nx-rail-btn w-11 shrink-0 justify-center px-0" aria-label="Ayuda" (click)="openHelp()">
+            <mat-icon>help</mat-icon>
+          </button>
+        </div>
+      }
+
+      <div class="flex-1 overflow-y-auto px-3 pb-4">
+        @for (group of linkGroups(); track group.title) {
+          @if (group.title) {
+            <p class="nx-rail-group">{{ group.title }}</p>
+          } @else {
+            <div class="h-3"></div>
+          }
+          @for (link of group.links; track link.path) {
+            <a
+              class="nx-rail-link"
+              [routerLink]="link.path"
+              routerLinkActive="nx-rail-on"
+              [routerLinkActiveOptions]="{ exact: link.exact }"
+              (click)="onNavigate()"
+            >
+              <mat-icon>{{ link.icon }}</mat-icon>
+              <span class="flex-1 truncate">{{ link.label }}</span>
+              @if (countFor(link.path); as count) {
+                <span class="nx-rail-count" [attr.aria-label]="count + ' pendientes'">{{ count }}</span>
+              }
+            </a>
+          }
+        }
+      </div>
+
+      <div class="nx-rail-foot">
+        <button type="button" class="nx-rail-btn" [matMenuTriggerFor]="userMenu">
+          <span class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[var(--nx-rail-hover)] text-xs font-semibold text-[var(--nx-rail-ink)]">
+            {{ (currentUser()?.fullName || '?').slice(0, 1) }}
+          </span>
+          <span class="min-w-0 flex-1">
+            <span class="block truncate text-sm text-[var(--nx-rail-ink)]">{{ currentUser()?.fullName }}</span>
+            <span class="block text-xs">{{ roleLabel() }}</span>
+          </span>
+          <mat-icon>unfold_more</mat-icon>
+        </button>
+      </div>
+    </nav>
+  </mat-sidenav>
+
+  <mat-menu #themeMenu="matMenu">
+    @for (option of themeOptions; track option.value) {
+      <button mat-menu-item type="button" (click)="setThemeMode(option.value)" [attr.aria-checked]="themeMode() === option.value" role="menuitemradio">
+        <mat-icon>{{ option.icon }}</mat-icon>
+        <span>{{ option.label }}</span>
+        @if (themeMode() === option.value) {
+          <mat-icon class="ml-2 !mr-0">check</mat-icon>
+        }
+      </button>
+    }
+  </mat-menu>
+  <mat-menu #userMenu="matMenu">
+    <button mat-menu-item type="button" disabled>
+      <mat-icon>badge</mat-icon>
+      <span>{{ roleLabel() }}</span>
+    </button>
+    <button mat-menu-item type="button" [matMenuTriggerFor]="themeMenu">
+      <mat-icon>{{ isDark() ? 'dark_mode' : 'light_mode' }}</mat-icon>
+      <span>Apariencia: {{ isDark() ? 'oscura' : 'clara' }}</span>
+    </button>
+    @if (canPush() && push.available()) {
+      <button mat-menu-item type="button" (click)="togglePush()" [disabled]="push.busy() || push.state() === 'blocked'">
+        <mat-icon>{{ push.state() === 'on' ? 'notifications_active' : 'notifications_off' }}</mat-icon>
+        <span>{{
+          push.state() === 'blocked' ? 'Avisos bloqueados en el navegador' : push.state() === 'on' ? 'Apagar avisos en este celular' : 'Recibir avisos en este celular'
+        }}</span>
+      </button>
+    }
+    <button mat-menu-item type="button" (click)="logout()" [disabled]="loggingOut()">
+      <mat-icon>logout</mat-icon>
+      <span>{{ loggingOut() ? 'Cerrando…' : 'Cerrar sesión' }}</span>
+    </button>
+  </mat-menu>
+
+  <mat-sidenav-content>
+    <!-- Celular: barra superior con el negocio; en escritorio todo eso vive en el menú lateral. -->
+    @if (isHandset()) {
+      <header class="sticky top-0 z-20 border-b border-[var(--nx-rail-line)] bg-[var(--nx-rail-bg)] text-[var(--nx-rail-ink)]">
+        <div class="flex h-14 items-center gap-3 px-4">
+          @if (headerLogo(); as logo) {
+            <img [src]="logo" [alt]="brandName() || businessName()" class="h-8 w-8 shrink-0 rounded-lg bg-white object-contain" (error)="clearLogo()" />
+          } @else {
+            <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-sm font-semibold text-white" style="background: var(--primary)">
+              {{ (brandName() || businessName() || 'N').slice(0, 1) }}
+            </span>
+          }
+          <span class="min-w-0 flex-1 truncate text-base font-semibold">{{ brandName() || businessName() }}</span>
+          @if (canSearch()) {
+            <button type="button" class="grid h-11 w-11 place-items-center rounded-full text-[var(--nx-rail-soft)]" aria-label="Buscar" (click)="openSearch()">
+              <mat-icon>search</mat-icon>
+            </button>
+          }
+          @if (canSearch()) {
+            <button type="button" class="grid h-11 w-11 place-items-center rounded-full text-[var(--nx-rail-soft)]" aria-label="Ayuda" (click)="openHelp()">
+              <mat-icon>help</mat-icon>
+            </button>
+          }
+          <button type="button" class="grid h-11 w-11 place-items-center rounded-full text-[var(--nx-rail-soft)]" [matMenuTriggerFor]="userMenu" aria-label="Cuenta">
+            <mat-icon>account_circle</mat-icon>
+          </button>
+        </div>
+      </header>
+    }
+
+    @if (isHandset() && readiness() !== null && !canTakeBookings()) {
+      <a routerLink="/admin/home" class="flex min-h-11 items-center gap-2 border-b border-line bg-surface px-4 py-2 text-sm text-ink">
+        <mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-(--nx-warn-fg)">warning</mat-icon>
+        <span class="min-w-0 flex-1">Aún no recibes citas: {{ missingToBook()[0]?.label?.toLowerCase() }}{{ missingToBook().length > 1 ? ' y ' + (missingToBook().length - 1) + ' más' : '' }}</span>
+        <mat-icon class="shrink-0 text-muted">chevron_right</mat-icon>
+      </a>
+    }
+
+    @if (!online()) {
+      <p role="status" class="badge-warn flex min-h-11 items-center gap-2 px-4 py-2 text-sm">
+        <mat-icon class="shrink-0" aria-hidden="true">cloud_off</mat-icon>
+        <span class="min-w-0">Sin conexión. Puedes ver lo que ya cargó, pero no se guardará nada hasta que vuelva el internet.</span>
+      </p>
+    }
+
+    @if (logoutError(); as message) {
+      <p role="alert" class="badge-bad px-4 py-2 text-sm">{{ message }}</p>
+    }
+
+    <main class="admin-main mx-auto w-full max-w-6xl px-3 pb-24 pt-5 md:px-8 md:py-8 lg:px-10">
+      <router-outlet />
+    </main>
+    <!-- Celular: lo más usado a un toque; el resto sigue en el menú. -->
+    <nav class="fixed inset-x-0 bottom-0 z-30 flex border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] md:hidden" aria-label="Accesos rápidos">
+      @for (link of links().slice(0, 3); track link.path) {
+        <a class="flex flex-1 flex-col items-center gap-0.5 py-2 text-xs text-muted" [routerLink]="link.path" routerLinkActive="!text-[var(--primary)] font-semibold" [routerLinkActiveOptions]="{ exact: link.exact }">
+          <mat-icon>{{ link.icon }}</mat-icon>
           {{ link.label }}
         </a>
       }
-    </nav>
-  </aside>
-
-  <div class="md:pl-72">
-    <header
-      class="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-slate-200 bg-white/90 px-4 backdrop-blur md:px-8"
-    >
-      <div class="flex min-w-0 items-center gap-3">
-        <button
-          type="button"
-          class="inline-flex size-10 items-center justify-center rounded-xl text-slate-700 hover:bg-slate-100 md:hidden"
-          [attr.aria-expanded]="sidebarOpen()"
-          [attr.aria-label]="sidebarOpen() ? 'Cerrar menú' : 'Abrir menú'"
-          (click)="toggleSidebar()"
-        >
-          <svg viewBox="0 0 24 24" class="size-5" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-            <path stroke-linecap="round" d="M4 7h16M4 12h16M4 17h16" />
-          </svg>
-        </button>
-        <p class="truncate text-sm font-semibold text-slate-950">{{ businessName() }}</p>
-      </div>
-
-      <div class="relative">
-        <button
-          type="button"
-          class="flex items-center gap-3 rounded-full py-1 pr-2 pl-1 hover:bg-slate-100"
-          [attr.aria-expanded]="menuOpen()"
-          aria-haspopup="menu"
-          (click)="toggleMenu()"
-        >
-          <span
-            class="inline-flex size-9 items-center justify-center rounded-full bg-primary-600 text-xs font-semibold text-white"
-          >
-            {{ initials() }}
-          </span>
-          <span class="hidden text-left sm:block">
-            <span class="block text-sm font-medium text-slate-900">
-              {{ currentUser()?.fullName }}
-            </span>
-            <span class="block text-xs text-slate-500">{{ roleLabel() }}</span>
-          </span>
-        </button>
-
-        @if (menuOpen()) {
-          <button
-            type="button"
-            class="fixed inset-0 z-20 cursor-default"
-            aria-label="Cerrar menú de usuario"
-            (click)="closeMenu()"
-          ></button>
-          <div
-            role="menu"
-            class="absolute right-0 z-30 mt-2 w-60 rounded-2xl border border-slate-200 bg-white p-3 shadow-lg"
-          >
-            <p class="px-1 text-sm font-medium text-slate-900">{{ currentUser()?.fullName }}</p>
-            <p class="mt-0.5 px-1 text-xs text-slate-500">{{ roleLabel() }}</p>
-            @if (logoutError(); as message) {
-              <p role="alert" class="mt-3 text-xs text-rose-600">{{ message }}</p>
-            }
-            <div class="mt-3">
-              <app-custom-button variant="outline" [isLoading]="loggingOut()" (click)="logout()">
-                Cerrar sesión
-              </app-custom-button>
-            </div>
-          </div>
+      <button type="button" class="relative flex flex-1 flex-col items-center gap-0.5 py-2 text-xs text-muted" (click)="toggleSidebar()">
+        <mat-icon>menu</mat-icon>
+        Más
+        @if (unread() > 0) {
+          <span class="absolute right-[calc(50%-18px)] top-1 h-2.5 w-2.5 rounded-full bg-[var(--nx-bad-fg)]" aria-label="Avisos nuevos"></span>
         }
+      </button>
+    </nav>
+    @if (toasts.message(); as saved) {
+      <div class="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">
+        <div class="nexia-toast pointer-events-auto flex items-center gap-3 rounded-full border bg-surface py-2 pl-2 pr-3 shadow-[0_18px_50px_rgba(30,27,30,0.16)]" style="border-color: color-mix(in srgb, var(--primary) 30%, var(--color-surface))">
+          <span class="flex h-9 w-9 items-center justify-center rounded-full text-white" style="background: var(--primary)">
+            <mat-icon class="!h-5 !w-5 !text-[20px]">check</mat-icon>
+          </span>
+          <span class="text-sm font-medium text-ink">{{ saved }}</span>
+          <button type="button" class="flex h-11 w-11 items-center justify-center rounded-full text-muted" aria-label="Cerrar" (click)="toasts.close()">
+            <mat-icon class="!h-4 !w-4 !text-[16px]">close</mat-icon>
+          </button>
+        </div>
       </div>
-    </header>
-
-    <main class="px-4 py-6 md:px-8 md:py-8">
-      <router-outlet />
-    </main>
-  </div>
-</div>
+    }
+    @if (toast(); as message) {
+      <div class="pointer-events-none fixed inset-x-0 top-20 z-50 flex justify-center px-4">
+        <div
+          class="nexia-toast pointer-events-auto flex w-full max-w-xl items-center gap-2 rounded-2xl border bg-surface px-3 py-3 shadow-[0_18px_50px_rgba(30,27,30,0.18)] sm:gap-3 sm:px-5 sm:py-4"
+          style="border-color: color-mix(in srgb, var(--primary) 30%, var(--color-surface))"
+        >
+          <a class="flex min-w-0 flex-1 items-center gap-3" routerLink="/admin/home">
+            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-accent text-white sm:h-12 sm:w-12">
+              <mat-icon>notifications</mat-icon>
+            </span>
+            <span class="min-w-0 flex-1">
+              <span class="block text-xs font-semibold uppercase tracking-wide text-accent">Nuevo aviso</span>
+              <span class="mt-1 block text-base font-medium leading-snug text-ink">{{ message }}</span>
+            </span>
+            <span class="shrink-0 rounded-full bg-ink px-3 py-1.5 text-xs text-surface sm:px-4 sm:py-2 sm:text-sm">Ver</span>
+          </a>
+          <button type="button" class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink hover:bg-canvas" aria-label="Cerrar aviso" (click)="closeToast($event)">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+      </div>
+    }
+  </mat-sidenav-content>
+</mat-sidenav-container>
