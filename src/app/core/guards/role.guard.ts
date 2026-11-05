@@ -71,8 +71,19 @@ export const guestGuard: CanActivateFn = () => {
   return home ? inject(Router).parseUrl(home) : true;
 };
 
-/** Página de inicio: quien ya tiene sesión va a su panel; el resto la ve. Pregunta por la sesión si aún no se hizo. */
+/** Dominio principal o www (nexiacitas.com, www.nexiacitas.com): ahí siempre se ve la página de inicio, haya sesión o no. */
+export function isMarketingHost(hostname: string): boolean {
+  return hostname.startsWith('www.') || (!hostname.startsWith('app.') && hostname.split('.').length === 2 && hostname !== '127.0.0.1');
+}
+
+/**
+ * Página de inicio: en app.* quien ya tiene sesión va a su panel (para entrar rápido); el resto la ve.
+ * En el dominio principal y www siempre se ve. En app.* también se puede abrir en /inicio, sin redirección.
+ */
 export const landingGuard: CanActivateFn = () => {
+  if (typeof location !== 'undefined' && isMarketingHost(location.hostname)) {
+    return true;
+  }
   const auth = inject(AuthService);
   const router = inject(Router);
   const go = (user: CurrentUser | null) => {
