@@ -915,10 +915,23 @@
           <p class="field-hint">El precio que cerraron por WhatsApp. Si lo dejas vacío, se usa el del servicio.</p>
         }
         @if (canWaiveDeposit()) {
-          <label class="flex min-h-11 items-start gap-2 text-sm">
-            <input type="checkbox" class="mt-0.5 h-5 w-5" formControlName="waive_deposit" />
-            <span>Sin anticipo. Es {{ copy.text().client.toLowerCase() }} de confianza.</span>
-          </label>
+          <div>
+            <span class="label">Anticipo</span>
+            <div class="flex flex-wrap gap-2" role="group" aria-label="Anticipo">
+              <button type="button" class="chip" [class.chip-on]="form.controls.deposit_mode.value === 'auto'" (click)="form.controls.deposit_mode.setValue('auto')">Según el negocio</button>
+              <button type="button" class="chip" [class.chip-on]="form.controls.deposit_mode.value === 'received'" (click)="form.controls.deposit_mode.setValue('received')">Ya lo recibí</button>
+              <button type="button" class="chip" [class.chip-on]="form.controls.deposit_mode.value === 'none'" (click)="form.controls.deposit_mode.setValue('none')">Sin anticipo</button>
+            </div>
+            @if (form.controls.deposit_mode.value === 'received') {
+              <label class="mt-2 block">
+                <span class="label">Cuánto te mandó</span>
+                <input type="number" min="1" inputmode="decimal" formControlName="deposit_received" class="input nums" placeholder="Ej. 200" />
+              </label>
+              <p class="field-hint">La cita queda confirmada y ese anticipo se descuenta de lo que cobras al final.</p>
+            } @else if (form.controls.deposit_mode.value === 'none') {
+              <p class="field-hint">Úsalo con {{ copy.text().client.toLowerCase() }} de confianza.</p>
+            }
+          </div>
         }
         @if (chargeHint(); as hint) {
           <p class="rounded-xl bg-accent-soft px-3 py-2 text-sm">{{ hint }}</p>

@@ -243,7 +243,9 @@ export class AgendaPageComponent {
     }),
     notes: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(2000)] }),
     quoted_price: new FormControl('', { nonNullable: true }),
-    waive_deposit: new FormControl(false, { nonNullable: true }),
+    // Anticipo: 'auto' (como lo pide el negocio), 'none' (sin anticipo) o 'received' (ya lo recibió por fuera, con su monto).
+    deposit_mode: new FormControl<'auto' | 'none' | 'received'>('auto', { nonNullable: true }),
+    deposit_received: new FormControl('', { nonNullable: true }),
   });
 
   protected readonly activeServices = computed(() => this.services().filter((item) => item.is_active));
@@ -1500,7 +1502,8 @@ export class AgendaPageComponent {
       client_email: '',
       notes: '',
       quoted_price: '',
-      waive_deposit: false,
+      deposit_mode: 'auto',
+      deposit_received: '',
     });
     this.known.set(null);
     this.freshPhone.set(false);
@@ -1571,8 +1574,12 @@ export class AgendaPageComponent {
     }
     const quoted = String(value.quoted_price ?? '').trim() ? Number(value.quoted_price) : null;
     const total = quoted ?? service.price;
-    if (value.waive_deposit) {
+    if (value.deposit_mode === 'none') {
       return `Sin anticipo. En la cita cobra ${this.pesos(total)}.`;
+    }
+    if (value.deposit_mode === 'received') {
+      const got = Number(value.deposit_received);
+      return got > 0 ? `Anticipo recibido ${this.pesos(got)}. En la cita cobra ${this.pesos(Math.max(0, Math.round((total - got) * 100) / 100))}.` : null;
     }
     const deposit = this.previewDeposit(service, quoted);
     if (!deposit) {
@@ -1831,6 +1838,10 @@ export class AgendaPageComponent {
     if (value.service_id == null || value.staff_id == null) {
       return;
     }
+    if (value.deposit_mode === 'received' && !(Number(value.deposit_received) > 0)) {
+      this.formError.set('Escribe cuánto anticipo te mandó.');
+      return;
+    }
     this.isSaving.set(true);
     this.formError.set(null);
     this.appointmentsApi
@@ -1842,7 +1853,8 @@ export class AgendaPageComponent {
         client_phone: value.client_phone.trim(),
         client_email: value.client_email.trim() || null,
         quoted_price: String(value.quoted_price ?? '').trim() ? Number(value.quoted_price) : null,
-        waive_deposit: value.waive_deposit,
+        waive_deposit: value.deposit_mode === 'none',
+        deposit_received: value.deposit_mode === 'received' && Number(value.deposit_received) > 0 ? Number(value.deposit_received) : null,
         notes: [this.copy.text().pet && this.petName().trim() ? `Mascota: ${this.petName().trim()}` : '', value.notes.trim()].filter(Boolean).join('\n') || null,
       })
       .pipe(takeUntilDestroyed(this.destroyRef))

@@ -108,7 +108,12 @@
       @if (item.status === 'awaiting_deposit' && !item.deposit_amount) {
         <p class="mt-4 text-sm">El anticipo se calcula cuando quede el precio acordado.</p>
       }
-      @if (item.status === 'awaiting_deposit' && item.deposit_amount) {
+      @let mustAccept = item.variable_price && !item.price_accepted;
+      @if (item.status === 'awaiting_deposit' && item.deposit_amount && mustAccept) {
+        <p class="mt-4 rounded-xl bg-accent-soft px-3 py-2 text-sm" role="status">
+          Primero revisa el precio de arriba. Cuando toques "Sí, ese precio" te mostramos cómo pagar el anticipo de ${{ item.deposit_amount }}.
+        </p>
+      } @else if (item.status === 'awaiting_deposit' && item.deposit_amount) {
 <div class="mt-4 rounded-2xl border border-line bg-canvas p-4">
           <p class="text-sm text-muted">Transfiere el anticipo</p>
           <p class="nums text-3xl font-semibold">${{ item.deposit_amount }}</p>
@@ -144,7 +149,7 @@
           </a>
         }
       }
-      @if (item.status === 'awaiting_deposit' && item.payment_url) {
+      @if (item.status === 'awaiting_deposit' && item.payment_url && !mustAccept) {
         <a class="btn btn-primary mt-4 justify-center" [href]="item.payment_url" target="_blank" rel="noopener">Pagar anticipo</a>
         @if (item.paid_claim) {
           <p class="mt-2 text-sm text-ink-soft">Ya avisaste que pagaste. Tu horario sigue apartado mientras el negocio lo revisa.</p>
