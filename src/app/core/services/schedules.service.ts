@@ -16,6 +16,8 @@ export interface SpecialHours {
   note: string | null;
   /** Horas fijas solo para esas fechas ("06:30, 07:30"); vacío = las de siempre. */
   slot_times?: string | null;
+  /** Solo esos días de la semana dentro del periodo ("5,6", lunes = 0); vacío = todos. */
+  weekdays?: string | null;
 }
 
 @Injectable({ providedIn: 'root' })

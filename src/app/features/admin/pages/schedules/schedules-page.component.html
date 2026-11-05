@@ -185,6 +185,13 @@
         <label class="block"><span class="label">Hasta (opcional)</span>
           <input class="input" type="date" name="specialUntil" [(ngModel)]="special.until" />
         </label>
+        @if (special.until && special.until !== special.date) {
+          <div class="sm:col-span-4">
+            <span class="label">Solo estos días de la semana (opcional)</span>
+            <app-weekday-picker label="Días de la semana de este horario" [value]="specialDays()" (changed)="specialDays.set($event)" />
+            <p class="field-hint">{{ specialDays().length && specialDays().length < 7 ? 'Solo esos días del periodo tienen este horario; los demás siguen con el de siempre.' : 'Sin elegir, aplica todos los días del periodo. Útil para cambiar solo sábados y domingos, o cerrar solo los domingos.' }}</p>
+          </div>
+        }
         @if (!special.closed && !specialClocks().length) {
           <label class="block"><span class="label">Abre</span>
             <app-time-field class="block" [valueIn]="special.from" (picked)="special.from = $event" />

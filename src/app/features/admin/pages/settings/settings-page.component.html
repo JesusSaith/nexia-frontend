@@ -523,6 +523,11 @@
               <ng-container *ngTemplateOutlet="chips; context: { field: 'depositHoldHours', unit: 'horas', max: 72 }" />
               <span class="field-hint mt-1 block">Si no llega en ese tiempo, el horario se libera solo.</span>
             </div>
+            <div>
+              <span class="label">Tiempo para ponerle precio a una solicitud por cotizar</span>
+              <ng-container *ngTemplateOutlet="chips; context: { field: 'quoteHoldHours', unit: 'horas', max: 168 }" />
+              <span class="field-hint mt-1 block">Si no le pones precio en ese tiempo, el horario se libera solo y te avisamos. Tu {{ copy.text().client.toLowerCase() }} lo ve en su confirmación.</span>
+            </div>
             <div class="rounded-xl border border-line p-4">
               <span class="label">Anticipo para quien ya faltó</span>
               <ng-container *ngTemplateOutlet="chips; context: { field: 'noshowAfter', unit: 'faltas', max: 10 }" />
@@ -736,7 +741,7 @@
               <p class="field-hint">Vacaciones, puentes o días festivos. Esos días no se pueden reservar; los demás todo sigue igual.</p>
               @if (upcomingClosures().length) {
                 <ul class="mt-3 divide-y divide-line rounded-xl border border-line">
-                  @for (row of upcomingClosures(); track row.from) {
+                  @for (row of upcomingClosures(); track $index) {
                     <li class="flex items-center gap-3 px-4 py-2.5">
                       <mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">{{ row.from === row.to ? 'event' : 'date_range' }}</mat-icon>
                       <div class="min-w-0 flex-1">
@@ -768,6 +773,13 @@
                   <input class="input" maxlength="60" placeholder="Vacaciones, Puente…" [value]="newLabel()" (input)="newLabel.set($any($event.target).value)" (keydown.enter)="$event.preventDefault(); addClosure()" />
                 </label>
                 <button type="button" class="btn btn-secondary" (click)="addClosure()"><mat-icon>add</mat-icon>Agregar</button>
+                @if (newTo() && newTo() !== newFrom()) {
+                  <div class="sm:col-span-4">
+                    <span class="label">Solo estos días <span class="text-muted">(opcional)</span></span>
+                    <app-weekday-picker label="Días de la semana que cierras" [value]="newDays()" (changed)="newDays.set($event)" />
+                    <p class="field-hint">{{ newDays().length && newDays().length < 7 ? 'Cierras únicamente esos días del periodo; los demás sí abres.' : 'Sin elegir, cierras todos los días del periodo. Toca los días para cerrar solo esos, por ejemplo los domingos.' }}</p>
+                  </div>
+                }
                 @if (closureError(); as message) {
                   <span class="field-error sm:col-span-4">{{ message }}</span>
                 }

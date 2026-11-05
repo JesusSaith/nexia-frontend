@@ -22,6 +22,8 @@ import { Confirm } from '@shared/components/confirm/confirm';
 import { MapPicker } from '@shared/components/map-picker/map-picker';
 import { GoogleMapPicker } from '@shared/components/google-map-picker/google-map-picker';
 import { GOOGLE_MAPS_KEY } from '@core/config/google-maps';
+import { WeekdayPickerComponent } from '@shared/components/weekday-picker/weekday-picker';
+import { weekdayHit, weekdaysText } from '@core/shop-note';
 import { PickFieldComponent } from '@shared/components/when-field/when-field';
 
 type SectionId = 'negocio' | 'apariencia' | 'reservas' | 'anticipo' | 'promociones' | 'mensajes' | 'pausa' | 'avisos' | 'privacidad';
@@ -85,6 +87,12 @@ const PRESETS = {
     { value: 6, label: '6 h' },
     { value: 24, label: '1 día' },
   ],
+  quoteHoldHours: [
+    { value: 12, label: '12 h' },
+    { value: 24, label: '1 día' },
+    { value: 48, label: '2 días' },
+    { value: null, label: 'Sin límite' },
+  ],
 } as const;
 
 type PresetField = keyof typeof PRESETS;
@@ -105,7 +113,7 @@ const ALERT_OPTIONS: readonly { value: string; label: string; hint: string }[] =
 
 @Component({
   selector: 'app-settings-page',
-  imports: [ReactiveFormsModule, NgTemplateOutlet, PickFieldComponent, MatIconModule, MapPicker, GoogleMapPicker, SaveStateComponent],
+  imports: [ReactiveFormsModule, NgTemplateOutlet, PickFieldComponent, WeekdayPickerComponent, MatIconModule, MapPicker, GoogleMapPicker, SaveStateComponent],
   templateUrl: './settings-page.component.html',
 })
 export class SettingsPageComponent {
@@ -152,6 +160,7 @@ export class SettingsPageComponent {
     depositPercent: new FormControl<number | null>(null, [Validators.min(1), Validators.max(100)]),
     depositAccount: new FormControl('', { nonNullable: true }),
     depositHoldHours: new FormControl<number | null>(3),
+    quoteHoldHours: new FormControl<number | null>(24),
     paymentUrl: new FormControl('', { nonNullable: true, validators: [Validators.pattern(/^(https?:\/\/\S+)?$/)] }),
     privacyNotice: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(10000)] }),
   });
@@ -324,6 +333,7 @@ export class SettingsPageComponent {
       deposit_percent: numberOrNull(value.depositPercent),
       deposit_account: value.depositAccount.trim() || null,
       deposit_hold_hours: numberOr(value.depositHoldHours, 3),
+      quote_hold_hours: numberOrNull(value.quoteHoldHours),
       payment_url: value.paymentUrl.trim() || null,
       privacy_notice: value.privacyNotice.trim() || null,
       resources: value.resources.trim() || null,
@@ -362,6 +372,8 @@ export class SettingsPageComponent {
 
   /** Error del cierre que se está agregando (no bloquea el guardado: aún no está en la lista). */
   protected readonly closureError = signal('');
+  /** Días de la semana del cierre que se está agregando (vacío = todos los días del periodo). */
+  protected readonly newDays = signal<number[]>([]);
 
   /** Cierres que no han terminado; los pasados se ven aparte y se pueden limpiar. */
   protected readonly upcomingClosures = computed(() => this.closures().filter((row) => row.to >= todayIso()));
@@ -370,7 +382,7 @@ export class SettingsPageComponent {
   /** Festivos de los próximos 12 meses que aún no están en la lista. */
   protected readonly suggestedHolidays = computed(() => {
     const taken = new Set(this.closures().flatMap((row) => (row.from === row.to ? [row.from] : [])));
-    return upcomingHolidays(todayIso()).filter((item) => !taken.has(item.date) && !this.closures().some((row) => item.date >= row.from && item.date <= row.to));
+    return upcomingHolidays(todayIso()).filter((item) => !taken.has(item.date) && !this.closures().some((row) => item.date >= row.from && item.date <= row.to && weekdayHit(row.days, item.date)));
   });
 
   /** Un mensaje por cupón con problema; vacío si está bien. Antes se descartaban sin avisar. */
@@ -422,9 +434,9 @@ export class SettingsPageComponent {
       return { tone: 'warn' as const, icon: 'pause_circle', title: 'Tu página no está tomando citas', detail: 'Tus clientes ven que por ahora no hay reservas en línea.' };
     }
     const today = todayIso();
-    const now = this.upcomingClosures().find((row) => row.from <= today);
+    const now = this.upcomingClosures().find((row) => row.from <= today && weekdayHit(row.days, today));
     if (now) {
-      return { tone: 'info' as const, icon: 'event_busy', title: `Hoy tu negocio está cerrado${now.label ? ` (${now.label})` : ''}`, detail: `Tu página no deja reservar ${now.from === now.to ? 'este día' : `hasta el ${shortDate(now.to)}`}. Los demás días todo sigue igual.` };
+      return { tone: 'info' as const, icon: 'event_busy', title: `Hoy tu negocio está cerrado${now.label ? ` (${now.label})` : ''}`, detail: `Tu página no deja reservar ${now.from === now.to || now.days?.length ? 'este día' : `hasta el ${shortDate(now.to)}`}. Los demás días todo sigue igual.` };
     }
     const next = this.upcomingClosures()[0];
     if (next && next.from <= addDays(today, 14)) {
@@ -689,11 +701,16 @@ export class SettingsPageComponent {
       this.closureError.set('La fecha "hasta" no puede ser antes que "desde".');
       return;
     }
-    if (this.closures().some((row) => from <= row.to && to >= row.from)) {
+    // Los siete días son lo mismo que "todos"; un solo día no necesita lista.
+    const days = from === to || this.newDays().length === 7 ? [] : this.newDays();
+    const sameDays = (other: number[] | undefined) => !days.length || !other?.length || days.some((item) => other.includes(item));
+    if (this.closures().some((row) => from <= row.to && to >= row.from && sameDays(row.days))) {
       this.closureError.set('Ya tienes un cierre que toca esas fechas.');
       return;
     }
-    this.pushClosures([{ from, to, label: this.newLabel().trim().slice(0, 60) || (from === to ? 'Cerrado' : 'Vacaciones') }]);
+    const label = this.newLabel().trim().slice(0, 60) || (from === to ? 'Cerrado' : days.length ? 'Cerrado' : 'Vacaciones');
+    this.pushClosures([days.length ? { from, to, label, days } : { from, to, label }]);
+    this.newDays.set([]);
     this.newFrom.set('');
     this.newTo.set('');
     this.newLabel.set('');
@@ -1055,6 +1072,7 @@ export class SettingsPageComponent {
       depositPercent: settings.deposit_percent,
       depositAccount: settings.deposit_account ?? '',
       depositHoldHours: settings.deposit_hold_hours ?? 3,
+      quoteHoldHours: settings.quote_hold_hours === undefined ? 24 : settings.quote_hold_hours,
       paymentUrl: settings.payment_url ?? '',
       privacyNotice: settings.privacy_notice ?? '',
     });
@@ -1071,7 +1089,7 @@ const FIELD_SECTION: Record<string, SectionId> = {
   name: 'negocio', phone: 'negocio', description: 'negocio', address: 'negocio', latitude: 'negocio', longitude: 'negocio', map_embed: 'negocio', instagram: 'negocio', facebook: 'negocio', business_kind: 'negocio',
   logo_url: 'apariencia', primary_color: 'apariencia', gallery: 'apariencia', canvas_color: 'apariencia', accent_color: 'apariencia', button_shape: 'apariencia', button_fill: 'apariencia', font_style: 'apariencia', header_style: 'apariencia',
   min_notice_hours: 'reservas', max_days_ahead: 'reservas', buffer_minutes: 'reservas', cancel_hours: 'reservas', timezone: 'reservas', resources: 'reservas', cancel_policy: 'reservas', max_daily_appointments: 'reservas', deposit_cancel_policy: 'reservas', noshow_after: 'anticipo', noshow_deposit: 'anticipo',
-  deposit_amount: 'anticipo', deposit_percent: 'anticipo', deposit_account: 'anticipo', deposit_hold_hours: 'anticipo', payment_url: 'anticipo',
+  deposit_amount: 'anticipo', deposit_percent: 'anticipo', deposit_account: 'anticipo', deposit_hold_hours: 'anticipo', quote_hold_hours: 'anticipo', payment_url: 'anticipo',
   promo_text: 'promociones', promo_until: 'promociones', loyalty_every: 'promociones', loyalty_percent: 'promociones', coupons: 'promociones',
   message_templates: 'mensajes', auto_reminders: 'mensajes', reminder_hours: 'mensajes', auto_return: 'mensajes', bookings_paused: 'pausa', closures: 'pausa', payment_methods: 'anticipo', approve_bookings: 'reservas', uses_commissions: 'negocio', staff_can_edit_price: 'negocio', email_alerts: 'avisos', privacy_notice: 'privacidad',
 };
@@ -1172,7 +1190,11 @@ function addDays(iso: string, days: number): string {
 
 /** "el 24 dic" o "del 20 oct al 27 oct". */
 function closureText(row: Closure): string {
-  return row.from === row.to ? `el ${shortDate(row.from)}` : `del ${shortDate(row.from)} al ${shortDate(row.to)}`;
+  if (row.from === row.to) {
+    return `el ${shortDate(row.from)}`;
+  }
+  const only = weekdaysText(row.days);
+  return `del ${shortDate(row.from)} al ${shortDate(row.to)}${only ? `, ${only}` : ''}`;
 }
 
 function shortDate(iso: string): string {

@@ -436,6 +436,11 @@ export class Booking {
     return service && !service.variable_price ? service.price : null;
   }
 
+  /** Servicio por cotizar y todavía sin precio: la pantalla de confirmación cambia a "falta el precio". */
+  protected needsQuote(appointment: Appointment): boolean {
+    return Boolean(this.selectedService()?.variable_price) && appointment.quoted_price == null;
+  }
+
   protected formatTime(value: string): string {
     return formatSlotTime(value, this.timeFormat);
   }

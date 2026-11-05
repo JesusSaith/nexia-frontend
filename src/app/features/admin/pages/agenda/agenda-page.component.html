@@ -191,6 +191,9 @@
   @if (firstLoad()) {
     <app-skeleton kind="grid" [rows]="5" />
   } @else {
+  @if (closureNotice(); as notice) {
+    <p class="badge badge-info mb-3 h-auto! gap-1.5 whitespace-normal py-2" role="status"><mat-icon class="h-4! w-4! shrink-0 text-[16px]!" aria-hidden="true">event_busy</mat-icon>{{ notice }}</p>
+  }
   @switch (currentView()) {
     @case ('month') {
           <div class="grid grid-cols-7 border-b border-line text-center text-xs font-semibold uppercase tracking-wide text-muted">
@@ -209,8 +212,11 @@
                   [class.bg-ink]="isSelected(day)"
                   [class.text-surface]="isSelected(day)"
                   [class.bg-canvas]="!isSelected(day) && (count > 0 || blocksOn(day).length > 0)"
+                  [class.border]="closureFor(day) && !isSelected(day)"
+                  [class.border-dashed]="closureFor(day) && !isSelected(day)"
+                  [class.border-line-strong]="closureFor(day) && !isSelected(day)"
                   [class.font-semibold]="isToday(day)"
-                  [attr.aria-label]="day.getDate() + (count ? ', ' + count + (count === 1 ? ' cita' : ' citas') : '')"
+                  [attr.aria-label]="day.getDate() + (count ? ', ' + count + (count === 1 ? ' cita' : ' citas') : '') + (closureFor(day) ? ', cerrado' : '')"
                   (click)="selectDay(day)"
                 >
                   {{ day.getDate() }}
@@ -243,11 +249,14 @@
               >
                 {{ day.getDate() }}
               </div>
+              @if (closureFor(day); as closed) {
+                <div class="mt-1 truncate text-xs text-muted">{{ closureName(closed) }}</div>
+              }
             </button>
           }
           <ng-container [ngTemplateOutlet]="gutter" />
           @for (day of weekDays(); track dayKey(day)) {
-            <div class="relative border-l border-line" [style.height.px]="gridHeight()">
+            <div class="relative border-l border-line" [class.bg-canvas]="closureFor(day)" [style.height.px]="gridHeight()">
               @for (slot of slots(); track slot) {
                 <button
                   type="button"
@@ -814,6 +823,12 @@
         {{ quoteSaving() ? 'Guardando…' : 'Guardar precio' }}
       </button>
     </div>
+    @if (needsQuote(appointment)) {
+      <!-- Un toque: guarda el precio y abre WhatsApp con el precio y el enlace para que lo acepte. -->
+      <button type="button" class="btn btn-whatsapp w-full" [disabled]="quoteSaving()" (click)="saveQuote(appointment, quoteInput.value, true)">
+        Cotizar y avisar por WhatsApp
+      </button>
+    }
     @if (quoteHref(); as href) {
       <a class="btn btn-whatsapp w-full" [href]="href" target="_blank" rel="noopener" (click)="quoteHref.set(null)">Enviar precio por WhatsApp</a>
     }
