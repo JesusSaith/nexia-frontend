@@ -33,7 +33,7 @@
             <p class="text-sm font-medium">¿Cómo te fue?</p>
             <div class="mt-2 flex gap-1" role="radiogroup" aria-label="Calificación">
               @for (star of stars; track star) {
-                <button type="button" class="h-11 w-11 text-2xl leading-none" [class.text-[var(--nx-warn-fg)]]="star <= rating()" [class.text-line-strong]="star > rating()" [attr.aria-label]="star + ' estrellas'" (click)="rating.set(star)">★</button>
+                <button type="button" class="h-11 w-11 text-2xl leading-none" [class.text-[var(--nx-warn-fg)]]="star <= rating()" [class.text-line-strong]="star > rating()" [attr.aria-label]="star + ' estrellas'" (click)="rating.set(star)"><mat-icon class="h-8! w-8! text-[32px]!" aria-hidden="true">{{ star <= rating() ? 'star' : 'star_border' }}</mat-icon></button>
               }
             </div>
             <textarea class="mt-2 w-full resize-none rounded-xl border border-line bg-surface px-3 py-2 text-sm outline-none" rows="2" maxlength="1000" placeholder="Cuéntanos en una frase" [value]="opinion()" (input)="opinion.set($any($event.target).value)"></textarea>

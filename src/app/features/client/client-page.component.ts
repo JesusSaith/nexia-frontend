@@ -1,4 +1,5 @@
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { pesos } from '@core/money';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { Router, RouterLink } from '@angular/router';
@@ -18,7 +19,7 @@ export class ClientPageComponent {
   private readonly bookingApi = inject(BookingService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly currency = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
+  private readonly currency = { format: pesos };
 
   protected readonly user = this.auth.currentUser;
   protected readonly staff = signal<PublicStaff[]>([]);

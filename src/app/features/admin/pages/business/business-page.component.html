@@ -187,7 +187,7 @@
             <ul class="mt-2 divide-y divide-line">
               @for (review of reviews().slice(0, 6); track review.id) {
                 <li class="py-3 text-sm">
-                  <p class="flex items-center gap-2"><span class="text-(--nx-warn-fg)" [attr.aria-label]="review.rating + ' estrellas'">{{ stars(review.rating) }}</span><span class="font-medium text-ink">{{ review.client_name }}</span></p>
+                  <p class="flex items-center gap-2"><span class="text-(--nx-warn-fg)" [attr.aria-label]="review.rating + ' estrellas'">@for (n of starRow; track n) { <mat-icon class="h-4! w-4! align-middle text-[16px]!" aria-hidden="true">{{ n <= review.rating ? 'star' : 'star_border' }}</mat-icon> }</span><span class="font-medium text-ink">{{ review.client_name }}</span></p>
                   <p class="mt-1 text-ink-soft">{{ review.comment }}</p>
                   @if (review.reply) {
                     <p class="mt-2 rounded-lg bg-canvas px-3 py-2 text-ink-soft"><span class="font-medium text-ink">Tu respuesta:</span> {{ review.reply }}</p>

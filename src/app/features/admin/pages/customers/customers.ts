@@ -39,7 +39,7 @@ export class Customers {
   private readonly toasts = inject(Toasts);
   protected readonly deleteError = signal<string | null>(null);
   private readonly money = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
-  private readonly when = new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  private readonly when = new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
   private readonly shortDay = new Intl.DateTimeFormat('es-MX', { weekday: 'short', day: 'numeric', month: 'short' });
 
   protected readonly clients = signal<ClientRow[]>([]);

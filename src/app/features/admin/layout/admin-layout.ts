@@ -139,7 +139,7 @@ export class AdminLayoutComponent {
   protected readonly birthdaysToday = signal(0);
   private touchX = 0;
   private seenNotice = Number(readSeen() || 0);
-  private toastedNotice = this.seenNotice;
+  private toastedNotice = Math.max(this.seenNotice, Number(readToasted() || 0));
   private toastTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly destroyRef = inject(DestroyRef);
   private readonly handset = toSignal(
@@ -350,6 +350,7 @@ export class AdminLayoutComponent {
     const newest = fresh[0];
     if (newest && newest.id > this.toastedNotice) {
       this.toastedNotice = newest.id;
+      saveToasted(newest.id);
       this.toast.set(newest.message);
       if (this.toastTimer) {
         clearTimeout(this.toastTimer);
@@ -506,6 +507,23 @@ function readSeen(): string | null {
 function saveSeen(id: number): void {
   try {
     localStorage.setItem('nexia-seen-notice', String(id));
+  } catch {
+    // Sin almacenamiento solo se repite el aviso.
+  }
+}
+
+// El aviso emergente sale una sola vez por aviso, aunque se recargue la página sin pasar por Inicio.
+function readToasted(): string | null {
+  try {
+    return localStorage.getItem('nexia-toasted-notice');
+  } catch {
+    return null;
+  }
+}
+
+function saveToasted(id: number): void {
+  try {
+    localStorage.setItem('nexia-toasted-notice', String(id));
   } catch {
     // Sin almacenamiento solo se repite el aviso.
   }

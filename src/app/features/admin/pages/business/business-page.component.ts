@@ -232,9 +232,7 @@ export class BusinessPageComponent {
       .subscribe((saved) => this.reviews.update((rows) => rows.map((row) => (row.id === saved.id ? saved : row))));
   }
 
-  protected stars(value: number): string {
-    return '★★★★★'.slice(0, Math.round(value)) + '☆☆☆☆☆'.slice(0, 5 - Math.round(value));
-  }
+  protected readonly starRow = [1, 2, 3, 4, 5];
 
   protected link(value: string | null | undefined, kind: 'web' | 'instagram' | 'facebook'): string {
     const text = (value ?? '').trim();

@@ -1,4 +1,5 @@
 import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { MatIconModule } from '@angular/material/icon';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -12,7 +13,7 @@ import { BookingService, PrivacyNotice } from '@core/services/booking.service';
  */
 @Component({
   selector: 'app-privacy',
-  imports: [MatProgressSpinnerModule, RouterLink],
+  imports: [MatIconModule, MatProgressSpinnerModule, RouterLink],
   template: `
     <main class="mx-auto w-full max-w-2xl px-4 py-10 text-ink">
       @if (error()) {
@@ -20,7 +21,7 @@ import { BookingService, PrivacyNotice } from '@core/services/booking.service';
       } @else if (!notice()) {
         <div class="flex justify-center py-16"><mat-spinner diameter="32" /></div>
       } @else {
-        <a class="text-sm underline underline-offset-2" [routerLink]="['/', slug, 'book']">← Volver a reservar</a>
+        <a class="text-sm underline underline-offset-2" [routerLink]="['/', slug, 'book']"><mat-icon class="h-4! w-4! align-middle text-[16px]!" aria-hidden="true">arrow_back</mat-icon> Volver a reservar</a>
         <h1 class="mt-4 text-2xl font-semibold">Aviso de privacidad</h1>
         <p class="mt-1 text-sm text-muted">{{ notice()!.name }}</p>
 

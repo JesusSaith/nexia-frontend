@@ -1,4 +1,6 @@
 import { scrollBehavior } from '@core/motion';
+import { horario12 } from '../../../../core/hours';
+import { HoraPipe } from '../../../../shared/pipes/hora.pipe';
 import { HttpErrorResponse } from '@angular/common/http';
 import { SaveStateComponent } from '@shared/components/save-state/save-state';
 import { Component, DestroyRef, HostListener, computed, inject, signal } from '@angular/core';
@@ -32,6 +34,7 @@ const DAY_LABELS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sába
 @Component({
   selector: 'app-schedules-page',
   imports: [
+    HoraPipe,
     RouterLink,
     FormsModule,
     MatButtonModule,
@@ -133,7 +136,7 @@ export class SchedulesPageComponent {
         .filter((member) => member.is_active)
         .map((member) => {
           const row = (this.team().get(member.id) ?? []).find((item) => item.day_of_week === dayOfWeek && item.is_active);
-          return row ? { id: member.id, name: member.full_name.split(' ')[0], hours: `${row.start_time.slice(0, 5)}–${row.end_time.slice(0, 5)}` } : null;
+          return row ? { id: member.id, name: member.full_name.split(' ')[0], hours: horario12(row.start_time, row.end_time) } : null;
         })
         .filter((item): item is { id: number; name: string; hours: string } => item !== null),
     })),

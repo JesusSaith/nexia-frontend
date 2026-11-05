@@ -1198,7 +1198,7 @@ function change(now: number, before: number | null | undefined): { text: string;
   if (percent === 0) {
     return { text: 'Igual', up: null };
   }
-  return { text: `${percent > 0 ? '↑' : '↓'} ${Math.abs(percent)}%`, up: percent > 0 };
+  return { text: `${Math.abs(percent)}%`, up: percent > 0 };
 }
 
 function yearAgo(day: string): string {

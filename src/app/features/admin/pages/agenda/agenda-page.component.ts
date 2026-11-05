@@ -1,4 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { pesos } from '@core/money';
+import { hora12 } from '../../../../core/hours';
+import { HoraPipe } from '../../../../shared/pipes/hora.pipe';
 import { NgTemplateOutlet } from '@angular/common';
 import { Confirm } from '@shared/components/confirm/confirm';
 import { Component, DestroyRef, TemplateRef, computed, effect, inject, signal, viewChild, untracked } from '@angular/core';
@@ -71,6 +74,7 @@ const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 @Component({
   selector: 'app-agenda-page',
   imports: [
+    HoraPipe,
     NgTemplateOutlet,
     Skeleton,
     FormsModule,
@@ -128,7 +132,7 @@ export class AgendaPageComponent {
   private requestId = 0;
   private readonly ownStaffReady = signal(!inject(AuthService).isStaff());
   private readonly timeFormat = new Intl.DateTimeFormat('es-MX', {
-    hour: '2-digit',
+    hour: 'numeric',
     minute: '2-digit',
   });
 
@@ -217,7 +221,7 @@ export class AgendaPageComponent {
   protected readonly known = signal<{ visit_count: number; total_spent: number; cancel_count: number; full_name: string } | null>(null);
   protected readonly freshPhone = signal(false);
   protected readonly freed = signal<{ name: string; href: string }[]>([]);
-  private readonly pesosFormat = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
+  private readonly pesosFormat = { format: pesos };
   protected readonly bookableDay = (iso: string): boolean => {
     const staffId = this.form.controls.staff_id.value;
     if (staffId == null) {
@@ -1087,7 +1091,7 @@ export class AgendaPageComponent {
   }
 
   protected slotLabel(minutes: number): string {
-    return clockFromMinutes(minutes);
+    return hora12(clockFromMinutes(minutes), true);
   }
 
   protected statusBadge(appointment: Appointment): string {
@@ -1659,6 +1663,8 @@ export class AgendaPageComponent {
     }
     const due = active
       .filter((item) => item.status !== 'completed')
+      // "Precio en la cita" sin precio acordado: aún no hay monto que cobrar.
+      .filter((item) => !this.priceOpen(item))
       // Sin anticipo ni cotización, bill() es null y se cobra el precio del servicio completo.
       .reduce((sum, item) => sum + (this.bill(item)?.rest ?? this.services().find((row) => row.id === item.service_id)?.price ?? 0), 0);
     const visit = this.copy.text().visit.toLowerCase();
@@ -2306,13 +2312,27 @@ export class AgendaPageComponent {
     if (this.pendingId() !== null) {
       return;
     }
-    // Cancelar no pregunta: se puede deshacer durante 5 s. "No llegó" sí confirma (cuenta como falta).
+    // Cancelar y "No llegó" preguntan antes (cancelar avisa al cliente y libera el horario; "no llegó" cuenta como falta).
+    // Rechazar una solicitud ya es una decisión explícita (pasa `after`), así que no vuelve a preguntar.
     if (
       status === 'no_show' &&
       !(await this.confirm.ask({
         title: '¿Marcar que no llegó?',
         message: `${appointment.client_name} · ${appointment.service_name}. Cuenta en su historial de faltas.`,
         confirm: 'Sí, no llegó',
+        cancel: 'Volver',
+        danger: true,
+      }))
+    ) {
+      return;
+    }
+    if (
+      status === 'cancelled' &&
+      !after &&
+      !(await this.confirm.ask({
+        title: `¿Cancelar la ${this.copy.text().visit.toLowerCase()}?`,
+        message: `${appointment.client_name} · ${appointment.service_name}. El horario queda libre; si te equivocas, podrás deshacerlo unos segundos.`,
+        confirm: 'Sí, cancelar',
         cancel: 'Volver',
         danger: true,
       }))

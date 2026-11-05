@@ -1,4 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { horario12 } from '../../../../core/hours';
 import { Component, DestroyRef, TemplateRef, computed, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -400,7 +401,7 @@ export class StaffPageComponent {
     const days = rows.map((row) => row.day_of_week);
     const run = days.every((value, index) => index === 0 || value === days[index - 1] + 1);
     const label = run && days.length > 2 ? `${names[days[0]]} a ${names[days.at(-1)!].toLowerCase()}` : days.map((value) => names[value]).join(', ');
-    const hours = new Set(rows.map((row) => `${row.start_time.slice(0, 5)}–${row.end_time.slice(0, 5)}`));
+    const hours = new Set(rows.map((row) => horario12(row.start_time, row.end_time)));
     return hours.size === 1 ? `${label} · ${[...hours][0]}` : `${label} · horario variable`;
   }
 
