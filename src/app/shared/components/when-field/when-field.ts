@@ -9,13 +9,13 @@ function clock(value: string): string {
   return value.slice(0, 5);
 }
 
-/** "15:30" -> "3:30 p. m." (se guarda siempre en 24 h; solo se muestra en 12 h). */
+/** "15:30" -> "3:30 PM" (se guarda siempre en 24 h; solo se muestra en 12 h). */
 export function clock12(value: string): string {
   if (!/^\d{1,2}:\d{2}/.test(value)) {
     return '';
   }
   const [hour, minute] = clock(value).split(':').map(Number);
-  return `${hour % 12 || 12}:${String(minute).padStart(2, '0')} ${hour >= 12 ? 'p. m.' : 'a. m.'}`;
+  return `${hour % 12 || 12}:${String(minute).padStart(2, '0')} ${hour >= 12 ? 'PM' : 'AM'}`;
 }
 
 function openSheet(overlay: Overlay, view: ViewContainerRef, anchor: HTMLElement, template: TemplateRef<unknown>, width: number): OverlayRef {
@@ -219,11 +219,11 @@ export class DateFieldComponent implements ControlValueAccessor {
           <div class="relative">
             <!-- Franja del centro: lo que cae aquí es lo elegido -->
             <div class="pointer-events-none absolute inset-x-0 top-1/2 h-11 -translate-y-1/2 rounded-xl bg-canvas" aria-hidden="true"></div>
-            <div class="relative flex items-stretch gap-3 px-2">
+            <div class="relative flex items-stretch gap-2 px-1">
               @if (options() === null) {
                 <app-wheel-column class="flex-1" label="Hora" [items]="hours" [selected]="hour12()" (changed)="setHour($event)" />
                 <app-wheel-column class="flex-1" label="Minutos" [items]="minuteItems()" [selected]="pickedMinute()" (changed)="setMinute($event)" />
-                <app-wheel-column class="flex-[1.3]" label="a. m. o p. m." [items]="meridiem" [selected]="pickedMeridiem()" (changed)="setMeridiem($event)" />
+                <app-wheel-column class="flex-1" label="AM o PM" [items]="meridiem" [selected]="pickedMeridiem()" (changed)="setMeridiem($event)" />
               } @else {
                 <app-wheel-column class="flex-1" label="Hora" [items]="choiceItems()" [selected]="shown()" (changed)="setExact($event)" />
               }
@@ -260,11 +260,11 @@ export class TimeFieldComponent implements ControlValueAccessor {
   });
   protected readonly choiceItems = computed<WheelItem[]>(() => this.choices().map((time) => ({ value: time, label: clock12(time) })));
 
-  // Selector libre: tres columnas (hora, minutos y a. m./p. m.) sobre el valor en 24 h.
+  // Selector libre: tres columnas (hora, minutos y AM/PM) sobre el valor en 24 h.
   protected readonly hours: WheelItem[] = Array.from({ length: 12 }, (_, index) => ({ value: String(index + 1), label: String(index + 1) }));
   protected readonly meridiem: WheelItem[] = [
-    { value: 'AM', label: 'a. m.' },
-    { value: 'PM', label: 'p. m.' },
+    { value: 'AM', label: 'AM' },
+    { value: 'PM', label: 'PM' },
   ];
   private readonly parts = computed(() => {
     const [hour, minute] = (this.shown() || '09:00').split(':').map(Number);
