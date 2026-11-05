@@ -163,7 +163,7 @@
                   }
                 </span>
                 <span class="nums mt-0.5 block truncate text-sm text-muted">
-                  {{ row.duration_minutes }} min · {{ row.variable_price ? 'Precio variable' : formatPrice(row.price) }}{{ (row.variants ?? []).length ? ' · ' + (row.variants ?? []).length + ' opciones' : '' }}
+                  {{ row.duration_minutes }} min · {{ row.price_at_visit ? 'Precio en la cita' : row.variable_price ? 'Precio variable' : formatPrice(row.price) }}{{ (row.variants ?? []).length ? ' · ' + (row.variants ?? []).length + ' opciones' : '' }}
                 </span>
                 @if (row.is_active && people.length === 0) {
                   <span class="mt-0.5 flex items-center gap-1 text-sm text-(--nx-warn-fg)"><mat-icon class="h-4! w-4! text-[16px]!">warning</mat-icon>Nadie lo hace: asígnalo en Equipo</span>
@@ -270,10 +270,34 @@
           @if (priceError()) {
             <p class="field-error">{{ priceError() }}</p>
           }
-          <label class="flex min-h-11 items-start gap-2 text-sm text-ink">
-            <input class="mt-0.5 h-5 w-5" type="checkbox" formControlName="variable_price" />
-            <span>El precio cambia según lo que pidan <span class="block text-muted">El {{ copy.text().client.toLowerCase() }} describe lo que quiere y tú confirmas el costo.</span></span>
-          </label>
+          @if (atVisitAllowed() || priceMode() === 'visit') {
+            <div>
+              <span class="label">¿Cuándo se define el precio?</span>
+              <div class="mt-1 flex flex-wrap gap-2" role="group" aria-label="Cuándo se define el precio">
+                <button type="button" class="chip" [class.chip-on]="priceMode() === 'fixed'" [attr.aria-pressed]="priceMode() === 'fixed'" (click)="setPriceMode('fixed')">Precio fijo</button>
+                <button type="button" class="chip" [class.chip-on]="priceMode() === 'quote'" [attr.aria-pressed]="priceMode() === 'quote'" (click)="setPriceMode('quote')">Lo cotizo antes de la cita</button>
+                <button type="button" class="chip" [class.chip-on]="priceMode() === 'visit'" [attr.aria-pressed]="priceMode() === 'visit'" (click)="setPriceMode('visit')">Lo acordamos en la cita</button>
+              </div>
+              <p class="field-hint">
+                @switch (priceMode()) {
+                  @case ('quote') {
+                    El {{ copy.text().client.toLowerCase() }} describe lo que quiere, tú le pones el precio y él lo acepta antes de pagar el anticipo. Si no cotizas a tiempo, el horario se libera.
+                  }
+                  @case ('visit') {
+                    El horario se aparta sin precio y el diseño y el costo se acuerdan ya en la cita. El anticipo (si lo pides) es un monto fijo, no un porcentaje, y el horario no se libera por falta de precio.
+                  }
+                  @default {
+                    Se cobra el precio que escribiste arriba.
+                  }
+                }
+              </p>
+            </div>
+          } @else {
+            <label class="flex min-h-11 items-start gap-2 text-sm text-ink">
+              <input class="mt-0.5 h-5 w-5" type="checkbox" formControlName="variable_price" />
+              <span>El precio cambia según lo que pidan <span class="block text-muted">El {{ copy.text().client.toLowerCase() }} describe lo que quiere y tú confirmas el costo.</span></span>
+            </label>
+          }
           <label class="block">
             <span class="label">Material por servicio ($)</span>
             <input formControlName="supplyCost" type="number" min="0" inputmode="decimal" placeholder="0" class="input nums" />
@@ -316,7 +340,7 @@
                 <span class="block text-xs text-muted">{{ form.controls.category.value }}</span>
               }
               <span class="block truncate font-medium text-ink">{{ form.controls.name.value || 'Nombre del servicio' }}</span>
-              <span class="nums block text-sm text-ink-soft">{{ form.controls.duration_minutes.value || '—' }} min · {{ form.controls.variable_price.value ? 'Precio según lo que pidas' : formatPrice(+form.controls.price.value || 0) }}</span>
+              <span class="nums block text-sm text-ink-soft">{{ form.controls.duration_minutes.value || '—' }} min · {{ form.controls.price_at_visit.value ? 'Precio en la cita' : form.controls.variable_price.value ? 'Precio según lo que pidas' : formatPrice(+form.controls.price.value || 0) }}</span>
               @if (form.controls.featured.value) {
                 <span class="badge badge-info mt-1">El más pedido</span>
               }

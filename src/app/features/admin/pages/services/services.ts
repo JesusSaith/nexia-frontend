@@ -15,6 +15,8 @@ import { BusinessCopy } from '@core/business-copy';
 import { Service, ServiceVariant, ServiceWrite } from '@core/models/service.model';
 import { Staff } from '@core/models/staff.model';
 import { ShopService } from '@core/services/shop.service';
+import { SettingsService } from '@core/services/settings.service';
+import { kindOf } from '@core/business-kinds';
 import { StaffService } from '@core/services/staff.service';
 import { Confirm } from '@shared/components/confirm/confirm';
 import { Toasts } from '@core/toasts';
@@ -42,6 +44,10 @@ export class ServicesPageComponent {
   private readonly toasts = inject(Toasts);
   private readonly staffApi = inject(StaffService);
   private readonly shopApi = inject(ShopService);
+  private readonly settingsApi = inject(SettingsService);
+  /** Giro del negocio: "Lo acordamos en la cita" solo se ofrece en salón de belleza y de uñas. */
+  private readonly kind = signal('');
+  protected readonly atVisitAllowed = computed(() => this.kind() === 'belleza' || this.kind() === 'unas');
   private readonly confirm = inject(Confirm);
   private readonly destroyRef = inject(DestroyRef);
   private readonly dialog = inject(MatDialog);
@@ -99,6 +105,7 @@ export class ServicesPageComponent {
       validators: [Validators.required, Validators.min(0)],
     }),
     variable_price: new FormControl(false, { nonNullable: true }),
+    price_at_visit: new FormControl(false, { nonNullable: true }),
     duration_minutes: new FormControl('', {
       nonNullable: true,
       validators: [Validators.required, Validators.min(1), Validators.max(1440), Validators.pattern(/^\d+$/)],
@@ -191,6 +198,21 @@ export class ServicesPageComponent {
 
   constructor() {
     this.load();
+    this.settingsApi
+      .getSettings()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({ next: (settings) => this.kind.set(kindOf(settings.business_kind, settings.staff_label)), error: () => undefined });
+  }
+
+  /** Cómo se define el precio del servicio que se está editando. */
+  protected priceMode(): 'fixed' | 'quote' | 'visit' {
+    const { variable_price, price_at_visit } = this.form.getRawValue();
+    return price_at_visit ? 'visit' : variable_price ? 'quote' : 'fixed';
+  }
+
+  protected setPriceMode(mode: 'fixed' | 'quote' | 'visit'): void {
+    this.form.patchValue({ variable_price: mode !== 'fixed', price_at_visit: mode === 'visit' });
+    this.form.markAsDirty();
   }
 
   protected formatPrice(price: number): string {
@@ -244,6 +266,7 @@ export class ServicesPageComponent {
       price: '',
       deposit_amount: '',
       variable_price: false,
+      price_at_visit: false,
       duration_minutes: '',
       is_active: true,
       image_url: '',
@@ -273,6 +296,7 @@ export class ServicesPageComponent {
       deposit_amount: service.deposit_amount == null ? '' : String(service.deposit_amount),
       duration_minutes: String(service.duration_minutes),
       variable_price: Boolean(service.variable_price),
+      price_at_visit: Boolean(service.price_at_visit),
       is_active: service.is_active,
       image_url: service.image_url ?? '',
       questions: service.questions ?? '',
@@ -310,7 +334,8 @@ export class ServicesPageComponent {
       price: Number(raw.price),
       deposit_amount: String(raw.deposit_amount ?? '').trim() ? Number(raw.deposit_amount) : null,
       duration_minutes: Number(raw.duration_minutes),
-      variable_price: raw.variable_price,
+      variable_price: raw.variable_price || raw.price_at_visit,
+      price_at_visit: raw.price_at_visit,
       is_active: raw.is_active,
       image_url: raw.image_url || null,
       questions: raw.questions.trim() || null,
