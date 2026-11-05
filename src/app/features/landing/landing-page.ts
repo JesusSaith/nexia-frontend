@@ -16,6 +16,9 @@ import { TiltDirective } from './tilt.directive';
 /** WhatsApp de contacto: 10 dígitos más la clave de México. */
 export const WHATSAPP_NUMBER = '522712054908';
 const WHATSAPP_TEXT = 'Hola, me interesa la beta de Nexia para mi negocio.';
+/** Lo que se recuerda del quiz entre visitas (nunca nombre, correo ni teléfono). */
+const QUIZ_KEY = 'nexia-landing-quiz';
+interface SavedQuiz { step: number; kind: string; people: number | null; how: string }
 
 /**
  * Página de inicio de nexiacitas.com durante la beta: muestra qué es Nexia y recibe solicitudes de acceso
@@ -34,7 +37,21 @@ export class LandingPage implements AfterViewInit {
   private readonly formDialog = viewChild<ElementRef<HTMLDialogElement>>('formDialog');
   private readonly successBox = viewChild<ElementRef<HTMLElement>>('successBox');
 
-  readonly whatsappLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_TEXT)}`;
+  /** Lo último que la persona exploró; el mensaje de WhatsApp lo menciona para que sepamos qué le interesó. */
+  private readonly lastView = signal('');
+  private readonly giroPicked = signal(false);
+  readonly whatsappLink = computed(() => {
+    const view = this.lastView();
+    const intro: Record<string, string> = {
+      comparar: 'Hola, vi el comparador de Nexia y quiero probar la beta para mi negocio.',
+      calc: `Hola, hice la cuenta de lo que pierdo por citas que no llegan (unos ${this.money(this.calcLoss())} al mes) y quiero probar la beta de Nexia.`,
+      video: 'Hola, vi el video de Nexia y quiero probar la beta para mi negocio.',
+      dia: 'Hola, vi cómo es un día con Nexia y quiero probar la beta para mi negocio.',
+      pantallas: 'Hola, vi las pantallas de Nexia y quiero probar la beta para mi negocio.',
+    };
+    const giro = this.giroPicked() ? ` Mi negocio es de ${(this.heroKinds.find((k) => k.value === this.heroKind())?.label ?? '').toLowerCase()}.` : '';
+    return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent((intro[view] ?? WHATSAPP_TEXT) + giro)}`;
+  });
   readonly menuOpen = signal(false);
   readonly peopleOptions = [1, 2, 3, 4, 5, 6, 7];
 
@@ -70,15 +87,23 @@ export class LandingPage implements AfterViewInit {
   setTab(id: string): void {
     this.tab.set(id);
     this.spot.set(0);
+    this.landing.track('tab', `pantallas-${id}`);
+  }
+
+  /** Pestañas de Explora: se anota cuál abre la persona (y de ahí sale el mensaje de WhatsApp). */
+  setExplore(id: string): void {
+    this.explore.set(id);
+    this.lastView.set(id);
+    this.landing.track('tab', id);
   }
 
   /** Selector de giro del inicio: cambia el celular de ejemplo (nombres de examplesFor y servicios de muestra). */
   readonly heroKinds = ['belleza', 'barberia', 'unas', 'spa', 'dental', 'veterinaria'].map((v) => BUSINESS_KINDS.find((k) => k.value === v)!);
   readonly heroKind = signal('belleza');
   /** Color de cada giro: al elegirlo, el acento de todo el inicio cambia (todos con buen contraste sobre blanco). */
-  private readonly kindColors: Record<string, string> = { belleza: '#e11d48', barberia: '#1d4ed8', unas: '#a21caf', spa: '#0f766e', dental: '#0369a1', veterinaria: '#b45309' };
+  private readonly kindColors: Record<string, string> = { belleza: '#d01044', barberia: '#1d4ed8', unas: '#a21caf', spa: '#0f766e', dental: '#0369a1', veterinaria: '#b45309' };
   readonly heroTheme = computed(() => {
-    const color = this.kindColors[this.heroKind()] ?? '#e11d48';
+    const color = this.kindColors[this.heroKind()] ?? '#d01044';
     return { '--primary': color, '--color-accent': color, '--primary-text': color, '--color-accent-soft': `color-mix(in srgb, ${color} 10%, #fff)` };
   });
   readonly heroIcon = computed(() => this.heroKinds.find((k) => k.value === this.heroKind())?.icon ?? 'event_available');
@@ -96,6 +121,8 @@ export class LandingPage implements AfterViewInit {
   setHeroKind(value: string): void {
     this.heroKind.set(value);
     this.mockStep.set('servicio');
+    this.giroPicked.set(true);
+    this.landing.track('giro', value);
   }
 
   pickService(service: { name: string; time: string; price: number }): void {
@@ -230,26 +257,87 @@ export class LandingPage implements AfterViewInit {
     this.form.controls.kind.setValue(value);
     if (this.kindColors[value]) {
       this.heroKind.set(value);
+      this.giroPicked.set(true);
     }
-    this.quizStep.set(1);
+    this.landing.track('giro', value);
+    this.goQuiz(1);
   }
 
   pickPeople(value: number): void {
     this.quizPeopleValue.set(value);
     this.form.controls.people.setValue(String(value));
-    this.quizStep.set(2);
+    this.goQuiz(2);
   }
 
   pickHow(id: string): void {
     this.quizHow.set(id);
     const label = this.quizHowOptions.find((o) => o.id === id)?.label.toLowerCase() ?? '';
     this.form.controls.message.setValue(`Hoy lleva sus citas: ${label}.`);
-    this.quizStep.set(3);
+    this.goQuiz(3);
   }
 
   quizBack(): void {
-    this.quizStep.update((n) => Math.max(0, n - 1));
+    this.goQuiz(Math.max(0, this.quizStep() - 1));
   }
+
+  /** Cambia de pregunta, anota hasta dónde llegó la persona y guarda sus respuestas para que pueda retomar. */
+  private goQuiz(step: number): void {
+    this.quizStep.set(step);
+    this.landing.track('quiz', `p${step + 1}`);
+    this.saveQuiz();
+  }
+
+  private saveQuiz(): void {
+    try {
+      if (this.sent()) {
+        localStorage.removeItem(QUIZ_KEY);
+        return;
+      }
+      const data: SavedQuiz = { step: this.quizStep(), kind: this.quizKind(), people: this.quizPeopleValue(), how: this.quizHow() };
+      localStorage.setItem(QUIZ_KEY, JSON.stringify(data));
+    } catch {
+      // Sin almacenamiento (modo privado): el quiz simplemente no se recuerda.
+    }
+  }
+
+  /** Si la persona respondió y cerró la hoja, al volver sigue donde se quedó (solo giro, personas y cómo lleva las citas). */
+  private restoreQuiz(): void {
+    try {
+      const saved = JSON.parse(localStorage.getItem(QUIZ_KEY) ?? 'null') as Partial<SavedQuiz> | null;
+      if (!saved) {
+        return;
+      }
+      const kind = this.quizKinds.some((k) => k.value === saved.kind) ? (saved.kind as string) : '';
+      const people = this.quizPeople.some((o) => o.value === saved.people) ? (saved.people as number) : null;
+      const how = this.quizHowOptions.some((o) => o.id === saved.how) ? (saved.how as string) : '';
+      if (!kind) {
+        return;
+      }
+      this.quizKind.set(kind);
+      this.form.controls.kind.setValue(kind, { emitEvent: false });
+      if (this.kindColors[kind]) {
+        this.heroKind.set(kind);
+      }
+      let step = 1;
+      if (people !== null) {
+        this.quizPeopleValue.set(people);
+        this.form.controls.people.setValue(String(people), { emitEvent: false });
+        step = 2;
+        if (how) {
+          this.quizHow.set(how);
+          const label = this.quizHowOptions.find((o) => o.id === how)?.label.toLowerCase() ?? '';
+          this.form.controls.message.setValue(`Hoy lleva sus citas: ${label}.`, { emitEvent: false });
+          step = 3;
+        }
+      }
+      this.quizStep.set(Math.min(Math.max(Number(saved.step) || 0, 0), step));
+      this.quizResumed.set(this.quizStep() > 0);
+    } catch {
+      // Datos guardados dañados: se ignoran.
+    }
+  }
+  /** Se muestra "Retomamos donde te quedaste" cuando el quiz se restauró. */
+  readonly quizResumed = signal(false);
 
   /** Comparador de formas de llevar las citas. */
   readonly compareRows = [
@@ -330,11 +418,24 @@ export class LandingPage implements AfterViewInit {
     return !!s && s.appointments >= 25 && s.businesses >= 3;
   });
 
+  /** Lugares de la beta: el servidor los baja con cada solicitud aprobada (BETA_SPOTS_TOTAL). */
+  readonly spotsText = computed(() => {
+    const s = this.stats();
+    if (!s || s.spots_total <= 0) {
+      return 'Beta cerrada · cupo limitado';
+    }
+    if (s.spots_left <= 0) {
+      return 'Beta cerrada · lista de espera';
+    }
+    return s.spots_left === 1 ? `Beta cerrada · queda 1 lugar de ${s.spots_total}` : `Beta cerrada · quedan ${s.spots_left} lugares de ${s.spots_total}`;
+  });
+
   /** Lo que incluye la beta. */
   readonly offer = [
-    { icon: 'redeem', title: 'Gratis mientras dure la beta', text: 'No pagas nada en esta etapa.' },
+    { icon: 'redeem', title: 'Gratis durante toda la beta', text: 'No pagas nada en esta etapa.' },
     { icon: 'support_agent', title: 'Acompañamiento por WhatsApp', text: 'Te ayudamos a configurar.' },
-    { icon: 'sell', title: 'Precio especial al terminar', text: 'Precio preferente para la beta.' },
+    { icon: 'sell', title: 'Precio especial al terminar', text: 'Para quienes entraron a la beta.' },
+    { icon: 'verified_user', title: 'Tus datos son tuyos', text: 'Descárgalos o bórralos cuando quieras.' },
     { icon: 'forum', title: 'Tu opinión define lo que sigue', text: 'Lo que pidas, lo mejoramos.' },
   ];
 
@@ -366,9 +467,10 @@ export class LandingPage implements AfterViewInit {
 
   readonly faqs = [
     { q: '¿Mis {c} tienen que descargar una app?', a: 'No. Reservan desde el navegador de su celular, con el enlace que les compartes.' },
+    { q: '¿Cuánto cuesta?', a: 'Durante toda la beta es gratis y no pides tarjeta. Cuando termine, quienes entraron tendrán un precio especial; te avisamos con tiempo y tú decides si sigues.' },
     { q: '¿Qué es la beta?', a: 'Estamos abriendo Nexia a pocos negocios para pulirla con su uso real. Quien entra nos ayuda a mejorarla y recibe acompañamiento.' },
     { q: '¿Puedo pedir anticipo?', a: 'Sí. Tú decides si lo pides, de cuánto y qué pasa con él si el cliente cancela.' },
-    { q: '¿Qué pasa con los datos de mis {c}?', a: 'Son tuyos. Los guardamos solo para darte el servicio y no los vendemos.' },
+    { q: '¿Qué pasa con los datos de mis {c}?', a: 'Son tuyos. Los guardamos solo para darte el servicio y no los vendemos. Puedes descargarlos en un archivo (CSV) o pedir que los borremos cuando quieras.' },
     { q: '¿Sirve para mi tipo de negocio?', a: 'Sirve para cualquier negocio que atienda con cita: salones, barberías, spas, consultorios, clínicas, veterinarias y estudios.' },
   ];
 
@@ -393,6 +495,14 @@ export class LandingPage implements AfterViewInit {
     // Primer movimiento en el formulario: la persona empezó a llenarlo.
     this.form.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.landing.track('start'));
     this.landing.track('visit');
+    this.restoreQuiz();
+    // Enlaces dirigidos: nexiacitas.com/?giro=barberia abre con ese giro y su color.
+    const giro = new URLSearchParams(location.search).get('giro')?.toLowerCase() ?? '';
+    if (this.kindColors[giro]) {
+      this.heroKind.set(giro);
+      this.giroPicked.set(true);
+      this.landing.track('giro', giro);
+    }
     this.landing.stats().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ next: (s) => this.stats.set(s), error: () => undefined });
   }
 
@@ -415,6 +525,7 @@ export class LandingPage implements AfterViewInit {
     dialog.showModal();
     document.documentElement.style.overflow = 'hidden';
     this.landing.track('form');
+    this.landing.track('quiz', `p${this.quizStep() + 1}`);
   }
 
   closeForm(): void {
@@ -454,6 +565,14 @@ export class LandingPage implements AfterViewInit {
 
   money(value: number): string {
     return value.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
+  }
+
+  /** "Saltar al contenido": lleva el foco al contenido principal (el enlace por sí solo no mueve el foco en la ruta de Angular). */
+  skipToMain(event: Event): void {
+    event.preventDefault();
+    const main = document.getElementById('contenido');
+    main?.focus();
+    main?.scrollIntoView();
   }
 
   toggleMenu(): void {
@@ -503,6 +622,7 @@ export class LandingPage implements AfterViewInit {
         next: () => {
           this.submitting.set(false);
           this.sent.set(true);
+          this.saveQuiz();
           this.landing.track('sent');
           // Lleva a la persona a la confirmación (el formulario desaparece y la página se acorta).
           setTimeout(() => {

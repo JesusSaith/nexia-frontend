@@ -7,9 +7,11 @@ import { API_BASE_URL } from '../config/api-base-url';
 export interface LandingStats {
   appointments: number;
   businesses: number;
+  spots_total: number;
+  spots_left: number;
 }
 
-export type LandingStep = 'visit' | 'form' | 'start' | 'sent' | 'whatsapp';
+export type LandingStep = 'visit' | 'form' | 'start' | 'sent' | 'whatsapp' | 'tab' | 'giro' | 'quiz';
 
 const VISITOR_KEY = 'nexia-landing-visitor';
 const SOURCE_KEY = 'nexia-landing-source';
@@ -19,7 +21,7 @@ const SOURCE_KEY = 'nexia-landing-source';
 export class LandingService {
   private readonly http = inject(HttpClient);
   private readonly apiBaseUrl = inject(API_BASE_URL);
-  private readonly done = new Set<LandingStep>();
+  private readonly done = new Set<string>();
 
   /** Fuente del enlace (?fuente=instagram o utm_source); se recuerda en la pestaña para el formulario. */
   source(): string | null {
@@ -40,12 +42,15 @@ export class LandingService {
     return this.http.get<LandingStats>(`${this.apiBaseUrl}/landing/stats`);
   }
 
-  track(step: LandingStep): void {
-    if (this.done.has(step)) {
+  /** Anota un paso; `detail` dice cuál pestaña, giro o pregunta del quiz (se cuenta una vez por visita). */
+  track(step: LandingStep, detail?: string): void {
+    const key = `${step}:${detail ?? ''}`;
+    if (this.done.has(key)) {
       return;
     }
-    this.done.add(step);
-    this.http.post(`${this.apiBaseUrl}/landing/events`, { visitor: this.visitorId(), step, source: this.source() }).subscribe({ error: () => undefined });
+    this.done.add(key);
+    const clean = detail?.toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 40);
+    this.http.post(`${this.apiBaseUrl}/landing/events`, { visitor: this.visitorId(), step, detail: clean || undefined, source: this.source() }).subscribe({ error: () => undefined });
   }
 
   private visitorId(): string {

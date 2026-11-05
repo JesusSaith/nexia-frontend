@@ -1,4 +1,5 @@
 <div class="min-h-screen overflow-x-clip bg-canvas text-ink" [style]="heroTheme()">
+  <a href="#contenido" class="sr-only z-50 rounded-md bg-ink px-4 py-3 text-surface focus:not-sr-only focus:fixed focus:left-2 focus:top-2" (click)="skipToMain($event)">Saltar al contenido</a>
   <!-- Avance de la página -->
   <div class="fixed inset-x-0 top-0 z-30 h-1 origin-left bg-accent" [style.transform]="'scaleX(' + scrollPct() + ')'" aria-hidden="true"></div>
   <!-- Puntos laterales (escritorio) -->
@@ -13,7 +14,7 @@
   <!-- Encabezado -->
   <header class="sticky top-0 z-20 border-b border-line/60 bg-canvas/90 backdrop-blur">
     <div class="mx-auto flex h-20 w-full max-w-6xl items-center justify-between gap-3 px-4">
-      <a routerLink="/" class="flex items-center gap-2" aria-label="Nexia, inicio"><img src="/nexia-mark.png" alt="" class="h-11 w-auto" width="44" height="44" /><span class="text-xl font-semibold tracking-tight">Nexia</span></a>
+      <a routerLink="/" class="flex items-center gap-2" aria-label="Nexia, inicio"><img src="/nexia-mark-sm.png" alt="" class="h-11 w-auto" width="44" height="44" /><span class="text-xl font-semibold tracking-tight">Nexia</span></a>
       <nav class="hidden items-center gap-6 text-sm text-ink-soft md:flex" aria-label="Secciones">
         <a href="#funciones" class="hover:text-ink">Funciones</a>
         <a href="#como-funciona" class="hover:text-ink">Cómo funciona</a>
@@ -36,12 +37,12 @@
     }
   </header>
 
-  <main>
+  <main id="contenido" tabindex="-1" class="outline-none">
     <!-- Inicio -->
     <div id="inicio">
     <section class="mx-auto grid w-full max-w-6xl items-center gap-10 px-4 pb-14 pt-8 md:grid-cols-2 md:pt-14">
       <div class="hero-in">
-        <span class="badge border border-line-strong bg-surface text-ink-soft">Beta cerrada · cupo limitado</span>
+        <span class="badge border border-line-strong bg-surface text-ink-soft">{{ spotsText() }}</span>
         <h1 class="mt-4 text-4xl font-medium leading-tight tracking-tight sm:text-6xl">
           Tus citas, <span class="hl">sin mensajes de ida y vuelta</span>
         </h1>
@@ -50,7 +51,7 @@
           <a href="#beta" (click)="openForm($event)" class="btn btn-primary">Pedir acceso a la beta</a>
         </div>
         <ul class="mt-4 flex flex-wrap gap-x-5 gap-y-1 text-sm text-ink-soft">
-          @for (item of ['Gratis en la beta', 'Sin tarjeta', 'Te acompañamos por WhatsApp']; track item) {
+          @for (item of ['Gratis en la beta', 'Sin tarjeta', 'Tus datos son tuyos']; track item) {
             <li class="flex items-center gap-1"><mat-icon class="h-5! w-5! text-[20px]! text-accent" aria-hidden="true">check_circle</mat-icon>{{ item }}</li>
           }
         </ul>
@@ -217,9 +218,9 @@
           <h2 id="explora-title" class="hl text-3xl font-medium sm:text-4xl">Explora Nexia</h2>
           <p class="max-w-md text-sm text-ink-soft">Pantallas, video y números.</p>
         </div>
-        <div class="mt-6 flex flex-wrap gap-2" role="tablist" aria-label="Explora">
+        <div class="mt-6 flex flex-wrap gap-2" role="group" aria-label="Explora">
           @for (e of exploreTabs; track e.id) {
-            <button type="button" role="tab" class="chip" [class.chip-on]="explore() === e.id" [attr.aria-selected]="explore() === e.id" (click)="explore.set(e.id)">
+            <button type="button" class="chip" [class.chip-on]="explore() === e.id" [attr.aria-pressed]="explore() === e.id" (click)="setExplore(e.id)">
               <mat-icon class="h-5! w-5! text-[20px]!" aria-hidden="true">{{ e.icon }}</mat-icon>{{ e.label }}
             </button>
           }
@@ -227,19 +228,19 @@
 
         @switch (explore()) {
           @case ('pantallas') {
-            <div role="tabpanel" class="md:min-h-[32rem]">
-        <div class="mt-8 flex flex-wrap gap-2" role="tablist" aria-label="Pantallas">
+            <div class="md:min-h-[32rem]">
+        <div class="mt-8 flex flex-wrap gap-2" role="group" aria-label="Pantallas">
             @for (t of tabs; track t.id) {
-              <button type="button" role="tab" class="chip" [class.chip-on]="tab() === t.id" [attr.aria-selected]="tab() === t.id" (click)="setTab(t.id)">
+              <button type="button" class="chip" [class.chip-on]="tab() === t.id" [attr.aria-pressed]="tab() === t.id" (click)="setTab(t.id)">
                 <mat-icon class="h-5! w-5! text-[20px]!" aria-hidden="true">{{ t.icon }}</mat-icon>{{ t.label }}
               </button>
             }
-            <button type="button" role="tab" class="chip" [class.chip-on]="tab() === 'giro'" [attr.aria-selected]="tab() === 'giro'" (click)="setTab('giro')">
+            <button type="button" class="chip" [class.chip-on]="tab() === 'giro'" [attr.aria-pressed]="tab() === 'giro'" (click)="setTab('giro')">
               <mat-icon class="h-5! w-5! text-[20px]!" aria-hidden="true">auto_awesome</mat-icon>Tu giro
             </button>
           </div>
           @if (tab() === 'giro') {
-          <div class="mt-8 grid items-center gap-8 md:grid-cols-2" role="tabpanel">
+          <div class="mt-8 grid items-center gap-8 md:grid-cols-2">
             <div tilt class="mx-auto w-64 overflow-hidden rounded-[2rem] border-[8px] border-ink bg-surface shadow-xl">
               <div class="px-4 pb-4 pt-5">
                 <div class="flex items-center gap-3">
@@ -270,7 +271,7 @@
             </div>
           </div>
           } @else {
-          <div class="mt-8 grid items-center gap-8 md:grid-cols-[1fr_20rem]" role="tabpanel">
+          <div class="mt-8 grid items-center gap-8 md:grid-cols-[1fr_20rem]">
             <div class="order-2 md:order-1">
               <div tilt class="overflow-hidden rounded-2xl border border-b-4 border-ink bg-surface shadow-xl">
                 <div class="flex items-center gap-1.5 border-b border-line bg-canvas px-3 py-2" aria-hidden="true">
@@ -313,10 +314,10 @@
             </div>
           }
           @case ('video') {
-            <div role="tabpanel" class="mt-8 grid items-center gap-8 rounded-3xl bg-ink p-6 text-surface sm:p-8 md:min-h-[32rem] md:grid-cols-2">
+            <div class="mt-8 grid items-center gap-8 rounded-3xl bg-ink p-6 text-surface sm:p-8 md:min-h-[32rem] md:grid-cols-2">
               <div>
                 <h3 class="text-3xl font-medium sm:text-4xl">Míralo en acción</h3>
-                <p class="mt-4 max-w-md text-base opacity-85">Tu cliente reserva y la cita aparece sola.</p>
+                <p class="mt-4 max-w-md text-base">Tu cliente reserva y la cita aparece sola.</p>
                 <a href="#beta" (click)="openForm($event)" class="btn btn-secondary mt-6">Pedir acceso a la beta</a>
               </div>
               <div class="mx-auto w-full max-w-[16rem] overflow-hidden rounded-3xl border border-white/20 bg-black shadow-2xl">
@@ -325,7 +326,7 @@
             </div>
           }
           @case ('comparar') {
-            <div role="tabpanel" class="mt-8 overflow-x-auto rounded-3xl border border-b-4 border-ink bg-surface">
+            <div tabindex="0" aria-label="Tabla para comparar formas de llevar las citas" class="mt-8 overflow-x-auto rounded-3xl border border-b-4 border-ink bg-surface">
               <table class="w-full min-w-[34rem] text-left text-sm">
                 <thead>
                   <tr>
@@ -355,7 +356,7 @@
             </div>
           }
           @case ('dia') {
-            <div role="tabpanel" class="mt-8 grid gap-4 md:grid-cols-3">
+            <div class="mt-8 grid gap-4 md:grid-cols-3">
               @for (sc of dayScenes; track sc.id) {
                 <div class="flex min-h-72 flex-col rounded-3xl border border-b-4 border-ink p-6" [class.bg-surface]="sc.tone === 'light'" [class.bg-accent]="sc.tone === 'accent'" [class.text-white]="sc.tone !== 'light'" [class.bg-ink]="sc.tone === 'dark'">
                   <div class="flex items-center justify-between"><mat-icon class="h-9! w-9! text-[36px]!" aria-hidden="true">{{ sc.icon }}</mat-icon><span class="text-sm font-semibold">{{ sc.time }}</span></div>
@@ -370,7 +371,7 @@
             </div>
           }
           @default {
-            <div role="tabpanel" class="md:min-h-[32rem]">
+            <div class="md:min-h-[32rem]">
               <h3 class="mt-8 text-2xl font-medium sm:text-3xl">¿Cuánto te cuestan las faltas?</h3>
               <p class="mt-1 text-sm text-ink-soft">Haz la cuenta con tus números.</p>
         <div class="mt-6 grid gap-6 rounded-3xl border border-b-4 border-ink bg-surface p-5 sm:p-8 md:grid-cols-2">
@@ -381,11 +382,11 @@
           </div>
           <div class="flex flex-col justify-between gap-4 rounded-2xl bg-ink p-6 text-surface">
             <div>
-              <p class="text-sm opacity-85">Dejas de ganar cada mes</p>
+              <p class="text-sm">Dejas de ganar cada mes</p>
               <p class="mt-1 text-4xl font-semibold tabular-nums sm:text-5xl" aria-live="polite">{{ money(calcLoss()) }}</p>
-              <p class="mt-1 text-sm opacity-85">Al año son {{ money(calcLossYear()) }}.</p>
+              <p class="mt-1 text-sm">Al año son {{ money(calcLossYear()) }}.</p>
             </div>
-            <p class="text-sm opacity-85">Estimación con tus datos. Los recordatorios y el anticipo ayudan a bajarla.</p>
+            <p class="text-sm">Estimación con tus datos. Los recordatorios y el anticipo ayudan a bajarla.</p>
             <a href="#beta" (click)="openForm($event)" class="btn btn-secondary">Pedir acceso a la beta</a>
           </div>
         </div>
@@ -404,7 +405,7 @@
         <p class="max-w-md text-sm text-ink-soft">Todo para atender, en un solo lugar.</p>
       </div>
       <p class="mt-2 text-sm text-muted sm:hidden"><mat-icon class="h-4! w-4! align-middle text-[16px]!" aria-hidden="true">swipe</mat-icon> Desliza para ver más</p>
-      <ul class="mt-6 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 [scrollbar-width:none] sm:mt-8 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0">
+      <ul tabindex="0" aria-label="Funciones de Nexia, desliza para ver más" class="mt-6 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 [scrollbar-width:none] sm:mt-8 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0">
         @for (f of features; track f.title; let i = $index) {
           <li
             reveal [revealDelay]="(i % 2) * 0.1"
@@ -589,7 +590,7 @@
         <div class="pointer-events-none absolute inset-y-0 w-1 -translate-x-1/2 bg-ink" [style.left.%]="cut()" aria-hidden="true">
           <span class="absolute left-1/2 top-1/2 grid h-11 w-11 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-ink text-white shadow-lg"><mat-icon>swap_horiz</mat-icon></span>
         </div>
-        <input type="range" min="0" max="100" class="absolute inset-0 h-full w-full cursor-ew-resize opacity-0" aria-label="Comparar antes y después" [value]="cut()" (input)="setCut($event)" />
+        <input type="range" min="0" max="100" class="absolute inset-0 h-full w-full cursor-ew-resize opacity-0" aria-label="Comparar antes y después" [attr.aria-valuetext]="'Línea al ' + cut() + ' por ciento'" [value]="cut()" (input)="setCut($event)" />
       </div>
       </div>
     </section>
@@ -661,7 +662,7 @@
   <footer class="mx-auto w-full max-w-6xl px-4 pb-24 pt-16 md:pb-8">
     <div class="rounded-3xl bg-ink p-6 text-surface sm:p-8">
       <div class="flex flex-wrap items-center justify-between gap-4">
-        <span class="flex items-center gap-2"><img src="/nexia-mark.png" alt="" class="h-10 w-auto rounded bg-surface p-1" /><span class="text-lg font-semibold">Nexia</span></span>
+        <span class="flex items-center gap-2"><img src="/nexia-mark-sm.png" alt="" class="h-10 w-auto rounded bg-surface p-1" /><span class="text-lg font-semibold">Nexia</span></span>
         <nav class="flex flex-wrap gap-x-5 gap-y-2 text-sm" aria-label="Pie de página">
           <a class="underline underline-offset-2" routerLink="/terminos">Términos</a>
           <a class="underline underline-offset-2" routerLink="/privacidad">Aviso de privacidad</a>
@@ -678,7 +679,7 @@
       <div class="flex items-start justify-between gap-3">
         <div>
           <h2 id="beta-title" class="hl text-2xl font-medium sm:text-3xl">Pide tu acceso</h2>
-          <p class="mt-2 text-sm text-ink-soft">Tres preguntas y tu contacto. Respuesta en 24 horas.</p>
+          <p class="mt-2 text-sm text-ink-soft">Tres preguntas y tu contacto. Respuesta en 24 horas.@if (quizResumed() && quizStep() > 0) { <span class="font-medium"> Retomamos donde te quedaste.</span> }</p>
         </div>
         <button type="button" class="btn btn-ghost shrink-0 px-3" aria-label="Cerrar" (click)="closeForm()"><mat-icon aria-hidden="true">close</mat-icon></button>
       </div>
@@ -690,7 +691,7 @@
             @for (o of offer; track o.title) {
               <li class="flex gap-3">
                 <mat-icon class="shrink-0" aria-hidden="true">{{ o.icon }}</mat-icon>
-                <span><span class="block font-semibold">{{ o.title }}</span><span class="text-sm opacity-85">{{ o.text }}</span></span>
+                <span><span class="block font-semibold">{{ o.title }}</span><span class="text-sm">{{ o.text }}</span></span>
               </li>
             }
           </ul>
@@ -803,7 +804,7 @@
                     <p class="field-error" role="alert">{{ error() }}</p>
                   }
                   <button type="submit" class="btn btn-primary" [disabled]="submitting()">{{ submitting() ? 'Enviando…' : 'Enviar solicitud' }}</button>
-                  <p class="text-center text-sm text-ink-soft">¿Prefieres escribirnos? <a class="font-medium underline underline-offset-2" [href]="whatsappLink" target="_blank" rel="noopener" (click)="openWhatsapp()">Habla con nosotros por WhatsApp</a></p>
+                  <p class="text-center text-sm text-ink-soft">¿Prefieres escribirnos? <a class="font-medium underline underline-offset-2" [href]="whatsappLink()" target="_blank" rel="noopener" (click)="openWhatsapp()">Habla con nosotros por WhatsApp</a></p>
                   <p class="field-hint text-center">Usamos tus datos solo para contactarte sobre la beta. <a class="underline underline-offset-2" routerLink="/privacidad">Aviso de privacidad</a></p>
                 </form>
               }
@@ -818,7 +819,7 @@
   <div class="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-canvas/95 p-3 backdrop-blur md:hidden">
     <a href="#beta" (click)="openForm($event)" class="btn btn-primary w-full">Pedir acceso a la beta</a>
   </div>
-  <a class="btn btn-whatsapp fixed bottom-20 right-4 z-30 h-14 rounded-full px-5 shadow-lg md:bottom-4" [href]="whatsappLink" target="_blank" rel="noopener" (click)="openWhatsapp()" aria-label="Escríbenos por WhatsApp">
+  <a class="btn btn-whatsapp fixed bottom-20 right-4 z-30 h-14 rounded-full px-5 shadow-lg md:bottom-4" [href]="whatsappLink()" target="_blank" rel="noopener" (click)="openWhatsapp()" aria-label="Escríbenos por WhatsApp">
     <mat-icon aria-hidden="true">chat</mat-icon><span class="hidden sm:inline">Escríbenos</span>
   </a>
 </div>

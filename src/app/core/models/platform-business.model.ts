@@ -48,6 +48,7 @@ export interface BetaRequestItem {
 }
 
 export interface LandingFunnel {
+  details: { step: string; detail: string; visitors: number }[];
   steps: { step: string; label: string; visitors: number; kept_percent: number | null }[];
   whatsapp_clicks: number;
   conversion_percent: number | null;

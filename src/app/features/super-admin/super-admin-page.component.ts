@@ -36,6 +36,25 @@ export class SuperAdminPageComponent {
   protected readonly currentUser = this.auth.currentUser;
   protected readonly betaRequests = signal<BetaRequestItem[]>([]);
   protected readonly funnel = signal<LandingFunnel | null>(null);
+  /** Qué hacen en la landing: pestaña de Explora, giro elegido y hasta qué pregunta del quiz llegan. */
+  protected readonly detailGroups = computed(() => {
+    const rows = this.funnel()?.details ?? [];
+    const labels: Record<string, string> = {
+      comparar: 'Comparar', calc: 'Cuánto pierdes', video: 'Video', dia: 'Tu día', pantallas: 'Pantallas',
+      'pantallas-agenda': 'Pantallas · Agenda', 'pantallas-clientes': 'Pantallas · Clientes', 'pantallas-reportes': 'Pantallas · Reportes',
+      'pantallas-qr': 'Pantallas · QR', 'pantallas-giro': 'Pantallas · Tu giro',
+      p1: '1. Giro', p2: '2. Personas', p3: '3. Cómo llevan las citas', p4: '4. Contacto',
+    };
+    const groups = [
+      { step: 'tab', title: 'Pestañas que abren en Explora' },
+      { step: 'giro', title: 'Giro que eligen' },
+      { step: 'quiz', title: 'Hasta qué pregunta llegan' },
+    ];
+    return groups.map((g) => ({
+      title: g.title,
+      rows: rows.filter((r) => r.step === g.step).map((r) => ({ label: labels[r.detail] ?? r.detail, visitors: r.visitors })),
+    }));
+  });
   protected readonly betaPendingId = signal<number | null>(null);
   protected readonly newRequests = computed(() => this.betaRequests().filter((item) => item.status === 'nueva').length);
 
