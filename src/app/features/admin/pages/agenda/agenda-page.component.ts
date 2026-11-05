@@ -2312,13 +2312,27 @@ export class AgendaPageComponent {
     if (this.pendingId() !== null) {
       return;
     }
-    // Cancelar no pregunta: se puede deshacer durante 5 s. "No llegó" sí confirma (cuenta como falta).
+    // Cancelar y "No llegó" preguntan antes (cancelar avisa al cliente y libera el horario; "no llegó" cuenta como falta).
+    // Rechazar una solicitud ya es una decisión explícita (pasa `after`), así que no vuelve a preguntar.
     if (
       status === 'no_show' &&
       !(await this.confirm.ask({
         title: '¿Marcar que no llegó?',
         message: `${appointment.client_name} · ${appointment.service_name}. Cuenta en su historial de faltas.`,
         confirm: 'Sí, no llegó',
+        cancel: 'Volver',
+        danger: true,
+      }))
+    ) {
+      return;
+    }
+    if (
+      status === 'cancelled' &&
+      !after &&
+      !(await this.confirm.ask({
+        title: `¿Cancelar la ${this.copy.text().visit.toLowerCase()}?`,
+        message: `${appointment.client_name} · ${appointment.service_name}. El horario queda libre; si te equivocas, podrás deshacerlo unos segundos.`,
+        confirm: 'Sí, cancelar',
         cancel: 'Volver',
         danger: true,
       }))
