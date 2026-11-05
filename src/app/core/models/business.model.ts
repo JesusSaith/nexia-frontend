@@ -95,6 +95,7 @@ export interface PublicService {
   deposit_amount?: number | null;
   duration_minutes: number;
   variable_price?: boolean;
+  price_at_visit?: boolean;
   image_url?: string | null;
   questions?: string | null;
   capacity?: number;

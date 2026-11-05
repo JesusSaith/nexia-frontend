@@ -1216,7 +1216,18 @@ export class AgendaPageComponent {
   protected needsQuote(appointment: Appointment): boolean {
     const service = this.services().find((item) => item.id === appointment.service_id);
     const open = appointment.status === 'scheduled' || appointment.status === 'awaiting_deposit';
-    return open && !!service?.variable_price && appointment.quoted_price == null;
+    return open && !!service?.variable_price && !service.price_at_visit && appointment.quoted_price == null;
+  }
+
+  /** Servicio "en la cita": se aparta sin precio y se acuerda el día de la visita. */
+  protected priceAtVisit(serviceId: number | null | undefined): boolean {
+    return !!this.services().find((item) => item.id === serviceId)?.price_at_visit;
+  }
+
+  /** Cita de "precio en la cita" que todavía no tiene precio: se ve como "Precio por definir". */
+  protected priceOpen(appointment: Appointment): boolean {
+    const open = appointment.status === 'scheduled' || appointment.status === 'awaiting_deposit';
+    return open && this.priceAtVisit(appointment.service_id) && appointment.quoted_price == null;
   }
 
   /** La dueña dejó que el personal cambie precios y quite anticipos en cualquier servicio. */
@@ -1617,6 +1628,14 @@ export class AgendaPageComponent {
     }
     const quoted = String(value.quoted_price ?? '').trim() ? Number(value.quoted_price) : null;
     const total = quoted ?? service.price;
+    if (service.price_at_visit && quoted == null) {
+      // Aún no hay precio: solo se habla del apartado; el total se define en la cita.
+      if (value.deposit_mode === 'none') {
+        return 'Sin apartado. El precio se define en la cita.';
+      }
+      const kept = (value.deposit_mode === 'received' ? Number(value.deposit_received) : this.previewDeposit(service, null)) ?? 0;
+      return kept > 0 ? `Apartado ${this.pesos(kept)}. El precio se define en la cita y se descuenta al cobrar.` : 'El precio se define en la cita.';
+    }
     if (value.deposit_mode === 'none') {
       return `Sin anticipo. En la cita cobra ${this.pesos(total)}.`;
     }
@@ -1662,12 +1681,13 @@ export class AgendaPageComponent {
     };
   }
 
-  private previewDeposit(service: { variable_price?: boolean; deposit_amount?: number | null; price: number }, quoted: number | null): number | null {
+  private previewDeposit(service: { variable_price?: boolean; price_at_visit?: boolean; deposit_amount?: number | null; price: number }, quoted: number | null): number | null {
     const rules = this.depositRules();
     if (!rules.account) {
       return null;
     }
-    if (service.variable_price && rules.percent) {
+    // "En la cita" no tiene precio que cotizar: el anticipo es el monto fijo, no un porcentaje.
+    if (service.variable_price && !service.price_at_visit && rules.percent) {
       if (quoted == null) {
         return null;
       }

@@ -829,6 +829,9 @@
         Cotizar y avisar por WhatsApp
       </button>
     }
+    @if (priceOpen(appointment)) {
+      <p class="field-hint">Precio por definir: acuérdalo con {{ copy.text().client.toLowerCase() }} en la {{ copy.text().visit.toLowerCase() }} y escríbelo aquí antes de cobrar.</p>
+    }
     @if (quoteHref(); as href) {
       <a class="btn btn-whatsapp w-full" [href]="href" target="_blank" rel="noopener" (click)="quoteHref.set(null)">Enviar precio por WhatsApp</a>
     }
@@ -925,9 +928,13 @@
         @if (canPrice(form.controls.service_id.value)) {
           <label class="block">
             <span class="label">Precio acordado</span>
-            <input type="number" min="0" inputmode="decimal" formControlName="quoted_price" class="input nums" placeholder="El del servicio" />
+            <input type="number" min="0" inputmode="decimal" formControlName="quoted_price" class="input nums" [attr.placeholder]="priceAtVisit(form.controls.service_id.value) ? 'Se define en la cita' : 'El del servicio'" />
           </label>
-          <p class="field-hint">El precio que cerraron por WhatsApp. Si lo dejas vacío, se usa el del servicio.</p>
+          @if (priceAtVisit(form.controls.service_id.value)) {
+            <p class="field-hint">Si aún no lo acuerdan, déjalo vacío: la cita queda en tu calendario como "Precio por definir" y lo escribes al cobrar.</p>
+          } @else {
+            <p class="field-hint">El precio que cerraron por WhatsApp. Si lo dejas vacío, se usa el del servicio.</p>
+          }
         }
         @if (canWaiveDeposit()) {
           <div>

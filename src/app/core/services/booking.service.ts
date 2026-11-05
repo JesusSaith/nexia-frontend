@@ -36,6 +36,7 @@ export interface ManagedAppointment {
   client_confirmed: boolean;
   quoted_price: number | null;
   variable_price: boolean;
+  price_at_visit?: boolean;
   price_accepted: boolean;
   cancel_policy?: string | null;
   deposit_cancel_policy?: 'refund' | 'keep';

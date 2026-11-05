@@ -14,6 +14,8 @@ export interface Service {
   duration_minutes: number;
   is_active: boolean;
   variable_price?: boolean;
+  /** Con precio variable: el precio y el diseño se acuerdan en la cita, sin cotizar antes (salón de belleza y de uñas). */
+  price_at_visit?: boolean;
   image_url?: string | null;
   questions?: string | null;
   capacity?: number;
@@ -39,6 +41,8 @@ export interface ServiceWrite {
   duration_minutes: number;
   is_active?: boolean;
   variable_price?: boolean;
+  /** Con precio variable: el precio y el diseño se acuerdan en la cita, sin cotizar antes (salón de belleza y de uñas). */
+  price_at_visit?: boolean;
   image_url?: string | null;
   questions?: string | null;
   capacity?: number;
