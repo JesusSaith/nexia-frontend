@@ -15,6 +15,155 @@
       <p role="alert" class="mb-4 text-sm text-[var(--nx-bad-fg)]">{{ message }}</p>
     }
 
+
+    <!-- Solicitudes de la beta (landing) -->
+    <section class="mb-8" aria-labelledby="beta-title">
+      <div class="mb-3 flex items-center gap-2">
+        <h2 id="beta-title" class="text-base font-semibold">Solicitudes de la beta</h2>
+        @if (newRequests() > 0) {
+          <span class="badge badge-warn">{{ newRequests() }} nueva{{ newRequests() === 1 ? '' : 's' }}</span>
+        }
+      </div>
+      @if (betaRequests().length === 0) {
+        <p class="rounded border border-line bg-surface p-4 text-sm text-ink-soft">Todavía no hay solicitudes.</p>
+      } @else {
+        <ul class="grid gap-3 md:grid-cols-2">
+          @for (item of betaRequests(); track item.id) {
+            <li class="card" [class.opacity-60]="item.status === 'descartada'">
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <p class="truncate font-semibold">{{ item.business_name }}</p>
+                  <p class="text-sm text-ink-soft">{{ item.name }} · {{ kindLabel(item.kind) }}</p>
+                </div>
+                <span class="badge" [class.badge-warn]="item.status === 'nueva' || item.status === 'aprobada'" [class.badge-ok]="item.status === 'registrada'" [class.badge-neutral]="item.status === 'descartada'">{{ item.status }}</span>
+              </div>
+              <p class="mt-2 text-sm text-muted">
+                {{ item.created_at.slice(0, 10) }}
+                @if (item.people) { · {{ item.people }} persona{{ item.people === 1 ? '' : 's' }} en el equipo }
+                @if (item.source) { · desde {{ item.source }} }
+              </p>
+              @if (item.message) {
+                <p class="mt-2 text-sm">{{ item.message }}</p>
+              }
+              @if (item.status === 'aprobada') {
+                <p class="mt-2 text-sm text-ink-soft">Invitación enviada{{ item.invited_at ? ' el ' + item.invited_at.slice(0, 10) : '' }}. Todavía no crea su cuenta.</p>
+              }
+              @if (item.status === 'registrada' && item.activation; as act) {
+                <ul class="mt-2 flex flex-wrap gap-2 text-sm" aria-label="Avance de su cuenta">
+                  <li class="chip" [class.chip-on]="true">Negocio creado</li>
+                  <li class="chip" [class.chip-on]="act.services > 0">{{ act.services }} servicio{{ act.services === 1 ? '' : 's' }}</li>
+                  <li class="chip" [class.chip-on]="act.appointments > 0">{{ act.appointments }} cita{{ act.appointments === 1 ? '' : 's' }}</li>
+                </ul>
+                @if (act.services === 0 || act.appointments === 0) {
+                  <p class="mt-1 text-sm text-[var(--nx-warn-fg)]">{{ act.services === 0 ? 'Aún no agrega servicios.' : 'Aún no recibe su primera cita.' }} Conviene escribirle.</p>
+                }
+              }
+              @if (inviteLinks()[item.id]; as link) {
+                <div class="mt-2 flex items-center gap-2">
+                  <input class="input min-w-0 flex-1 text-xs" readonly [value]="link" aria-label="Enlace de invitación" />
+                  <button class="btn btn-secondary" type="button" (click)="copyLink(link)">Copiar</button>
+                </div>
+              }
+              <div class="mt-3 flex flex-wrap gap-2">
+                <a class="btn btn-whatsapp" [href]="whatsappLink(item)" target="_blank" rel="noopener"><mat-icon aria-hidden="true">chat</mat-icon> WhatsApp</a>
+                <a class="btn btn-secondary" [href]="'mailto:' + item.email"><mat-icon aria-hidden="true">mail</mat-icon> Correo</a>
+                @if (betaPendingId() === item.id) {
+                  <mat-spinner diameter="20" />
+                } @else if (item.status === 'nueva' || item.status === 'descartada') {
+                  <button class="btn btn-primary" type="button" (click)="invite(item)">Aprobar y enviar invitación</button>
+                } @else if (item.status === 'aprobada') {
+                  <button class="btn btn-secondary" type="button" (click)="invite(item)">Reenviar invitación</button>
+                }
+                @if (betaPendingId() !== item.id && item.status === 'nueva') {
+                  <button class="btn btn-ghost" type="button" (click)="setBetaStatus(item, 'descartada')">Descartar</button>
+                }
+              </div>
+              @if (item.status !== 'descartada' && item.status !== 'nueva') {
+                <details class="mt-3 text-sm">
+                  <summary class="flex min-h-11 cursor-pointer items-center font-medium">Mensajes de la primera semana</summary>
+                  <ul class="grid gap-2 pb-1">
+                    @for (m of weekMessages(item); track m.day) {
+                      <li>
+                        <a class="btn btn-whatsapp w-full justify-start" [href]="whatsappUrl(item.phone, m.text)" target="_blank" rel="noopener"><mat-icon aria-hidden="true">chat</mat-icon> {{ m.label }}</a>
+                      </li>
+                    }
+                  </ul>
+                </details>
+              }
+            </li>
+          }
+        </ul>
+      }
+    </section>
+
+    <!-- Negocio demo de la landing -->
+    <section class="mb-8" aria-labelledby="demo-title">
+      <h2 id="demo-title" class="mb-3 text-base font-semibold">Demo de la landing</h2>
+      <div class="card flex flex-wrap items-center justify-between gap-3">
+        <p class="max-w-xl text-sm text-ink-soft">Es el negocio de ejemplo que abre el botón "Prueba cómo reserva tu cliente". Se limpia solo: las reservas de visitantes se borran al día siguiente. Créalo una vez al publicar, o vuelve a crearlo para dejarlo como nuevo.</p>
+        <div class="flex flex-wrap items-center gap-2">
+          @if (demoPending()) { <mat-spinner diameter="20" /> }
+          <button class="btn btn-secondary" type="button" [disabled]="demoPending()" (click)="createDemo()">Crear o reiniciar demo</button>
+          @if (demo(); as d) {
+            <a class="btn btn-primary" [href]="d.path" target="_blank" rel="noopener">Abrir demo</a>
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- Embudo de la landing -->
+    @if (funnel(); as data) {
+      <section class="mb-8" aria-labelledby="funnel-title">
+        <h2 id="funnel-title" class="mb-3 text-base font-semibold">Landing, últimos 30 días</h2>
+        <div class="grid gap-3 md:grid-cols-2">
+          <div class="card">
+            <ol class="grid gap-2">
+              @for (step of data.steps; track step.step) {
+                <li class="flex items-center justify-between gap-3 text-sm">
+                  <span>{{ step.label }}</span>
+                  <span class="font-semibold tabular-nums">{{ step.visitors }}@if (step.kept_percent !== null) { <span class="font-normal text-muted"> · {{ step.kept_percent }}%</span> }</span>
+                </li>
+              }
+            </ol>
+            <p class="mt-3 border-t border-line pt-3 text-sm text-ink-soft">
+              @if (data.conversion_percent !== null) { De cada 100 visitas, {{ data.conversion_percent }} envían su solicitud. }
+              {{ data.whatsapp_clicks }} tocaron WhatsApp.
+            </p>
+          </div>
+          <div class="card">
+            <p class="card-title">De dónde llegan</p>
+            @if (data.sources.length === 0) {
+              <p class="mt-2 text-sm text-muted">Aún no hay visitas. Usa enlaces como nexiacitas.com/?fuente=instagram.</p>
+            } @else {
+              <ul class="mt-2 grid gap-2">
+                @for (row of data.sources; track row.source) {
+                  <li class="flex items-center justify-between gap-3 text-sm"><span>{{ row.source }}</span><span class="tabular-nums">{{ row.visitors }} visitas · {{ row.sent }} solicitudes</span></li>
+                }
+              </ul>
+            }
+          </div>
+        </div>
+        <div class="mt-3 grid gap-3 md:grid-cols-3">
+          @for (group of detailGroups(); track group.title) {
+            <div class="card">
+              <p class="card-title">{{ group.title }}</p>
+              @if (group.rows.length === 0) {
+                <p class="mt-2 text-sm text-muted">Aún sin datos.</p>
+              } @else {
+                <ul class="mt-2 grid gap-2">
+                  @for (row of group.rows; track row.label) {
+                    <li class="flex items-center justify-between gap-3 text-sm"><span>{{ row.label }}</span><span class="font-semibold tabular-nums">{{ row.visitors }}</span></li>
+                  }
+                </ul>
+              }
+            </div>
+          }
+        </div>
+      </section>
+    }
+
+    <h2 class="mb-3 text-base font-semibold">Negocios</h2>
+
     @if (isLoading()) {
       <div class="flex justify-center py-16">
         <mat-spinner diameter="36" />
@@ -26,7 +175,7 @@
         <table mat-table [dataSource]="businesses()" class="w-full">
           <ng-container matColumnDef="name">
             <th mat-header-cell *matHeaderCellDef>Negocio</th>
-            <td mat-cell *matCellDef="let business">{{ business.name }}</td>
+            <td mat-cell *matCellDef="let business">{{ business.name }} @if (business.is_demo) { <span class="badge badge-neutral">Demo</span> }</td>
           </ng-container>
           <ng-container matColumnDef="slug">
             <th mat-header-cell *matHeaderCellDef>Slug</th>

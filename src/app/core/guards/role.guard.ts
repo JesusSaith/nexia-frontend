@@ -1,5 +1,6 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router, UrlTree } from '@angular/router';
+import { map } from 'rxjs';
 
 import { CurrentUser, UserRole } from '../models/user.model';
 import { AuthService } from '../services/auth.service';
@@ -68,4 +69,18 @@ export const guestGuard: CanActivateFn = () => {
   const user = inject(AuthService).currentUser();
   const home = user ? sessionHome(user) : null;
   return home ? inject(Router).parseUrl(home) : true;
+};
+
+/** Página de inicio: quien ya tiene sesión va a su panel; el resto la ve. Pregunta por la sesión si aún no se hizo. */
+export const landingGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  const go = (user: CurrentUser | null) => {
+    const home = user ? sessionHome(user) : null;
+    return home ? router.parseUrl(home) : true;
+  };
+  if (auth.hasProbedSession || auth.currentUser()) {
+    return go(auth.currentUser());
+  }
+  return auth.restoreSession().pipe(map(go));
 };

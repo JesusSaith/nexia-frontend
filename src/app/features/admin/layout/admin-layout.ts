@@ -23,6 +23,7 @@ import { TabAlerts } from '@core/services/tab-alerts.service';
 import { ConnectionService } from '@core/services/connection.service';
 import { PushService } from '@core/services/push.service';
 import { Toasts } from '@core/toasts';
+import { FeedbackDialogComponent } from '@shared/components/feedback/feedback-dialog';
 import { HelpComponent } from '@shared/components/help/help';
 import { GlobalSearchComponent } from '@shared/components/global-search/global-search';
 import { DashboardService } from '@core/services/dashboard.service';
@@ -438,6 +439,15 @@ export class AdminLayoutComponent {
   protected clearLogo(): void {
     this.copy.setLogo(null);
     this.logoUrl.set(null);
+  }
+
+  protected openFeedback(): void {
+    this.dialog.open(FeedbackDialogComponent, {
+      data: { page: this.router.url.split('?')[0].slice(0, 120) },
+      autoFocus: 'textarea',
+      maxWidth: '92vw',
+      ariaLabelledBy: 'feedback-title',
+    });
   }
 
   protected logout(): void {

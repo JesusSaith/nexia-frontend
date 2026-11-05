@@ -17,6 +17,17 @@ export interface CurrentUser {
   timezone?: string | null;
 }
 
+/** Estado del registro: cerrado (solo con invitación) o abierto, y los datos de la solicitud si la invitación es válida. */
+export interface InvitationInfo {
+  invite_only: boolean;
+  valid: boolean;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  business_name: string | null;
+  kind: string | null;
+}
+
 export interface LoginRequest {
   email: string;
   password: string;
@@ -34,4 +45,6 @@ export interface RegisterRequest {
   acceptTerms: boolean;
   usesCommissions?: boolean;
   timezone?: string | null;
+  /** Código de la invitación a la beta (viene en el enlace del correo). */
+  invitation?: string | null;
 }
