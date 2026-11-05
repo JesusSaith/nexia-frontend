@@ -686,3 +686,20 @@ mat-icon {
   .hero-in, .float, .spin-slow, .marquee { animation: none; }
   .lift { transition: none; }
 }
+
+/* Mini escenas de las tarjetas de Funciones (landing): se repiten solas y se apagan con "reducir movimiento". */
+.sc-fill { background-color: currentColor; opacity: .15; animation: nx-fill 4.8s ease-in-out infinite; animation-delay: var(--d, 0s); }
+.sc-pop { opacity: 0; animation: nx-pop 4.8s ease-out infinite; animation-delay: var(--d, 0s); }
+.sc-grow { transform-origin: bottom; transform: scaleY(0); animation: nx-grow 4.8s ease-out infinite; animation-delay: var(--d, 0s); }
+.sc-slide { transform-origin: left; transform: scaleX(0); animation: nx-slide 4.8s ease-out infinite; animation-delay: var(--d, 0s); }
+.sc-scan { animation: nx-scan 2.6s ease-in-out infinite; }
+@keyframes nx-fill { 0%, 25% { opacity: .15; } 45%, 80% { opacity: .9; } 100% { opacity: .15; } }
+@keyframes nx-pop { 0% { opacity: 0; transform: scale(.7); } 15%, 80% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1); } }
+@keyframes nx-grow { 0% { transform: scaleY(0); } 25%, 80% { transform: scaleY(1); } 100% { transform: scaleY(0); } }
+@keyframes nx-slide { 0% { transform: scaleX(0); } 25%, 80% { transform: scaleX(1); } 100% { transform: scaleX(0); } }
+@keyframes nx-scan { 0%, 100% { top: 0; } 50% { top: calc(100% - 2px); } }
+@media (prefers-reduced-motion: reduce) {
+  .sc-fill { opacity: .9; animation: none; }
+  .sc-pop, .sc-grow, .sc-slide { opacity: 1; transform: none; animation: none; }
+  .sc-scan { animation: none; top: 50%; }
+}

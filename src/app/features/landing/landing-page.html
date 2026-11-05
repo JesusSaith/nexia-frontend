@@ -27,23 +27,24 @@
 
   <main>
     <!-- Inicio -->
+    <div [style]="heroTheme()">
     <section class="mx-auto grid w-full max-w-6xl items-center gap-10 px-4 pb-14 pt-8 md:grid-cols-2 md:pt-14">
       <div class="hero-in">
         <span class="badge border border-line-strong bg-surface text-ink-soft">Beta cerrada · cupo limitado</span>
         <h1 class="mt-4 text-4xl font-medium leading-tight tracking-tight sm:text-6xl">
           Tus citas, <span class="hl">sin mensajes de ida y vuelta</span>
         </h1>
-        <p class="mt-5 max-w-md text-base text-ink-soft sm:text-lg">
-          Nexia le da a tu negocio una página de reservas con tu enlace y un panel para llevar agenda, equipo, clientes y cobros desde el celular.
-        </p>
+        <p class="mt-5 max-w-md text-base text-ink-soft sm:text-lg">Tu página de reservas y tu agenda, en el celular.</p>
         <div class="mt-7 flex flex-col gap-3 sm:flex-row">
           <a href="#beta" class="btn btn-primary">Pedir acceso a la beta</a>
         </div>
         <div class="mt-7">
-          <p class="text-sm font-medium text-ink-soft">Mira cómo se vería para tu negocio:</p>
+          <p class="text-sm font-medium text-ink-soft">Elige tu giro:</p>
           <div class="mt-2 flex flex-wrap gap-2" role="group" aria-label="Tipo de negocio de ejemplo">
             @for (k of heroKinds; track k.value) {
-              <button type="button" class="chip" [class.chip-on]="heroKind() === k.value" [attr.aria-pressed]="heroKind() === k.value" (click)="heroKind.set(k.value)">{{ k.label }}</button>
+              <button type="button" class="chip" [class.chip-on]="heroKind() === k.value" [attr.aria-pressed]="heroKind() === k.value" (click)="setHeroKind(k.value)">
+                <mat-icon class="h-5! w-5! text-[20px]!" aria-hidden="true">{{ k.icon }}</mat-icon>{{ k.label }}
+              </button>
             }
           </div>
         </div>
@@ -52,16 +53,19 @@
         }
       </div>
 
-      <!-- Celular con la página de reservas real y formas de la marca -->
-      <div class="hero-in relative mx-auto h-[34rem] w-full max-w-sm" style="--d: .15s" aria-hidden="true">
-        <svg class="spin-slow absolute inset-0 h-full w-full" viewBox="0 0 400 420" fill="none">
+      <!-- Celular tocable: una reserva de juguete -->
+      <div class="hero-in relative mx-auto h-[34rem] w-full max-w-sm" style="--d: .15s">
+        <svg class="spin-slow absolute inset-0 h-full w-full" viewBox="0 0 400 420" fill="none" aria-hidden="true">
           <ellipse cx="200" cy="210" rx="190" ry="70" transform="rotate(-24 200 210)" stroke="currentColor" class="text-ink" stroke-width="1.2" />
           <ellipse cx="200" cy="210" rx="170" ry="52" transform="rotate(-24 200 210)" stroke="currentColor" class="text-ink" stroke-width="1.2" />
         </svg>
-        <svg class="float absolute left-0 top-10 h-12 w-12" viewBox="0 0 48 48"><path d="M24 2l5 15 15 5-15 5-5 15-5-15-15-5 15-5z" class="fill-ink" /></svg>
-        <span class="float absolute right-2 top-6 h-14 w-14 rounded-full bg-accent" style="--d: 1s"></span>
+        <svg class="float absolute left-0 top-10 h-12 w-12" viewBox="0 0 48 48" aria-hidden="true"><path d="M24 2l5 15 15 5-15 5-5 15-5-15-15-5 15-5z" class="fill-ink" /></svg>
+        <span class="float absolute right-2 top-6 grid h-14 w-14 place-items-center rounded-full bg-accent text-white" style="--d: 1s" aria-hidden="true"><mat-icon>{{ heroIcon() }}</mat-icon></span>
+        <p class="absolute left-1/2 top-0 z-10 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-full border border-line-strong bg-surface px-3 py-1 text-xs font-medium shadow" role="status">
+          <mat-icon class="h-4! w-4! text-[16px]! text-accent" aria-hidden="true">touch_app</mat-icon>{{ mockHint() }}
+        </p>
         <div class="absolute left-1/2 top-1/2 w-60 -translate-x-1/2 -translate-y-1/2 rotate-2 overflow-hidden rounded-[2rem] border-[8px] border-ink bg-surface shadow-2xl">
-          <div class="px-4 pb-5 pt-6">
+          <div class="flex h-[26rem] flex-col px-4 pb-4 pt-6">
             <div class="flex items-center gap-3">
               <span class="avatar h-11! w-11! text-base!">{{ heroMock().initial }}</span>
               <div class="min-w-0">
@@ -69,30 +73,82 @@
                 <p class="text-xs text-muted">Reserva en línea</p>
               </div>
             </div>
-            <p class="mt-3 text-xs text-ink-soft">{{ heroMock().description }}</p>
-            <p class="mt-4 text-xs font-semibold uppercase tracking-wide text-muted">Elige un servicio</p>
-            <ul class="mt-2 grid gap-2">
-              @for (sv of heroMock().services; track sv.name) {
-                <li class="flex items-center justify-between gap-2 rounded-xl border border-line bg-canvas px-3 py-2.5">
-                  <span class="min-w-0"><span class="block truncate text-sm font-medium">{{ sv.name }}</span><span class="text-xs text-muted">{{ sv.time }}</span></span>
-                  <span class="shrink-0 text-sm font-semibold">{{ money(sv.price) }}</span>
-                </li>
+            @switch (mockStep()) {
+              @case ('servicio') {
+                <p class="mt-5 text-xs font-semibold uppercase tracking-wide text-muted">Elige un servicio</p>
+                <ul class="mt-2 grid gap-2">
+                  @for (sv of heroMock().services; track sv.name) {
+                    <li>
+                      <button type="button" class="flex min-h-12 w-full items-center justify-between gap-2 rounded-xl border border-line bg-canvas px-3 py-2 text-left transition-colors hover:border-accent" (click)="pickService(sv)">
+                        <span class="min-w-0"><span class="block truncate text-sm font-medium">{{ sv.name }}</span><span class="text-xs text-muted">{{ sv.time }}</span></span>
+                        <span class="shrink-0 text-sm font-semibold">{{ money(sv.price) }}</span>
+                      </button>
+                    </li>
+                  }
+                </ul>
               }
-            </ul>
-            <span class="btn btn-primary mt-4 w-full">Reservar</span>
+              @case ('horario') {
+                <button type="button" class="mt-4 flex min-h-11 items-center gap-1 text-sm font-medium text-accent" (click)="resetMock()"><mat-icon class="h-5! w-5! text-[20px]!" aria-hidden="true">arrow_back</mat-icon>{{ mockService()?.name }}</button>
+                <p class="text-xs font-semibold uppercase tracking-wide text-muted">Mañana · elige una hora</p>
+                <ul class="mt-2 grid grid-cols-2 gap-2">
+                  @for (sl of slots; track sl.t) {
+                    <li>
+                      <button type="button" class="h-11 w-full rounded-xl border text-sm font-medium transition-colors" [class.border-line]="true" [class.text-muted]="sl.busy" [class.line-through]="sl.busy" [class.hover:border-accent]="!sl.busy" [disabled]="sl.busy" (click)="pickSlot(sl.t)">{{ sl.t }}</button>
+                    </li>
+                  }
+                </ul>
+              }
+              @default {
+                <div class="flex flex-1 flex-col items-center justify-center text-center" role="status">
+                  <span class="grid h-16 w-16 place-items-center rounded-full bg-accent text-white"><mat-icon class="h-9! w-9! text-[36px]!" aria-hidden="true">check</mat-icon></span>
+                  <p class="mt-3 text-base font-semibold">Cita confirmada</p>
+                  <p class="mt-1 text-sm text-ink-soft">{{ mockService()?.name }}</p>
+                  <p class="text-sm text-ink-soft">Mañana · {{ mockSlot() }}</p>
+                  <button type="button" class="btn btn-secondary mt-4" (click)="resetMock()">Probar otra vez</button>
+                </div>
+              }
+            }
+            <span class="mt-auto flex justify-center gap-1.5 pt-3" aria-hidden="true">
+              @for (st of ['servicio', 'horario', 'listo']; track st) {
+                <span class="h-1.5 w-6 rounded-full" [class.bg-accent]="mockStep() === st" [class.bg-line]="mockStep() !== st"></span>
+              }
+            </span>
           </div>
         </div>
-        <div class="float absolute -left-2 bottom-24 flex items-center gap-2 rounded-xl border border-b-4 border-line border-b-ink bg-surface px-3 py-2 text-sm font-medium shadow-lg" style="--d: .5s">
+        <div class="float pointer-events-none absolute -left-2 bottom-24 flex items-center gap-2 rounded-xl border border-b-4 border-line border-b-ink bg-surface px-3 py-2 text-sm font-medium shadow-lg" style="--d: .5s" aria-hidden="true">
           <mat-icon class="h-5! w-5! text-[20px]! text-[var(--nx-ok-fg)]">check_circle</mat-icon> Cita confirmada
         </div>
-        <div class="float absolute -right-2 bottom-8 flex items-center gap-2 rounded-xl border border-b-4 border-line border-b-ink bg-surface px-3 py-2 text-sm font-medium shadow-lg" style="--d: 1.6s">
+        <div class="float pointer-events-none absolute -right-2 bottom-8 flex items-center gap-2 rounded-xl border border-b-4 border-line border-b-ink bg-surface px-3 py-2 text-sm font-medium shadow-lg" style="--d: 1.6s" aria-hidden="true">
           <mat-icon class="h-5! w-5! text-[20px]! text-accent">payments</mat-icon> Anticipo recibido
         </div>
       </div>
     </section>
 
+    <!-- Números -->
+    <section class="bg-accent-soft py-10" aria-label="Nexia en números">
+      <ul class="mx-auto grid w-full max-w-6xl gap-8 px-4 text-center sm:grid-cols-3">
+        <li reveal>
+          <p class="text-5xl font-semibold tabular-nums sm:text-6xl"><span countUp [countFrom]="0" [countTo]="24">24</span>/7</p>
+          <p class="mt-1 text-sm text-ink-soft">reservas, a cualquier hora</p>
+        </li>
+        <li reveal [revealDelay]="0.1">
+          <p class="text-5xl font-semibold tabular-nums sm:text-6xl"><span countUp [countFrom]="12" [countTo]="0">0</span></p>
+          <p class="mt-1 text-sm text-ink-soft">mensajes de ida y vuelta</p>
+        </li>
+        <li reveal [revealDelay]="0.2">
+          <p class="text-5xl font-semibold tabular-nums sm:text-6xl"><span countUp [countFrom]="0" [countTo]="10">10</span> min</p>
+          <p class="mt-1 text-sm text-ink-soft">para configurar tu negocio</p>
+        </li>
+      </ul>
+    </section>
+    </div>
+
     <!-- Giros (cinta que se desliza) -->
-    <section class="overflow-hidden pb-16" aria-label="Giros que lo usan">
+    <section class="overflow-hidden py-12" aria-label="Giros para los que está pensada">
+      <div class="mb-6 flex flex-wrap items-center justify-center gap-3 px-4 text-sm text-ink-soft">
+        <span class="badge border border-line-strong bg-surface text-ink-soft"><mat-icon class="h-4! w-4! text-[16px]!" aria-hidden="true">verified</mat-icon> Hecho en México</span>
+        <span>Pensada para negocios con cita</span>
+      </div>
       <div class="marquee">
         @for (copy of [0, 1]; track copy) {
           <ul class="flex shrink-0 items-center gap-10 pr-10 text-ink-soft" [attr.aria-hidden]="copy === 1">
@@ -109,11 +165,11 @@
       <div class="mx-auto w-full max-w-6xl px-4">
         <div class="flex flex-wrap items-center gap-x-6 gap-y-2" reveal>
           <h2 id="asi-se-ve" class="hl text-3xl font-medium sm:text-4xl">Así se ve</h2>
-          <p class="max-w-md text-sm text-ink-soft">Capturas reales de Nexia con un negocio de ejemplo, en celular y en computadora.</p>
+          <p class="max-w-md text-sm text-ink-soft">Capturas reales. Toca los puntos.</p>
         </div>
         <div class="mt-8 flex flex-wrap gap-2" role="tablist" aria-label="Pantallas">
           @for (t of tabs; track t.id) {
-            <button type="button" role="tab" class="chip" [class.chip-on]="tab() === t.id" [attr.aria-selected]="tab() === t.id" (click)="tab.set(t.id)">
+            <button type="button" role="tab" class="chip" [class.chip-on]="tab() === t.id" [attr.aria-selected]="tab() === t.id" (click)="setTab(t.id)">
               <mat-icon class="h-5! w-5! text-[20px]!" aria-hidden="true">{{ t.icon }}</mat-icon>{{ t.label }}
             </button>
           }
@@ -125,9 +181,21 @@
                 <span class="h-2.5 w-2.5 rounded-full bg-line-strong"></span><span class="h-2.5 w-2.5 rounded-full bg-line-strong"></span><span class="h-2.5 w-2.5 rounded-full bg-line-strong"></span>
                 <span class="ml-3 truncate rounded-md bg-surface px-3 py-0.5 text-xs text-muted">app.nexiacitas.com/admin</span>
               </div>
-              <img [src]="currentTab().desk" alt="" width="1000" height="625" loading="lazy" class="block h-auto w-full" />
+              <div class="relative">
+                <img [src]="currentTab().desk" alt="" width="1000" height="625" loading="lazy" class="block h-auto w-full" />
+                @for (sp of currentTab().spots; track sp.text; let i = $index) {
+                  <button type="button" class="absolute grid h-11 w-11 -translate-x-1/2 -translate-y-1/2 place-items-center" [style.left.%]="sp.x" [style.top.%]="sp.y" [attr.aria-label]="sp.text" [attr.aria-pressed]="spot() === i" (click)="spot.set(i)">
+                    <span class="relative grid h-7 w-7 place-items-center rounded-full border-2 border-white bg-accent text-xs font-semibold text-white shadow transition-transform" [class.scale-125]="spot() === i">
+                      <span class="absolute inset-0 -z-10 animate-ping rounded-full bg-accent opacity-40 motion-reduce:hidden" aria-hidden="true"></span>{{ i + 1 }}
+                    </span>
+                  </button>
+                }
+              </div>
             </div>
-            <p class="mt-4 max-w-xl text-base text-ink-soft"><strong class="text-ink">{{ currentTab().label }}.</strong> {{ currentTab().text }}</p>
+            <p class="mt-4 flex items-center gap-3 text-base" aria-live="polite">
+              <span class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-accent text-sm font-semibold text-white">{{ spot() + 1 }}</span>
+              <strong class="font-semibold">{{ currentSpot().text }}</strong>
+            </p>
           </div>
           <div class="order-1 mx-auto w-56 overflow-hidden rounded-[2rem] border-[8px] border-ink bg-surface shadow-xl md:order-2">
             <img [src]="currentTab().phone" alt="" width="585" height="1170" loading="lazy" class="block h-auto w-full" />
@@ -141,7 +209,7 @@
       <div class="mx-auto grid w-full max-w-6xl items-center gap-10 px-4 md:grid-cols-2">
         <div reveal>
           <h2 id="en-accion" class="text-3xl font-medium sm:text-4xl">Míralo en acción</h2>
-          <p class="mt-4 max-w-md text-base opacity-85">En menos de un minuto tu cliente reserva desde su celular y la cita aparece sola en tu agenda. Sin mensajes, sin libreta.</p>
+          <p class="mt-4 max-w-md text-base opacity-85">Tu cliente reserva y la cita aparece sola.</p>
           <a href="#beta" class="btn btn-secondary mt-6">Pedir acceso a la beta</a>
         </div>
         <div reveal [revealDelay]="0.12" class="mx-auto w-full max-w-xs overflow-hidden rounded-3xl border border-white/20 bg-black shadow-2xl">
@@ -155,7 +223,7 @@
       <div class="mx-auto w-full max-w-6xl px-4">
         <div class="flex flex-wrap items-center gap-x-6 gap-y-2" reveal>
           <h2 id="calculadora" class="hl bg-surface! text-3xl font-medium sm:text-4xl">¿Cuánto te cuestan las faltas?</h2>
-          <p class="max-w-md text-sm text-ink-soft">Cuando alguien no llega, ese horario se pierde. Haz la cuenta con tus números.</p>
+          <p class="max-w-md text-sm text-ink-soft">Haz la cuenta con tus números.</p>
         </div>
         <div reveal class="mt-8 grid gap-6 rounded-3xl border border-b-4 border-ink bg-surface p-5 sm:p-8 md:grid-cols-2">
           <div class="grid gap-4">
@@ -169,7 +237,7 @@
               <p class="mt-1 text-4xl font-semibold tabular-nums sm:text-5xl" aria-live="polite">{{ money(calcLoss()) }}</p>
               <p class="mt-1 text-sm opacity-85">Al año son {{ money(calcLossYear()) }}.</p>
             </div>
-            <p class="text-sm opacity-85">Con recordatorios, anticipo y reservas claras, las faltas bajan. Es una estimación con los datos que pusiste.</p>
+            <p class="text-sm opacity-85">Estimación con tus datos. Los recordatorios y el anticipo ayudan a bajarla.</p>
             <a href="#beta" class="btn btn-secondary">Pedir acceso a la beta</a>
           </div>
         </div>
@@ -180,13 +248,13 @@
     <section id="funciones" class="mx-auto w-full max-w-6xl scroll-mt-4 px-4 py-16">
       <div class="flex flex-wrap items-center gap-x-6 gap-y-2" reveal>
         <h2 class="hl text-3xl font-medium sm:text-4xl">Funciones</h2>
-        <p class="max-w-md text-sm text-ink-soft">Todo lo que necesitas para atender, en un solo lugar.</p>
+        <p class="max-w-md text-sm text-ink-soft">Todo para atender, en un solo lugar.</p>
       </div>
       <ul class="mt-8 grid gap-4 sm:grid-cols-2">
         @for (f of features; track f.title; let i = $index) {
           <li
             reveal [revealDelay]="(i % 2) * 0.1"
-            class="lift flex min-h-40 flex-col justify-between rounded-3xl border border-b-4 border-ink p-6"
+            class="lift flex min-h-64 flex-col justify-between overflow-hidden rounded-3xl border border-b-4 border-ink p-6"
             [class.bg-surface]="f.tone === 'light'"
             [class.text-ink]="f.tone === 'light'"
             [class.bg-accent]="f.tone === 'accent'"
@@ -194,7 +262,71 @@
             [class.bg-ink]="f.tone === 'dark'"
           >
             <mat-icon class="h-8! w-8! text-[32px]!" aria-hidden="true">{{ f.icon }}</mat-icon>
-            <div class="mt-6">
+            <div class="my-5 flex h-20 items-center justify-center" aria-hidden="true">
+              @switch (f.scene) {
+                @case ('slots') {
+                  <div class="grid grid-cols-4 gap-2">
+                    @for (n of [0, 1, 2, 3, 4, 5, 6, 7]; track n) {
+                      <span class="h-6 w-12 rounded-md bg-current/15" [class.sc-fill]="n === 2 || n === 5" [style.--d]="n * 0.4 + 's'"></span>
+                    }
+                  </div>
+                }
+                @case ('pay') {
+                  <div class="flex items-center gap-3">
+                    <span class="sc-pop rounded-full border-2 border-current px-4 py-1 text-lg font-semibold">$200</span>
+                    <mat-icon class="sc-pop h-9! w-9! text-[36px]!" style="--d: .6s">check_circle</mat-icon>
+                  </div>
+                }
+                @case ('agenda') {
+                  <div class="grid w-44 gap-2">
+                    @for (w of [70, 45, 85]; track w; let n = $index) {
+                      <span class="sc-slide h-5 rounded-md bg-current/50" [style.width.%]="w" [style.--d]="n * 0.5 + 's'"></span>
+                    }
+                  </div>
+                }
+                @case ('chat') {
+                  <div class="grid w-44 gap-2">
+                    <span class="sc-pop h-6 w-32 rounded-xl rounded-bl-sm bg-current/20"></span>
+                    <span class="sc-pop ml-auto h-6 w-24 rounded-xl rounded-br-sm bg-current/60" style="--d: .8s"></span>
+                  </div>
+                }
+                @case ('team') {
+                  <div class="flex items-end gap-4">
+                    @for (h of [40, 64, 52]; track h; let n = $index) {
+                      <div class="flex flex-col items-center gap-1">
+                        <span class="sc-grow w-8 rounded-t-md bg-current/50" [style.height.px]="h" [style.--d]="n * 0.4 + 's'"></span>
+                        <span class="h-6 w-6 rounded-full bg-current"></span>
+                      </div>
+                    }
+                  </div>
+                }
+                @case ('clients') {
+                  <div class="grid w-44 gap-2">
+                    @for (n of [0, 1, 2]; track n) {
+                      <div class="sc-pop flex items-center gap-2" [style.--d]="n * 0.5 + 's'"><span class="h-5 w-5 rounded-full bg-current"></span><span class="h-3 flex-1 rounded bg-current/30"></span></div>
+                    }
+                  </div>
+                }
+                @case ('chart') {
+                  <div class="flex h-16 items-end gap-2">
+                    @for (h of [40, 65, 50, 85, 100]; track $index; let n = $index) {
+                      <span class="sc-grow w-6 rounded-t-md bg-current/60" [style.height.%]="h" [style.--d]="n * 0.25 + 's'"></span>
+                    }
+                  </div>
+                }
+                @case ('qr') {
+                  <div class="relative h-16 w-16 overflow-hidden rounded-md border-2 border-current p-1">
+                    <div class="grid h-full grid-cols-5 gap-px">
+                      @for (c of qrCells; track $index) {
+                        <span [class.bg-current]="c === 1"></span>
+                      }
+                    </div>
+                    <span class="sc-scan absolute inset-x-0 h-0.5 bg-current shadow-[0_0_6px_currentColor]"></span>
+                  </div>
+                }
+              }
+            </div>
+            <div>
               <h3 class="text-lg font-semibold">{{ f.title }}</h3>
               <p class="mt-1 text-sm" [class.text-ink-soft]="f.tone === 'light'" [class.opacity-90]="f.tone !== 'light'">{{ f.text }}</p>
             </div>
@@ -205,7 +337,7 @@
       <div reveal class="mt-6 flex flex-col items-start gap-4 rounded-3xl bg-line/60 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
         <div>
           <h3 class="text-xl font-medium">Estamos abriendo la beta</h3>
-          <p class="mt-1 max-w-md text-sm text-ink-soft">Entra con unos cuantos negocios y ayúdanos a dejar Nexia lista para todos.</p>
+          <p class="mt-1 max-w-md text-sm text-ink-soft">Entra con pocos negocios y ayúdanos a mejorar Nexia.</p>
         </div>
         <a href="#beta" class="btn btn-primary shrink-0">Pedir acceso</a>
       </div>
@@ -215,25 +347,46 @@
     <section class="mx-auto w-full max-w-6xl px-4 pb-16" aria-labelledby="antes-despues">
       <div class="flex flex-wrap items-center gap-x-6 gap-y-2" reveal>
         <h2 id="antes-despues" class="hl text-3xl font-medium sm:text-4xl">Antes y después</h2>
-        <p class="max-w-md text-sm text-ink-soft">Agendar por WhatsApp contra reservar con Nexia.</p>
+        <p class="max-w-md text-sm text-ink-soft">Arrastra la línea.</p>
       </div>
-      <div class="mt-8 grid gap-4 md:grid-cols-2">
-        <div class="rounded-3xl border border-b-4 border-ink bg-surface p-6" reveal>
-          <p class="badge badge-neutral">Antes</p>
-          <ul class="mt-4 grid gap-3">
-            @for (item of before; track item) {
-              <li class="flex gap-3 text-sm text-ink-soft"><mat-icon class="shrink-0 text-muted" aria-hidden="true">close</mat-icon>{{ item }}</li>
-            }
-          </ul>
+      <div reveal class="relative mx-auto mt-8 h-[26rem] max-w-3xl select-none overflow-hidden rounded-3xl border border-b-4 border-ink bg-surface">
+        <!-- Con Nexia (fondo) -->
+        <div class="absolute inset-0 bg-accent-soft p-5 sm:p-8">
+          <span class="badge bg-accent text-white">Con Nexia</span>
+          <div class="mx-auto mt-4 max-w-md">
+            <p class="text-sm font-semibold">Hoy · 3 citas</p>
+            <ul class="mt-2 grid gap-2">
+              @for (row of [['10:00', 'Mariana Ortega', 'Confirmada'], ['12:00', 'Sofía Martínez', 'Confirmada'], ['4:00', 'Daniela Torres', 'Anticipo recibido']]; track row[0]) {
+                <li class="flex items-center justify-between gap-2 rounded-xl border border-line border-l-4 border-l-accent bg-surface px-3 py-2.5 text-sm">
+                  <span class="font-medium">{{ row[0] }} · {{ row[1] }}</span><span class="badge badge-ok shrink-0">{{ row[2] }}</span>
+                </li>
+              }
+            </ul>
+            <p class="mt-4 flex items-center gap-2 text-sm font-medium"><mat-icon class="text-accent" aria-hidden="true">check_circle</mat-icon>Sin choques. Sin mensajes. Cobro al día.</p>
+          </div>
         </div>
-        <div class="rounded-3xl border border-b-4 border-ink bg-accent p-6 text-white" reveal [revealDelay]="0.12">
-          <p class="badge bg-white text-ink">Con Nexia</p>
-          <ul class="mt-4 grid gap-3">
-            @for (item of after; track item) {
-              <li class="flex gap-3 text-sm"><mat-icon class="shrink-0" aria-hidden="true">check_circle</mat-icon>{{ item }}</li>
-            }
-          </ul>
+        <!-- Antes (encima, recortado) -->
+        <div class="absolute inset-0 bg-canvas p-5 sm:p-8" [style.clip-path]="'inset(0 ' + (100 - cut()) + '% 0 0)'">
+          <span class="badge badge-neutral">Antes</span>
+          <div class="mx-auto mt-4 max-w-md">
+            <ul class="grid gap-1 rounded-xl border border-line bg-surface p-3 text-sm italic text-ink-soft">
+              <li>Lun 10:00 · Ana</li>
+              <li class="line-through">Mar 4:00 · Luis</li>
+              <li>Jue · ¿quién tenía las 5?</li>
+            </ul>
+            <div class="mt-3 grid gap-2 text-sm">
+              <span class="w-fit rounded-xl rounded-bl-sm bg-line px-3 py-2">¿Tienes lugar mañana?</span>
+              <span class="ml-auto w-fit rounded-xl rounded-br-sm bg-line px-3 py-2">¿A qué hora?</span>
+              <span class="w-fit rounded-xl rounded-bl-sm bg-line px-3 py-2">Ya no puedo, perdón</span>
+            </div>
+            <p class="mt-4 flex items-center gap-2 text-sm font-medium text-ink-soft"><mat-icon aria-hidden="true">close</mat-icon>Citas perdidas y horas de mensajes.</p>
+          </div>
         </div>
+        <!-- Línea -->
+        <div class="pointer-events-none absolute inset-y-0 w-1 -translate-x-1/2 bg-ink" [style.left.%]="cut()" aria-hidden="true">
+          <span class="absolute left-1/2 top-1/2 grid h-11 w-11 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-ink text-white shadow-lg"><mat-icon>swap_horiz</mat-icon></span>
+        </div>
+        <input type="range" min="0" max="100" class="absolute inset-0 h-full w-full cursor-ew-resize opacity-0" aria-label="Comparar antes y después" [value]="cut()" (input)="setCut($event)" />
       </div>
     </section>
 
@@ -241,27 +394,32 @@
     <section id="como-funciona" class="mx-auto w-full max-w-6xl scroll-mt-4 px-4 pb-16">
       <div class="flex flex-wrap items-center gap-x-6 gap-y-2" reveal>
         <h2 class="hl text-3xl font-medium sm:text-4xl">Cómo funciona</h2>
-        <p class="max-w-md text-sm text-ink-soft">De la solicitud a tu primera cita, en cuatro pasos.</p>
+        <p class="max-w-md text-sm text-ink-soft">Cuatro pasos.</p>
       </div>
-      <div class="mt-8 grid gap-3">
+      <ol #timeline class="relative mx-auto mt-10 grid max-w-2xl gap-12">
+        <span class="absolute bottom-7 left-7 top-7 w-1 -translate-x-1/2 rounded-full bg-line" aria-hidden="true">
+          <span class="block h-full origin-top rounded-full bg-accent" [style.transform]="'scaleY(' + progress() + ')'"></span>
+        </span>
         @for (s of steps; track s.title; let i = $index) {
-          <details reveal [revealDelay]="i * 0.08" name="paso" [open]="i === 0" class="group rounded-3xl border border-b-4 border-ink bg-surface open:bg-accent open:text-white">
-            <summary class="flex min-h-16 cursor-pointer list-none items-center gap-4 px-5 py-4 sm:px-7">
-              <span class="text-3xl font-light tabular-nums">0{{ i + 1 }}</span>
-              <span class="flex-1 text-base font-medium sm:text-lg">{{ s.title }}</span>
-              <mat-icon class="shrink-0 transition-transform group-open:rotate-45" aria-hidden="true">add</mat-icon>
-            </summary>
-            <p class="mx-5 border-t border-current/30 pb-5 pt-4 text-sm sm:mx-7">{{ s.text }}</p>
-          </details>
+          <li class="relative flex items-center gap-5">
+            <span class="relative z-10 grid h-14 w-14 shrink-0 place-items-center rounded-full border-2 transition-colors duration-300" [class.border-ink]="stepOn(i)" [class.bg-accent]="stepOn(i)" [class.text-white]="stepOn(i)" [class.border-line]="!stepOn(i)" [class.bg-surface]="!stepOn(i)" [class.text-muted]="!stepOn(i)">
+              <mat-icon class="h-7! w-7! text-[28px]!" aria-hidden="true">{{ s.icon }}</mat-icon>
+            </span>
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-wide text-muted">Paso {{ i + 1 }}</p>
+              <h3 class="text-xl font-semibold">{{ s.title }}</h3>
+              <p class="text-ink-soft">{{ s.text }}</p>
+            </div>
+          </li>
         }
-      </div>
+      </ol>
     </section>
 
     <!-- Para quién -->
     <section id="para-quien" class="mx-auto w-full max-w-6xl scroll-mt-4 px-4 pb-16">
       <div class="flex flex-wrap items-center gap-x-6 gap-y-2" reveal>
         <h2 class="hl text-3xl font-medium sm:text-4xl">Para quién es</h2>
-        <p class="max-w-md text-sm text-ink-soft">Cualquier negocio que atienda con cita.</p>
+        <p class="max-w-md text-sm text-ink-soft">Cualquier negocio con cita.</p>
       </div>
       <div reveal class="mt-8 grid gap-6 rounded-3xl bg-ink p-6 text-surface sm:p-8 md:grid-cols-3 md:gap-0">
         @for (a of audiences; track a.title; let last = $last) {
@@ -310,7 +468,7 @@
       <div class="mx-auto w-full max-w-6xl px-4">
         <div class="flex flex-wrap items-center gap-x-6 gap-y-2" reveal>
           <h2 class="hl text-3xl font-medium sm:text-4xl">Pide tu acceso</h2>
-          <p class="max-w-md text-sm text-ink-soft">Cuatro datos y listo. Te escribimos en menos de 24 horas.</p>
+          <p class="max-w-md text-sm text-ink-soft">Cuatro datos. Respuesta en 24 horas.</p>
         </div>
 
         <div class="mt-8 grid gap-6 md:grid-cols-[1fr_1.1fr]">

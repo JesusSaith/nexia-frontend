@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { AfterViewInit, Component, DestroyRef, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
+import { AfterViewInit, Component, DestroyRef, ElementRef, HostListener, computed, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
@@ -9,6 +9,7 @@ import { BUSINESS_KINDS, examplesFor } from '@core/business-kinds';
 import { BetaService } from '@core/services/beta.service';
 import { LandingService, LandingStats } from '@core/services/landing.service';
 
+import { CountUpDirective } from './count-up.directive';
 import { RevealDirective } from './reveal.directive';
 
 /** WhatsApp de contacto: 10 dígitos más la clave de México. */
@@ -22,7 +23,7 @@ const WHATSAPP_TEXT = 'Hola, me interesa la beta de Nexia para mi negocio.';
  */
 @Component({
   selector: 'app-landing-page',
-  imports: [MatIconModule, ReactiveFormsModule, RevealDirective, RouterLink],
+  imports: [CountUpDirective, MatIconModule, ReactiveFormsModule, RevealDirective, RouterLink],
   templateUrl: './landing-page.html',
 })
 export class LandingPage implements AfterViewInit {
@@ -38,17 +39,103 @@ export class LandingPage implements AfterViewInit {
 
   /** Pantallas por pestañas: celular y computadora, con un negocio de ejemplo. */
   readonly tabs = [
-    { id: 'agenda', label: 'Agenda', icon: 'calendar_month', phone: '/landing/agenda-nueva.webp', desk: '/landing/d-agenda.webp', text: 'Las citas del día por persona, con lo que falta por cobrar. Las reservas nuevas aparecen solas.' },
-    { id: 'clientes', label: 'Clientes', icon: 'groups', phone: '/landing/clientes.webp', desk: '/landing/d-clientes.webp', text: 'Quién viene, cuánto ha gastado y cuándo regresa.' },
-    { id: 'reportes', label: 'Reportes', icon: 'insights', phone: '/landing/reportes.webp', desk: '/landing/d-reportes.webp', text: 'Ingresos, citas y los servicios que más te dejan.' },
-    { id: 'qr', label: 'QR', icon: 'qr_code_2', phone: '/landing/qr.webp', desk: '/landing/d-qr.webp', text: 'Tu enlace, un código QR y un cartel para imprimir y pegar en tu local.' },
+    { id: 'agenda', label: 'Agenda', icon: 'calendar_month', phone: '/landing/agenda-nueva.webp', desk: '/landing/d-agenda.webp', spots: [
+      { x: 80, y: 15, text: 'Agrega una cita a mano.' },
+      { x: 92, y: 56, text: 'Cobra con un toque.' },
+      { x: 61, y: 90, text: 'Las reservas nuevas llegan aquí.' },
+    ] },
+    { id: 'clientes', label: 'Clientes', icon: 'groups', phone: '/landing/clientes.webp', desk: '/landing/d-clientes.webp', spots: [
+      { x: 90, y: 8, text: 'Agrega o importa tus clientes.' },
+      { x: 40, y: 19, text: 'Filtra a tus mejores clientes.' },
+      { x: 33, y: 55, text: 'Ve cuándo es su próxima cita.' },
+      { x: 93, y: 52, text: 'Sabe cuánto ha gastado.' },
+    ] },
+    { id: 'reportes', label: 'Reportes', icon: 'insights', phone: '/landing/reportes.webp', desk: '/landing/d-reportes.webp', spots: [
+      { x: 39, y: 44, text: 'Si ganas o pierdes, de un vistazo.' },
+      { x: 70, y: 43, text: 'Lo que falta por cobrar.' },
+      { x: 93, y: 69, text: 'Cuánto deja cada cita.' },
+    ] },
+    { id: 'qr', label: 'QR', icon: 'qr_code_2', phone: '/landing/qr.webp', desk: '/landing/d-qr.webp', spots: [
+      { x: 85, y: 50, text: 'Tu QR, listo para imprimir.' },
+      { x: 85, y: 70, text: 'Un cartel para pegar en tu local.' },
+      { x: 31, y: 87, text: 'Copia tu enlace y compártelo.' },
+    ] },
   ];
   readonly tab = signal('agenda');
+  readonly spot = signal(0);
   readonly currentTab = computed(() => this.tabs.find((t) => t.id === this.tab()) ?? this.tabs[0]);
+  readonly currentSpot = computed(() => this.currentTab().spots[this.spot()] ?? this.currentTab().spots[0]);
+
+  setTab(id: string): void {
+    this.tab.set(id);
+    this.spot.set(0);
+  }
 
   /** Selector de giro del inicio: cambia el celular de ejemplo (nombres de examplesFor y servicios de muestra). */
   readonly heroKinds = ['belleza', 'barberia', 'unas', 'spa', 'dental', 'veterinaria'].map((v) => BUSINESS_KINDS.find((k) => k.value === v)!);
   readonly heroKind = signal('belleza');
+  /** Color de cada giro: al elegirlo, el acento de todo el inicio cambia (todos con buen contraste sobre blanco). */
+  private readonly kindColors: Record<string, string> = { belleza: '#e11d48', barberia: '#1d4ed8', unas: '#a21caf', spa: '#0f766e', dental: '#0369a1', veterinaria: '#b45309' };
+  readonly heroTheme = computed(() => {
+    const color = this.kindColors[this.heroKind()] ?? '#e11d48';
+    return { '--primary': color, '--color-accent': color, '--primary-text': color, '--color-accent-soft': `color-mix(in srgb, ${color} 10%, #fff)` };
+  });
+  readonly heroIcon = computed(() => this.heroKinds.find((k) => k.value === this.heroKind())?.icon ?? 'event_available');
+
+  /** Reserva de juguete del celular del inicio: servicio, horario y cita confirmada. */
+  readonly mockStep = signal<'servicio' | 'horario' | 'listo'>('servicio');
+  readonly mockService = signal<{ name: string; time: string; price: number } | null>(null);
+  readonly mockSlot = signal('');
+  readonly slots = [
+    { t: '10:00 a.m.', busy: false }, { t: '11:30 a.m.', busy: true }, { t: '1:00 p.m.', busy: false },
+    { t: '3:30 p.m.', busy: false }, { t: '5:00 p.m.', busy: true }, { t: '6:30 p.m.', busy: false },
+  ];
+  readonly mockHint = computed(() => ({ servicio: 'Pruébalo: toca un servicio', horario: 'Ahora elige una hora', listo: 'Así reserva tu cliente' })[this.mockStep()]);
+
+  setHeroKind(value: string): void {
+    this.heroKind.set(value);
+    this.mockStep.set('servicio');
+  }
+
+  pickService(service: { name: string; time: string; price: number }): void {
+    this.mockService.set(service);
+    this.mockStep.set('horario');
+  }
+
+  pickSlot(time: string): void {
+    this.mockSlot.set(time);
+    this.mockStep.set('listo');
+  }
+
+  resetMock(): void {
+    this.mockStep.set('servicio');
+  }
+
+  /** Antes y después: dónde está la línea que se arrastra (0 a 100). */
+  readonly cut = signal(50);
+  setCut(event: Event): void {
+    this.cut.set(Number((event.target as HTMLInputElement).value));
+  }
+
+  /** Línea de tiempo de "Cómo funciona": qué tanto se ha recorrido al bajar (0 a 1). */
+  private readonly timeline = viewChild<ElementRef<HTMLElement>>('timeline');
+  readonly progress = signal(0);
+
+  @HostListener('window:scroll')
+  @HostListener('window:resize')
+  updateProgress(): void {
+    const el = this.timeline()?.nativeElement;
+    if (!el) {
+      return;
+    }
+    const rect = el.getBoundingClientRect();
+    const value = (window.innerHeight * 0.65 - rect.top) / rect.height;
+    this.progress.set(Math.min(Math.max(value, 0), 1));
+  }
+
+  stepOn(index: number): boolean {
+    return this.progress() >= (index / (this.steps.length - 1)) * 0.95;
+  }
   private readonly heroServices: Record<string, { name: string; time: string; price: number }[]> = {
     belleza: [{ name: 'Corte y peinado', time: '45 min', price: 350 }, { name: 'Tinte completo', time: '2 h', price: 1200 }, { name: 'Peinado de fiesta', time: '1 h', price: 600 }],
     barberia: [{ name: 'Corte y barba', time: '45 min', price: 250 }, { name: 'Fade clásico', time: '30 min', price: 180 }, { name: 'Arreglo de barba', time: '20 min', price: 100 }],
@@ -79,52 +166,41 @@ export class LandingPage implements AfterViewInit {
 
   /** Lo que incluye la beta. */
   readonly offer = [
-    { icon: 'redeem', title: 'Gratis mientras dure la beta', text: 'No pagas nada por usar Nexia en esta etapa.' },
-    { icon: 'support_agent', title: 'Acompañamiento por WhatsApp', text: 'Te ayudamos a configurar y resolvemos tus dudas.' },
-    { icon: 'sell', title: 'Precio especial al terminar', text: 'Quienes entran a la beta tendrán un precio preferente.' },
-    { icon: 'forum', title: 'Tu opinión define lo que sigue', text: 'Lo que nos pidas se convierte en la siguiente mejora.' },
+    { icon: 'redeem', title: 'Gratis mientras dure la beta', text: 'No pagas nada en esta etapa.' },
+    { icon: 'support_agent', title: 'Acompañamiento por WhatsApp', text: 'Te ayudamos a configurar.' },
+    { icon: 'sell', title: 'Precio especial al terminar', text: 'Precio preferente para la beta.' },
+    { icon: 'forum', title: 'Tu opinión define lo que sigue', text: 'Lo que pidas, lo mejoramos.' },
   ];
 
   readonly moreOpen = signal(false);
 
-  readonly before = [
-    'Contestar mensajes a todas horas para dar una cita.',
-    'Citas que se pierden por olvidos o se encimen.',
-    'Anotar todo en una libreta o en las notas del celular.',
-    'No saber cuánto dejó cada servicio ni cada persona.',
-  ];
-  readonly after = [
-    'Tus clientes reservan solos, a cualquier hora.',
-    'Agenda por persona, sin choques y con recordatorios.',
-    'Clientes, anticipos y cobros en un solo lugar.',
-    'Reportes de lo que más te deja, cada semana.',
-  ];
   readonly coming = ['Recordatorios automáticos por WhatsApp', 'Planes para cada tamaño de negocio', 'Más giros y plantillas listas'];
 
   readonly kinds = BUSINESS_KINDS;
 
   readonly features = [
-    { icon: 'event_available', title: 'Reservas a cualquier hora', text: 'Tus clientes ven los horarios libres y apartan desde el celular, sin escribirte.', tone: 'light' },
-    { icon: 'payments', title: 'Anticipo y cobro', text: 'Pide anticipo por transferencia con comprobante y registra el cobro al terminar.', tone: 'accent' },
-    { icon: 'calendar_month', title: 'Agenda clara', text: 'Todas las citas del día por persona de tu equipo, con bloqueos y días libres.', tone: 'dark' },
-    { icon: 'chat', title: 'Mensajes de WhatsApp listos', text: 'Recordatorios y avisos ya escritos; con un toque los envías desde tu teléfono.', tone: 'light' },
-    { icon: 'groups', title: 'Equipo y comisiones', text: 'Cada persona ve solo su agenda. Tú ves cuánto dejó cada servicio y cuánto le toca a cada quien.', tone: 'accent' },
-    { icon: 'hourglass_top', title: 'Clientes y lista de espera', text: 'Historial de cada cliente, cumpleaños y aviso cuando se libera un horario.', tone: 'dark' },
-    { icon: 'insights', title: 'Reportes sencillos', text: 'Ingresos, citas, servicios que más dejan y de dónde llegan tus reservas.', tone: 'light' },
-    { icon: 'qr_code_2', title: 'Enlace y código QR', text: 'Tu propio enlace, un QR y un cartel para imprimir y pegar en tu local.', tone: 'accent' },
+    { scene: 'slots', icon: 'event_available', title: 'Reservas a cualquier hora', text: 'Tus clientes apartan solos, sin escribirte.', tone: 'light' },
+    { scene: 'pay', icon: 'payments', title: 'Anticipo y cobro', text: 'Pide anticipo y registra el cobro.', tone: 'accent' },
+    { scene: 'agenda', icon: 'calendar_month', title: 'Agenda clara', text: 'Citas por persona, sin choques.', tone: 'dark' },
+    { scene: 'chat', icon: 'chat', title: 'WhatsApp listo', text: 'Recordatorios escritos; los envías con un toque.', tone: 'light' },
+    { scene: 'team', icon: 'groups', title: 'Equipo y comisiones', text: 'Cada persona ve su agenda; tú ves lo que deja.', tone: 'accent' },
+    { scene: 'clients', icon: 'hourglass_top', title: 'Clientes y lista de espera', text: 'Historial, cumpleaños y aviso si se libera un horario.', tone: 'dark' },
+    { scene: 'chart', icon: 'insights', title: 'Reportes sencillos', text: 'Ingresos, citas y servicios que más dejan.', tone: 'light' },
+    { scene: 'qr', icon: 'qr_code_2', title: 'Enlace y código QR', text: 'Tu enlace, tu QR y un cartel para imprimir.', tone: 'accent' },
   ];
+  readonly qrCells = [1,1,1,0,1, 1,0,1,1,0, 1,1,0,1,1, 0,1,1,0,1, 1,0,1,1,1];
 
   readonly steps = [
-    { title: 'Pide tu acceso', text: 'Llena el formulario de abajo con los datos de tu negocio. Nos llega al instante.' },
-    { title: 'Te damos acceso', text: 'Revisamos tu solicitud y te escribimos por correo o WhatsApp para abrirte la cuenta.' },
-    { title: 'Configura tu negocio', text: 'Agrega tus servicios, tu equipo y tus horarios. Un asistente te guía paso a paso.' },
-    { title: 'Comparte tu enlace', text: 'Ponlo en Instagram, WhatsApp o Google Maps. Tus clientes reservan solos, a cualquier hora.' },
+    { icon: 'edit_square', title: 'Pide tu acceso', text: 'Llena el formulario; nos llega al instante.' },
+    { icon: 'mark_email_read', title: 'Recibe tu invitación', text: 'Te escribimos y te mandamos tu enlace.' },
+    { icon: 'tune', title: 'Configura tu negocio', text: 'Servicios, equipo y horarios, con un asistente.' },
+    { icon: 'share', title: 'Comparte tu enlace', text: 'Ponlo en Instagram o WhatsApp y listo.' },
   ];
 
   readonly audiences = [
-    { icon: 'content_cut', title: 'Salones y barberías', text: 'Cortes, color, uñas y spa: varias personas, servicios con duraciones distintas y comisiones por persona.' },
-    { icon: 'stethoscope', title: 'Consultorios y clínicas', text: 'Consultas y tratamientos con cita, recordatorios para evitar faltas y un historial por paciente.' },
-    { icon: 'pets', title: 'Veterinarias y estudios', text: 'Citas para mascotas, sesiones o clases, con anticipo cuando lo necesites.' },
+    { icon: 'content_cut', title: 'Salones y barberías', text: 'Varias personas, duraciones distintas y comisiones.' },
+    { icon: 'stethoscope', title: 'Consultorios y clínicas', text: 'Citas con recordatorio e historial por paciente.' },
+    { icon: 'pets', title: 'Veterinarias y estudios', text: 'Citas con anticipo cuando lo necesites.' },
   ];
 
   readonly faqs = [
@@ -160,6 +236,7 @@ export class LandingPage implements AfterViewInit {
   }
 
   ngAfterViewInit(): void {
+    this.updateProgress();
     const el = this.formSection()?.nativeElement;
     if (!el || typeof IntersectionObserver === 'undefined') {
       return;
