@@ -1,0 +1,66 @@
+import { Routes } from '@angular/router';
+
+import { authGuard } from './core/guards/auth.guard';
+import { clientEntryGuard, passwordChosenGuard, roleGuard } from './core/guards/role.guard';
+
+export const routes: Routes = [
+  {
+    path: 'auth',
+    loadChildren: () => import('./features/auth/auth.routes').then((m) => m.authRoutes),
+  },
+  {
+    path: 'admin',
+    canActivate: [authGuard, passwordChosenGuard, roleGuard(['owner', 'admin', 'staff'])],
+    loadChildren: () => import('./features/admin/admin.routes').then((m) => m.adminRoutes),
+  },
+  {
+    path: 'super-admin',
+    canActivate: [authGuard, roleGuard(['super_admin'])],
+    loadComponent: () =>
+      import('./features/super-admin/super-admin-page.component').then((m) => m.SuperAdminPageComponent),
+  },
+  // Términos y aviso de privacidad de Nexia (la plataforma). El aviso de cada negocio vive en /:slug/privacidad.
+  {
+    path: 'terminos',
+    data: { doc: 'terms' },
+    loadComponent: () => import('./features/legal/legal-page').then((m) => m.LegalPage),
+  },
+  {
+    path: 'privacidad',
+    data: { doc: 'privacy' },
+    loadComponent: () => import('./features/legal/legal-page').then((m) => m.LegalPage),
+  },
+  // FUTURE_PHASE_2_UNIFIED_PLATFORM: /cliente es un directorio del equipo y un perfil de usuario.
+  // En la fase 1 el cliente del piloto solo reserva en /:businessSlug/book, sin cruzar negocios.
+  // {
+  //   path: 'cliente',
+  //   canActivate: [authGuard, roleGuard(['client'])],
+  //   loadComponent: () => import('./features/client/client-page.component').then((m) => m.ClientPageComponent),
+  // },
+  {
+    path: 'cliente',
+    canActivate: [clientEntryGuard],
+    children: [],
+  },
+  {
+    path: ':businessSlug/manage/:token',
+    loadComponent: () =>
+      import('./features/public/pages/manage-appointment/manage-appointment.component').then(
+        (m) => m.ManageAppointmentComponent,
+      ),
+  },
+  {
+    path: ':businessSlug/privacidad',
+    loadComponent: () => import('./features/public/pages/privacy/privacy.component').then((m) => m.PrivacyComponent),
+  },
+  {
+    path: ':businessSlug/book',
+    loadChildren: () => import('./features/booking/booking.routes').then((m) => m.bookingRoutes),
+  },
+  { path: '', pathMatch: 'full', redirectTo: 'auth' },
+  {
+    path: '**',
+    title: 'Página no encontrada · Nexia',
+    loadComponent: () => import('./features/public/pages/not-found/not-found.component').then((m) => m.NotFoundComponent),
+  },
+];

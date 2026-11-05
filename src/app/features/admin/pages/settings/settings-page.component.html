@@ -1,0 +1,908 @@
+<section class="pb-24">
+  <header class="page-head">
+    <div>
+      <h1>Configuración</h1>
+      <p>Lo que ven tus {{ copy.text().clients.toLowerCase() }} y las reglas para reservar.</p>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      @if (!isLoading()) {
+        <app-save-state [saving]="saving()" [changes]="changeCount()" />
+      }
+      @if (bookingUrl(); as url) {
+        <a class="btn btn-secondary" [href]="url" target="_blank" rel="noopener">
+          <mat-icon>open_in_new</mat-icon>
+          Ver mi página
+        </a>
+      }
+    </div>
+  </header>
+
+  @if (errorMessage(); as message) {
+    <p class="badge-bad mb-4 flex items-start gap-2 rounded-xl px-3 py-2.5 text-sm" role="alert">
+      <mat-icon class="h-5! w-5! shrink-0 text-[20px]!">error</mat-icon>
+      {{ message }}
+    </p>
+  }
+
+  @if (isLoading()) {
+    <div class="space-y-3" aria-label="Cargando">
+      <div class="h-20 animate-pulse rounded-2xl bg-line"></div>
+      <div class="h-64 animate-pulse rounded-2xl bg-line"></div>
+    </div>
+  } @else {
+    <!-- Lo más importante primero: si la página está tomando citas o no. -->
+    @let state = status();
+    <div class="card mb-5 flex flex-wrap items-center gap-4" [class.card-tint]="state.tone !== 'ok'">
+      <span class="stat-icon" [class.stat-ok]="state.tone === 'ok'" [class.stat-warn]="state.tone === 'warn'" [class.stat-info]="state.tone === 'info'">
+        <mat-icon>{{ state.icon }}</mat-icon>
+      </span>
+      <div class="min-w-0 flex-1">
+        <p class="text-sm font-semibold text-ink">{{ state.title }}</p>
+        <p class="text-sm text-muted">{{ state.detail }}</p>
+      </div>
+      <label class="flex items-center gap-3 text-sm font-medium text-ink">
+        Recibir reservas
+        <button type="button" role="switch" class="switch" [attr.aria-checked]="!pauseBookings()" [disabled]="pausing()" (click)="togglePause()" aria-label="Recibir reservas en línea">
+          <span></span>
+        </button>
+      </label>
+    </div>
+
+    <!-- Índice en celular: chips que se deslizan de lado, con punto si algo falta. -->
+    <nav class="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1 lg:hidden" aria-label="Secciones de configuración">
+      @for (section of sections; track section.id) {
+        <button type="button" class="chip shrink-0 gap-1.5" [class.chip-on]="isOpen(section.id)" (click)="goTo(section.id)">
+          {{ section.short ?? section.label }}
+          @if (sectionHasError(section.id)) {
+            <span class="h-2 w-2 rounded-full bg-[var(--nx-bad-fg)]" aria-label="Tiene errores"></span>
+          } @else if (section.id === 'anticipo' && depositWarning()) {
+            <span class="h-2 w-2 rounded-full bg-[var(--nx-warn-fg)]" aria-label="Falta un dato"></span>
+          }
+        </button>
+      }
+    </nav>
+
+    <div class="grid items-start gap-6 lg:grid-cols-[13rem_minmax(0,1fr)] 2xl:grid-cols-[13rem_minmax(0,1fr)_20rem]">
+      <!-- Índice: en escritorio salta a cada sección; en celular las secciones se abren y cierran. -->
+      <nav class="sticky top-6 hidden flex-col gap-0.5 lg:flex" aria-label="Secciones de configuración">
+        @for (section of sections; track section.id) {
+          <button type="button" class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-ink-soft transition-colors hover:bg-surface hover:text-ink" [class.bg-surface]="isOpen(section.id)" [class.text-ink]="isOpen(section.id)" [class.font-medium]="isOpen(section.id)" (click)="goTo(section.id)">
+            <mat-icon class="h-[18px]! w-[18px]! shrink-0 text-[18px]! text-muted">{{ section.icon }}</mat-icon>
+            <span class="flex-1 truncate">{{ section.short ?? section.label }}</span>
+            @if (sectionHasError(section.id)) {
+              <span class="h-2 w-2 rounded-full bg-[var(--nx-bad-fg)]" aria-label="Tiene errores"></span>
+            } @else if (section.id === 'anticipo' && depositWarning()) {
+              <span class="h-2 w-2 rounded-full bg-[var(--nx-warn-fg)]" aria-label="Falta un dato"></span>
+            }
+          </button>
+        }
+      </nav>
+
+      <form id="settings-form" class="nx-quiet flex min-w-0 flex-col gap-4" [formGroup]="form" (ngSubmit)="save()" novalidate>
+        <ng-template #head let-id>
+          @let section = sectionInfo(id);
+          <summary class="flex cursor-pointer list-none items-center gap-3 rounded-[calc(var(--radius-2xl)-1px)] p-4 transition-colors hover:bg-canvas/60 group-open:rounded-b-none group-open:border-b group-open:border-line sm:p-5 [&::-webkit-details-marker]:hidden">
+            <span class="sec-icon"><mat-icon>{{ section.icon }}</mat-icon></span>
+            <div class="min-w-0 flex-1">
+              <h2 class="text-base font-semibold text-ink">{{ section.label }}</h2>
+              <p class="mt-0.5 truncate text-sm text-muted">{{ summaries()[section.id] }}</p>
+            </div>
+            @if (sectionHasError(section.id)) {
+              <span class="badge badge-bad shrink-0">Revisar</span>
+            } @else if (section.id === 'anticipo' && depositWarning()) {
+              <span class="badge badge-warn shrink-0">Falta un dato</span>
+            }
+            <mat-icon class="shrink-0 text-muted transition-transform group-open:rotate-180" aria-hidden="true">expand_more</mat-icon>
+          </summary>
+        </ng-template>
+
+        <ng-template #chips let-field="field" let-unit="unit" let-max="max">
+          <div class="flex flex-wrap items-center gap-2">
+            @for (option of presetOptions(field); track option.label) {
+              <button type="button" class="chip" [class.chip-on]="isPreset(field, option.value)" (click)="setPreset(field, option.value)">{{ option.label }}</button>
+            }
+            <span class="flex items-center gap-1.5 text-sm text-muted">
+              <input class="input nums w-20" type="number" min="0" [attr.max]="max" [value]="customValue(field)" (change)="setCustom(field, $any($event.target).value)" [class.border-accent]="isCustom(field)" aria-label="Otro valor" placeholder="Otro" />
+              {{ unit }}
+            </span>
+          </div>
+        </ng-template>
+
+        <!-- 1. Tu negocio -->
+        <details id="sec-negocio" class="card group scroll-mt-6 p-0!" [open]="isOpen('negocio')" (toggle)="onToggle('negocio', $event)">
+          <ng-container *ngTemplateOutlet="head; context: { $implicit: 'negocio' }" />
+          <div class="grid gap-4 p-4 sm:grid-cols-2 sm:p-5">
+            <label class="block">
+              <span class="label">Nombre del negocio</span>
+              <input class="input" formControlName="name" autocomplete="organization" />
+              @if (form.controls.name.invalid && form.controls.name.touched) {
+                <span class="field-error mt-1 block">Escribe el nombre del negocio.</span>
+              }
+            </label>
+            <div>
+              <span class="label">Tipo de negocio</span>
+              <app-pick-field formControlName="businessKind" [options]="kindPicks" placeholder="Elegir" />
+              <span class="field-hint mt-1 block">Cambia cómo se llama a tu equipo en la página.</span>
+            </div>
+            <label class="block sm:col-span-2">
+              <span class="label">Qué hace tu negocio</span>
+              <textarea class="input" rows="2" formControlName="description" maxlength="500" [placeholder]="examples().description"></textarea>
+              <span class="field-hint mt-1 block text-right nums">{{ form.controls.description.value.length }}/500</span>
+            </label>
+            <label class="block">
+              <span class="label">WhatsApp del negocio</span>
+              <input class="input nums" type="tel" inputmode="numeric" maxlength="16" formControlName="phone" placeholder="10 dígitos" (input)="onPhoneInput()" />
+              @if (form.controls.phone.invalid && form.controls.phone.touched) {
+                <span class="field-error mt-1 block">El teléfono debe tener 10 dígitos.</span>
+              } @else {
+                <span class="field-hint mt-1 block">Aquí te escriben tus {{ copy.text().clients.toLowerCase() }} al reservar.</span>
+              }
+            </label>
+            <label class="block">
+              <span class="label">Dirección</span>
+              <input class="input" formControlName="address" autocomplete="street-address" placeholder="Calle, número y colonia" />
+            </label>
+            <label class="block">
+              <span class="label">Instagram</span>
+              <input class="input" formControlName="instagram" placeholder="@tunegocio" />
+            </label>
+            <label class="block">
+              <span class="label">Facebook</span>
+              <input class="input" formControlName="facebook" placeholder="facebook.com/tunegocio" />
+              <span class="field-hint mt-1 block">Basta con el nombre de tu página; el enlace se arma solo.</span>
+            </label>
+            <div class="flex items-center justify-between gap-4 rounded-xl border border-line p-4 sm:col-span-2">
+              <div>
+                <p class="text-sm font-semibold text-ink">Le pago comisión a mi equipo</p>
+                <p class="field-hint">Encendido, pones el % de cada persona en Equipo y Reportes calcula cuánto le toca. Apagado, no se muestran comisiones.</p>
+              </div>
+              <button type="button" role="switch" class="switch" [attr.aria-checked]="usesCommissions()" (click)="usesCommissions.set(!usesCommissions())" aria-label="Le pago comisión a mi equipo"><span></span></button>
+            </div>
+            <div class="flex items-center justify-between gap-4 rounded-xl border border-line p-4 sm:col-span-2">
+              <div>
+                <p class="text-sm font-semibold text-ink">Mi equipo puede cambiar precios y quitar anticipos</p>
+                <p class="field-hint">Apagado, {{ copy.text().people.toLowerCase() }} solo cobran el precio del servicio. Los servicios de precio variable siempre los pueden cotizar.</p>
+              </div>
+              <button type="button" role="switch" class="switch" [attr.aria-checked]="staffCanEditPrice()" (click)="staffCanEditPrice.set(!staffCanEditPrice())" aria-label="Mi equipo puede cambiar precios y quitar anticipos"><span></span></button>
+            </div>
+            <div class="sm:col-span-2">
+              <span class="label">Ubicación en el mapa</span>
+              <p class="field-hint mb-2">Tus {{ copy.text().clients.toLowerCase() }} ven el mapa al reservar y abren la ruta en Google Maps o Waze.</p>
+              @if (googleMaps) {
+                <app-google-map-picker [latitude]="location()?.lat ?? null" [longitude]="location()?.lng ?? null" (pointChange)="onPoint($event)" />
+              } @else {
+                <app-map-picker
+                  [latitude]="location()?.lat ?? null"
+                  [longitude]="location()?.lng ?? null"
+                  [address]="form.controls.address.value"
+                  (pointChange)="onPoint($event)"
+                />
+              }
+              <div class="mt-4 rounded-xl border border-line p-4">
+                <p class="text-sm font-semibold text-ink">¿Ya tienes tu local en Google Maps?</p>
+                <p class="field-hint mt-1">Pega aquí el enlace (el de "Compartir", también el corto) o el código de "Insertar un mapa". Con el código, tus {{ copy.text().clients.toLowerCase() }} ven tu mapa de Google tal cual en "Cómo llegar".</p>
+                <textarea
+                  class="input mt-2 h-auto min-h-24 py-2"
+                  rows="3"
+                  placeholder='https://maps.app.goo.gl/… o &lt;iframe src="https://www.google.com/maps/embed?…"&gt;'
+                  [value]="mapPaste()"
+                  (input)="mapPaste.set($any($event.target).value)"
+                  aria-label="Enlace o código de Google Maps"
+                ></textarea>
+                <div class="mt-2 flex flex-wrap items-center gap-2">
+                  <button type="button" class="btn btn-secondary" [disabled]="!mapPaste().trim() || mapBusy()" (click)="applyMapPaste()">
+                    <mat-icon>pin_drop</mat-icon>
+                    {{ mapBusy() ? 'Leyendo…' : 'Usar este mapa' }}
+                  </button>
+                  @if (mapEmbed()) {
+                    <span class="badge badge-ok">Mapa de Google conectado</span>
+                    <button type="button" class="btn btn-ghost" (click)="removeMapEmbed()">Quitar</button>
+                  }
+                </div>
+                @if (mapNote(); as note) {
+                  <p class="mt-2 text-sm" [class.text-(--nx-ok-fg)]="note.ok" [class.text-(--nx-bad-fg)]="!note.ok" [attr.role]="note.ok ? 'status' : 'alert'">{{ note.text }}</p>
+                }
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <!-- 2. Apariencia -->
+        <details id="sec-apariencia" class="card group scroll-mt-6 p-0!" [open]="isOpen('apariencia')" (toggle)="onToggle('apariencia', $event)">
+          <ng-container *ngTemplateOutlet="head; context: { $implicit: 'apariencia' }" />
+          <div class="flex flex-col gap-5 p-4 sm:p-5">
+            <div class="flex flex-wrap items-center gap-4">
+              <label class="relative shrink-0 cursor-pointer" title="Cambiar logo">
+                <input type="file" accept="image/png,image/jpeg,image/webp" class="sr-only" (change)="onLogo($event)" />
+                @if (logoSrc(); as src) {
+                  <img [src]="src" alt="Logo" class="h-20 w-20 rounded-xl border border-line bg-white object-contain" (error)="logoUrl.set(null)" />
+                } @else {
+                  <span class="flex h-20 w-20 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-line-strong bg-canvas text-xs text-muted">
+                    <mat-icon>add_photo_alternate</mat-icon>
+                    Logo
+                  </span>
+                }
+                <span class="sr-only">Cambiar logo</span>
+              </label>
+              <div class="min-w-0 flex-1 text-sm">
+                <p class="font-medium text-ink">{{ uploading() ? 'Leyendo imagen…' : 'Logo' }}</p>
+                <p class="text-muted">Toca el cuadro para elegir una imagen. Se ve arriba de tu página de reservas.</p>
+                @if (logoUrl()) {
+                  <button type="button" class="mt-1 min-h-11 text-sm font-medium text-ink-soft hover:text-ink" (click)="removeLogo()">Quitar logo</button>
+                }
+              </div>
+            </div>
+
+            <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_240px]">
+              <div class="flex flex-col gap-5">
+                @if (logoPalette().length) {
+                  <div>
+                    <span class="label">Colores de tu logo</span>
+                    <p class="field-hint mb-2">Toca un color y elige dónde usarlo.</p>
+                    <div class="flex flex-wrap gap-3">
+                      @for (color of logoPalette(); track color) {
+                        <details class="relative" #pick>
+                          <summary class="block h-11 w-11 cursor-pointer list-none rounded-full border-2 border-surface shadow [&::-webkit-details-marker]:hidden" [style.background]="color" [attr.aria-label]="'Color ' + color"></summary>
+                          <div class="absolute left-0 z-20 mt-1 flex w-40 flex-col rounded-xl border border-line bg-surface p-1 shadow-lg">
+                            <button type="button" class="row-hover min-h-11 rounded-lg px-3 text-left text-sm" (click)="pick.open = false; assignColor(color, 'primary')">Para botones</button>
+                            <button type="button" class="row-hover min-h-11 rounded-lg px-3 text-left text-sm" (click)="pick.open = false; assignColor(color, 'accent')">Para detalles</button>
+                            <button type="button" class="row-hover min-h-11 rounded-lg px-3 text-left text-sm" (click)="pick.open = false; assignColor(color, 'canvas')">Para el fondo</button>
+                          </div>
+                        </details>
+                      }
+                    </div>
+                  </div>
+                } @else if (logoUrl()) {
+                  <p class="field-hint">Vuelve a subir el logo para sacar sus colores.</p>
+                }
+
+                <div class="grid gap-3 sm:grid-cols-3">
+                  <label class="block"><span class="label">Botones</span>
+                    <span class="flex items-center gap-2">
+                      <input type="color" class="h-11 w-12 shrink-0 cursor-pointer rounded-lg border border-line-strong bg-surface p-1" formControlName="primaryColor" aria-label="Color de los botones" />
+                      <input class="input nums uppercase" formControlName="primaryColor" maxlength="7" aria-label="Código del color de los botones" />
+                    </span>
+                  </label>
+                  <label class="block"><span class="label">Detalles</span>
+                    <span class="flex items-center gap-2">
+                      <input type="color" class="h-11 w-12 shrink-0 cursor-pointer rounded-lg border border-line-strong bg-surface p-1" [value]="accentColor() || form.controls.primaryColor.value" (input)="accentColor.set($any($event.target).value)" aria-label="Color de los detalles" />
+                      <button type="button" class="btn btn-ghost px-2! text-sm" (click)="accentColor.set(null)">{{ accentColor() ? 'Igual que botones' : 'Igual que botones ✓' }}</button>
+                    </span>
+                  </label>
+                  <label class="block"><span class="label">Fondo</span>
+                    <span class="flex items-center gap-2">
+                      <input type="color" class="h-11 w-12 shrink-0 cursor-pointer rounded-lg border border-line-strong bg-surface p-1" [value]="canvasColor() || '#ffffff'" (input)="canvasColor.set($any($event.target).value)" aria-label="Color de fondo" />
+                      <button type="button" class="btn btn-ghost px-2! text-sm" (click)="canvasColor.set('#ffffff')">Blanco</button>
+                    </span>
+                  </label>
+                </div>
+                @if (suggestedColor(); as suggested) {
+                  <button type="button" class="chip gap-2 self-start" (click)="useSuggestedColor()">
+                    <span class="h-4 w-4 rounded-full border border-line" [style.background]="suggested"></span>Usar el color del logo en botones
+                  </button>
+                }
+                @if (lowContrast()) {
+                  <p class="flex items-start gap-2 rounded-xl px-3 py-2 text-sm badge-warn"><mat-icon class="h-5! w-5! shrink-0 text-[20px]!">warning</mat-icon>Este color se ve poco sobre el fondo. Prueba uno más oscuro o cambia el fondo. El texto de los botones ya se pone {{ buttonText() === '#ffffff' ? 'blanco' : 'oscuro' }} para que se lea.</p>
+                }
+
+                <div>
+                  <span class="label">Temas listos</span>
+                  <div class="flex flex-wrap gap-2">
+                    @for (preset of themePresets(); track preset.key) {
+                      <button type="button" class="chip h-11! gap-2" [class.chip-on]="canvasColor() === preset.canvas && headerStyle() === preset.header" (click)="applyPreset(preset)">
+                        <span class="h-5 w-5 rounded-full border border-line" [style.background]="preset.canvas"></span>{{ preset.label }}
+                      </button>
+                    }
+                  </div>
+                </div>
+
+                <div class="grid gap-4 sm:grid-cols-2">
+                  <div><span class="label">Forma de los botones</span>
+                    <div class="flex flex-wrap gap-2">
+                      @for (option of shapeOptions; track option.v) {
+                        <button type="button" class="chip h-11!" [class.chip-on]="buttonShape() === option.v" (click)="buttonShape.set(option.v)">{{ option.l }}</button>
+                      }
+                    </div>
+                  </div>
+                  <div><span class="label">Relleno</span>
+                    <div class="flex flex-wrap gap-2">
+                      <button type="button" class="chip h-11!" [class.chip-on]="buttonFill() === 'solid'" (click)="buttonFill.set('solid')">Sólido</button>
+                      <button type="button" class="chip h-11!" [class.chip-on]="buttonFill() === 'outline'" (click)="buttonFill.set('outline')">Contorno</button>
+                    </div>
+                  </div>
+                  <div><span class="label">Letra</span>
+                    <div class="flex flex-wrap gap-2">
+                      @for (option of fontOptions; track option.v) {
+                        <button type="button" class="chip h-11!" [class.chip-on]="fontStyle() === option.v" [style.font-family]="fontStacks[option.v]" (click)="fontStyle.set(option.v)">{{ option.l }}</button>
+                      }
+                    </div>
+                  </div>
+                  <div><span class="label">Encabezado</span>
+                    <div class="flex flex-wrap gap-2">
+                      @for (option of headerOptions; track option.v) {
+                        <button type="button" class="chip h-11!" [class.chip-on]="headerStyle() === option.v" (click)="headerStyle.set(option.v)">{{ option.l }}</button>
+                      }
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Vista previa en vivo: la página de reservas con lo que se va eligiendo. -->
+              <div class="flex flex-col items-center gap-3 lg:items-start">
+                <div class="w-60 overflow-hidden rounded-[2rem] border-[8px] border-ink shadow-lg" [style.background]="canvasColor() || '#ffffff'" [style.font-family]="fontStacks[fontStyle()]" aria-label="Vista previa de tu página">
+                  @if (headerStyle() === 'cover' && photos()[0]) {
+                    <img [src]="photos()[0]" alt="" class="h-16 w-full object-cover" />
+                  }
+                  <div class="flex items-center gap-2 px-3 py-3" [style.background]="headerStyle() === 'color' ? form.controls.primaryColor.value : headerStyle() === 'plain' ? 'transparent' : 'color-mix(in srgb, ' + form.controls.primaryColor.value + ' 12%, white)'" [style.color]="headerStyle() === 'color' ? buttonText() : '#1c1a19'">
+                    @if (logoSrc(); as src) {
+                      <img [src]="src" alt="" class="h-9 w-9 rounded-lg bg-white object-contain p-0.5" />
+                    }
+                    <span class="truncate text-sm font-semibold">{{ form.controls.name.value || 'Tu negocio' }}</span>
+                  </div>
+                  <div class="flex flex-col gap-2 p-3 text-[13px] text-[#1c1a19]">
+                    <div class="rounded-xl border bg-white px-3 py-2" [style.border-color]="accentColor() || form.controls.primaryColor.value" [style.box-shadow]="'inset 0 0 0 1px ' + (accentColor() || form.controls.primaryColor.value)">
+                      <span class="block font-medium">Servicio de ejemplo</span>
+                      <span class="block text-[#6b645e]">45 min · $350</span>
+                    </div>
+                    <div class="flex gap-1.5">
+                      <span class="rounded-full px-2.5 py-1 text-xs font-medium" [style.background]="accentColor() || form.controls.primaryColor.value" [style.color]="buttonText()">10:00</span>
+                      <span class="rounded-full border border-[#d6d1ca] bg-white px-2.5 py-1 text-xs">11:30</span>
+                    </div>
+                    <span class="mt-1 block py-2.5 text-center text-sm font-semibold"
+                      [style.border-radius]="radius[buttonShape()]"
+                      [style.background]="buttonFill() === 'solid' ? form.controls.primaryColor.value : 'transparent'"
+                      [style.color]="buttonFill() === 'solid' ? buttonText() : form.controls.primaryColor.value"
+                      [style.box-shadow]="buttonFill() === 'outline' ? 'inset 0 0 0 2px ' + form.controls.primaryColor.value : null">Reservar cita</span>
+                  </div>
+                </div>
+                <!-- La vista de arriba es de ejemplo y se mueve al escribir; la real solo cambia al guardar. -->
+                @if (bookingUrl(); as pageUrl) {
+                  <div class="flex max-w-60 flex-col gap-1 text-center lg:max-w-none lg:text-left">
+                    <a [href]="pageUrl" target="_blank" rel="noopener" class="btn btn-secondary">
+                      <mat-icon>open_in_new</mat-icon>
+                      Ver mi página real
+                    </a>
+                    <span class="field-hint">Se abre en otra pestaña. Guarda tus cambios para verlos ahí.</span>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <div>
+              <span class="label">Fotos de tu trabajo</span>
+              <div class="flex flex-wrap items-center gap-3">
+                @for (photo of photos(); track photo) {
+                  <div class="relative">
+                    <img [src]="photo" alt="" class="h-20 w-20 rounded-lg border border-line object-cover" />
+                    <button type="button" class="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full border border-line bg-surface text-ink-soft shadow-sm hover:text-ink" (click)="removePhoto($index)" [attr.aria-label]="'Quitar foto ' + ($index + 1)">
+                      <mat-icon class="h-4! w-4! text-[16px]!">close</mat-icon>
+                    </button>
+                    @if ($index > 0) {
+                      <button type="button" class="absolute -bottom-2 -left-2 flex h-7 w-7 items-center justify-center rounded-full border border-line bg-surface text-ink-soft shadow-sm hover:text-ink" (click)="movePhoto($index)" [attr.aria-label]="'Mover foto ' + ($index + 1) + ' antes'">
+                        <mat-icon class="h-4! w-4! text-[16px]!">arrow_back</mat-icon>
+                      </button>
+                    }
+                  </div>
+                }
+                @if (photos().length < 3) {
+                  <label class="flex h-20 w-20 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-line-strong text-xs text-muted hover:border-accent hover:text-accent">
+                    <mat-icon class="h-5! w-5! text-[20px]!">add_photo_alternate</mat-icon>
+                    Agregar
+                    <input type="file" accept="image/png,image/jpeg,image/webp" class="sr-only" multiple (change)="addPhotos($event)" />
+                  </label>
+                }
+              </div>
+              @if (photoNotice(); as notice) {
+                <span class="field-error mt-1 block">{{ notice }}</span>
+              } @else {
+                <span class="field-hint mt-1 block">Hasta 3. Se ven debajo del nombre en tu página; la primera es la que más se ve.</span>
+              }
+            </div>
+          </div>
+        </details>
+
+        <!-- 3. Reglas de reserva -->
+        <details id="sec-reservas" class="card group scroll-mt-6 p-0!" [open]="isOpen('reservas')" (toggle)="onToggle('reservas', $event)">
+          <ng-container *ngTemplateOutlet="head; context: { $implicit: 'reservas' }" />
+          <div class="flex flex-col gap-5 p-4 sm:p-5">
+            <div>
+              <span class="label">¿Con cuánta anticipación pueden reservar?</span>
+              <ng-container *ngTemplateOutlet="chips; context: { field: 'minNoticeHours', unit: 'horas', max: 168 }" />
+              <span class="field-hint mt-1 block">Si es 2 h, a las 10:00 ya no se puede reservar antes de las 12:00.</span>
+            </div>
+            <div>
+              <span class="label">¿Hasta cuándo pueden reservar?</span>
+              <ng-container *ngTemplateOutlet="chips; context: { field: 'maxDaysAhead', unit: 'días', max: 365 }" />
+            </div>
+            <div>
+              <span class="label">Tiempo libre entre citas</span>
+              <ng-container *ngTemplateOutlet="chips; context: { field: 'bufferMinutes', unit: 'min', max: 120 }" />
+              <span class="field-hint mt-1 block">Para limpiar o preparar entre un {{ copy.text().client.toLowerCase() }} y la siguiente.</span>
+            </div>
+            <div>
+              <span class="label">¿Hasta cuándo pueden cancelar o cambiar?</span>
+              <ng-container *ngTemplateOutlet="chips; context: { field: 'cancelHours', unit: 'h antes', max: 168 }" />
+            </div>
+            <div>
+              <span class="label">Tope de citas al día por {{ copy.text().person.toLowerCase() }}</span>
+              <ng-container *ngTemplateOutlet="chips; context: { field: 'maxDaily', unit: 'citas', max: 200 }" />
+              <span class="field-hint mt-1 block">Al llegar al tope, ese día ya no aparece para reservar con esa persona. Tú puedes seguir agendando a mano.</span>
+            </div>
+            <div>
+              <span class="label">Si cancelan a tiempo, el anticipo</span>
+              <div class="flex flex-wrap gap-2">
+                <button type="button" class="chip" [class.chip-on]="depositCancelPolicy() === 'refund'" (click)="depositCancelPolicy.set('refund'); form.markAsDirty()">Se devuelve</button>
+                <button type="button" class="chip" [class.chip-on]="depositCancelPolicy() === 'keep'" (click)="depositCancelPolicy.set('keep'); form.markAsDirty()">No se devuelve</button>
+              </div>
+              <span class="field-hint mt-1 block">Se lo decimos a tu {{ copy.text().client.toLowerCase() }} antes de pagar y en su cita. Quien no llega pierde el anticipo en ambos casos.</span>
+            </div>
+            <label class="block">
+              <span class="label">Mensaje sobre cancelaciones</span>
+              <textarea class="input" rows="2" formControlName="cancelPolicy" placeholder="Si no puedes venir, avísanos con 24 horas para darle tu lugar a alguien más."></textarea>
+              <span class="field-hint mt-1 block">Lo ven tus {{ copy.text().clients.toLowerCase() }} al reservar y al cancelar.</span>
+            </label>
+            <div class="flex items-center justify-between gap-4 rounded-xl border border-line p-4">
+              <div>
+                <p class="text-sm font-semibold text-ink">Aprobar cada cita a mano</p>
+                <p class="field-hint">Las reservas de tu página apartan el horario, pero quedan "Por aprobar" hasta que tú las aceptas o rechazas desde la Agenda. Al {{ copy.text().client.toLowerCase() }} se le avisa que la confirmarás por WhatsApp.</p>
+              </div>
+              <button type="button" role="switch" class="switch" [attr.aria-checked]="approveBookings()" (click)="approveBookings.set(!approveBookings())" aria-label="Aprobar cada cita a mano"><span></span></button>
+            </div>
+            <div class="grid gap-4 sm:grid-cols-2">
+              <div>
+                <span class="label">Zona horaria</span>
+                <app-pick-field formControlName="timezone" [options]="timezonePicks()" placeholder="Elegir" />
+                <span class="field-hint mt-1 block">Con ella se sabe qué horarios ya pasaron.</span>
+              </div>
+              <label class="block">
+                <span class="label">Salas o equipos (opcional)</span>
+                <input class="input" formControlName="resources" placeholder="Sala 1, Sala 2" />
+                <span class="field-hint mt-1 block">Sepáralos con comas. El {{ copy.text().client.toLowerCase() }} elige uno al reservar.</span>
+              </label>
+            </div>
+          </div>
+        </details>
+
+        <!-- 4. Anticipo y pagos -->
+        <details id="sec-anticipo" class="card group scroll-mt-6 p-0!" [open]="isOpen('anticipo')" (toggle)="onToggle('anticipo', $event)">
+          <ng-container *ngTemplateOutlet="head; context: { $implicit: 'anticipo' }" />
+          <div class="flex flex-col gap-4 p-4 sm:p-5">
+            <div>
+              <span class="label">Métodos de pago que aceptas</span>
+              <div class="flex flex-wrap gap-2" role="group" aria-label="Métodos de pago que aceptas">
+                @for (method of paymentMethodOptions; track method.value) {
+                  <button type="button" class="chip gap-1.5" [class.chip-on]="paymentMethods().has(method.value)" [attr.aria-pressed]="paymentMethods().has(method.value)" (click)="toggleMethod(method.value)">
+                    <mat-icon class="h-4! w-4! text-[16px]!">{{ method.icon }}</mat-icon>
+                    {{ method.label }}
+                  </button>
+                }
+              </div>
+              <span class="field-hint mt-1 block">Tu página dice cuáles aceptas, y al cobrar en la Agenda solo salen estos (más "Paquete").</span>
+            </div>
+            @if (depositWarning(); as warning) {
+              <p class="badge-warn flex items-start gap-2 rounded-xl px-3 py-2.5 text-sm" role="status">
+                <mat-icon class="h-5! w-5! shrink-0 text-[20px]!">warning</mat-icon>
+                {{ warning }}
+              </p>
+            }
+            <div class="grid gap-4 sm:grid-cols-2">
+              <label class="block">
+                <span class="label">Monto fijo</span>
+                <input class="input nums" type="number" min="0" formControlName="depositAmount" placeholder="Sin anticipo" />
+                @if (form.controls.depositAmount.invalid) {
+                  <span class="field-error mt-1 block">El monto no puede ser negativo.</span>
+                } @else {
+                  <span class="field-hint mt-1 block">Para servicios con precio fijo. Cada servicio puede tener el suyo.</span>
+                }
+              </label>
+              <label class="block">
+                <span class="label">Porcentaje en precio por cotizar</span>
+                <input class="input nums" type="number" min="1" max="100" formControlName="depositPercent" placeholder="Ej. 50" />
+                @if (form.controls.depositPercent.invalid) {
+                  <span class="field-error mt-1 block">El porcentaje va de 1 a 100.</span>
+                } @else {
+                  <span class="field-hint mt-1 block">Para servicios con precio variable: se calcula cuando aceptan tu cotización.</span>
+                }
+              </label>
+              <label class="block sm:col-span-2">
+                <span class="label">Cuenta o CLABE para recibirlo</span>
+                <input class="input nums" formControlName="depositAccount" placeholder="CLABE, número de tarjeta o referencia" [class.input-invalid]="depositWarning()" />
+                <!-- FUTURE_PHASE_SPEI: aviso de que con CLABE Banxico confirma los anticipos solos.
+                @if (clabeOk()) {
+                  <span class="mt-1 flex items-center gap-1 text-xs text-[var(--nx-ok-fg)]"><mat-icon class="h-4! w-4! text-[16px]!">verified</mat-icon>Con tu CLABE, Banxico confirma los anticipos solos: el {{ copy.text().client.toLowerCase() }} pone su clave de rastreo y la cita queda pagada.</span>
+                } @else {
+                  <span class="field-hint mt-1 block">Si pones tu CLABE (18 dígitos), los anticipos se confirman solos con Banxico.</span>
+                }
+                -->
+              </label>
+            </div>
+            <div>
+              <span class="label">Tiempo para pagarlo</span>
+              <ng-container *ngTemplateOutlet="chips; context: { field: 'depositHoldHours', unit: 'horas', max: 72 }" />
+              <span class="field-hint mt-1 block">Si no llega en ese tiempo, el horario se libera solo.</span>
+            </div>
+            <div class="rounded-xl border border-line p-4">
+              <span class="label">Anticipo para quien ya faltó</span>
+              <ng-container *ngTemplateOutlet="chips; context: { field: 'noshowAfter', unit: 'faltas', max: 10 }" />
+              @if (form.controls.noshowAfter.value) {
+                <label class="mt-3 block">
+                  <span class="label">Monto del anticipo</span>
+                  <input class="input nums w-40" type="number" min="1" inputmode="decimal" formControlName="noshowDeposit" placeholder="Ej. 100" />
+                  @if (!form.controls.noshowDeposit.value) {
+                    <span class="field-error mt-1 block">Escribe cuánto pedirás para que la regla funcione.</span>
+                  }
+                </label>
+              }
+              <span class="field-hint mt-2 block">Cuenta las citas en que el {{ copy.text().client.toLowerCase() }} no llegó. Se le pide este anticipo aunque el servicio no lo pida, y necesitas una cuenta para recibirlo.</span>
+            </div>
+            <label class="block">
+              <span class="label">Enlace de pago (opcional)</span>
+              <input class="input" formControlName="paymentUrl" placeholder="https://" inputmode="url" />
+              @if (form.controls.paymentUrl.invalid && form.controls.paymentUrl.touched) {
+                <span class="field-error mt-1 block">El enlace debe empezar con https://</span>
+              } @else {
+                <span class="field-hint mt-1 block">Mercado Pago, Clip u otro. Aparece como botón para pagar.</span>
+              }
+            </label>
+          </div>
+        </details>
+
+        <!-- 5. Promociones -->
+        <details id="sec-promociones" class="card group scroll-mt-6 p-0!" [open]="isOpen('promociones')" (toggle)="onToggle('promociones', $event)">
+          <ng-container *ngTemplateOutlet="head; context: { $implicit: 'promociones' }" />
+          <div class="flex flex-col gap-5 p-4 sm:p-5">
+            <div class="grid gap-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+              <label class="block">
+                <span class="label">Anuncio en tu página</span>
+                <input class="input" maxlength="80" placeholder="2x1 en color todo octubre" [value]="promo()" (input)="promo.set($any($event.target).value)" />
+                <span class="field-hint mt-1 block">Aparece arriba de tu página de reservas.</span>
+              </label>
+              <label class="block">
+                <span class="label">Visible hasta</span>
+                <input class="input" type="date" [attr.min]="today" [class.input-invalid]="promoError()" [value]="promoUntil()" [disabled]="!promo().trim()" (change)="promoUntil.set($any($event.target).value)" />
+                @if (promoError(); as message) {
+                  <span class="field-error mt-1 block">{{ message }}</span>
+                }
+              </label>
+            </div>
+
+            <div class="rounded-xl border border-line p-4">
+              <p class="text-sm font-semibold text-ink">Premio por visitas</p>
+              <p class="field-hint">Cada cierto número de visitas cobradas, la siguiente lleva descuento. Déjalo vacío para no usarlo.</p>
+              <div class="mt-3 flex flex-wrap items-center gap-2 text-sm text-ink-soft">
+                Cada
+                <input class="input nums w-20" type="number" min="2" max="50" placeholder="5" [value]="loyaltyEvery() ?? ''" (input)="loyaltyEvery.set(toNumber($any($event.target).value))" aria-label="Cada cuántas visitas" />
+                visitas,
+                <input class="input nums w-20" type="number" min="1" max="100" placeholder="20" [value]="loyaltyPercent() ?? ''" (input)="loyaltyPercent.set(toNumber($any($event.target).value))" aria-label="Porcentaje de descuento" />
+                % de descuento
+              </div>
+              @if (loyaltyError(); as message) {
+                <span class="field-error mt-2 block">{{ message }}</span>
+              } @else if (loyaltyEvery() && loyaltyPercent()) {
+                <p class="badge-info mt-3 rounded-lg px-3 py-2 text-sm nums">La visita {{ loyaltyEvery() }}, {{ (loyaltyEvery() ?? 0) * 2 }}, {{ (loyaltyEvery() ?? 0) * 3 }}… lleva {{ loyaltyPercent() }}% de descuento.</p>
+              }
+            </div>
+
+            <div>
+              <div class="flex items-center justify-between gap-3">
+                <div>
+                  <p class="text-sm font-semibold text-ink">Cupones</p>
+                  <p class="field-hint">El {{ copy.text().client.toLowerCase() }} escribe el código al reservar. Si aplican varios descuentos, gana el mayor.</p>
+                </div>
+                <button type="button" class="btn btn-secondary shrink-0" (click)="addCoupon()">
+                  <mat-icon>add</mat-icon>
+                  Agregar
+                </button>
+              </div>
+              @if (coupons().length === 0) {
+                <p class="mt-3 rounded-xl border border-dashed border-line-strong px-4 py-5 text-center text-sm text-muted">Sin cupones. Ejemplo: BIENVENIDA con 10% solo en la primera visita.</p>
+              }
+              <div class="mt-3 flex flex-col gap-2">
+                @for (coupon of coupons(); track $index) {
+                  <div class="grid items-end gap-3 rounded-xl border border-line bg-canvas p-3 sm:grid-cols-[1fr_6rem_auto_auto]">
+                    <label class="block">
+                      <span class="label">Código</span>
+                      <input class="input uppercase" maxlength="40" placeholder="BIENVENIDA" [class.input-invalid]="couponIssues()[$index]" [value]="coupon.code" (input)="editCoupon($index, { code: $any($event.target).value })" />
+                    </label>
+                    <label class="block">
+                      <span class="label">%</span>
+                      <input class="input nums" type="number" min="1" max="100" [value]="coupon.percent" (input)="editCoupon($index, { percent: toNumber($any($event.target).value) ?? 0 })" />
+                    </label>
+                    <label class="flex min-h-11 items-center gap-2 text-sm text-ink-soft">
+                      <input type="checkbox" [checked]="coupon.first_visit" (change)="editCoupon($index, { first_visit: $any($event.target).checked })" />
+                      Solo primera visita
+                    </label>
+                    <button type="button" class="btn btn-ghost" [attr.aria-label]="'Quitar cupón ' + (coupon.code || $index + 1)" (click)="removeCoupon($index)">
+                      <mat-icon>delete</mat-icon>
+                    </button>
+                    @if (couponIssues()[$index]; as issue) {
+                      <span class="field-error sm:col-span-4">{{ issue }}</span>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <!-- Mensajes de WhatsApp -->
+        <details id="sec-mensajes" class="card group scroll-mt-6 p-0!" [open]="isOpen('mensajes')" (toggle)="onToggle('mensajes', $event)">
+          <ng-container *ngTemplateOutlet="head; context: { $implicit: 'mensajes' }" />
+          <div class="flex flex-col gap-3 p-4 sm:p-5">
+            <!-- FUTURE_PHASE_WHATSAPP: envío automático por la API oficial de WhatsApp (recordatorio con botones y "Te toca").
+            <div class="rounded-xl border border-line">
+              <div class="flex items-start gap-3 border-b border-line px-4 py-3">
+                <mat-icon class="mt-0.5 shrink-0" [class.text-[var(--nx-ok-fg)]]="whatsappReady()" [class.text-muted]="!whatsappReady()">{{ whatsappReady() ? 'check_circle' : 'link_off' }}</mat-icon>
+                <div class="min-w-0">
+                  <p class="text-sm font-semibold text-ink">Envío automático</p>
+                  <p class="field-hint">
+                    {{ whatsappReady() ? 'Salen solos desde el número de WhatsApp de Nexia, sin que abras el panel.' : 'Aún no está conectada la API de WhatsApp en el servidor. Puedes dejarlos encendidos: empiezan a salir en cuanto se conecte.' }}
+                  </p>
+                </div>
+              </div>
+              <div class="flex items-center justify-between gap-4 px-4 py-3">
+                <div>
+                  <p class="text-sm font-medium text-ink">Recordatorio con "Confirmo / Cambiar"</p>
+                  <p class="field-hint">El {{ copy.text().client.toLowerCase() }} confirma con un toque y se marca en tu agenda. "Cambiar" le manda su enlace para moverla.</p>
+                </div>
+                <button type="button" role="switch" class="switch" [attr.aria-checked]="autoReminders()" (click)="autoReminders.set(!autoReminders())" aria-label="Recordatorio automático"><span></span></button>
+              </div>
+              @if (autoReminders()) {
+                <div class="flex flex-wrap gap-2 px-4 pb-3">
+                  @for (option of reminderOptions; track option.value) {
+                    <button type="button" class="chip" [class.chip-on]="reminderHours() === option.value" (click)="reminderHours.set(option.value)">{{ option.label }}</button>
+                  }
+                </div>
+              }
+              <div class="flex items-center justify-between gap-4 border-t border-line px-4 py-3">
+                <div>
+                  <p class="text-sm font-medium text-ink">"Te toca volver"</p>
+                  <p class="field-hint">El día que le toca según cada cuánto viene por su servicio, le llega una invitación con tu enlace. Una sola vez por visita.</p>
+                </div>
+                <button type="button" role="switch" class="switch" [attr.aria-checked]="autoReturn()" (click)="autoReturn.set(!autoReturn())" aria-label="Invitación automática a volver"><span></span></button>
+              </div>
+            </div>
+            -->
+            <p class="text-sm text-ink-soft">
+              Así se escriben los mensajes que mandas desde el panel. Las palabras entre llaves, como <code class="rounded bg-canvas px-1">{{ '{' }}nombre{{ '}' }}</code>, se cambian solas por los datos de cada cita. Si un dato falta, su línea no se manda.
+            </p>
+            @for (group of messageGroups(); track group.id) {
+            <h3 class="mt-2 text-sm font-semibold text-ink">{{ group.title }}</h3>
+            <ul class="divide-y divide-line rounded-xl border border-line">
+              @for (template of group.items; track template.key) {
+                <li>
+                  <button type="button" class="row-hover flex w-full items-center gap-3 px-4 py-3 text-left" [attr.aria-expanded]="openMessage() === template.key" (click)="toggleMessage(template.key)">
+                    <span class="min-w-0 flex-1">
+                      <span class="block text-sm font-medium text-ink">{{ template.label }}</span>
+                      <span class="field-hint block truncate">{{ template.where }}</span>
+                    </span>
+                    @if (isCustomized(template.key)) {
+                      <span class="badge badge-info shrink-0">Personalizado</span>
+                    }
+                    <mat-icon class="shrink-0 text-muted transition-transform" [class.rotate-180]="openMessage() === template.key" aria-hidden="true">expand_more</mat-icon>
+                  </button>
+                  @if (openMessage() === template.key) {
+                    <div class="grid gap-4 border-t border-line bg-canvas/50 p-4 lg:grid-cols-2">
+                      <div>
+                        <textarea #area class="input min-h-40 text-sm" rows="8" maxlength="1000" [value]="messages()[template.key]" (input)="editMessage(template.key, $any($event.target).value)" [attr.aria-label]="'Texto de ' + template.label"></textarea>
+                        <p class="field-hint mt-2">Toca un dato para ponerlo donde está el cursor:</p>
+                        <div class="mt-1.5 flex flex-wrap gap-1.5">
+                          @for (name of template.vars; track name) {
+                            <button type="button" class="chip h-7! px-2.5! text-xs!" [title]="variableHelp[name]" (click)="insertVariable(template.key, area, name)">{{ '{' + name + '}' }}</button>
+                          }
+                        </div>
+                        <div class="mt-3 flex items-center justify-between gap-3">
+                          <span class="field-hint nums">{{ messages()[template.key].length }}/1000</span>
+                          @if (isCustomized(template.key)) {
+                            <button type="button" class="btn btn-ghost h-11! px-3! text-xs" (click)="resetMessage(template.key)">
+                              <mat-icon>restart_alt</mat-icon>
+                              Volver al de fábrica
+                            </button>
+                          }
+                        </div>
+                      </div>
+                      <div>
+                        <p class="label">Así le llega a tu {{ copy.text().client.toLowerCase() }}</p>
+                        <!-- Burbuja tipo WhatsApp con datos de ejemplo. -->
+                        <div class="rounded-xl bg-[#e7ddd3] p-3">
+                          <p class="ml-auto max-w-[92%] whitespace-pre-line rounded-lg rounded-tr-none bg-[#d9fdd3] px-3 py-2 text-sm leading-relaxed text-[#111b21] shadow-sm">{{ preview(template.key) }}</p>
+                        </div>
+                        <p class="field-hint mt-2">Con datos de ejemplo: María, mañana a las 11:00 con Ana.</p>
+                      </div>
+                    </div>
+                  }
+                </li>
+              }
+            </ul>
+            }
+          </div>
+        </details>
+
+        <!-- 6. Pausa y vacaciones -->
+        <details id="sec-pausa" class="card group scroll-mt-6 p-0!" [open]="isOpen('pausa')" (toggle)="onToggle('pausa', $event)">
+          <ng-container *ngTemplateOutlet="head; context: { $implicit: 'pausa' }" />
+          <div class="flex flex-col gap-4 p-4 sm:p-5">
+            <div class="flex items-center justify-between gap-4 rounded-xl border border-line p-4">
+              <div>
+                <p class="text-sm font-semibold text-ink">No tomar citas por ahora</p>
+                <p class="field-hint">Tu página sigue visible, pero no deja reservar hasta que lo vuelvas a activar. Se aplica al momento, sin guardar.</p>
+              </div>
+              <button type="button" role="switch" class="switch" [attr.aria-checked]="pauseBookings()" [disabled]="pausing()" (click)="togglePause()" aria-label="No tomar citas por ahora"><span></span></button>
+            </div>
+            <div>
+              <p class="text-sm font-semibold text-ink">Días que cierras</p>
+              <p class="field-hint">Vacaciones, puentes o días festivos. Esos días no se pueden reservar; los demás todo sigue igual.</p>
+              @if (upcomingClosures().length) {
+                <ul class="mt-3 divide-y divide-line rounded-xl border border-line">
+                  @for (row of upcomingClosures(); track row.from) {
+                    <li class="flex items-center gap-3 px-4 py-2.5">
+                      <mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-muted">{{ row.from === row.to ? 'event' : 'date_range' }}</mat-icon>
+                      <div class="min-w-0 flex-1">
+                        <p class="truncate text-sm font-medium text-ink">{{ row.label || 'Cerrado' }}</p>
+                        <p class="field-hint">{{ closureText(row) }}</p>
+                      </div>
+                      <button type="button" class="btn btn-ghost h-11! px-2!" [attr.aria-label]="'Quitar ' + (row.label || 'cierre')" (click)="removeClosure(row)"><mat-icon>close</mat-icon></button>
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <p class="mt-3 rounded-xl border border-dashed border-line-strong px-4 py-4 text-center text-sm text-muted">Sin cierres por venir.</p>
+              }
+              @if (pastClosures().length) {
+                <button type="button" class="mt-2 text-sm font-medium text-ink-soft hover:text-ink" (click)="clearPastClosures()">Quitar {{ pastClosures().length }} cierre{{ pastClosures().length === 1 ? '' : 's' }} que ya pasaron</button>
+              }
+
+              <div class="mt-4 grid gap-3 rounded-xl border border-line p-3 sm:grid-cols-[1fr_1fr_1.3fr_auto] sm:items-end">
+                <label class="block">
+                  <span class="label">Desde</span>
+                  <input class="input" type="date" [attr.min]="today" [class.input-invalid]="closureError()" [value]="newFrom()" (change)="newFrom.set($any($event.target).value); closureError.set('')" />
+                </label>
+                <label class="block">
+                  <span class="label">Hasta <span class="text-muted">(si es más de un día)</span></span>
+                  <input class="input" type="date" [attr.min]="newFrom() || today" [class.input-invalid]="closureError()" [value]="newTo()" (change)="newTo.set($any($event.target).value); closureError.set('')" />
+                </label>
+                <label class="block">
+                  <span class="label">Nombre (opcional)</span>
+                  <input class="input" maxlength="60" placeholder="Vacaciones, Puente…" [value]="newLabel()" (input)="newLabel.set($any($event.target).value)" (keydown.enter)="$event.preventDefault(); addClosure()" />
+                </label>
+                <button type="button" class="btn btn-secondary" (click)="addClosure()"><mat-icon>add</mat-icon>Agregar</button>
+                @if (closureError(); as message) {
+                  <span class="field-error sm:col-span-4">{{ message }}</span>
+                }
+              </div>
+
+              @if (suggestedHolidays().length) {
+                <div class="mt-4">
+                  <div class="flex flex-wrap items-center justify-between gap-2">
+                    <p class="text-sm font-semibold text-ink">Días festivos que vienen</p>
+                    <button type="button" class="min-h-11 text-sm font-medium text-accent hover:underline" (click)="addHolidays(suggestedHolidays())">Cerrar todos</button>
+                  </div>
+                  <p class="field-hint">Toca los días en que no abres.</p>
+                  <div class="mt-2 flex flex-wrap gap-2">
+                    @for (holiday of suggestedHolidays(); track holiday.date) {
+                      <button type="button" class="chip gap-1.5" (click)="addHolidays([holiday])">
+                        <mat-icon class="h-4! w-4! text-[16px]!">add</mat-icon>
+                        {{ holiday.label }} · <span class="nums">{{ closureText({ from: holiday.date, to: holiday.date, label: '' }).replace('el ', '') }}</span>
+                      </button>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+            <p class="field-hint flex items-center gap-1.5"><mat-icon class="h-4! w-4! text-[16px]!">info</mat-icon>Las citas que ya están agendadas no se cancelan.</p>
+          </div>
+        </details>
+
+        <!-- 7. Avisos por correo -->
+        <details id="sec-avisos" class="card group scroll-mt-6 p-0!" [open]="isOpen('avisos')" (toggle)="onToggle('avisos', $event)">
+          <ng-container *ngTemplateOutlet="head; context: { $implicit: 'avisos' }" />
+          <div class="flex flex-col gap-4 p-4 sm:p-5">
+            <p class="text-sm text-ink-soft">
+              Te llegan a <strong class="font-medium text-ink">{{ accountEmail() }}</strong> aunque no tengas el panel abierto. En Inicio siempre los ves todos.
+            </p>
+            <ul class="divide-y divide-line rounded-xl border border-line">
+              @for (option of alertOptions; track option.value) {
+                <li class="flex items-center justify-between gap-4 px-4 py-3">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium text-ink">{{ option.label }}</p>
+                    <p class="field-hint">{{ option.hint }}</p>
+                  </div>
+                  <button type="button" role="switch" class="switch" [attr.aria-checked]="emailAlerts().has(option.value)" [attr.aria-label]="option.label" (click)="toggleAlert(option.value)"><span></span></button>
+                </li>
+              }
+            </ul>
+          </div>
+        </details>
+
+        <!-- 8. Privacidad y datos -->
+        <details id="sec-privacidad" class="card group scroll-mt-6 p-0!" [open]="isOpen('privacidad')" (toggle)="onToggle('privacidad', $event)">
+          <ng-container *ngTemplateOutlet="head; context: { $implicit: 'privacidad' }" />
+          <div class="flex flex-col gap-5 p-4 sm:p-5">
+            <label class="block">
+              <span class="label">Aviso de privacidad</span>
+              <textarea class="input" rows="5" formControlName="privacyNotice" placeholder="Pega aquí tu aviso de privacidad."></textarea>
+              <span class="field-hint mt-1 block">
+                Si lo dejas vacío usamos uno genérico con lo que tu página recaba. Te conviene revisarlo con tu asesor.
+                @if (privacyUrl(); as url) {
+                  <a class="font-medium text-accent hover:underline" [href]="url" target="_blank" rel="noopener">Ver cómo se ve</a>
+                }
+              </span>
+            </label>
+            <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line p-4">
+              <div>
+                <p class="text-sm font-semibold text-ink">Copia de tu información</p>
+                <p class="field-hint">Descarga un archivo con los datos de tu negocio para guardarlo por tu cuenta.</p>
+              </div>
+              <button type="button" class="btn btn-secondary" (click)="downloadBackup()">
+                <mat-icon>download</mat-icon>
+                Descargar copia
+              </button>
+            </div>
+          </div>
+        </details>
+      </form>
+
+      <!-- Vista previa en vivo (pantallas anchas): así se ve el encabezado de la página con lo que llevas escrito, sin guardar. -->
+      @let color = form.controls.primaryColor.value;
+      <aside class="sticky top-6 hidden flex-col gap-2 2xl:flex" aria-label="Vista previa de tu página">
+        <p class="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted"><mat-icon class="h-4! w-4! text-[16px]!">visibility</mat-icon>Así te ven tus {{ copy.text().clients.toLowerCase() }}</p>
+        <!-- La página de reservas siempre es clara, así que la vista previa también. -->
+        <div class="overflow-hidden rounded-2xl border bg-white text-[#1e1b1e] shadow-sm" [style.border-color]="color + '47'">
+          @if (photos()[0]; as cover) {
+            <div class="relative h-24">
+              <img [src]="cover" alt="" class="h-full w-full object-cover" />
+              <span class="absolute inset-0" [style.background]="'linear-gradient(to bottom, transparent 55%, ' + color + '1f)'"></span>
+            </div>
+          }
+          <div class="flex items-center gap-3 px-4 py-4" [style.background]="color + '1f'">
+            @if (logoSrc(); as src) {
+              <img [src]="src" alt="" class="h-12 w-12 shrink-0 rounded-xl bg-white object-contain p-0.5" />
+            } @else {
+              <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-base font-semibold text-white" [style.background]="color">{{ (form.controls.name.value || 'N').charAt(0) }}</span>
+            }
+            <div class="min-w-0">
+              <p class="text-xs font-medium uppercase tracking-wide" [style.color]="color">Reservas</p>
+              <p class="truncate text-base font-semibold">{{ form.controls.name.value || 'Tu negocio' }}</p>
+              @if (form.controls.description.value) {
+                <p class="line-clamp-2 text-xs text-[#57534e]">{{ form.controls.description.value }}</p>
+              }
+            </div>
+          </div>
+          <div class="flex flex-col gap-2 px-4 py-3">
+            @if (promo().trim() && !promoError()) {
+              <p class="rounded-xl px-3 py-1.5 text-xs text-white" [style.background]="color">{{ promo() }}</p>
+            }
+            @if (pauseBookings()) {
+              <p class="rounded-xl bg-[#fef3c7] px-3 py-1.5 text-xs text-[#78350f]">Por ahora no estamos tomando citas.</p>
+            } @else if (upcomingClosures()[0]; as next) {
+              <p class="text-xs" [style.color]="color">Cerramos: {{ closureText(next) }}{{ next.label ? ' (' + next.label + ')' : '' }}.</p>
+            }
+            <div class="rounded-xl border border-[#e7e5e4] p-3">
+              <p class="text-sm font-medium">{{ examples().service }}</p>
+              <p class="text-xs text-[#78716c]">45 min · $250</p>
+            </div>
+            <p class="text-xs text-[#78716c]">Aceptamos {{ methodsText() }}.{{ approveBookings() ? ' Confirmamos cada solicitud por WhatsApp.' : '' }}</p>
+            <span class="flex h-9 items-center justify-center rounded-full text-sm font-medium text-white" [style.background]="color">Elegir horario</span>
+          </div>
+        </div>
+        <p class="field-hint">Se actualiza mientras escribes. El servicio es de ejemplo.</p>
+      </aside>
+    </div>
+
+    <!-- Solo aparece cuando hay algo por guardar. bottom-20 en celular para no tapar la navegación inferior. -->
+    @if (changeCount() > 0) {
+      <div class="fixed inset-x-3 bottom-20 z-30 md:bottom-6 md:left-[calc(15rem+1.5rem)] md:right-6" role="region" aria-label="Cambios sin guardar">
+        <div class="mx-auto flex max-w-3xl flex-wrap items-center gap-3 rounded-2xl border border-line bg-[var(--nx-rail-bg)] px-4 py-3 text-[var(--nx-rail-ink)] shadow-[0_18px_50px_rgba(30,27,30,0.25)]">
+          <mat-icon class="shrink-0 text-[var(--nx-rail-soft)]">edit_note</mat-icon>
+          <p class="min-w-0 flex-1 text-sm">
+            <span class="font-semibold nums">{{ changeCount() }}</span> cambio{{ changeCount() === 1 ? '' : 's' }} sin guardar
+          </p>
+          <button type="button" class="btn h-11! text-[var(--nx-rail-soft)] hover:bg-[var(--nx-rail-hover)]" [disabled]="saving()" (click)="discard()">Descartar</button>
+          <button type="submit" form="settings-form" class="btn h-11! text-white" style="background: var(--primary)" [disabled]="saving()">
+            {{ saving() ? 'Guardando…' : 'Guardar cambios' }}
+          </button>
+        </div>
+      </div>
+    }
+  }
+</section>
