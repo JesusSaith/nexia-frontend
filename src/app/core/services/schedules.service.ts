@@ -14,6 +14,8 @@ export interface SpecialHours {
   end_time: string;
   closed: boolean;
   note: string | null;
+  /** Horas fijas solo para esas fechas ("06:30, 07:30"); vacío = las de siempre. */
+  slot_times?: string | null;
 }
 
 @Injectable({ providedIn: 'root' })

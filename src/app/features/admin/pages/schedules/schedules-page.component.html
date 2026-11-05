@@ -185,13 +185,31 @@
         <label class="block"><span class="label">Hasta (opcional)</span>
           <input class="input" type="date" name="specialUntil" [(ngModel)]="special.until" />
         </label>
-        @if (!special.closed) {
+        @if (!special.closed && !specialClocks().length) {
           <label class="block"><span class="label">Abre</span>
             <app-time-field class="block" [valueIn]="special.from" (picked)="special.from = $event" />
           </label>
           <label class="block"><span class="label">Cierra</span>
             <app-time-field class="block" [valueIn]="special.to" (picked)="special.to = $event" />
           </label>
+        }
+        @if (!special.closed) {
+          <div class="sm:col-span-4">
+            <span class="label">Solo a estas horas (opcional)</span>
+            <div class="mt-1 flex flex-wrap gap-2">
+              @for (clock of specialClocks(); track clock) {
+                <button type="button" class="chip chip-on h-11! gap-1" (click)="removeSpecialClock(clock)">
+                  <span class="nums">{{ clock }}</span><mat-icon class="h-4! w-4! text-[16px]!" aria-hidden="true">close</mat-icon><span class="sr-only">Quitar {{ clock }}</span>
+                </button>
+              }
+              <app-time-field class="w-36" [valueIn]="specialDraft()" (picked)="specialDraft.set($event)" />
+              <button type="button" class="btn btn-secondary" (click)="addSpecialClock()"><mat-icon>add</mat-icon>Agregar hora</button>
+              @if (clocks().length && !specialClocks().length) {
+                <button type="button" class="btn btn-ghost" (click)="copyClocksToSpecial()"><mat-icon>content_copy</mat-icon>Empezar con las de siempre</button>
+              }
+            </div>
+            <p class="field-hint">Si atiendes a horas fijas y en esas fechas cambian (por ejemplo, diciembre con una hora más), agrégalas aquí. Sin horas, se usa la apertura y el cierre.</p>
+          </div>
         }
         <label class="block sm:col-span-2"><span class="label">Nota (opcional)</span>
           <input class="input" name="specialNote" maxlength="80" placeholder="Nochebuena, temporada de diciembre…" [(ngModel)]="special.note" />

@@ -413,6 +413,7 @@
             <div>
               <span class="label">¿Hasta cuándo pueden reservar?</span>
               <ng-container *ngTemplateOutlet="chips; context: { field: 'maxDaysAhead', unit: 'días', max: 365 }" />
+              <span class="field-hint mt-1 block">Hoy tus {{ copy.text().clients.toLowerCase() }} pueden apartar hasta el {{ aheadLabel() }}.</span>
             </div>
             <div>
               <span class="label">Tiempo libre entre citas</span>
@@ -422,6 +423,7 @@
             <div>
               <span class="label">¿Hasta cuándo pueden cancelar o cambiar?</span>
               <ng-container *ngTemplateOutlet="chips; context: { field: 'cancelHours', unit: 'h antes', max: 168 }" />
+              <span class="field-hint mt-1 block">Pasado ese plazo, tu {{ copy.text().client.toLowerCase() }} ya no puede cancelar ni cambiar desde su enlace y te tiene que escribir. Así el horario no se pierde a última hora.</span>
             </div>
             <div>
               <span class="label">Tope de citas al día por {{ copy.text().person.toLowerCase() }}</span>

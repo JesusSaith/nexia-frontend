@@ -84,6 +84,8 @@ export interface AdminAppointmentCreate {
   notes?: string | null;
   quoted_price?: number | null;
   waive_deposit?: boolean;
+  /** Anticipo que ya recibió por fuera: la cita nace confirmada con ese monto. */
+  deposit_received?: number | null;
 }
 
 export interface AppointmentStatusUpdate {
