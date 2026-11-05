@@ -62,6 +62,8 @@ export interface Closure {
   from: string;
   to: string;
   label: string;
+  /** Solo esos días de la semana dentro del periodo (0 = lunes … 6 = domingo); vacío o ausente = todos. */
+  days?: number[];
 }
 
 /** Cupón de descuento guardado como JSON en `coupons` del negocio. */
