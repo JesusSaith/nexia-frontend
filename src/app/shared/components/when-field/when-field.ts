@@ -3,13 +3,19 @@ import { TemplatePortal } from '@angular/cdk/portal';
 import { Component, DestroyRef, ElementRef, HostListener, TemplateRef, ViewContainerRef, computed, forwardRef, inject, input, output, signal, viewChild } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 
-const QUARTER_HOURS = Array.from({ length: ((22 - 6) * 60) / 15 + 1 }, (_, index) => {
-  const minutes = 6 * 60 + index * 15;
-  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
-});
+import { WheelColumnComponent, WheelItem } from '../wheel/wheel-column';
 
 function clock(value: string): string {
   return value.slice(0, 5);
+}
+
+/** "15:30" -> "3:30 PM" (se guarda siempre en 24 h; solo se muestra en 12 h). */
+export function clock12(value: string): string {
+  if (!/^\d{1,2}:\d{2}/.test(value)) {
+    return '';
+  }
+  const [hour, minute] = clock(value).split(':').map(Number);
+  return `${hour % 12 || 12}:${String(minute).padStart(2, '0')} ${hour >= 12 ? 'PM' : 'AM'}`;
 }
 
 function openSheet(overlay: Overlay, view: ViewContainerRef, anchor: HTMLElement, template: TemplateRef<unknown>, width: number): OverlayRef {
@@ -198,22 +204,32 @@ export class DateFieldComponent implements ControlValueAccessor {
 
 @Component({
   selector: 'app-time-field',
+  imports: [WheelColumnComponent],
   template: `
     <div class="relative">
       <button type="button" class="flex h-11 w-full items-center justify-between rounded-lg border border-line-strong bg-surface px-3.5 text-left text-sm text-ink disabled:opacity-50" [disabled]="disabled() || locked()" aria-haspopup="dialog" (click)="toggle($event)">
-        <span [class.text-muted]="!shown()">{{ shown() || 'Elegir hora' }}</span>
+        <span class="nums" [class.text-muted]="!shown()">{{ shownLabel() || 'Elegir hora' }}</span>
         <span class="text-muted" aria-hidden="true">▾</span>
       </button>
     <ng-template #panel>
-      <div class="max-h-64 overflow-auto rounded-2xl border border-line bg-surface p-2 text-ink shadow-lg" (click)="$event.stopPropagation()">
-        @if (choices().length === 0) {
+      <div class="rounded-2xl border border-line bg-surface p-3 text-ink shadow-lg" (click)="$event.stopPropagation()">
+        @if (options() !== null && choices().length === 0) {
           <p class="px-2 py-3 text-sm text-muted">Sin horarios.</p>
         } @else {
-          <div class="grid grid-cols-3 gap-1">
-            @for (time of choices(); track time) {
-              <button type="button" class="h-11 rounded-full px-2 text-sm" [class.bg-accent]="shown() === time" [class.text-white]="shown() === time" [attr.aria-pressed]="shown() === time" [attr.aria-label]="'Hora ' + time" (click)="pick(time)">{{ time }}</button>
-            }
+          <div class="relative">
+            <!-- Franja del centro: lo que cae aquí es lo elegido -->
+            <div class="pointer-events-none absolute inset-x-0 top-1/2 h-11 -translate-y-1/2 rounded-xl bg-canvas" aria-hidden="true"></div>
+            <div class="relative flex items-stretch gap-2 px-1">
+              @if (options() === null) {
+                <app-wheel-column class="flex-1" label="Hora" [items]="hours" [selected]="hour12()" (changed)="setHour($event)" />
+                <app-wheel-column class="flex-1" label="Minutos" [items]="minuteItems()" [selected]="pickedMinute()" (changed)="setMinute($event)" />
+                <app-wheel-column class="flex-1" label="AM o PM" [items]="meridiem" [selected]="pickedMeridiem()" (changed)="setMeridiem($event)" />
+              } @else {
+                <app-wheel-column class="flex-1" label="Hora" [items]="choiceItems()" [selected]="shown()" (changed)="setExact($event)" />
+              }
+            </div>
           </div>
+          <button type="button" class="btn btn-primary mt-3 w-full" (click)="dismiss()">Listo</button>
         }
       </div>
     </ng-template>
@@ -235,11 +251,34 @@ export class TimeFieldComponent implements ControlValueAccessor {
   protected readonly value = signal('');
   protected readonly disabled = signal(false);
   protected readonly shown = computed(() => clock(this.value() || this.valueIn() || ''));
+  protected readonly shownLabel = computed(() => clock12(this.shown()));
+  /** Horas que se pueden elegir cuando el campo trae su propia lista (por ejemplo, los huecos libres de un día). */
   protected readonly choices = computed(() => {
-    const given = this.options();
-    const base = (given ?? QUARTER_HOURS).map(clock);
+    const base = (this.options() ?? []).map(clock);
     const current = this.shown();
     return current && !base.includes(current) ? [current, ...base] : base;
+  });
+  protected readonly choiceItems = computed<WheelItem[]>(() => this.choices().map((time) => ({ value: time, label: clock12(time) })));
+
+  // Selector libre: tres columnas (hora, minutos y AM/PM) sobre el valor en 24 h.
+  protected readonly hours: WheelItem[] = Array.from({ length: 12 }, (_, index) => ({ value: String(index + 1), label: String(index + 1) }));
+  protected readonly meridiem: WheelItem[] = [
+    { value: 'AM', label: 'AM' },
+    { value: 'PM', label: 'PM' },
+  ];
+  private readonly parts = computed(() => {
+    const [hour, minute] = (this.shown() || '09:00').split(':').map(Number);
+    return { hour: Number.isNaN(hour) ? 9 : hour, minute: Number.isNaN(minute) ? 0 : minute };
+  });
+  protected readonly hour12 = computed(() => String(this.parts().hour % 12 || 12));
+  protected readonly pickedMinute = computed(() => String(this.parts().minute).padStart(2, '0'));
+  protected readonly pickedMeridiem = computed(() => (this.parts().hour >= 12 ? 'PM' : 'AM'));
+  /** De 5 en 5; si el valor trae otros minutos (09:10), se agregan para no perderlos. */
+  protected readonly minuteItems = computed<WheelItem[]>(() => {
+    const list = Array.from({ length: 12 }, (_, index) => String(index * 5).padStart(2, '0'));
+    const current = this.pickedMinute();
+    const all = list.includes(current) ? list : [...list, current].sort();
+    return all.map((minute) => ({ value: minute, label: minute }));
   });
   private onChange: (value: string) => void = () => undefined;
   private onTouched: () => void = () => undefined;
@@ -280,22 +319,43 @@ export class TimeFieldComponent implements ControlValueAccessor {
       return;
     }
     const anchor = event.currentTarget as HTMLElement;
-    this.sheet = openSheet(this.overlay, this.view, anchor, this.panel(), Math.max(220, anchor.offsetWidth));
+    this.sheet = openSheet(this.overlay, this.view, anchor, this.panel(), Math.max(300, anchor.offsetWidth));
     this.open.set(true);
   }
 
-  private dismiss(): void {
+  protected dismiss(): void {
     this.sheet?.dispose();
     this.sheet = null;
     this.open.set(false);
   }
 
-  protected pick(time: string): void {
+  /** Cada giro se aplica al momento; "Listo" (o tocar fuera) solo cierra el panel. */
+  protected setHour(hour: string): void {
+    this.build(Number(hour), this.pickedMeridiem() === 'PM', this.parts().minute);
+  }
+
+  protected setMinute(minute: string): void {
+    this.build(Number(this.hour12()), this.pickedMeridiem() === 'PM', Number(minute));
+  }
+
+  protected setMeridiem(value: string): void {
+    this.build(Number(this.hour12()), value === 'PM', this.parts().minute);
+  }
+
+  protected setExact(time: string): void {
+    this.apply(time);
+  }
+
+  private build(hour12: number, pm: boolean, minute: number): void {
+    const hour = (hour12 % 12) + (pm ? 12 : 0);
+    this.apply(`${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`);
+  }
+
+  private apply(time: string): void {
     this.value.set(time);
     this.onChange(time);
     this.onTouched();
     this.picked.emit(time);
-    this.dismiss();
   }
 }
 

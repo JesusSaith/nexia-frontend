@@ -27,6 +27,7 @@ export interface BusinessBrand {
   deposit_percent?: number | null;
   deposit_account?: string | null;
   deposit_hold_hours?: number | null;
+  quote_hold_hours?: number | null;
   cancel_hours?: number | null;
   staff_label?: string;
   min_notice_hours?: number;
@@ -61,6 +62,8 @@ export interface Closure {
   from: string;
   to: string;
   label: string;
+  /** Solo esos días de la semana dentro del periodo (0 = lunes … 6 = domingo); vacío o ausente = todos. */
+  days?: number[];
 }
 
 /** Cupón de descuento guardado como JSON en `coupons` del negocio. */

@@ -17,6 +17,8 @@ import { catchError, distinctUntilChanged, map, switchMap } from 'rxjs/operators
 
 import { BusinessCopy } from '@core/business-copy';
 import { Progress, appointmentProgress, attendanceState } from '@core/appointment-progress';
+import { closureOn, closureSpan, noteOf } from '@core/shop-note';
+import { Closure } from '@core/models/business.model';
 import { staffColorOf } from '@core/staff-colors';
 import { ALL_METHODS, METHOD_LABELS, PAYMENT_METHODS } from '@core/payment-methods';
 import { agendaTourSteps } from '@core/tour';
@@ -161,6 +163,8 @@ export class AgendaPageComponent {
   private scrolledToNow = false;
   protected readonly openTimes = signal<string[]>([]);
   protected readonly holdHours = signal(3);
+  /** Días que el negocio marcó como cerrados en Configuración (festivos, vacaciones). */
+  private readonly closures = signal<Closure[]>([]);
   protected readonly depositRules = signal<{ account: string | null; amount: number | null; percent: number | null }>({
     account: null,
     amount: null,
@@ -273,6 +277,29 @@ export class AgendaPageComponent {
     const start = startOfWeek(this.cursor());
     return Array.from({ length: 7 }, (_, index) => addDays(start, index));
   });
+  /** El cierre de ese día ("Navidad", "Vacaciones") o null si se abre normal. */
+  protected closureFor(day: Date): Closure | null {
+    return closureOn(toInputDate(day), noteOf({ closures: this.closures() }));
+  }
+
+  protected closureName(row: Closure): string {
+    return row.label || 'Cerrado';
+  }
+
+  /** Aviso arriba de la agenda: en la vista de día, ese cierre; en la semana, los que caen en ella. */
+  protected readonly closureNotice = computed(() => {
+    const view = this.currentView();
+    if (view === 'month' || !this.closures().length) {
+      return '';
+    }
+    const days = view === 'day' ? [this.cursor()] : this.weekDays();
+    const names = [...new Set(days.map((day) => this.closureFor(day)).filter((row): row is Closure => row !== null).map((row) => this.closureName(row)))];
+    if (!names.length) {
+      return '';
+    }
+    return view === 'day' ? `Este día está marcado como cerrado (${names[0]}). Las citas que ya tienes se respetan.` : `Esta semana hay días cerrados: ${names.join(', ')}.`;
+  });
+
   protected readonly monthWeeks = computed(() => buildMonthWeeks(this.cursor()));
   protected readonly visibleStaff = computed(() => {
     const selectedStaff = this.staffId();
@@ -463,6 +490,7 @@ export class AgendaPageComponent {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((brand) => {
         this.holdHours.set(brand.deposit_hold_hours || 3);
+        this.closures.set(brand.closures ?? []);
         this.staffCanEditPrice.set(brand.staff_can_edit_price === true);
         this.depositCancelPolicy.set(brand.deposit_cancel_policy === 'keep' ? 'keep' : 'refund');
         this.acceptedMethods.set(brand.payment_methods?.length ? brand.payment_methods : ALL_METHODS);
@@ -1154,6 +1182,9 @@ export class AgendaPageComponent {
       ...this.visitVars(appointment),
       precio: this.pesos(appointment.quoted_price),
       anticipo: appointment.deposit_amount ? this.pesos(appointment.deposit_amount) : '',
+      pago: appointment.deposit_amount
+        ? `Para apartar tu lugar el anticipo es de ${this.pesos(appointment.deposit_amount)}; el resto lo pagas en la cita.`
+        : 'No necesitas pagar anticipo; lo pagas en la cita.',
       enlace: this.manageLink(appointment),
     });
     return whatsappLink(phone, text);
@@ -1205,11 +1236,14 @@ export class AgendaPageComponent {
   protected readonly quoteHref = signal<string | null>(null);
   protected readonly quoteSaving = signal(false);
 
-  protected saveQuote(appointment: Appointment, value: string): void {
+  /** Guarda el precio. Con `notify`, abre de una vez el WhatsApp con el precio y el enlace de la cita. */
+  protected saveQuote(appointment: Appointment, value: string, notify = false): void {
     const amount = Number(value);
     if (!String(value).trim() || Number.isNaN(amount) || this.quoteSaving()) {
       return;
     }
+    // La ventana se abre aquí, dentro del toque, para que el navegador no la bloquee; se llena al guardar.
+    const chat = notify && typeof window !== 'undefined' ? window.open('', '_blank') : null;
     this.quoteSaving.set(true);
     this.appointmentsApi
       .quote(appointment.id, amount)
@@ -1218,11 +1252,20 @@ export class AgendaPageComponent {
         next: (saved) => {
           this.quoteSaving.set(false);
           this.patchLocal(saved);
-          this.quoteHref.set(this.priceHref(saved));
-          this.toasts.show('Precio guardado.');
+          const href = this.priceHref(saved);
+          if (chat && href) {
+            chat.location.href = href;
+            this.quoteHref.set(null);
+            this.toasts.show('Precio guardado. Toca enviar en WhatsApp.');
+          } else {
+            chat?.close();
+            this.quoteHref.set(href);
+            this.toasts.show(notify && !href ? 'Precio guardado. Este contacto no tiene WhatsApp.' : 'Precio guardado.');
+          }
           this.refreshQuietly();
         },
         error: (error: unknown) => {
+          chat?.close();
           this.quoteSaving.set(false);
           this.loadError.set(readError(error, 'No pudimos guardar el precio.'));
         },
@@ -1835,6 +1878,25 @@ export class AgendaPageComponent {
       return;
     }
     const value = this.form.getRawValue();
+    if (value.service_id == null || value.staff_id == null) {
+      return;
+    }
+    void this.saveChecked(value);
+  }
+
+  /** Agendar en un día que se marcó como cerrado es posible (la dueña manda), pero se pregunta antes. */
+  private async saveChecked(value: ReturnType<typeof this.form.getRawValue>): Promise<void> {
+    const closure = closureOn(value.date, noteOf({ closures: this.closures() }));
+    if (closure) {
+      const ok = await this.confirm.ask({
+        title: 'Ese día está cerrado',
+        message: `Marcaste ${closureSpan(closure)}${closure.label ? ` (${closure.label})` : ''} como día que no abres. ¿Quieres agendar esta cita de todos modos?`,
+        confirm: 'Agendar de todos modos',
+      });
+      if (!ok) {
+        return;
+      }
+    }
     if (value.service_id == null || value.staff_id == null) {
       return;
     }
