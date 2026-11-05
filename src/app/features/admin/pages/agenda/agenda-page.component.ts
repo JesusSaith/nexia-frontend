@@ -1154,6 +1154,9 @@ export class AgendaPageComponent {
       ...this.visitVars(appointment),
       precio: this.pesos(appointment.quoted_price),
       anticipo: appointment.deposit_amount ? this.pesos(appointment.deposit_amount) : '',
+      pago: appointment.deposit_amount
+        ? `Para apartar tu lugar el anticipo es de ${this.pesos(appointment.deposit_amount)}; el resto lo pagas en la cita.`
+        : 'No necesitas pagar anticipo; lo pagas en la cita.',
       enlace: this.manageLink(appointment),
     });
     return whatsappLink(phone, text);
@@ -1205,11 +1208,14 @@ export class AgendaPageComponent {
   protected readonly quoteHref = signal<string | null>(null);
   protected readonly quoteSaving = signal(false);
 
-  protected saveQuote(appointment: Appointment, value: string): void {
+  /** Guarda el precio. Con `notify`, abre de una vez el WhatsApp con el precio y el enlace de la cita. */
+  protected saveQuote(appointment: Appointment, value: string, notify = false): void {
     const amount = Number(value);
     if (!String(value).trim() || Number.isNaN(amount) || this.quoteSaving()) {
       return;
     }
+    // La ventana se abre aquí, dentro del toque, para que el navegador no la bloquee; se llena al guardar.
+    const chat = notify && typeof window !== 'undefined' ? window.open('', '_blank') : null;
     this.quoteSaving.set(true);
     this.appointmentsApi
       .quote(appointment.id, amount)
@@ -1218,11 +1224,20 @@ export class AgendaPageComponent {
         next: (saved) => {
           this.quoteSaving.set(false);
           this.patchLocal(saved);
-          this.quoteHref.set(this.priceHref(saved));
-          this.toasts.show('Precio guardado.');
+          const href = this.priceHref(saved);
+          if (chat && href) {
+            chat.location.href = href;
+            this.quoteHref.set(null);
+            this.toasts.show('Precio guardado. Toca enviar en WhatsApp.');
+          } else {
+            chat?.close();
+            this.quoteHref.set(href);
+            this.toasts.show(notify && !href ? 'Precio guardado. Este contacto no tiene WhatsApp.' : 'Precio guardado.');
+          }
           this.refreshQuietly();
         },
         error: (error: unknown) => {
+          chat?.close();
           this.quoteSaving.set(false);
           this.loadError.set(readError(error, 'No pudimos guardar el precio.'));
         },

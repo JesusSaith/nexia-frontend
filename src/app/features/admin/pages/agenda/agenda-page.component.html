@@ -814,6 +814,12 @@
         {{ quoteSaving() ? 'Guardando…' : 'Guardar precio' }}
       </button>
     </div>
+    @if (needsQuote(appointment)) {
+      <!-- Un toque: guarda el precio y abre WhatsApp con el precio y el enlace para que lo acepte. -->
+      <button type="button" class="btn btn-whatsapp w-full" [disabled]="quoteSaving()" (click)="saveQuote(appointment, quoteInput.value, true)">
+        Cotizar y avisar por WhatsApp
+      </button>
+    }
     @if (quoteHref(); as href) {
       <a class="btn btn-whatsapp w-full" [href]="href" target="_blank" rel="noopener" (click)="quoteHref.set(null)">Enviar precio por WhatsApp</a>
     }

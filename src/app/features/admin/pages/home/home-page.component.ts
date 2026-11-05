@@ -75,6 +75,9 @@ export class HomePageComponent {
       const when = `${item.client_name} · ${item.service_name} · ${this.slotLabel(item.starts_at)}`;
       if (item.needs_approval && (item.status === 'scheduled' || item.status === 'awaiting_deposit')) {
         rows.push({ id: item.id, day, title: 'Aprobar solicitud', detail: when, action: 'Responder', tone: 'badge-warn' });
+      } else if (item.status === 'scheduled' && item.quoted_price == null && this.services().find((row) => row.id === item.service_id)?.variable_price) {
+        // Pidió cotización: quien espera el precio no puede seguir hasta que se lo mandes.
+        rows.push({ id: item.id, day, title: 'Falta el precio', detail: when, action: 'Cotizar', tone: 'badge-warn' });
       } else if (item.status === 'awaiting_deposit' && (item.payment_proof || item.paid_claim)) {
         rows.push({ id: item.id, day, title: 'Revisar comprobante', detail: when, action: 'Revisar', tone: 'badge-info' });
       } else if (item.status === 'awaiting_deposit') {

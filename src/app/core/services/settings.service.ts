@@ -62,6 +62,8 @@ export interface BusinessSettings {
   deposit_percent: number | null;
   deposit_account: string | null;
   deposit_hold_hours: number | null;
+  /** Horas que se guarda el horario de una solicitud por cotizar; vacío = sin límite. */
+  quote_hold_hours?: number | null;
   buffer_minutes: number;
   staff_label: string;
   min_notice_hours: number;
@@ -128,6 +130,7 @@ export interface ProfileUpdate {
   deposit_percent: number | null;
   deposit_account: string | null;
   deposit_hold_hours: number | null;
+  quote_hold_hours?: number | null;
   buffer_minutes?: number | null;
   staff_label?: string | null;
   min_notice_hours?: number | null;

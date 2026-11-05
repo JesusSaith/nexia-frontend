@@ -85,6 +85,12 @@ const PRESETS = {
     { value: 6, label: '6 h' },
     { value: 24, label: '1 día' },
   ],
+  quoteHoldHours: [
+    { value: 12, label: '12 h' },
+    { value: 24, label: '1 día' },
+    { value: 48, label: '2 días' },
+    { value: null, label: 'Sin límite' },
+  ],
 } as const;
 
 type PresetField = keyof typeof PRESETS;
@@ -152,6 +158,7 @@ export class SettingsPageComponent {
     depositPercent: new FormControl<number | null>(null, [Validators.min(1), Validators.max(100)]),
     depositAccount: new FormControl('', { nonNullable: true }),
     depositHoldHours: new FormControl<number | null>(3),
+    quoteHoldHours: new FormControl<number | null>(24),
     paymentUrl: new FormControl('', { nonNullable: true, validators: [Validators.pattern(/^(https?:\/\/\S+)?$/)] }),
     privacyNotice: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(10000)] }),
   });
@@ -324,6 +331,7 @@ export class SettingsPageComponent {
       deposit_percent: numberOrNull(value.depositPercent),
       deposit_account: value.depositAccount.trim() || null,
       deposit_hold_hours: numberOr(value.depositHoldHours, 3),
+      quote_hold_hours: numberOrNull(value.quoteHoldHours),
       payment_url: value.paymentUrl.trim() || null,
       privacy_notice: value.privacyNotice.trim() || null,
       resources: value.resources.trim() || null,
@@ -1055,6 +1063,7 @@ export class SettingsPageComponent {
       depositPercent: settings.deposit_percent,
       depositAccount: settings.deposit_account ?? '',
       depositHoldHours: settings.deposit_hold_hours ?? 3,
+      quoteHoldHours: settings.quote_hold_hours === undefined ? 24 : settings.quote_hold_hours,
       paymentUrl: settings.payment_url ?? '',
       privacyNotice: settings.privacy_notice ?? '',
     });
@@ -1071,7 +1080,7 @@ const FIELD_SECTION: Record<string, SectionId> = {
   name: 'negocio', phone: 'negocio', description: 'negocio', address: 'negocio', latitude: 'negocio', longitude: 'negocio', map_embed: 'negocio', instagram: 'negocio', facebook: 'negocio', business_kind: 'negocio',
   logo_url: 'apariencia', primary_color: 'apariencia', gallery: 'apariencia', canvas_color: 'apariencia', accent_color: 'apariencia', button_shape: 'apariencia', button_fill: 'apariencia', font_style: 'apariencia', header_style: 'apariencia',
   min_notice_hours: 'reservas', max_days_ahead: 'reservas', buffer_minutes: 'reservas', cancel_hours: 'reservas', timezone: 'reservas', resources: 'reservas', cancel_policy: 'reservas', max_daily_appointments: 'reservas', deposit_cancel_policy: 'reservas', noshow_after: 'anticipo', noshow_deposit: 'anticipo',
-  deposit_amount: 'anticipo', deposit_percent: 'anticipo', deposit_account: 'anticipo', deposit_hold_hours: 'anticipo', payment_url: 'anticipo',
+  deposit_amount: 'anticipo', deposit_percent: 'anticipo', deposit_account: 'anticipo', deposit_hold_hours: 'anticipo', quote_hold_hours: 'anticipo', payment_url: 'anticipo',
   promo_text: 'promociones', promo_until: 'promociones', loyalty_every: 'promociones', loyalty_percent: 'promociones', coupons: 'promociones',
   message_templates: 'mensajes', auto_reminders: 'mensajes', reminder_hours: 'mensajes', auto_return: 'mensajes', bookings_paused: 'pausa', closures: 'pausa', payment_methods: 'anticipo', approve_bookings: 'reservas', uses_commissions: 'negocio', staff_can_edit_price: 'negocio', email_alerts: 'avisos', privacy_notice: 'privacidad',
 };

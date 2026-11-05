@@ -523,6 +523,11 @@
               <ng-container *ngTemplateOutlet="chips; context: { field: 'depositHoldHours', unit: 'horas', max: 72 }" />
               <span class="field-hint mt-1 block">Si no llega en ese tiempo, el horario se libera solo.</span>
             </div>
+            <div>
+              <span class="label">Tiempo para ponerle precio a una solicitud por cotizar</span>
+              <ng-container *ngTemplateOutlet="chips; context: { field: 'quoteHoldHours', unit: 'horas', max: 168 }" />
+              <span class="field-hint mt-1 block">Si no le pones precio en ese tiempo, el horario se libera solo y te avisamos. Tu {{ copy.text().client.toLowerCase() }} lo ve en su confirmación.</span>
+            </div>
             <div class="rounded-xl border border-line p-4">
               <span class="label">Anticipo para quien ya faltó</span>
               <ng-container *ngTemplateOutlet="chips; context: { field: 'noshowAfter', unit: 'faltas', max: 10 }" />

@@ -28,7 +28,7 @@ export type MessageKey =
 
 export type MessageVars = Partial<Record<MessageVar, string>>;
 
-export type MessageVar = 'nombre' | 'negocio' | 'servicio' | 'dia' | 'hora' | 'equipo' | 'enlace' | 'cuando' | 'precio' | 'anticipo' | 'fechas' | 'cita' | 'propina' | 'total' | 'metodo';
+export type MessageVar = 'nombre' | 'negocio' | 'servicio' | 'dia' | 'hora' | 'equipo' | 'enlace' | 'cuando' | 'precio' | 'anticipo' | 'pago' | 'fechas' | 'cita' | 'propina' | 'total' | 'metodo';
 
 export const VARIABLE_HELP: Record<MessageVar, string> = {
   nombre: 'Nombre del cliente',
@@ -41,6 +41,7 @@ export const VARIABLE_HELP: Record<MessageVar, string> = {
   cuando: '"hoy" o "mañana"',
   precio: 'Precio cotizado',
   anticipo: 'Monto del anticipo',
+  pago: 'Cómo se paga: con anticipo o sin él',
   fechas: 'Lista de fechas',
   cita: 'Cómo le dices a la cita (cita, consulta, clase…)',
   propina: 'Propina (si la hubo)',
@@ -113,10 +114,10 @@ export const MESSAGE_TEMPLATES: readonly MessageTemplate[] = [
     key: 'quote',
     label: 'Cotización',
     where: 'Agenda → al poner precio a un servicio por cotizar',
-    vars: ['nombre', 'servicio', 'dia', 'hora', 'precio', 'anticipo', 'enlace'],
+    vars: ['nombre', 'servicio', 'dia', 'hora', 'precio', 'pago', 'enlace'],
     text:
       'Hola {nombre}, ya revisamos tu cita de {servicio}.\n\nDía: {dia}\nHora: {hora}\nPrecio: {precio}\n' +
-      'Para apartar tu lugar el anticipo es de {anticipo}; el resto lo pagas en la cita.\n\nAquí puedes ver tu cita: {enlace}',
+      '{pago}\n\nEntra aquí para ver el precio y aceptarlo: {enlace}',
   },
   {
     key: 'chat',
