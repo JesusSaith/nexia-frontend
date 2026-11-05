@@ -802,7 +802,7 @@
           }
         }
       }
-      @if (appointment.status === 'awaiting_deposit' && !appointment.deposit_amount) {
+      @if (appointment.status === 'awaiting_deposit' && !appointment.deposit_amount && !needsQuote(appointment)) {
         <p class="mt-4 text-sm">El anticipo se calcula cuando quede el precio acordado.</p>
       }
       @if (needsQuote(appointment)) {
