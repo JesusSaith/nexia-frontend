@@ -153,8 +153,11 @@ import { LEGAL } from './legal-info';
 
           <h2>Cookies y almacenamiento en tu navegador</h2>
           <p>
-            Usamos una sola cookie, necesaria para mantener tu sesión abierta. Tu navegador también guarda preferencias como
-            el modo oscuro. No usamos cookies de publicidad ni de rastreo.
+            Usamos una cookie necesaria para mantener tu sesión abierta. Tu navegador también guarda preferencias como
+            el modo oscuro. No usamos cookies de publicidad. En la página de inicio (nexiacitas.com) usamos Microsoft
+            Clarity, una herramienta que registra de forma anónima cómo se usa la página (clics, desplazamiento y
+            tiempo) para mejorarla; no graba lo que escribes en los formularios y guarda dos cookies propias
+            (_clck y _clsk). Puedes bloquearlas en la configuración de tu navegador.
           </p>
 
           <h2>Cuánto tiempo los guardamos</h2>

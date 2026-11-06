@@ -5,6 +5,7 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 
+import { loadClarity } from '@core/config/clarity';
 import { BUSINESS_KINDS, clientsWordFor, examplesFor } from '@core/business-kinds';
 import { BetaService } from '@core/services/beta.service';
 import { LandingService, LandingStats } from '@core/services/landing.service';
@@ -15,6 +16,8 @@ import { TiltDirective } from './tilt.directive';
 
 /** WhatsApp de contacto: 10 dígitos más la clave de México. */
 export const WHATSAPP_NUMBER = '522712054908';
+/** Lo que gana quien invita; cámbialo aquí cuando se decida el beneficio definitivo. */
+export const REFERRAL_REWARD = 'más tiempo gratis cuando termine la beta';
 const WHATSAPP_TEXT = 'Hola, me interesa la beta de Nexia para mi negocio.';
 /** Lo que se recuerda del quiz entre visitas (nunca nombre, correo ni teléfono). */
 const QUIZ_KEY = 'nexia-landing-quiz';
@@ -52,6 +55,9 @@ export class LandingPage implements AfterViewInit {
     const giro = this.giroPicked() ? ` Mi negocio es de ${(this.heroKinds.find((k) => k.value === this.heroKind())?.label ?? '').toLowerCase()}.` : '';
     return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent((intro[view] ?? WHATSAPP_TEXT) + giro)}`;
   });
+  /** Mensaje listo para que un negocio se lo mande a otro por WhatsApp (sin número: la persona elige a quién). */
+  readonly inviteLink = computed(() => `https://wa.me/?text=${encodeURIComponent('Estoy probando Nexia para recibir mis citas por internet, sin mensajes de ida y vuelta. Si quieres probarla, pide tu acceso a la beta aquí: https://nexiacitas.com/?fuente=invitacion')}`);
+  readonly rewardText = REFERRAL_REWARD;
   readonly menuOpen = signal(false);
   readonly peopleOptions = [1, 2, 3, 4, 5, 6, 7];
 
@@ -134,6 +140,16 @@ export class LandingPage implements AfterViewInit {
   pickSlot(time: string): void {
     this.mockSlot.set(time);
     this.mockStep.set('listo');
+  }
+
+  /** La cita que la persona acaba de "reservar" en el celular de juguete: aparece arriba en la agenda. */
+  readonly newAppointment = computed(() => {
+    const service = this.mockService();
+    return this.mockStep() === 'listo' && service ? { time: this.mockSlot(), name: 'Tu cliente', service: service.name, price: service.price } : null;
+  });
+
+  openInvite(): void {
+    this.landing.track('whatsapp', 'invitar');
   }
 
   resetMock(): void {
@@ -503,6 +519,7 @@ export class LandingPage implements AfterViewInit {
     // Primer movimiento en el formulario: la persona empezó a llenarlo.
     this.form.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.landing.track('start'));
     this.landing.track('visit');
+    loadClarity();
     this.restoreQuiz();
     // Enlaces dirigidos: nexiacitas.com/?giro=barberia abre con ese giro y su color.
     const giro = new URLSearchParams(location.search).get('giro')?.toLowerCase() ?? '';
