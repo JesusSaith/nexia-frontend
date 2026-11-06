@@ -43,8 +43,8 @@
     <section class="mx-auto grid w-full max-w-6xl items-center gap-10 px-4 pb-14 pt-8 md:grid-cols-2 md:pt-14">
       <div class="hero-in">
         <span class="badge border border-line-strong bg-surface text-ink-soft">{{ spotsText() }}</span>
-        <h1 class="mt-4 text-4xl font-medium leading-tight tracking-tight sm:text-6xl">
-          Tus citas, <span class="hl">sin mensajes de ida y vuelta</span>
+        <h1 class="hero-title mt-4">
+          Tus citas, <span class="hl-draw">sin mensajes de ida y vuelta</span>
         </h1>
         <p class="mt-5 max-w-md text-base text-ink-soft sm:text-lg">Tu página de reservas y tu agenda, en el celular.</p>
         <div class="mt-7 flex flex-col gap-3 sm:flex-row">
@@ -102,6 +102,12 @@
         </svg>
         <svg class="float absolute left-0 top-10 h-12 w-12" viewBox="0 0 48 48" aria-hidden="true"><path [attr.d]="heroShape()" class="fill-ink" /></svg>
         <span class="float absolute right-2 top-6 grid h-14 w-14 place-items-center rounded-full bg-accent text-white" style="--d: 1s" aria-hidden="true"><mat-icon>{{ heroIcon() }}</mat-icon></span>
+        <!-- Sticker y flecha dibujada a mano -->
+        <span class="sticker absolute bottom-0 left-2 z-10 -rotate-6" aria-hidden="true"><mat-icon class="h-5! w-5! text-[20px]!">redeem</mat-icon>Gratis en la beta</span>
+        <svg class="pointer-events-none absolute bottom-9 left-[6.5rem] z-10 h-16 w-20 text-ink" viewBox="0 0 80 64" fill="none" aria-hidden="true">
+          <path d="M4 52 C 20 56, 44 50, 58 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
+          <path d="M44 24 L 59 21 L 62 36" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
         <p class="absolute left-1/2 top-0 z-10 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-full border border-line-strong bg-surface px-3 py-1 text-xs font-medium shadow" role="status">
           <mat-icon class="h-4! w-4! text-[16px]! text-accent" aria-hidden="true">touch_app</mat-icon>{{ mockHint() }}
         </p>
@@ -504,6 +510,28 @@
         <a href="#beta" (click)="openForm($event)" class="btn btn-primary shrink-0">Pedir acceso</a>
       </div>
     </section>
+
+    <!-- Banda de color: solo cifras reales -->
+    @if (stats(); as st) {
+      @if (st.spots_total > 0 || showStats()) {
+        <section class="relative overflow-hidden bg-accent py-12 text-white" aria-label="Nexia en cifras">
+          <span class="absolute -left-10 -top-10 h-40 w-40 rounded-full bg-white opacity-10" aria-hidden="true"></span>
+          <span class="absolute -bottom-12 right-10 h-48 w-48 rounded-full bg-black opacity-10" aria-hidden="true"></span>
+          <div class="relative mx-auto grid w-full max-w-6xl items-center gap-8 px-4 md:grid-cols-[1fr_auto]">
+            <dl class="grid gap-6 sm:grid-cols-3">
+              @if (showStats()) {
+                <div><dd class="text-5xl font-semibold tabular-nums sm:text-6xl"><span countUp [countFrom]="0" [countTo]="st.appointments">{{ st.appointments }}</span></dd><dt class="mt-1 text-base">citas agendadas en la beta</dt></div>
+                <div><dd class="text-5xl font-semibold tabular-nums sm:text-6xl"><span countUp [countFrom]="0" [countTo]="st.businesses">{{ st.businesses }}</span></dd><dt class="mt-1 text-base">negocios ya la usan</dt></div>
+              }
+              @if (st.spots_total > 0) {
+                <div><dd class="text-5xl font-semibold tabular-nums sm:text-6xl"><span countUp [countFrom]="st.spots_total" [countTo]="st.spots_left">{{ st.spots_left }}</span></dd><dt class="mt-1 text-base">{{ st.spots_left === 1 ? 'lugar gratis' : 'lugares gratis' }} de {{ st.spots_total }}</dt></div>
+              }
+            </dl>
+            <a href="#beta" (click)="openForm($event)" class="btn btn-secondary border-ink! bg-surface! text-ink!">Pedir acceso</a>
+          </div>
+        </section>
+      }
+    }
 
     <!-- Cómo funciona y Antes y después -->
     <section class="mx-auto grid w-full max-w-6xl gap-14 px-4 pb-16 lg:grid-cols-2 lg:gap-10">
