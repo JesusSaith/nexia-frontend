@@ -176,7 +176,6 @@ export class LandingPage implements AfterViewInit {
     { id: 'funciones', label: 'Funciones' },
     { id: 'como-funciona', label: 'Cómo funciona' },
     { id: 'para-quien', label: 'Para quién' },
-    { id: 'preguntas', label: 'Preguntas' },
   ];
 
   /** Explora: pantallas, video y calculadora en un solo bloque. */
@@ -378,8 +377,6 @@ export class LandingPage implements AfterViewInit {
   readonly chartLine = 'M0 78 L40 70 L80 74 L120 56 L160 60 L200 40 L240 44 L280 22 L320 12';
   readonly chartDays = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
-  readonly faqAll = signal(false);
-  readonly shownFaqs = computed(() => (this.faqAll() ? this.faqs : this.faqs.slice(0, 3)));
   readonly mockTouched = signal(false);
 
   @HostListener('window:scroll')
@@ -431,6 +428,11 @@ export class LandingPage implements AfterViewInit {
 
   /** Cifras reales: solo se muestran cuando ya dan confianza (no queremos presumir "3 citas"). */
   readonly stats = signal<LandingStats | null>(null);
+  /** Qué parte del cupo ya se ocupó (0 a 100), con un mínimo visible para que la barra se note. */
+  readonly spotsTakenPct = computed(() => {
+    const s = this.stats();
+    return s && s.spots_total > 0 ? Math.min(100, Math.max(4, ((s.spots_total - s.spots_left) / s.spots_total) * 100)) : 0;
+  });
   readonly showStats = computed(() => {
     const s = this.stats();
     return !!s && s.appointments >= 25 && s.businesses >= 3;
@@ -488,15 +490,6 @@ export class LandingPage implements AfterViewInit {
     { art: 'share', icon: 'share', title: 'Comparte tu enlace', text: 'Ponlo en Instagram o WhatsApp y listo.' },
   ];
 
-
-  readonly faqs = [
-    { q: '¿Mis {c} tienen que descargar una app?', a: 'No. Reservan desde el navegador de su celular, con el enlace que les compartes.' },
-    { q: '¿Cuánto cuesta?', a: 'Durante toda la beta es gratis y no pides tarjeta. Cuando termine, quienes entraron tendrán un precio especial; te avisamos con tiempo y tú decides si sigues.' },
-    { q: '¿Qué es la beta?', a: 'Estamos abriendo Nexia a pocos negocios para pulirla con su uso real. Quien entra nos ayuda a mejorarla y recibe acompañamiento.' },
-    { q: '¿Puedo pedir anticipo?', a: 'Sí. Tú decides si lo pides, de cuánto y qué pasa con él si el cliente cancela.' },
-    { q: '¿Qué pasa con los datos de mis {c}?', a: 'Son tuyos. Los guardamos solo para darte el servicio y no los vendemos. Puedes descargarlos en un archivo (CSV) o pedir que los borremos cuando quieras.' },
-    { q: '¿Sirve para mi tipo de negocio?', a: 'Sirve para cualquier negocio que atienda con cita: salones, barberías, spas, consultorios, clínicas, veterinarias y estudios.' },
-  ];
 
   readonly submitting = signal(false);
   readonly sent = signal(false);
