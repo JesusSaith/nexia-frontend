@@ -18,11 +18,16 @@
   --color-muted: #6b645e;
   --color-accent: var(--primary);
   --color-accent-soft: color-mix(in srgb, var(--primary) 10%, var(--color-surface));
-  /* Esquinas más sobrias: dos radios de verdad (controles y tarjetas). */
-  --radius-lg: 0.5rem;
-  --radius-xl: 0.625rem;
-  --radius-2xl: 0.75rem;
-  --radius-3xl: 0.875rem;
+  /* Escala de esquinas de Material 3 (4, 8, 12, 16 y 28 px): controles 8, campos y tarjetas 12, bloques grandes 16. */
+  --shape-xs: 0.25rem;
+  --shape-sm: 0.5rem;
+  --shape-md: 0.75rem;
+  --shape-lg: 1rem;
+  --shape-xl: 1.75rem;
+  --radius-lg: var(--shape-sm);
+  --radius-xl: var(--shape-md);
+  --radius-2xl: var(--shape-md);
+  --radius-3xl: var(--shape-lg);
   --color-primary-50: oklch(0.97 0.016 264);
   --color-primary-100: oklch(0.93 0.04 264);
   --color-primary-500: oklch(0.55 0.16 264);
@@ -217,7 +222,7 @@ body {
 .btn:disabled { opacity: .5; pointer-events: none; }
 /* Pulsado suave: se nota el toque en el celular sin brincos. */
 .btn { -webkit-tap-highlight-color: transparent; }
-.btn:active:not(:disabled) { transform: scale(0.98); filter: brightness(0.96); }
+.btn:active:not(:disabled) { transform: scale(0.98); }
 a.stat:active, button.stat:active { transform: scale(0.985); }
 .btn-primary { background: var(--color-ink); color: var(--color-surface); }
 .btn-primary:hover { background: var(--nx-primary-hover); }
@@ -228,6 +233,12 @@ a.stat:active, button.stat:active { transform: scale(0.985); }
 .btn-danger { background: #b42318; color: #fff; }
 .btn-whatsapp { background: #167a43; color: #fff; } /* verde más oscuro: contraste 5.4:1 con texto blanco */
 .btn-whatsapp:hover { background: #12663a; }
+
+/* Capas de estado de Material 3 (m3.material.io > Foundations > Interaction states): una capa del color del texto
+   encima del fondo, 8 % al pasar el cursor y 10 % al enfocar con teclado o presionar. Sin tocar `position`. */
+.btn:hover:not(:disabled), .chip:hover, .seg > button:hover { background-image: linear-gradient(color-mix(in srgb, currentColor 8%, transparent), color-mix(in srgb, currentColor 8%, transparent)); }
+.btn:focus-visible, .chip:focus-visible, .seg > button:focus-visible,
+.btn:active:not(:disabled), .chip:active, .seg > button:active { background-image: linear-gradient(color-mix(in srgb, currentColor 10%, transparent), color-mix(in srgb, currentColor 10%, transparent)); }
 
 .badge { display: inline-flex; align-items: center; gap: 0.25rem; height: 1.5rem; padding: 0 0.5625rem; border-radius: 999px; font-size: 0.8125rem; font-weight: 500; }
 .badge-ok { background: var(--nx-ok-bg); color: var(--nx-ok-fg); }
