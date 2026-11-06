@@ -38,6 +38,8 @@ export class LandingPage implements AfterViewInit {
   private readonly landing = inject(LandingService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly formDialog = viewChild<ElementRef<HTMLDialogElement>>('formDialog');
+  private readonly videoDialog = viewChild<ElementRef<HTMLDialogElement>>('videoDialog');
+  private readonly videoEl = viewChild<ElementRef<HTMLVideoElement>>('videoEl');
   private readonly successBox = viewChild<ElementRef<HTMLElement>>('successBox');
 
   /** Lo último que la persona exploró; el mensaje de WhatsApp lo menciona para que sepamos qué le interesó. */
@@ -551,6 +553,40 @@ export class LandingPage implements AfterViewInit {
     document.documentElement.style.overflow = 'hidden';
     this.landing.track('form');
     this.landing.track('quiz', `p${this.quizStep() + 1}`);
+  }
+
+  /** Video de 20 segundos: el archivo se pide hasta que la persona lo abre. */
+  openVideo(): void {
+    const dialog = this.videoDialog()?.nativeElement;
+    const video = this.videoEl()?.nativeElement;
+    if (!dialog || !video || dialog.open) {
+      return;
+    }
+    if (!video.getAttribute('src')) {
+      video.src = '/landing/beta-20s.mp4';
+    }
+    this.lastView.set('video');
+    this.landing.track('tab', 'video20');
+    dialog.showModal();
+    document.documentElement.style.overflow = 'hidden';
+    void video.play().catch(() => undefined);
+  }
+
+  closeVideo(): void {
+    this.videoDialog()?.nativeElement.close();
+  }
+
+  onVideoClosed(): void {
+    this.videoEl()?.nativeElement.pause();
+    if (!this.formDialog()?.nativeElement.open) {
+      document.documentElement.style.overflow = '';
+    }
+  }
+
+  onVideoDialogClick(event: MouseEvent): void {
+    if (event.target === this.videoDialog()?.nativeElement) {
+      this.closeVideo();
+    }
   }
 
   closeForm(): void {
