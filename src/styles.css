@@ -784,3 +784,28 @@ mat-icon {
 /* Ícono relleno en lo activo (Material Symbols: eje FILL 0 a 1), como en las apps de Google. */
 .nx-rail-link mat-icon, .chip mat-icon, .nav-icon { transition: font-variation-settings var(--dur-short) var(--ease-standard); }
 .nx-rail-on mat-icon, .chip-on mat-icon, .nav-icon-on { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+
+/* Tarjetas de Funciones (landing): brillo que cruza, línea de acento que crece y el ícono se llena al pasar el cursor o tocar;
+   además cada ícono hace su propio gesto cada pocos segundos (calendario que se balancea, moneda que gira, reloj de arena...). */
+.feat-card { position: relative; overflow: hidden; transition: transform var(--dur-medium) var(--ease-emphasized-decel), box-shadow var(--dur-medium) var(--ease-emphasized-decel), border-color var(--dur-short) var(--ease-standard); }
+.feat-card::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(105deg, transparent 38%, color-mix(in srgb, var(--color-accent) 16%, transparent) 50%, transparent 62%); transform: translateX(-110%); transition: transform 800ms var(--ease-emphasized-decel); }
+.feat-card::after { content: ''; position: absolute; left: 0; bottom: 0; height: 3px; width: 0; background: var(--color-accent); transition: width var(--dur-medium) var(--ease-emphasized-decel); }
+.feat-card:hover, .feat-card:focus-within { border-color: var(--color-accent); }
+.feat-card:hover::before { transform: translateX(110%); }
+.feat-card:hover::after, .feat-card:focus-within::after { width: 100%; }
+.feat-card .sec-icon { transition: background-color var(--dur-short) var(--ease-standard), color var(--dur-short) var(--ease-standard), transform var(--dur-medium) var(--ease-emphasized-decel); }
+.feat-card:hover .sec-icon { background: var(--color-accent); color: var(--color-on-primary); transform: scale(1.08) rotate(-4deg); }
+.feat-card mat-icon { animation: nx-hop 5s var(--ease-standard) infinite; animation-delay: var(--d, 0s); }
+.feat-card[data-fx='pay'] mat-icon { animation-name: nx-flip; }
+.feat-card[data-fx='agenda'] mat-icon, .feat-card[data-fx='qr'] mat-icon { animation-name: nx-swing; }
+.feat-card[data-fx='slots'] mat-icon, .feat-card[data-fx='team'] mat-icon { animation-name: nx-pop; }
+.feat-card[data-fx='clients'] mat-icon { animation-name: nx-turn; }
+@keyframes nx-hop { 0%, 22%, 100% { transform: none; } 8% { transform: translateY(-5px); } 15% { transform: translateY(0); } 18% { transform: translateY(-2px); } }
+@keyframes nx-pop { 0%, 24%, 100% { transform: none; } 10% { transform: scale(1.3); } 18% { transform: scale(.95); } }
+@keyframes nx-flip { 0%, 26%, 100% { transform: none; } 14% { transform: rotateY(360deg); } }
+@keyframes nx-swing { 0%, 26%, 100% { transform: none; } 6% { transform: rotate(-12deg); } 12% { transform: rotate(10deg); } 18% { transform: rotate(-5deg); } }
+@keyframes nx-turn { 0%, 30%, 100% { transform: none; } 16% { transform: rotate(180deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .feat-card mat-icon { animation: none; }
+  .feat-card::before, .feat-card::after, .feat-card:hover .sec-icon { transition: none; }
+}
