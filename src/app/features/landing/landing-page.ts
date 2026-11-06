@@ -430,6 +430,12 @@ export class LandingPage implements AfterViewInit {
     return s.spots_left === 1 ? `Beta cerrada · queda 1 lugar de ${s.spots_total}` : `Beta cerrada · quedan ${s.spots_left} lugares de ${s.spots_total}`;
   });
 
+  /** Texto de la barra fija del celular: dice cuántos lugares quedan cuando ya se sabe. */
+  readonly barText = computed(() => {
+    const left = this.stats()?.spots_left ?? 0;
+    return left > 0 ? `Pedir acceso gratis · ${left === 1 ? 'queda 1 lugar' : `quedan ${left} lugares`}` : 'Pedir acceso a la beta';
+  });
+
   /** Lo que incluye la beta. */
   readonly offer = [
     { icon: 'redeem', title: 'Gratis durante toda la beta', text: 'No pagas nada en esta etapa.' },
@@ -477,6 +483,8 @@ export class LandingPage implements AfterViewInit {
   readonly submitting = signal(false);
   readonly sent = signal(false);
   readonly error = signal<string | null>(null);
+  /** Si el envío falla por la red o el servidor, ofrece escribir por WhatsApp para no perder a la persona. */
+  readonly sendFailed = signal(false);
   readonly touched = signal(false);
 
   readonly form = new FormGroup({
@@ -606,6 +614,7 @@ export class LandingPage implements AfterViewInit {
     const v = this.form.getRawValue();
     this.submitting.set(true);
     this.error.set(null);
+    this.sendFailed.set(false);
     this.beta
       .request({
         name: v.name.trim(),
@@ -633,6 +642,7 @@ export class LandingPage implements AfterViewInit {
         },
         error: (err: HttpErrorResponse) => {
           this.submitting.set(false);
+          this.sendFailed.set(err.status !== 429);
           this.error.set(
             err.status === 429
               ? 'Enviaste varias solicitudes seguidas. Espera unos minutos e inténtalo de nuevo.'
