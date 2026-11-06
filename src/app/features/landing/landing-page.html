@@ -195,67 +195,40 @@
         </div>
       </div>
     </section>
-
-    <!-- Números -->
-    <section class="dots relative -mt-8 overflow-hidden rounded-t-[3rem] bg-accent-soft pb-14 pt-14" aria-label="Nexia en números">
-      <ul class="mx-auto grid w-full max-w-6xl gap-8 px-4 text-center sm:grid-cols-3">
-        <li reveal>
-          <p class="text-5xl font-semibold tabular-nums sm:text-6xl"><span countUp [countFrom]="0" [countTo]="24">24</span>/7</p>
-          <p class="mt-1 text-sm text-ink-soft">reservas, a cualquier hora</p>
-        </li>
-        <li reveal [revealDelay]="0.1">
-          <p class="text-5xl font-semibold tabular-nums sm:text-6xl"><span countUp [countFrom]="12" [countTo]="0">0</span></p>
-          <p class="mt-1 text-sm text-ink-soft">mensajes de ida y vuelta</p>
-        </li>
-        <li reveal [revealDelay]="0.2">
-          <p class="text-5xl font-semibold tabular-nums sm:text-6xl"><span countUp [countFrom]="0" [countTo]="10">10</span> min</p>
-          <p class="mt-1 text-sm text-ink-soft">para configurar tu negocio</p>
-        </li>
-      </ul>
-      <div reveal class="mx-auto mt-10 max-w-3xl px-4">
-        <div class="rounded-3xl border border-b-4 border-ink bg-surface p-5 sm:p-6">
-          <div class="flex flex-wrap items-center justify-between gap-2">
-            <p class="text-sm font-semibold">Ingresos de la semana <span class="font-normal text-muted">· ejemplo</span></p>
-            <span class="badge badge-ok"><mat-icon class="h-4! w-4! text-[16px]!" aria-hidden="true">trending_up</mat-icon> Subiendo</span>
-          </div>
-          <svg class="draw mt-4 h-32 w-full" viewBox="0 0 320 90" preserveAspectRatio="none" role="img" aria-label="Gráfica de ingresos que sube durante la semana">
-            <path class="area" d="M0 78 L40 70 L80 74 L120 56 L160 60 L200 40 L240 44 L280 22 L320 12 L320 90 L0 90 Z" fill="var(--color-accent)" opacity=".15" />
-            <path class="line" [attr.d]="chartLine" pathLength="1" fill="none" stroke="var(--color-accent)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
-          </svg>
-          <div class="mt-1 flex justify-between text-xs text-muted" aria-hidden="true">
-            @for (d of chartDays; track d) { <span>{{ d }}</span> }
-          </div>
-        </div>
-      </div>
-      <div class="mt-12">
-      <div class="mb-6 flex flex-wrap items-center justify-center gap-3 px-4 text-sm text-ink-soft">
-        <span class="badge border border-line-strong bg-surface text-ink-soft"><mat-icon class="h-4! w-4! text-[16px]!" aria-hidden="true">verified</mat-icon> Hecho en México</span>
-        <span>Pensada para negocios con cita</span>
-      </div>
-      <div class="marquee">
-        @for (copy of [0, 1]; track copy) {
-          <ul class="flex shrink-0 items-center gap-10 pr-10 text-ink-soft" [attr.aria-hidden]="copy === 1">
-            @for (k of kinds; track k.value) {
-              <li class="flex items-center gap-2 whitespace-nowrap text-sm font-medium"><mat-icon class="h-5! w-5! text-[20px]! text-muted" aria-hidden="true">{{ k.icon }}</mat-icon>{{ k.label }}</li>
-            }
-          </ul>
-        }
-      </div>
-      </div>
-    </section>
     </div>
 
-    
+    <!-- Números: una tira corta y limpia -->
+    <section class="border-y border-line bg-surface py-8" aria-label="Nexia en números">
+      <ul class="mx-auto grid w-full max-w-4xl grid-cols-3 gap-4 px-4 text-center">
+        <li reveal>
+          <p class="text-3xl font-semibold tabular-nums text-accent sm:text-5xl"><span countUp [countFrom]="0" [countTo]="24">24</span>/7</p>
+          <p class="mt-1 text-xs text-ink-soft sm:text-sm">reservas, a cualquier hora</p>
+        </li>
+        <li reveal [revealDelay]="0.1">
+          <p class="text-3xl font-semibold tabular-nums text-accent sm:text-5xl"><span countUp [countFrom]="12" [countTo]="0">0</span></p>
+          <p class="mt-1 text-xs text-ink-soft sm:text-sm">mensajes de ida y vuelta</p>
+        </li>
+        <li reveal [revealDelay]="0.2">
+          <p class="text-3xl font-semibold tabular-nums text-accent sm:text-5xl"><span countUp [countFrom]="0" [countTo]="10">10</span> min</p>
+          <p class="mt-1 text-xs text-ink-soft sm:text-sm">para configurar tu negocio</p>
+        </li>
+      </ul>
+      <div class="mt-6 flex flex-wrap items-center justify-center gap-3 px-4 text-sm text-ink-soft">
+        <span class="badge border border-line-strong bg-canvas text-ink-soft"><mat-icon class="h-4! w-4! text-[16px]!" aria-hidden="true">verified</mat-icon> Hecho en México</span>
+        <span>Pensada para negocios con cita</span>
+      </div>
+    </section>
+
     <!-- Explora: pantallas, video y calculadora -->
-    <section id="explora" class="dots relative -mt-8 scroll-mt-4 rounded-t-[3rem] bg-line/50 pb-24 pt-16" aria-labelledby="explora-title">
+    <section id="explora" class="relative scroll-mt-4 bg-accent-soft pb-20 pt-16" aria-labelledby="explora-title">
       <div class="mx-auto w-full max-w-6xl px-4">
         <div class="flex flex-wrap items-center gap-x-6 gap-y-2" reveal>
           <h2 id="explora-title" class="hl t-headline">Explora Nexia</h2>
           <p class="max-w-md text-sm text-ink-soft">Pantallas, video y números.</p>
         </div>
-        <div class="mt-6 flex flex-wrap gap-2" role="group" aria-label="Explora">
+        <div class="seg mt-6" role="group" aria-label="Explora">
           @for (e of exploreTabs; track e.id) {
-            <button type="button" class="chip" [class.chip-on]="explore() === e.id" [attr.aria-pressed]="explore() === e.id" (click)="setExplore(e.id)">
+            <button type="button" [class.is-on]="explore() === e.id" [attr.aria-pressed]="explore() === e.id" (click)="setExplore(e.id)" class="inline-flex items-center gap-1.5">
               <mat-icon class="h-5! w-5! text-[20px]!" aria-hidden="true">{{ e.icon }}</mat-icon>{{ e.label }}
             </button>
           }
@@ -407,7 +380,7 @@
           }
           @default {
             <div class="md:min-h-[32rem]">
-              <h3 class="mt-8 text-2xl font-medium sm:text-3xl">¿Cuánto te cuestan las faltas?</h3>
+              <h3 class="t-headline mt-8">¿Cuánto te cuestan las faltas?</h3>
               <p class="mt-1 text-sm text-ink-soft">Haz la cuenta con tus números.</p>
         <div class="mt-6 grid gap-6 rounded-3xl border border-b-4 border-ink bg-surface p-5 sm:p-8 md:grid-cols-2">
           <div class="grid gap-4">
@@ -418,7 +391,7 @@
           <div class="flex flex-col justify-between gap-4 rounded-2xl bg-ink p-6 text-surface">
             <div>
               <p class="text-sm">Dejas de ganar cada mes</p>
-              <p class="mt-1 text-4xl font-semibold tabular-nums sm:text-5xl" aria-live="polite">{{ money(calcLoss()) }}</p>
+              <p class="mt-1 text-5xl font-semibold tabular-nums sm:text-6xl" aria-live="polite">{{ money(calcLoss()) }}</p>
               <p class="mt-1 text-sm">Al año son {{ money(calcLossYear()) }}.</p>
             </div>
             <p class="text-sm">Estimación con tus datos. Los recordatorios y el anticipo ayudan a bajarla.</p>
@@ -433,7 +406,7 @@
     </section>
 
     <!-- Funciones -->
-    <div class="relative -mt-10 rounded-t-[3rem] bg-canvas">
+    <div class="relative bg-canvas">
     <section id="funciones" class="mx-auto w-full max-w-6xl scroll-mt-4 px-4 pb-12 pt-16">
       <div class="flex flex-wrap items-center gap-x-6 gap-y-2" reveal>
         <h2 class="hl t-headline">Funciones</h2>
@@ -604,16 +577,29 @@
   </section>
 
   <footer class="mx-auto w-full max-w-6xl px-4 pb-24 pt-16 md:pb-8">
-    <div class="rounded-3xl bg-ink p-6 text-surface sm:p-8">
-      <div class="flex flex-wrap items-center justify-between gap-4">
-        <span class="flex items-center gap-2"><img src="/nexia-mark-sm.png" alt="" class="h-10 w-auto rounded bg-surface p-1" /><span class="text-lg font-semibold">Nexia</span></span>
-        <nav class="flex flex-wrap gap-x-5 gap-y-2 text-sm" aria-label="Pie de página">
-          <a class="underline underline-offset-2" routerLink="/terminos">Términos</a>
-          <a class="underline underline-offset-2" routerLink="/privacidad">Aviso de privacidad</a>
-          <a class="underline underline-offset-2" routerLink="/auth/login">Ya tengo acceso</a>
+    <div class="band-dark rounded-[1.75rem] p-6 sm:p-10">
+      <div class="grid gap-8 md:grid-cols-[1.4fr_1fr_1fr]">
+        <div>
+          <span class="flex items-center gap-3"><img src="/nexia-mark-sm.png" alt="" class="h-14 w-auto rounded-xl bg-white p-1.5" /><span class="text-2xl font-semibold">Nexia</span></span>
+          <p class="mt-4 max-w-xs text-sm text-white/80">Reservas en línea para negocios con cita. Hecha en México.</p>
+        </div>
+        <nav aria-label="Pie de página">
+          <p class="text-xs font-semibold uppercase tracking-wide text-white/60">Nexia</p>
+          <ul class="mt-3 grid gap-2 text-sm">
+            <li><a class="underline-offset-2 hover:underline" href="#funciones">Funciones</a></li>
+            <li><a class="underline-offset-2 hover:underline" href="#como-funciona">Cómo funciona</a></li>
+            <li><a class="underline-offset-2 hover:underline" routerLink="/terminos">Términos</a></li>
+            <li><a class="underline-offset-2 hover:underline" routerLink="/privacidad">Aviso de privacidad</a></li>
+            <li><a class="underline-offset-2 hover:underline" routerLink="/auth/login">Ya tengo acceso</a></li>
+          </ul>
         </nav>
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wide text-white/60">¿Dudas?</p>
+          <p class="mt-3 text-sm text-white/80">Escríbenos y te respondemos el mismo día.</p>
+          <a class="btn btn-whatsapp mt-3" [href]="whatsappLink()" target="_blank" rel="noopener" (click)="openWhatsapp()"><mat-icon aria-hidden="true">chat</mat-icon>WhatsApp</a>
+        </div>
       </div>
-      <p class="mt-6 text-sm opacity-80">© 2026 Nexia. Reservas en línea para negocios con cita.</p>
+      <p class="mt-8 border-t border-white/15 pt-4 text-xs text-white/60">© 2026 Nexia. Todos los derechos reservados.</p>
     </div>
   </footer>
 
@@ -655,9 +641,10 @@
 
         <div class="rounded-3xl border border-b-4 border-ink bg-surface p-5 sm:p-6">
           @if (sent()) {
-            <div #successBox tabindex="-1" class="flex flex-col items-center py-8 text-center outline-none" role="status">
-              <mat-icon class="h-12! w-12! text-[48px]! text-accent" aria-hidden="true">mark_email_read</mat-icon>
-              <h3 class="mt-3 text-xl font-medium">Recibimos tu solicitud</h3>
+            <div #successBox tabindex="-1" class="relative flex flex-col items-center overflow-hidden py-8 text-center outline-none" role="status">
+              <span class="confetti" aria-hidden="true">@for (n of confetti; track n) { <i [style.--x]="n.x" [style.--y]="n.y" [style.--c]="n.c" [style.--r]="n.r"></i> }</span>
+              <span class="pop grid h-16 w-16 place-items-center rounded-full bg-accent text-white" aria-hidden="true"><mat-icon class="h-9! w-9! text-[36px]!">check</mat-icon></span>
+              <h3 class="t-headline mt-4">¡Listo! Recibimos tu solicitud</h3>
               <p class="mt-1 max-w-sm text-sm text-ink-soft">Te escribimos en menos de 24 horas, por correo o WhatsApp, para darte acceso. Revisa también tu carpeta de spam.</p>
               <div class="mt-5 w-full max-w-sm border-t border-line pt-4">
                 <p class="text-sm font-medium">¿Conoces a otro negocio con citas?</p>
@@ -672,10 +659,10 @@
               }
               <span class="flex flex-1 gap-1.5" aria-hidden="true">
                 @for (n of [0, 1, 2, 3]; track n) {
-                  <span class="h-1.5 flex-1 rounded-full" [class.bg-accent]="n <= quizStep()" [class.bg-line]="n > quizStep()"></span>
+                  <span class="h-2 flex-1 rounded-full transition-colors duration-300" [class.bg-accent]="n <= quizStep()" [class.bg-line]="n > quizStep()"></span>
                 }
               </span>
-              <span class="text-xs text-muted">{{ quizStep() + 1 }} de 4</span>
+              <span class="text-xs text-muted">Paso {{ quizStep() + 1 }} de 4 · <strong class="font-semibold text-ink">{{ quizLabels[quizStep()] }}</strong></span>
             </div>
 
             @switch (quizStep()) {
@@ -780,10 +767,11 @@
   </dialog>
 
   <!-- Barra fija en celular -->
-  <div class="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-canvas/95 p-3 backdrop-blur md:hidden">
-    <a href="#beta" (click)="openForm($event)" class="btn btn-primary w-full">{{ barText() }}</a>
+  <div class="fixed inset-x-0 bottom-0 z-30 flex gap-2 border-t border-line bg-canvas/95 p-3 backdrop-blur md:hidden">
+    <a href="#beta" (click)="openForm($event)" class="btn btn-primary min-w-0 flex-1">{{ barText() }}</a>
+    <a class="btn btn-whatsapp w-11 shrink-0 px-0" [href]="whatsappLink()" target="_blank" rel="noopener" (click)="openWhatsapp()" aria-label="Escríbenos por WhatsApp"><mat-icon aria-hidden="true">chat</mat-icon></a>
   </div>
-  <a class="btn btn-whatsapp fixed bottom-20 right-4 z-30 h-14 rounded-full px-5 shadow-lg md:bottom-4" [href]="whatsappLink()" target="_blank" rel="noopener" (click)="openWhatsapp()" aria-label="Escríbenos por WhatsApp">
+  <a class="btn btn-whatsapp fixed bottom-4 right-4 z-30 hidden h-14 rounded-full px-5 shadow-lg md:inline-flex" [href]="whatsappLink()" target="_blank" rel="noopener" (click)="openWhatsapp()" aria-label="Escríbenos por WhatsApp">
     <mat-icon aria-hidden="true">chat</mat-icon><span class="hidden sm:inline">Escríbenos</span>
   </a>
 </div>
