@@ -43,7 +43,7 @@
     <section class="mx-auto grid w-full max-w-6xl items-center gap-10 px-4 pb-14 pt-8 md:grid-cols-2 md:pt-14">
       <div class="hero-in">
         <span class="badge border border-line-strong bg-surface text-ink-soft">{{ spotsText() }}</span>
-        <h1 class="hero-title mt-4">
+        <h1 class="t-display mt-4">
           Tus citas, <span class="hl-draw">sin mensajes de ida y vuelta</span>
         </h1>
         <p class="mt-5 max-w-md text-base text-ink-soft sm:text-lg">Tu página de reservas y tu agenda, en el celular.</p>
@@ -229,7 +229,7 @@
     <section id="explora" class="dots relative -mt-8 scroll-mt-4 rounded-t-[3rem] bg-line/50 pb-24 pt-16" aria-labelledby="explora-title">
       <div class="mx-auto w-full max-w-6xl px-4">
         <div class="flex flex-wrap items-center gap-x-6 gap-y-2" reveal>
-          <h2 id="explora-title" class="hl text-3xl font-medium sm:text-4xl">Explora Nexia</h2>
+          <h2 id="explora-title" class="hl t-headline">Explora Nexia</h2>
           <p class="max-w-md text-sm text-ink-soft">Pantallas, video y números.</p>
         </div>
         <div class="mt-6 flex flex-wrap gap-2" role="group" aria-label="Explora">
@@ -330,7 +330,7 @@
           @case ('video') {
             <div class="mt-8 grid items-center gap-8 rounded-3xl bg-ink p-6 text-surface sm:p-8 md:min-h-[32rem] md:grid-cols-2">
               <div>
-                <h3 class="text-3xl font-medium sm:text-4xl">Míralo en acción</h3>
+                <h3 class="t-headline">Míralo en acción</h3>
                 <p class="mt-4 max-w-md text-base">Tu cliente reserva y la cita aparece sola.</p>
                 <a href="#beta" (click)="openForm($event)" class="btn btn-secondary mt-6">Pedir acceso a la beta</a>
               </div>
@@ -415,7 +415,7 @@
     <div class="relative -mt-10 rounded-t-[3rem] bg-canvas">
     <section id="funciones" class="mx-auto w-full max-w-6xl scroll-mt-4 px-4 pb-12 pt-16">
       <div class="flex flex-wrap items-center gap-x-6 gap-y-2" reveal>
-        <h2 class="hl text-3xl font-medium sm:text-4xl">Funciones</h2>
+        <h2 class="hl t-headline">Funciones</h2>
         <p class="max-w-md text-sm text-ink-soft">Todo para atender, en un solo lugar.</p>
       </div>
       <p class="mt-2 text-sm text-muted sm:hidden"><mat-icon class="h-4! w-4! align-middle text-[16px]!" aria-hidden="true">swipe</mat-icon> Desliza para ver más</p>
@@ -538,7 +538,7 @@
     <section class="mx-auto grid w-full max-w-6xl gap-14 px-4 pb-16 lg:grid-cols-2 lg:gap-10">
       <div id="como-funciona" class="scroll-mt-4">
       <div class="flex flex-wrap items-center gap-x-6 gap-y-2" reveal>
-        <h2 class="hl text-3xl font-medium sm:text-4xl">Cómo funciona</h2>
+        <h2 class="hl t-headline">Cómo funciona</h2>
         <p class="max-w-md text-sm text-ink-soft">Cuatro pasos.</p>
       </div>
       <ol #timeline class="relative mt-10 grid gap-12">
@@ -586,7 +586,7 @@
       </div>
       <div class="scroll-mt-4" aria-labelledby="antes-despues">
       <div class="flex flex-wrap items-center gap-x-6 gap-y-2" reveal>
-        <h2 id="antes-despues" class="hl text-3xl font-medium sm:text-4xl">Antes y después</h2>
+        <h2 id="antes-despues" class="hl t-headline">Antes y después</h2>
         <p class="max-w-md text-sm text-ink-soft">Arrastra la línea.</p>
       </div>
       <div reveal class="relative mt-8 h-[26rem] select-none overflow-hidden rounded-3xl border border-b-4 border-ink bg-surface">
@@ -635,7 +635,7 @@
     <!-- Para quién -->
     <section id="para-quien" class="mx-auto w-full max-w-6xl scroll-mt-4 px-4 pb-16">
       <div class="flex flex-wrap items-center gap-x-6 gap-y-2" reveal>
-        <h2 class="hl text-3xl font-medium sm:text-4xl">Para quién es</h2>
+        <h2 class="hl t-headline">Para quién es</h2>
         <p class="max-w-md text-sm text-ink-soft">Elige tu giro.</p>
       </div>
       <div class="mt-6 flex flex-wrap gap-2" role="group" aria-label="Giro">
@@ -678,7 +678,7 @@
       <span class="absolute -right-10 -top-10 h-44 w-44 rounded-full bg-accent opacity-40 blur-2xl" aria-hidden="true"></span>
       <div class="relative mx-auto flex w-full max-w-6xl flex-col items-start gap-5 px-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 class="text-3xl font-medium leading-tight sm:text-4xl">Invita a otro negocio y los dos ganan</h2>
+          <h2 class="t-headline">Invita a otro negocio y los dos ganan</h2>
           <p class="mt-2 max-w-xl text-base text-white/80">Cuando un negocio que invitaste entre a Nexia, los dos reciben {{ rewardText }}.</p>
         </div>
         <a class="btn btn-whatsapp shrink-0" [href]="inviteLink()" target="_blank" rel="noopener" (click)="openInvite()"><mat-icon aria-hidden="true">share</mat-icon>Invitar por WhatsApp</a>
@@ -687,7 +687,7 @@
 
     <section id="preguntas" class="mx-auto w-full max-w-6xl scroll-mt-4 px-4 pb-16">
       <div class="flex flex-wrap items-center gap-x-6 gap-y-2" reveal>
-        <h2 class="hl text-3xl font-medium sm:text-4xl">Preguntas</h2>
+        <h2 class="hl t-headline">Preguntas</h2>
       </div>
       <div class="mt-8 grid gap-3">
         @for (f of shownFaqs(); track f.q) {
