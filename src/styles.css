@@ -670,6 +670,10 @@ mat-icon {
 /* Animaciones de la landing. Todas se apagan con "reducir movimiento". */
 .rv { opacity: 0; transform: translateY(24px); transition: opacity .6s ease, transform .6s ease; transition-delay: var(--d, 0s); }
 .rv-in { opacity: 1; transform: none; }
+.hero-title { font-size: clamp(2.5rem, 8.5vw, 3.75rem); font-weight: 500; line-height: 1.05; letter-spacing: -0.03em; } /* gana a `main h1` (1.5rem) de más abajo */
+.hl-draw { background: linear-gradient(color-mix(in srgb, var(--color-accent) 30%, transparent), color-mix(in srgb, var(--color-accent) 30%, transparent)) no-repeat 0 88% / 0% 0.42em; animation: nx-draw 1s .6s ease-out forwards; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+@keyframes nx-draw { to { background-size: 100% 0.42em; } }
+.sticker { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.4rem 0.8rem; border: 1px solid var(--color-ink); border-bottom-width: 4px; border-radius: 0.75rem; background: var(--color-accent); color: #fff; font-size: 0.875rem; font-weight: 600; box-shadow: 0 6px 14px rgb(0 0 0 / .18); }
 .hero-in { animation: nx-up .7s ease both; animation-delay: var(--d, 0s); }
 .float { animation: nx-float 6s ease-in-out infinite; animation-delay: var(--d, 0s); }
 .spin-slow { animation: nx-spin 40s linear infinite; transform-origin: center; }
@@ -684,6 +688,7 @@ mat-icon {
 @media (prefers-reduced-motion: reduce) {
   .rv { opacity: 1; transform: none; transition: none; }
   .hero-in, .float, .spin-slow, .marquee { animation: none; }
+  .hl-draw { animation: none; background-size: 100% 0.42em; }
   .lift { transition: none; }
 }
 
