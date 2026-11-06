@@ -54,3 +54,9 @@ export interface LandingFunnel {
   conversion_percent: number | null;
   sources: { source: string; visitors: number; sent: number }[];
 }
+
+/** Cifras públicas de la landing: cupo de la beta. */
+export interface BetaSpots {
+  spots_total: number;
+  spots_left: number;
+}
