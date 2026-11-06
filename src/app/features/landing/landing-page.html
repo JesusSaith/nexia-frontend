@@ -433,7 +433,7 @@
       </div>
       <ul aria-label="Funciones de Nexia" class="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         @for (f of features; track f.title; let i = $index) {
-          <li reveal [revealDelay]="(i % 4) * 0.05" class="lift flex items-start gap-3 rounded-2xl border border-line bg-surface p-4">
+          <li reveal [revealDelay]="(i % 4) * 0.08" class="lift feat-card flex items-start gap-3 rounded-2xl border border-line bg-surface p-4" [attr.data-fx]="f.scene" [style.--d]="i * 0.5 + 's'">
             <span class="sec-icon h-11! w-11! rounded-xl!" aria-hidden="true"><mat-icon>{{ f.icon }}</mat-icon></span>
             <div class="min-w-0">
               <h3 class="t-title">{{ t(f.title) }}</h3>
