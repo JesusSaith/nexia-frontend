@@ -21,7 +21,6 @@ import {
   ValidationErrors,
   Validators,
 } from '@angular/forms';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ActivatedRoute } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
@@ -80,7 +79,6 @@ function phoneDigits(control: AbstractControl): ValidationErrors | null {
     NgTemplateOutlet,
     ReactiveFormsModule,
     MatIconModule,
-    MatProgressSpinnerModule,
     PickFieldComponent,
     PlaceMap,
   ],

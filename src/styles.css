@@ -17,6 +17,11 @@
   /* Gris de ayudas: contraste ≥ 4.5:1 también sobre el fondo del panel. */
   --color-muted: #6b645e;
   --color-accent: var(--primary);
+  /* Roles de color de Material 3, con nombre: primary = acento del giro; el resto son alias de los tokens que ya existían. */
+  --color-on-primary: #fff;
+  --color-primary-container: var(--color-accent-soft);
+  --color-surface-container: var(--color-canvas);
+  --color-outline: var(--color-line-strong);
   --color-accent-soft: color-mix(in srgb, var(--primary) 10%, var(--color-surface));
   /* Escala de esquinas de Material 3 (4, 8, 12, 16 y 28 px): controles 8, campos y tarjetas 12, bloques grandes 16. */
   --shape-xs: 0.25rem;
@@ -66,6 +71,11 @@
   --nx-rail-soft: #b9b0a9;
   --nx-rail-hover: #2b2725;
   --nx-card-shadow: 0 1px 2px rgb(28 26 25 / 0.05), 0 2px 6px rgb(28 26 25 / 0.04);
+  /* Elevación de Material 3 en 4 niveles (en modo oscuro no hay sombra: se separa con el borde). */
+  --elev-1: var(--nx-card-shadow);
+  --elev-2: 0 2px 4px rgb(28 26 25 / 0.08), 0 4px 10px rgb(28 26 25 / 0.06);
+  --elev-3: 0 6px 12px rgb(28 26 25 / 0.12), 0 10px 24px rgb(28 26 25 / 0.08);
+  --elev-4: 0 10px 20px rgb(28 26 25 / 0.16), 0 16px 36px rgb(28 26 25 / 0.1);
   /* Color de marca para TEXTO: oscurecido (claro) o aclarado (oscuro) para llegar a 4.5:1 con cualquier color de negocio. */
   --primary-text: color-mix(in srgb, var(--primary) 58%, #000);
   /* Borde de campos e interruptores apagados: ≥ 3:1 contra el fondo (los bordes decorativos siguen con --color-line). */
@@ -112,6 +122,7 @@
   --nx-rail-line: #262321;
   --nx-rail-hover: #1d1b1a;
   --nx-card-shadow: none;
+  --elev-1: none; --elev-2: none; --elev-3: none; --elev-4: none;
   --primary-text: color-mix(in srgb, var(--primary) 65%, #fff);
   --color-control: #8a837c;
 }
@@ -148,6 +159,7 @@
     --nx-rail-line: #262321;
     --nx-rail-hover: #1d1b1a;
     --nx-card-shadow: none;
+    --elev-1: none; --elev-2: none; --elev-3: none; --elev-4: none;
     --primary-text: color-mix(in srgb, var(--primary) 65%, #fff);
     --color-control: #8a837c;
   }
@@ -681,17 +693,16 @@ mat-icon {
 /* Animaciones de la landing. Todas se apagan con "reducir movimiento". */
 .rv { opacity: 0; transform: translateY(24px); transition: opacity .6s ease, transform .6s ease; transition-delay: var(--d, 0s); }
 .rv-in { opacity: 1; transform: none; }
-.hero-title { font-size: clamp(2.5rem, 8.5vw, 3.75rem); font-weight: 500; line-height: 1.05; letter-spacing: -0.03em; } /* gana a `main h1` (1.5rem) de más abajo */
 .hl-draw { background: linear-gradient(color-mix(in srgb, var(--color-accent) 30%, transparent), color-mix(in srgb, var(--color-accent) 30%, transparent)) no-repeat 0 88% / 0% 0.42em; animation: nx-draw 1s .6s ease-out forwards; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
 @keyframes nx-draw { to { background-size: 100% 0.42em; } }
-.sticker { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.4rem 0.8rem; border: 1px solid var(--color-ink); border-bottom-width: 4px; border-radius: 0.75rem; background: var(--color-accent); color: #fff; font-size: 0.875rem; font-weight: 600; box-shadow: 0 6px 14px rgb(0 0 0 / .18); }
+.sticker { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.4rem 0.8rem; border: 1px solid var(--color-ink); border-bottom-width: 4px; border-radius: 0.75rem; background: var(--color-accent); color: #fff; font-size: 0.875rem; font-weight: 600; box-shadow: var(--elev-2); }
 .hero-in { animation: nx-up .7s ease both; animation-delay: var(--d, 0s); }
 .float { animation: nx-float 6s ease-in-out infinite; animation-delay: var(--d, 0s); }
 .spin-slow { animation: nx-spin 40s linear infinite; transform-origin: center; }
 /* Movimiento de Material 3 (m3.material.io > Motion > Easing and duration). */
 :root { --ease-emphasized-decel: cubic-bezier(0.05, 0.7, 0.1, 1); --ease-standard: cubic-bezier(0.2, 0, 0, 1); --dur-medium: 400ms; --dur-short: 200ms; }
 .lift { transition: transform var(--dur-medium) var(--ease-emphasized-decel), box-shadow var(--dur-medium) var(--ease-emphasized-decel); }
-.lift:hover { transform: translateY(-6px) rotate(-0.4deg); box-shadow: 0 14px 28px rgb(0 0 0 / .14); }
+.lift:hover { transform: translateY(-6px) rotate(-0.4deg); box-shadow: var(--elev-3); }
 .lift:active { transform: scale(.98); transition-duration: var(--dur-short); }
 .feat-ico { display: grid; place-items: center; width: 3.25rem; height: 3.25rem; border-radius: 999px; border: 1px solid color-mix(in srgb, currentColor 35%, transparent); background: color-mix(in srgb, currentColor 14%, transparent); transition: transform var(--dur-medium) var(--ease-emphasized-decel); }
 .lift:hover .feat-ico { transform: scale(1.12) rotate(-6deg); }
@@ -752,3 +763,24 @@ mat-icon {
   .draw .line { stroke-dashoffset: 0; transition: none; }
   .draw .area { opacity: .15; transition: none; }
 }
+
+
+/* Tipografía por roles (escala de Material 3: display, headline, title, body, label). Usa estas clases, no tamaños sueltos.
+   Van sin @layer para ganar a `main h1`; el cuerpo mide 15 px y nada baja de 12 px (text-xs). */
+.t-display { font-size: clamp(2.5rem, 8.5vw, 3.75rem); font-weight: 500; line-height: 1.05; letter-spacing: -0.03em; }
+.t-headline { font-size: clamp(1.75rem, 5vw, 2.25rem); font-weight: 500; line-height: 1.15; letter-spacing: -0.015em; }
+.t-title { font-size: 1.125rem; font-weight: 600; line-height: 1.35; }
+.t-body { font-size: 0.9375rem; font-weight: 400; line-height: 1.5; }
+.t-body-sm { font-size: 0.875rem; font-weight: 400; line-height: 1.45; }
+.t-label { font-size: 0.875rem; font-weight: 500; line-height: 1.25; letter-spacing: 0.01em; }
+.t-caption { font-size: 0.75rem; font-weight: 400; line-height: 1.35; }
+
+/* Esqueleto de carga: la silueta de lo que viene, con un brillo suave (se detiene con "reducir movimiento"). */
+.skeleton { display: block; border-radius: var(--shape-md); background: linear-gradient(90deg, var(--color-line) 25%, color-mix(in srgb, var(--color-line) 45%, var(--color-surface)) 50%, var(--color-line) 75%); background-size: 200% 100%; animation: nx-shimmer 1.4s var(--ease-standard) infinite; }
+.skeleton.rounded-full { border-radius: 999px; }
+@keyframes nx-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
+
+/* Ícono relleno en lo activo (Material Symbols: eje FILL 0 a 1), como en las apps de Google. */
+.nx-rail-link mat-icon, .chip mat-icon, .nav-icon { transition: font-variation-settings var(--dur-short) var(--ease-standard); }
+.nx-rail-on mat-icon, .chip-on mat-icon, .nav-icon-on { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
