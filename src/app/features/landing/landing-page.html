@@ -39,7 +39,7 @@
 
   <main id="contenido" tabindex="-1" class="outline-none">
     <!-- Inicio -->
-    <div id="inicio">
+    <div id="inicio" class="hero-tint">
     <section class="mx-auto grid w-full max-w-6xl items-center gap-10 px-4 pb-14 pt-8 md:grid-cols-2 md:pt-14">
       <div class="hero-in">
         <span class="badge border border-line-strong bg-surface text-ink-soft">{{ spotsText() }}</span>
@@ -51,7 +51,8 @@
           <a href="#beta" (click)="openForm($event)" class="btn btn-primary">Pedir acceso</a>
           <a class="btn btn-whatsapp" [href]="whatsappLink()" target="_blank" rel="noopener" (click)="openWhatsapp()"><mat-icon aria-hidden="true">chat</mat-icon>Escríbenos por WhatsApp</a>
         </div>
-        <ul class="mt-4 flex flex-wrap gap-x-5 gap-y-1 text-sm text-ink-soft">
+        <button type="button" class="btn btn-ghost -ml-3 mt-2 px-3" (click)="openVideo()"><mat-icon aria-hidden="true">play_circle</mat-icon>Míralo en 20 segundos</button>
+        <ul class="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm text-ink-soft">
           @for (item of ['Gratis en la beta', 'Sin tarjeta', 'Tus datos son tuyos']; track item) {
             <li class="flex items-center gap-1"><mat-icon class="h-5! w-5! text-[20px]! text-accent" aria-hidden="true">check_circle</mat-icon>{{ item }}</li>
           }
@@ -429,7 +430,7 @@
             [class.text-white]="f.tone === 'accent' || f.tone === 'dark'"
             [class.bg-ink]="f.tone === 'dark'"
           >
-            <mat-icon class="h-8! w-8! text-[32px]!" aria-hidden="true">{{ f.icon }}</mat-icon>
+            <span class="feat-ico" aria-hidden="true"><mat-icon class="h-7! w-7! text-[28px]!">{{ f.icon }}</mat-icon></span>
             <div class="my-5 flex h-20 items-center justify-center" aria-hidden="true">
               @switch (f.scene) {
                 @case ('slots') {
@@ -673,11 +674,12 @@
     </section>
 
     <!-- Preguntas -->
-    <section id="invitar" class="mx-auto w-full max-w-6xl scroll-mt-4 px-4 pb-16">
-      <div class="flex flex-col items-start gap-4 rounded-3xl border border-b-4 border-ink bg-surface p-6 sm:flex-row sm:items-center sm:justify-between">
+    <section id="invitar" class="band-dark relative mb-16 scroll-mt-4 overflow-hidden py-12" reveal>
+      <span class="absolute -right-10 -top-10 h-44 w-44 rounded-full bg-accent opacity-40 blur-2xl" aria-hidden="true"></span>
+      <div class="relative mx-auto flex w-full max-w-6xl flex-col items-start gap-5 px-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 class="text-xl font-medium sm:text-2xl">Invita a otro negocio y los dos ganan</h2>
-          <p class="mt-1 max-w-xl text-sm text-ink-soft sm:text-base">Cuando un negocio que invitaste entre a Nexia, los dos reciben {{ rewardText }}.</p>
+          <h2 class="text-3xl font-medium leading-tight sm:text-4xl">Invita a otro negocio y los dos ganan</h2>
+          <p class="mt-2 max-w-xl text-base text-white/80">Cuando un negocio que invitaste entre a Nexia, los dos reciben {{ rewardText }}.</p>
         </div>
         <a class="btn btn-whatsapp shrink-0" [href]="inviteLink()" target="_blank" rel="noopener" (click)="openInvite()"><mat-icon aria-hidden="true">share</mat-icon>Invitar por WhatsApp</a>
       </div>
@@ -704,6 +706,20 @@
     </section>
   </main>
 
+  <!-- Cierre -->
+  <section class="band-dark relative overflow-hidden py-20 text-center" aria-labelledby="cierre-title">
+    <span class="absolute left-1/2 top-0 h-64 w-[36rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent opacity-50 blur-3xl" aria-hidden="true"></span>
+    <div class="relative mx-auto w-full max-w-3xl px-4">
+      <p class="text-sm font-medium text-white/70">{{ spotsText() }}</p>
+      <h2 id="cierre-title" class="mt-3 text-4xl font-medium leading-[1.05] tracking-tight sm:text-6xl">Tu próxima cita ya puede estar <span class="text-accent-on-dark">reservada</span></h2>
+      <p class="mx-auto mt-4 max-w-md text-base text-white/80">Pide tu acceso gratis y empieza a recibir reservas sin mensajes de ida y vuelta.</p>
+      <div class="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+        <a href="#beta" (click)="openForm($event)" class="btn btn-light">Pedir acceso</a>
+        <a class="btn btn-whatsapp" [href]="whatsappLink()" target="_blank" rel="noopener" (click)="openWhatsapp()"><mat-icon aria-hidden="true">chat</mat-icon>Escríbenos por WhatsApp</a>
+      </div>
+    </div>
+  </section>
+
   <footer class="mx-auto w-full max-w-6xl px-4 pb-24 pt-16 md:pb-8">
     <div class="rounded-3xl bg-ink p-6 text-surface sm:p-8">
       <div class="flex flex-wrap items-center justify-between gap-4">
@@ -717,6 +733,18 @@
       <p class="mt-6 text-sm opacity-80">© 2026 Nexia. Reservas en línea para negocios con cita.</p>
     </div>
   </footer>
+
+  <!-- Video de 20 segundos: se descarga solo al abrirlo -->
+  <dialog #videoDialog class="m-auto max-h-[94dvh] w-[min(92vw,24rem)] overflow-hidden rounded-3xl bg-ink p-0 text-white backdrop:bg-black/70" aria-label="Video: Nexia en 20 segundos" (close)="onVideoClosed()" (click)="onVideoDialogClick($event)">
+    <div class="relative">
+      <video #videoEl class="block max-h-[88dvh] w-full bg-black" poster="/landing/beta-20s-poster.jpg" playsinline controls preload="none" aria-label="Nexia en 20 segundos: tus clientes reservan solos y la cita aparece en tu agenda"></video>
+      <button type="button" class="btn btn-light absolute right-3 top-3 h-11 w-11 rounded-full p-0" aria-label="Cerrar video" (click)="closeVideo()"><mat-icon aria-hidden="true">close</mat-icon></button>
+    </div>
+    <div class="flex items-center justify-between gap-3 px-4 py-3">
+      <p class="text-sm">¿Te late? Pide tu acceso gratis.</p>
+      <a href="#beta" (click)="closeVideo(); openForm($event)" class="btn btn-light shrink-0">Pedir acceso</a>
+    </div>
+  </dialog>
 
   <!-- Hoja emergente: mini quiz y contacto -->
   <dialog #formDialog class="m-auto max-h-[92dvh] w-full max-w-4xl overflow-y-auto overscroll-contain rounded-3xl bg-surface p-0 text-ink backdrop:bg-black/50 max-md:mb-0 max-md:mt-auto max-md:max-w-none max-md:rounded-b-none" aria-labelledby="beta-title" (close)="onFormClosed()" (click)="onDialogClick($event)">

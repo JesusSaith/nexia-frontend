@@ -677,8 +677,21 @@ mat-icon {
 .hero-in { animation: nx-up .7s ease both; animation-delay: var(--d, 0s); }
 .float { animation: nx-float 6s ease-in-out infinite; animation-delay: var(--d, 0s); }
 .spin-slow { animation: nx-spin 40s linear infinite; transform-origin: center; }
-.lift { transition: transform .2s ease; }
-.lift:hover { transform: translateY(-4px); }
+/* Movimiento de Material 3 (m3.material.io > Motion > Easing and duration). */
+:root { --ease-emphasized-decel: cubic-bezier(0.05, 0.7, 0.1, 1); --ease-standard: cubic-bezier(0.2, 0, 0, 1); --dur-medium: 400ms; --dur-short: 200ms; }
+.lift { transition: transform var(--dur-medium) var(--ease-emphasized-decel), box-shadow var(--dur-medium) var(--ease-emphasized-decel); }
+.lift:hover { transform: translateY(-6px) rotate(-0.4deg); box-shadow: 0 14px 28px rgb(0 0 0 / .14); }
+.lift:active { transform: scale(.98); transition-duration: var(--dur-short); }
+.feat-ico { display: grid; place-items: center; width: 3.25rem; height: 3.25rem; border-radius: 999px; border: 1px solid color-mix(in srgb, currentColor 35%, transparent); background: color-mix(in srgb, currentColor 14%, transparent); transition: transform var(--dur-medium) var(--ease-emphasized-decel); }
+.lift:hover .feat-ico { transform: scale(1.12) rotate(-6deg); }
+/* Franjas oscuras de la landing: fijas (no cambian con el modo oscuro) para que el texto blanco siempre contraste. */
+.band-dark { background: #1c1a19; color: #fff; }
+.band-dark .btn-light { background: #fff; color: #1c1a19; border-color: #fff; }
+.band-dark .btn-light:hover, .btn-light:hover { background: #ece8e4; }
+.btn-light { background: #fff; color: #1c1a19; border: 1px solid #fff; }
+.text-accent-on-dark { color: color-mix(in srgb, var(--color-accent) 55%, #fff); }
+/* El giro elegido tiñe el inicio. */
+.hero-tint { background: linear-gradient(180deg, color-mix(in srgb, var(--color-accent) 9%, var(--color-canvas)), var(--color-canvas) 85%); }
 .marquee { display: flex; width: max-content; animation: nx-marquee 38s linear infinite; }
 .marquee:hover { animation-play-state: paused; }
 @keyframes nx-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
@@ -689,7 +702,8 @@ mat-icon {
   .rv { opacity: 1; transform: none; transition: none; }
   .hero-in, .float, .spin-slow, .marquee { animation: none; }
   .hl-draw { animation: none; background-size: 100% 0.42em; }
-  .lift { transition: none; }
+  .lift, .feat-ico { transition: none; }
+  .lift:hover, .lift:hover .feat-ico { transform: none; }
 }
 
 /* Mini escenas de las tarjetas de Funciones (landing): se repiten solas y se apagan con "reducir movimiento". */
