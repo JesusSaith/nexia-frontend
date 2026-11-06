@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../config/api-base-url';
-import { BetaInvite, BetaRequestItem, BetaStatus, DemoBusiness, LandingFunnel, PlatformBusiness } from '../models/platform-business.model';
+import { BetaInvite, BetaSpots, BetaRequestItem, BetaStatus, DemoBusiness, LandingFunnel, PlatformBusiness } from '../models/platform-business.model';
 
 @Injectable({ providedIn: 'root' })
 export class SuperAdminService {
@@ -41,5 +41,10 @@ export class SuperAdminService {
 
   getLandingFunnel(days = 30): Observable<LandingFunnel> {
     return this.http.get<LandingFunnel>(`${this.apiBaseUrl}/super-admin/landing-funnel`, { params: { days } });
+  }
+
+  /** Lugares de la beta (el mismo dato público que ve la landing). */
+  getBetaSpots(): Observable<BetaSpots> {
+    return this.http.get<BetaSpots>(`${this.apiBaseUrl}/landing/stats`);
   }
 }
