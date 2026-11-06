@@ -19,7 +19,6 @@
         <a href="#funciones" class="hover:text-ink">Funciones</a>
         <a href="#como-funciona" class="hover:text-ink">Cómo funciona</a>
         <a href="#para-quien" class="hover:text-ink">Para quién</a>
-        <a href="#preguntas" class="hover:text-ink">Preguntas</a>
       </nav>
       <div class="flex items-center gap-2">
         <a href="#beta" (click)="openForm($event)" class="btn btn-secondary border-ink!">Pedir acceso</a>
@@ -30,7 +29,7 @@
     </div>
     @if (menuOpen()) {
       <nav id="menu-movil" class="border-t border-line bg-surface px-4 py-2 md:hidden" aria-label="Secciones">
-        @for (item of [['#funciones', 'Funciones'], ['#como-funciona', 'Cómo funciona'], ['#para-quien', 'Para quién'], ['#preguntas', 'Preguntas'], ['#beta', 'Pedir acceso']]; track item[0]) {
+        @for (item of [['#funciones', 'Funciones'], ['#como-funciona', 'Cómo funciona'], ['#para-quien', 'Para quién'], ['#beta', 'Pedir acceso']]; track item[0]) {
           <a [href]="item[0]" class="flex min-h-11 items-center text-base" (click)="onMenu($event, item[0])">{{ item[1] }}</a>
         }
       </nav>
@@ -42,7 +41,9 @@
     <div id="inicio" class="hero-tint">
     <section class="mx-auto grid w-full max-w-6xl items-center gap-10 px-4 pb-14 pt-8 md:grid-cols-2 md:pt-14">
       <div class="hero-in">
-        <span class="badge border border-line-strong bg-surface text-ink-soft">{{ spotsText() }}</span>
+        @if (!(stats() && stats()!.spots_total > 0)) {
+          <span class="badge border border-line-strong bg-surface text-ink-soft">{{ spotsText() }}</span>
+        }
         <h1 class="t-display mt-4">
           Tus citas, <span class="hl-draw">sin mensajes de ida y vuelta</span>
         </h1>
@@ -51,6 +52,18 @@
           <a href="#beta" (click)="openForm($event)" class="btn btn-primary">Pedir acceso</a>
           <a class="btn btn-whatsapp" [href]="whatsappLink()" target="_blank" rel="noopener" (click)="openWhatsapp()"><mat-icon aria-hidden="true">chat</mat-icon>Escríbenos por WhatsApp</a>
         </div>
+        @if (stats(); as st) {
+          @if (st.spots_total > 0) {
+            <div class="mt-6 flex max-w-sm items-center gap-4 rounded-2xl border border-line bg-surface p-4" role="status" aria-label="Lugares que quedan en la beta">
+              <p class="text-5xl font-semibold leading-none tabular-nums text-accent"><span countUp [countFrom]="st.spots_total" [countTo]="st.spots_left">{{ st.spots_left }}</span></p>
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-medium">{{ st.spots_left <= 0 ? 'Beta llena · lista de espera' : (st.spots_left === 1 ? 'lugar gratis' : 'lugares gratis') + ' de ' + st.spots_total }}</p>
+                <span class="mt-2 block h-2 overflow-hidden rounded-full bg-line" aria-hidden="true"><span class="block h-full rounded-full bg-accent transition-[width] duration-700" [style.width.%]="spotsTakenPct()"></span></span>
+                <p class="mt-1 text-xs text-muted">Beta cerrada · cupo limitado</p>
+              </div>
+            </div>
+          }
+        }
         <button type="button" class="btn btn-ghost -ml-3 mt-2 px-3" (click)="openVideo()"><mat-icon aria-hidden="true">play_circle</mat-icon>Míralo en 20 segundos</button>
         <ul class="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm text-ink-soft">
           @for (item of ['Gratis en la beta', 'Sin tarjeta', 'Tus datos son tuyos']; track item) {
@@ -418,86 +431,13 @@
         <h2 class="hl t-headline">Funciones</h2>
         <p class="max-w-md text-sm text-ink-soft">Todo para atender, en un solo lugar.</p>
       </div>
-      <p class="mt-2 text-sm text-muted sm:hidden"><mat-icon class="h-4! w-4! align-middle text-[16px]!" aria-hidden="true">swipe</mat-icon> Desliza para ver más</p>
-      <ul tabindex="0" aria-label="Funciones de Nexia, desliza para ver más" class="mt-6 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 [scrollbar-width:none] sm:mt-8 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0">
+      <ul aria-label="Funciones de Nexia" class="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         @for (f of features; track f.title; let i = $index) {
-          <li
-            reveal [revealDelay]="(i % 2) * 0.1"
-            class="lift flex min-h-64 w-[82%] shrink-0 snap-center flex-col justify-between overflow-hidden rounded-3xl border border-b-4 border-ink p-6 sm:w-auto"
-            [class.bg-surface]="f.tone === 'light'"
-            [class.text-ink]="f.tone === 'light'"
-            [class.bg-accent]="f.tone === 'accent'"
-            [class.text-white]="f.tone === 'accent' || f.tone === 'dark'"
-            [class.bg-ink]="f.tone === 'dark'"
-          >
-            <span class="feat-ico" aria-hidden="true"><mat-icon class="h-7! w-7! text-[28px]!">{{ f.icon }}</mat-icon></span>
-            <div class="my-5 flex h-20 items-center justify-center" aria-hidden="true">
-              @switch (f.scene) {
-                @case ('slots') {
-                  <div class="grid grid-cols-4 gap-2">
-                    @for (n of [0, 1, 2, 3, 4, 5, 6, 7]; track n) {
-                      <span class="h-6 w-12 rounded-md bg-current/15" [class.sc-fill]="n === 2 || n === 5" [style.--d]="n * 0.4 + 's'"></span>
-                    }
-                  </div>
-                }
-                @case ('pay') {
-                  <div class="flex items-center gap-3">
-                    <span class="sc-pop rounded-full border-2 border-current px-4 py-1 text-lg font-semibold">$200</span>
-                    <mat-icon class="sc-pop h-9! w-9! text-[36px]!" style="--d: .6s">check_circle</mat-icon>
-                  </div>
-                }
-                @case ('agenda') {
-                  <div class="grid w-44 gap-2">
-                    @for (w of [70, 45, 85]; track w; let n = $index) {
-                      <span class="sc-slide h-5 rounded-md bg-current/50" [style.width.%]="w" [style.--d]="n * 0.5 + 's'"></span>
-                    }
-                  </div>
-                }
-                @case ('chat') {
-                  <div class="grid w-44 gap-2">
-                    <span class="sc-pop h-6 w-32 rounded-xl rounded-bl-sm bg-current/20"></span>
-                    <span class="sc-pop ml-auto h-6 w-24 rounded-xl rounded-br-sm bg-current/60" style="--d: .8s"></span>
-                  </div>
-                }
-                @case ('team') {
-                  <div class="flex items-end gap-4">
-                    @for (h of [40, 64, 52]; track h; let n = $index) {
-                      <div class="flex flex-col items-center gap-1">
-                        <span class="sc-grow w-8 rounded-t-md bg-current/50" [style.height.px]="h" [style.--d]="n * 0.4 + 's'"></span>
-                        <span class="h-6 w-6 rounded-full bg-current"></span>
-                      </div>
-                    }
-                  </div>
-                }
-                @case ('clients') {
-                  <div class="grid w-44 gap-2">
-                    @for (n of [0, 1, 2]; track n) {
-                      <div class="sc-pop flex items-center gap-2" [style.--d]="n * 0.5 + 's'"><span class="h-5 w-5 rounded-full bg-current"></span><span class="h-3 flex-1 rounded bg-current/30"></span></div>
-                    }
-                  </div>
-                }
-                @case ('chart') {
-                  <div class="flex h-16 items-end gap-2">
-                    @for (h of [40, 65, 50, 85, 100]; track $index; let n = $index) {
-                      <span class="sc-grow w-6 rounded-t-md bg-current/60" [style.height.%]="h" [style.--d]="n * 0.25 + 's'"></span>
-                    }
-                  </div>
-                }
-                @case ('qr') {
-                  <div class="relative h-16 w-16 overflow-hidden rounded-md border-2 border-current p-1">
-                    <div class="grid h-full grid-cols-5 gap-px">
-                      @for (c of qrCells; track $index) {
-                        <span [class.bg-current]="c === 1"></span>
-                      }
-                    </div>
-                    <span class="sc-scan absolute inset-x-0 h-0.5 bg-current shadow-[0_0_6px_currentColor]"></span>
-                  </div>
-                }
-              }
-            </div>
-            <div>
-              <h3 class="text-lg font-semibold">{{ t(f.title) }}</h3>
-              <p class="mt-1 text-sm" [class.text-ink-soft]="f.tone === 'light'" [class.opacity-90]="f.tone !== 'light'">{{ t(f.text) }}</p>
+          <li reveal [revealDelay]="(i % 4) * 0.05" class="lift flex items-start gap-3 rounded-2xl border border-line bg-surface p-4">
+            <span class="sec-icon h-11! w-11! rounded-xl!" aria-hidden="true"><mat-icon>{{ f.icon }}</mat-icon></span>
+            <div class="min-w-0">
+              <h3 class="t-title">{{ t(f.title) }}</h3>
+              <p class="t-body-sm mt-0.5 text-ink-soft">{{ t(f.text) }}</p>
             </div>
           </li>
         }
@@ -511,28 +451,6 @@
         <a href="#beta" (click)="openForm($event)" class="btn btn-primary shrink-0">Pedir acceso</a>
       </div>
     </section>
-
-    <!-- Banda de color: solo cifras reales -->
-    @if (stats(); as st) {
-      @if (st.spots_total > 0 || showStats()) {
-        <section class="relative overflow-hidden bg-accent py-12 text-white" aria-label="Nexia en cifras">
-          <span class="absolute -left-10 -top-10 h-40 w-40 rounded-full bg-white opacity-10" aria-hidden="true"></span>
-          <span class="absolute -bottom-12 right-10 h-48 w-48 rounded-full bg-black opacity-10" aria-hidden="true"></span>
-          <div class="relative mx-auto grid w-full max-w-6xl items-center gap-8 px-4 md:grid-cols-[1fr_auto]">
-            <dl class="grid gap-6 sm:grid-cols-3">
-              @if (showStats()) {
-                <div><dd class="text-5xl font-semibold tabular-nums sm:text-6xl"><span countUp [countFrom]="0" [countTo]="st.appointments">{{ st.appointments }}</span></dd><dt class="mt-1 text-base">citas agendadas en la beta</dt></div>
-                <div><dd class="text-5xl font-semibold tabular-nums sm:text-6xl"><span countUp [countFrom]="0" [countTo]="st.businesses">{{ st.businesses }}</span></dd><dt class="mt-1 text-base">negocios ya la usan</dt></div>
-              }
-              @if (st.spots_total > 0) {
-                <div><dd class="text-5xl font-semibold tabular-nums sm:text-6xl"><span countUp [countFrom]="st.spots_total" [countTo]="st.spots_left">{{ st.spots_left }}</span></dd><dt class="mt-1 text-base">{{ st.spots_left === 1 ? 'lugar gratis' : 'lugares gratis' }} de {{ st.spots_total }}</dt></div>
-              }
-            </dl>
-            <a href="#beta" (click)="openForm($event)" class="btn btn-secondary border-ink! bg-surface! text-ink!">Pedir acceso</a>
-          </div>
-        </section>
-      }
-    }
 
     <!-- Cómo funciona y Antes y después -->
     <section class="mx-auto grid w-full max-w-6xl gap-14 px-4 pb-16 lg:grid-cols-2 lg:gap-10">
@@ -673,7 +591,7 @@
       </div>
     </section>
 
-    <!-- Preguntas -->
+    <!-- Invitar -->
     <section id="invitar" class="band-dark relative mb-16 scroll-mt-4 overflow-hidden py-12" reveal>
       <span class="absolute -right-10 -top-10 h-44 w-44 rounded-full bg-accent opacity-40 blur-2xl" aria-hidden="true"></span>
       <div class="relative mx-auto flex w-full max-w-6xl flex-col items-start gap-5 px-4 sm:flex-row sm:items-center sm:justify-between">
@@ -685,25 +603,6 @@
       </div>
     </section>
 
-    <section id="preguntas" class="mx-auto w-full max-w-6xl scroll-mt-4 px-4 pb-16">
-      <div class="flex flex-wrap items-center gap-x-6 gap-y-2" reveal>
-        <h2 class="hl t-headline">Preguntas</h2>
-      </div>
-      <div class="mt-8 grid gap-3">
-        @for (f of shownFaqs(); track f.q) {
-          <details reveal class="group rounded-3xl border border-b-4 border-ink bg-surface">
-            <summary class="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-5 py-3 font-medium sm:px-7">
-              {{ t(f.q) }}
-              <mat-icon class="shrink-0 transition-transform group-open:rotate-45" aria-hidden="true">add</mat-icon>
-            </summary>
-            <p class="px-5 pb-5 text-sm text-ink-soft sm:px-7">{{ t(f.a) }}</p>
-          </details>
-        }
-      </div>
-      @if (!faqAll()) {
-        <button type="button" class="btn btn-secondary mt-4" (click)="faqAll.set(true)">Ver más preguntas</button>
-      }
-    </section>
   </main>
 
   <!-- Cierre -->
