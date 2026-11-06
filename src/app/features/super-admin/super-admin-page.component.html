@@ -1,7 +1,7 @@
 <div class="min-h-dvh bg-canvas">
   <header class="flex h-16 items-center gap-3 border-b border-line bg-surface px-4">
     <mat-icon>apartment</mat-icon>
-    <h1 class="text-base font-medium">Negocios / Plataforma</h1>
+    <h1 class="text-base font-medium">Plataforma</h1>
     <span class="flex-1"></span>
     <span class="hidden text-sm text-ink-soft sm:inline">{{ currentUser()?.fullName }}</span>
     <button class="btn btn-ghost" type="button" (click)="logout()" [disabled]="loggingOut()">
@@ -10,25 +10,65 @@
     </button>
   </header>
 
-  <main class="p-4 md:p-6">
+  <main class="mx-auto max-w-6xl p-4 md:p-6">
     @if (loadError(); as message) {
       <p role="alert" class="mb-4 text-sm text-[var(--nx-bad-fg)]">{{ message }}</p>
     }
 
-
-    <!-- Solicitudes de la beta (landing) -->
-    <section class="mb-8" aria-labelledby="beta-title">
-      <div class="mb-3 flex items-center gap-2">
-        <h2 id="beta-title" class="text-base font-semibold">Solicitudes de la beta</h2>
-        @if (newRequests() > 0) {
-          <span class="badge badge-warn">{{ newRequests() }} nueva{{ newRequests() === 1 ? '' : 's' }}</span>
+    <!-- Resumen: lo primero que se necesita saber de la beta -->
+    <section class="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Resumen de la beta">
+      <button type="button" class="card flex flex-col items-start justify-start text-left" [class.ring-2]="requestCounts().atender > 0" [class.ring-accent]="requestCounts().atender > 0" (click)="openRequests('atender')">
+        <span class="text-sm text-ink-soft">Solicitudes por atender</span>
+        <span class="mt-1 block text-2xl font-semibold sm:text-3xl tabular-nums">{{ requestCounts().atender }}</span>
+        <span class="text-sm text-muted">{{ requestCounts().atender > 0 ? 'Toca para responder' : 'Todo al día' }}</span>
+      </button>
+      <button type="button" class="card flex flex-col items-start justify-start text-left" (click)="openRequests('seguimiento')">
+        <span class="text-sm text-ink-soft">Invitadas, sin cuenta</span>
+        <span class="mt-1 block text-2xl font-semibold sm:text-3xl tabular-nums">{{ requestCounts().seguimiento }}</span>
+        <span class="text-sm text-muted">{{ requestCounts().seguimiento > 0 ? 'Conviene escribirles' : 'Ninguna pendiente' }}</span>
+      </button>
+      <div class="card flex flex-col items-start justify-start">
+        <span class="text-sm text-ink-soft">Lugares libres</span>
+        @if (spots(); as s) {
+          <span class="mt-1 block text-2xl font-semibold sm:text-3xl tabular-nums">{{ s.spots_left }}<span class="text-lg font-normal text-muted"> de {{ s.spots_total }}</span></span>
+          <span class="text-sm text-muted">{{ s.spots_left === 0 ? 'Lista de espera' : 'Se ocupan al aprobar' }}</span>
+        } @else {
+          <span class="mt-1 block text-2xl font-semibold sm:text-3xl text-muted">–</span>
         }
       </div>
-      @if (betaRequests().length === 0) {
-        <p class="rounded border border-line bg-surface p-4 text-sm text-ink-soft">Todavía no hay solicitudes.</p>
-      } @else {
-        <ul class="grid gap-3 md:grid-cols-2">
-          @for (item of betaRequests(); track item.id) {
+      <button type="button" class="card flex flex-col items-start justify-start text-left" (click)="setTab('landing')">
+        <span class="text-sm text-ink-soft">Visitas a la landing</span>
+        <span class="mt-1 block text-2xl font-semibold sm:text-3xl tabular-nums">{{ visits() }}</span>
+        <span class="text-sm text-muted">Últimos {{ days() }} días</span>
+      </button>
+    </section>
+
+    <!-- Secciones -->
+    <div class="mb-5 flex flex-wrap gap-2" role="group" aria-label="Sección">
+      <button type="button" class="chip" [class.chip-on]="tab() === 'solicitudes'" [attr.aria-pressed]="tab() === 'solicitudes'" (click)="setTab('solicitudes')">
+        Solicitudes@if (requestCounts().atender > 0) { <span class="badge badge-warn ml-2">{{ requestCounts().atender }}</span> }
+      </button>
+      <button type="button" class="chip" [class.chip-on]="tab() === 'landing'" [attr.aria-pressed]="tab() === 'landing'" (click)="setTab('landing')">Landing</button>
+      <button type="button" class="chip" [class.chip-on]="tab() === 'negocios'" [attr.aria-pressed]="tab() === 'negocios'" (click)="setTab('negocios')">Negocios@if (activeBusinesses() > 0) { <span class="badge badge-neutral ml-2">{{ activeBusinesses() }}</span> }</button>
+    </div>
+
+    @if (tab() === 'solicitudes') {
+      <section aria-labelledby="beta-title">
+        <h2 id="beta-title" class="sr-only">Solicitudes de la beta</h2>
+        <div class="mb-4 flex flex-wrap gap-2" role="group" aria-label="Filtrar solicitudes">
+          @for (f of requestFilters; track f.value) {
+            <button type="button" class="chip" [class.chip-on]="requestFilter() === f.value" [attr.aria-pressed]="requestFilter() === f.value" (click)="requestFilter.set(f.value)">
+              {{ f.label }} <span class="ml-1.5 tabular-nums text-muted">{{ requestCounts()[f.value] }}</span>
+            </button>
+          }
+        </div>
+        @if (betaRequests().length === 0) {
+          <p class="card text-sm text-ink-soft">Todavía no hay solicitudes. Comparte tu enlace con <span class="font-medium">?fuente=instagram</span> para saber de dónde llegan.</p>
+        } @else if (visibleRequests().length === 0) {
+          <p class="card text-sm text-ink-soft">No hay solicitudes en esta lista.</p>
+        } @else {
+          <ul class="grid gap-3 md:grid-cols-2">
+            @for (item of visibleRequests(); track item.id) {
             <li class="card" [class.opacity-60]="item.status === 'descartada'">
               <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">
@@ -91,87 +131,126 @@
                 </details>
               }
             </li>
-          }
-        </ul>
-      }
-    </section>
+            }
+          </ul>
+        }
+      </section>
+    }
 
-    <!-- Negocio demo de la landing -->
-    <section class="mb-8" aria-labelledby="demo-title">
-      <h2 id="demo-title" class="mb-3 text-base font-semibold">Demo de la landing</h2>
-      <div class="card flex flex-wrap items-center justify-between gap-3">
-        <p class="max-w-xl text-sm text-ink-soft">Es el negocio de ejemplo que abre el botón "Prueba cómo reserva tu cliente". Se limpia solo: las reservas de visitantes se borran al día siguiente. Créalo una vez al publicar, o vuelve a crearlo para dejarlo como nuevo.</p>
-        <div class="flex flex-wrap items-center gap-2">
-          @if (demoPending()) { <mat-spinner diameter="20" /> }
-          <button class="btn btn-secondary" type="button" [disabled]="demoPending()" (click)="createDemo()">Crear o reiniciar demo</button>
-          @if (demo(); as d) {
-            <a class="btn btn-primary" [href]="d.path" target="_blank" rel="noopener">Abrir demo</a>
-          }
-        </div>
-      </div>
-    </section>
-
-    <!-- Embudo de la landing -->
-    @if (funnel(); as data) {
-      <section class="mb-8" aria-labelledby="funnel-title">
-        <h2 id="funnel-title" class="mb-3 text-base font-semibold">Landing, últimos 30 días</h2>
-        <div class="grid gap-3 md:grid-cols-2">
-          <div class="card">
-            <ol class="grid gap-2">
-              @for (step of data.steps; track step.step) {
-                <li class="flex items-center justify-between gap-3 text-sm">
-                  <span>{{ step.label }}</span>
-                  <span class="font-semibold tabular-nums">{{ step.visitors }}@if (step.kept_percent !== null) { <span class="font-normal text-muted"> · {{ step.kept_percent }}%</span> }</span>
-                </li>
-              }
-            </ol>
-            <p class="mt-3 border-t border-line pt-3 text-sm text-ink-soft">
-              @if (data.conversion_percent !== null) { De cada 100 visitas, {{ data.conversion_percent }} envían su solicitud. }
-              {{ data.whatsapp_clicks }} tocaron WhatsApp.
-            </p>
-          </div>
-          <div class="card">
-            <p class="card-title">De dónde llegan</p>
-            @if (data.sources.length === 0) {
-              <p class="mt-2 text-sm text-muted">Aún no hay visitas. Usa enlaces como nexiacitas.com/?fuente=instagram.</p>
-            } @else {
-              <ul class="mt-2 grid gap-2">
-                @for (row of data.sources; track row.source) {
-                  <li class="flex items-center justify-between gap-3 text-sm"><span>{{ row.source }}</span><span class="tabular-nums">{{ row.visitors }} visitas · {{ row.sent }} solicitudes</span></li>
-                }
-              </ul>
+    @if (tab() === 'landing') {
+      <section aria-labelledby="funnel-title">
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <h2 id="funnel-title" class="text-base font-semibold">Landing, últimos {{ days() }} días</h2>
+          <div class="flex gap-2" role="group" aria-label="Periodo">
+            @for (d of periods; track d) {
+              <button type="button" class="chip" [class.chip-on]="days() === d" [attr.aria-pressed]="days() === d" (click)="setDays(d)">{{ d }} días</button>
             }
           </div>
         </div>
-        <div class="mt-3 grid gap-3 md:grid-cols-3">
-          @for (group of detailGroups(); track group.title) {
+        @if (funnel(); as data) {
+          <div class="grid gap-3 md:grid-cols-2">
             <div class="card">
-              <p class="card-title">{{ group.title }}</p>
-              @if (group.rows.length === 0) {
-                <p class="mt-2 text-sm text-muted">Aún sin datos.</p>
+              <p class="card-title">Del primer vistazo a la solicitud</p>
+              <ol class="mt-3 grid gap-3">
+                @for (step of data.steps; track step.step) {
+                  <li>
+                    <div class="flex items-center justify-between gap-3 text-sm">
+                      <span>{{ step.label }}</span>
+                      <span class="font-semibold tabular-nums">{{ step.visitors }}@if (step.kept_percent !== null) { <span class="font-normal text-muted"> · {{ step.kept_percent }}%</span> }</span>
+                    </div>
+                    <div class="mt-1 h-2 overflow-hidden rounded-full bg-canvas" aria-hidden="true"><div class="h-full rounded-full bg-accent" [style.width.%]="barPercent(step.visitors, funnelMax())"></div></div>
+                  </li>
+                }
+              </ol>
+              <p class="mt-4 border-t border-line pt-3 text-sm text-ink-soft">
+                @if (data.conversion_percent !== null) { De cada 100 visitas, {{ data.conversion_percent }} envían su solicitud. }
+                {{ plural(data.whatsapp_clicks, 'persona tocó', 'personas tocaron') }} WhatsApp.
+              </p>
+            </div>
+            <div class="card">
+              <p class="card-title">De dónde llegan</p>
+              @if (data.sources.length === 0) {
+                <p class="mt-2 text-sm text-muted">Aún no hay visitas. Usa enlaces como nexiacitas.com/?fuente=instagram.</p>
               } @else {
-                <ul class="mt-2 grid gap-2">
-                  @for (row of group.rows; track row.label) {
-                    <li class="flex items-center justify-between gap-3 text-sm"><span>{{ row.label }}</span><span class="font-semibold tabular-nums">{{ row.visitors }}</span></li>
+                <ul class="mt-3 grid gap-3">
+                  @for (row of data.sources; track row.source) {
+                    <li>
+                      <div class="flex items-center justify-between gap-3 text-sm"><span>{{ sourceLabel(row.source) }}</span><span class="tabular-nums">{{ plural(row.visitors, 'visita', 'visitas') }} · {{ plural(row.sent, 'solicitud', 'solicitudes') }}</span></div>
+                      <div class="mt-1 h-2 overflow-hidden rounded-full bg-canvas" aria-hidden="true"><div class="h-full rounded-full bg-accent" [style.width.%]="barPercent(row.visitors, sourcesMax())"></div></div>
+                    </li>
                   }
                 </ul>
+                @if (data.sources.length === 1 && data.sources[0].source === 'directo') {
+                  <p class="mt-3 text-sm text-muted">Todo aparece como "directo": usa enlaces con <span class="font-medium">?fuente=</span> en tus publicaciones para ver de dónde llegan.</p>
+                }
               }
             </div>
-          }
+          </div>
+          <div class="mt-3 grid gap-3 md:grid-cols-3">
+            @for (group of detailGroups(); track group.title) {
+              <div class="card">
+                <p class="card-title">{{ group.title }}</p>
+                @if (group.rows.length === 0) {
+                  <p class="mt-2 text-sm text-muted">Aún sin datos.</p>
+                } @else {
+                  <ul class="mt-2 grid gap-2">
+                    @for (row of group.rows; track row.label) {
+                      <li class="flex items-center justify-between gap-3 text-sm"><span>{{ row.label }}</span><span class="font-semibold tabular-nums">{{ row.visitors }}</span></li>
+                    }
+                  </ul>
+                }
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="flex justify-center py-12"><mat-spinner diameter="28" /></div>
+        }
+
+        <!-- Negocio demo de la landing -->
+        <h2 id="demo-title" class="mb-3 mt-8 text-base font-semibold">Demo de la landing</h2>
+        <div class="card flex flex-wrap items-center justify-between gap-3">
+          <p class="max-w-xl text-sm text-ink-soft">Es el negocio de ejemplo que abre el botón "Prueba cómo reserva tu cliente". Se limpia solo: las reservas de visitantes se borran al día siguiente. Créalo una vez al publicar, o vuelve a crearlo para dejarlo como nuevo.</p>
+          <div class="flex flex-wrap items-center gap-2">
+            @if (demoPending()) { <mat-spinner diameter="20" /> }
+            <button class="btn btn-secondary" type="button" [disabled]="demoPending()" (click)="createDemo()">Crear o reiniciar demo</button>
+            @if (demo(); as d) {
+              <a class="btn btn-primary" [href]="d.path" target="_blank" rel="noopener">Abrir demo</a>
+            }
+          </div>
         </div>
       </section>
     }
 
-    <h2 class="mb-3 text-base font-semibold">Negocios</h2>
-
-    @if (isLoading()) {
-      <div class="flex justify-center py-16">
-        <mat-spinner diameter="36" />
-      </div>
-    } @else if (businesses().length === 0) {
-      <p class="py-10 text-center text-sm text-ink-soft">No hay negocios en la plataforma.</p>
-    } @else {
-      <div class="overflow-x-auto rounded border border-line bg-surface">
+    @if (tab() === 'negocios') {
+      <section aria-labelledby="biz-title">
+        <h2 id="biz-title" class="mb-3 text-base font-semibold">Negocios</h2>
+        @if (isLoading()) {
+          <div class="flex justify-center py-16">
+            <mat-spinner diameter="36" />
+          </div>
+        } @else if (businesses().length === 0) {
+          <p class="py-10 text-center text-sm text-ink-soft">No hay negocios en la plataforma.</p>
+        } @else {
+      <ul class="grid gap-3 md:hidden">
+          @for (business of businesses(); track business.id) {
+            <li class="card flex items-center justify-between gap-3">
+              <div class="min-w-0">
+                <p class="truncate font-semibold">{{ business.name }} @if (business.is_demo) { <span class="badge badge-neutral">Demo</span> }</p>
+                <p class="truncate text-sm text-ink-soft">{{ business.slug }}</p>
+                <p class="text-sm text-muted">{{ plural(business.staff_count, 'persona', 'personas') }} · {{ plural(business.appointment_count, 'cita', 'citas') }}</p>
+              </div>
+              <div class="flex shrink-0 flex-col items-end gap-1">
+                <span class="badge" [class.badge-ok]="business.is_active" [class.badge-neutral]="!business.is_active">{{ business.is_active ? 'Activo' : 'Inactivo' }}</span>
+                @if (pendingId() === business.id) {
+                  <mat-spinner diameter="20" />
+                } @else {
+                  <button class="btn btn-ghost" type="button" (click)="toggle(business)">{{ business.is_active ? 'Desactivar' : 'Activar' }}</button>
+                }
+              </div>
+            </li>
+          }
+        </ul>
+      <div class="hidden overflow-x-auto rounded border border-line bg-surface md:block">
         <table mat-table [dataSource]="businesses()" class="w-full">
           <ng-container matColumnDef="name">
             <th mat-header-cell *matHeaderCellDef>Negocio</th>
@@ -191,7 +270,7 @@
           </ng-container>
           <ng-container matColumnDef="status">
             <th mat-header-cell *matHeaderCellDef>Estado</th>
-            <td mat-cell *matCellDef="let business">{{ business.is_active ? 'Activo' : 'Inactivo' }}</td>
+            <td mat-cell *matCellDef="let business"><span class="badge" [class.badge-ok]="business.is_active" [class.badge-neutral]="!business.is_active">{{ business.is_active ? 'Activo' : 'Inactivo' }}</span></td>
           </ng-container>
           <ng-container matColumnDef="actions">
             <th mat-header-cell *matHeaderCellDef></th>
@@ -209,6 +288,8 @@
           <tr mat-row *matRowDef="let row; columns: columns"></tr>
         </table>
       </div>
+        }
+      </section>
     }
   </main>
 </div>

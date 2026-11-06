@@ -9,11 +9,15 @@ import { Router } from '@angular/router';
 
 import { BUSINESS_KINDS } from '@core/business-kinds';
 import { Toasts } from '@core/toasts';
-import { BetaRequestItem, BetaStatus, DemoBusiness, LandingFunnel, PlatformBusiness } from '@core/models/platform-business.model';
+import { BetaRequestItem, BetaSpots, BetaStatus, DemoBusiness, LandingFunnel, PlatformBusiness } from '@core/models/platform-business.model';
 import { AuthService } from '@core/services/auth.service';
 import { SuperAdminService } from '@core/services/super-admin.service';
 
 import { weekOneMessages, whatsappUrl } from './beta-messages';
+import { RequestFilter, barPercent, countByStatus, defaultFilter, filterRequests, plural, sourceLabel } from './super-admin-view';
+
+type SuperAdminTab = 'solicitudes' | 'landing' | 'negocios';
+const TAB_KEY = 'nexia-super-admin-tab';
 
 @Component({
   selector: 'app-super-admin-page',
@@ -58,6 +62,29 @@ export class SuperAdminPageComponent {
   protected readonly betaPendingId = signal<number | null>(null);
   protected readonly newRequests = computed(() => this.betaRequests().filter((item) => item.status === 'nueva').length);
 
+  protected readonly tab = signal<SuperAdminTab>(readTab());
+  protected readonly requestFilter = signal<RequestFilter>('atender');
+  protected readonly requestCounts = computed(() => countByStatus(this.betaRequests()));
+  protected readonly visibleRequests = computed(() => filterRequests(this.betaRequests(), this.requestFilter()));
+  protected readonly requestFilters: { value: RequestFilter; label: string }[] = [
+    { value: 'atender', label: 'Por atender' },
+    { value: 'seguimiento', label: 'Invitadas' },
+    { value: 'registradas', label: 'Con cuenta' },
+    { value: 'descartadas', label: 'Descartadas' },
+    { value: 'todas', label: 'Todas' },
+  ];
+  protected readonly periods = [7, 30, 90];
+  protected readonly days = signal(30);
+  protected readonly spots = signal<BetaSpots | null>(null);
+  protected readonly activeBusinesses = computed(() => this.businesses().filter((b) => b.is_active && !b.is_demo).length);
+  protected readonly visits = computed(() => this.funnel()?.steps[0]?.visitors ?? 0);
+  /** Barras del embudo y de las fuentes, respecto al valor más grande de cada lista. */
+  protected readonly funnelMax = computed(() => Math.max(0, ...(this.funnel()?.steps.map((step) => step.visitors) ?? [])));
+  protected readonly sourcesMax = computed(() => Math.max(0, ...(this.funnel()?.sources.map((row) => row.visitors) ?? [])));
+  protected readonly plural = plural;
+  protected readonly sourceLabel = sourceLabel;
+  protected readonly barPercent = barPercent;
+
   protected readonly inviteLinks = signal<Record<number, string>>({});
   protected readonly demo = signal<DemoBusiness | null>(null);
   protected readonly demoPending = signal(false);
@@ -67,6 +94,29 @@ export class SuperAdminPageComponent {
   constructor() {
     this.load();
     this.loadBeta();
+  }
+
+  protected setTab(tab: SuperAdminTab): void {
+    this.tab.set(tab);
+    try {
+      sessionStorage.setItem(TAB_KEY, tab);
+    } catch {
+      /* sin almacenamiento: la pestaña solo se recuerda mientras la página siga abierta */
+    }
+  }
+
+  /** Desde un resumen de arriba: abre la pestaña y el filtro que lo explican. */
+  protected openRequests(filter: RequestFilter): void {
+    this.requestFilter.set(filter);
+    this.setTab('solicitudes');
+  }
+
+  protected setDays(days: number): void {
+    if (days === this.days()) {
+      return;
+    }
+    this.days.set(days);
+    this.loadFunnel();
   }
 
   protected kindLabel(kind: string): string {
@@ -155,9 +205,23 @@ export class SuperAdminPageComponent {
     this.platformApi
       .getBetaRequests()
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({ next: (items) => this.betaRequests.set(items), error: () => undefined });
+      .subscribe({
+        next: (items) => {
+          this.betaRequests.set(items);
+          this.requestFilter.set(defaultFilter(countByStatus(items)));
+        },
+        error: () => undefined,
+      });
     this.platformApi
-      .getLandingFunnel()
+      .getBetaSpots()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({ next: (data) => this.spots.set(data), error: () => undefined });
+    this.loadFunnel();
+  }
+
+  private loadFunnel(): void {
+    this.platformApi
+      .getLandingFunnel(this.days())
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({ next: (data) => this.funnel.set(data), error: () => undefined });
   }
@@ -215,6 +279,15 @@ export class SuperAdminPageComponent {
           this.loadError.set(readError(error, 'No pudimos cargar los negocios.'));
         },
       });
+  }
+}
+
+function readTab(): SuperAdminTab {
+  try {
+    const saved = sessionStorage.getItem(TAB_KEY);
+    return saved === 'landing' || saved === 'negocios' ? saved : 'solicitudes';
+  } catch {
+    return 'solicitudes';
   }
 }
 
