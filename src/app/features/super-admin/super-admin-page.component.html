@@ -203,7 +203,7 @@
             }
           </div>
         } @else {
-          <div class="flex justify-center py-12"><mat-spinner diameter="28" /></div>
+          <div class="grid gap-3 sm:grid-cols-3" role="status" aria-label="Cargando resumen">@for (n of [1, 2, 3]; track n) { <span class="skeleton h-24"></span> }</div>
         }
 
         <!-- Negocio demo de la landing -->
@@ -225,9 +225,7 @@
       <section aria-labelledby="biz-title">
         <h2 id="biz-title" class="mb-3 text-base font-semibold">Negocios</h2>
         @if (isLoading()) {
-          <div class="flex justify-center py-16">
-            <mat-spinner diameter="36" />
-          </div>
+          <div class="grid gap-3" role="status" aria-label="Cargando negocios">@for (n of [1, 2, 3, 4]; track n) { <span class="skeleton h-20"></span> }</div>
         } @else if (businesses().length === 0) {
           <p class="py-10 text-center text-sm text-ink-soft">No hay negocios en la plataforma.</p>
         } @else {
