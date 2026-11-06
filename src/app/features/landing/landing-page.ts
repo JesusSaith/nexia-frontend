@@ -129,7 +129,7 @@ export class LandingPage implements AfterViewInit {
 
   readonly heroTheme = computed(() => {
     const color = this.kindColors[this.heroKind()] ?? '#d01044';
-    return { '--primary': color, '--color-accent': color, '--primary-text': color, '--color-accent-soft': `color-mix(in srgb, ${color} 10%, #fff)` };
+    return { '--primary': color, '--color-accent': color, '--primary-text': `color-mix(in srgb, ${color} 70%, var(--color-ink))`, '--color-accent-soft': `color-mix(in srgb, ${color} 12%, var(--color-surface))` };
   });
   readonly heroIcon = computed(() => this.heroKinds.find((k) => k.value === this.heroKind())?.icon ?? 'event_available');
 
@@ -196,14 +196,18 @@ export class LandingPage implements AfterViewInit {
   ];
 
   /** Explora: pantallas, video y calculadora en un solo bloque. */
+  /** Nombre de cada paso del formulario, para que la persona sepa qué viene. */
+  readonly quizLabels = ['Tu giro', 'Tu equipo', 'Tus citas', 'Tu contacto'];
+  /** Confeti de la pantalla de éxito: posición final, color y giro de cada pieza. */
+  readonly confetti = Array.from({ length: 16 }, (_, n) => ({ x: `${Math.round(Math.cos((n / 16) * Math.PI * 2) * (70 + (n % 3) * 22))}px`, y: `${Math.round(Math.sin((n / 16) * Math.PI * 2) * (60 + (n % 4) * 16))}px`, c: ['var(--color-accent)', '#f59e0b', '#16a34a', '#2563eb'][n % 4], r: `${(n * 47) % 360}deg` }));
   readonly exploreTabs = [
+    { id: 'calc', label: 'Cuánto pierdes', icon: 'calculate' },
     { id: 'pantallas', label: 'Pantallas', icon: 'devices' },
     { id: 'video', label: 'Video', icon: 'play_circle' },
-    { id: 'calc', label: 'Cuánto pierdes', icon: 'calculate' },
     { id: 'comparar', label: 'Comparar', icon: 'compare_arrows' },
     { id: 'dia', label: 'Tu día', icon: 'schedule' },
   ];
-  readonly explore = signal('pantallas');
+  readonly explore = signal('calc');
 
   /** Qué hace Nexia por cada giro (sigue al giro elegido arriba). */
   private readonly kindPoints: Record<string, string[]> = {
