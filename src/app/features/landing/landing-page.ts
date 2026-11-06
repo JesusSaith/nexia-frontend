@@ -110,6 +110,23 @@ export class LandingPage implements AfterViewInit {
   readonly heroKind = signal('belleza');
   /** Color de cada giro: al elegirlo, el acento de todo el inicio cambia (todos con buen contraste sobre blanco). */
   private readonly kindColors: Record<string, string> = { belleza: '#d01044', barberia: '#1d4ed8', unas: '#a21caf', spa: '#0f766e', dental: '#0369a1', veterinaria: '#b45309' };
+  kindColor(value: string): string {
+    return this.kindColors[value] ?? '#d01044';
+  }
+
+  /** Frase de ejemplo de cada giro (sirve para cualquier persona, sin género). */
+  private readonly kindPhrases: Record<string, string> = {
+    belleza: 'Tu salón se llena sin contestar mensajes.',
+    barberia: 'Tu barbería llena los sábados.',
+    unas: 'Cada hueco de la semana, ocupado.',
+    spa: 'Reservas de masajes mientras descansas.',
+    dental: 'Menos citas que no llegan al consultorio.',
+    veterinaria: 'Recordatorios de vacunas sin llamar uno por uno.',
+  };
+  kindPhrase(value: string): string {
+    return this.kindPhrases[value] ?? '';
+  }
+
   readonly heroTheme = computed(() => {
     const color = this.kindColors[this.heroKind()] ?? '#d01044';
     return { '--primary': color, '--color-accent': color, '--primary-text': color, '--color-accent-soft': `color-mix(in srgb, ${color} 10%, #fff)` };
