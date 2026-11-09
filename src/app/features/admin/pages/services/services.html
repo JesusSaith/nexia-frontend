@@ -118,6 +118,15 @@
         <span>Te dejamos servicios típicos de tu giro. Ajusta precio y duración, activa los que ofreces y borra los que no (menú ⋯). Mientras estén pausados, tus {{ copy.text().clients.toLowerCase() }} no los ven.</span>
       </p>
     }
+    @if (holdOffer()) {
+      <div class="card card-tint mb-3 flex flex-wrap items-center justify-between gap-3">
+        <p class="min-w-0 flex-1 text-sm text-ink">
+          <span class="font-semibold">¿Hay {{ copy.text().clients.toLowerCase() }} que solo quieren apartar su lugar?</span>
+          Agrega "Apartar lugar": reservan sin elegir servicio ni precio y tú los defines en la cita con "Elegir servicio".
+        </p>
+        <button class="btn btn-secondary" type="button" [disabled]="holdAdding()" (click)="addHold()">{{ holdAdding() ? 'Agregando…' : 'Agregar "Apartar lugar"' }}</button>
+      </div>
+    }
     @if (visible().length === 0) {
       <div class="empty">
         <mat-icon>category</mat-icon>

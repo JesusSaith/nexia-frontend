@@ -140,6 +140,29 @@ export class ServicesPageComponent {
   });
 
   /** Recién registrada: solo están los servicios sugeridos del giro, todos apagados. */
+  /** Salones y uñas: sugerir "Apartar lugar" (cliente que separa su horario sin saber aún qué servicio quiere). */
+  protected readonly holdOffer = computed(
+    () => this.atVisitAllowed() && this.services().length > 0 && !this.services().some((row) => row.name.trim().toLowerCase() === 'apartar lugar'),
+  );
+  protected readonly holdAdding = signal(false);
+
+  protected addHold(): void {
+    if (this.holdAdding()) {
+      return;
+    }
+    this.holdAdding.set(true);
+    this.servicesApi
+      .createService({ name: 'Apartar lugar', category: 'Citas', description: null, price: 0, duration_minutes: 60, variable_price: true, price_at_visit: true, is_active: true })
+      .pipe(takeUntilDestroyed(this.destroyRef), finalize(() => this.holdAdding.set(false)))
+      .subscribe({
+        next: () => {
+          this.load(true);
+          this.toasts.show('Listo, ya pueden apartar su lugar.');
+        },
+        error: (error: HttpErrorResponse) => this.toasts.show(this.messageFor(error, 'No pudimos agregar el servicio.')),
+      });
+  }
+
   protected readonly onlySuggested = computed(() => this.services().length > 0 && this.services().every((row) => !row.is_active));
   protected readonly categories = computed(() =>
     [...this.catalog()].sort((a, b) => a.localeCompare(b, 'es')),
