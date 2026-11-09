@@ -50,6 +50,14 @@ export const routes: Routes = [
       ),
   },
   {
+    path: ':businessSlug/paquetes',
+    loadComponent: () => import('./features/public/pages/packages/packages.component').then((m) => m.PublicPackagesComponent),
+  },
+  {
+    path: ':businessSlug/paquetes/:token',
+    loadComponent: () => import('./features/public/pages/packages/packages.component').then((m) => m.PublicPackagesComponent),
+  },
+  {
     path: ':businessSlug/privacidad',
     loadComponent: () => import('./features/public/pages/privacy/privacy.component').then((m) => m.PrivacyComponent),
   },

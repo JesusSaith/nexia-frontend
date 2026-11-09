@@ -1,0 +1,109 @@
+<main class="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-4 px-4 py-8 text-ink">
+  @if (loading()) {
+    <p class="text-center text-sm text-muted">Cargando…</p>
+  } @else if (loadError(); as message) {
+    <p class="card text-center text-sm" role="alert">{{ message }}</p>
+  } @else {
+    <header class="flex items-center gap-3">
+      @if (brand()?.logo_url) {
+        <img [src]="brand()!.logo_url" [alt]="brand()?.name || ''" class="h-12 w-12 rounded-full object-cover" />
+      }
+      <div>
+        <p class="text-sm font-medium text-ink-soft">{{ brand()?.name }}</p>
+        <h1 class="text-2xl font-semibold">{{ order() ? 'Tu paquete' : 'Paquetes' }}</h1>
+      </div>
+    </header>
+
+    @if (order(); as item) {
+      <!-- Ya pidió: cómo pagar y subir el comprobante. -->
+      <section class="card flex flex-col gap-3" aria-label="Tu pedido">
+        <div>
+          <p class="font-semibold">{{ item.name }}</p>
+          <p class="text-sm text-muted">{{ item.visits }} visitas · {{ validity(item.valid_days) }}</p>
+        </div>
+        @if (item.status === 'approved') {
+          <p class="rounded-xl badge-ok px-3 py-3 text-sm" role="status">
+            ¡Listo! {{ item.business_name }} ya activó tu paquete. Cuando reserves, elige "Usar paquete" con este mismo celular.
+          </p>
+          <a class="btn btn-primary h-12 justify-center" [routerLink]="['/', slug, 'book']">Reservar ahora</a>
+        } @else if (item.status === 'rejected') {
+          <p class="rounded-xl badge-bad px-3 py-3 text-sm" role="alert">
+            {{ item.business_name }} no pudo aprobar este pedido. Escríbeles para aclararlo.
+          </p>
+        } @else {
+          <div class="rounded-2xl border border-line bg-canvas p-4">
+            <p class="text-sm text-muted">Transfiere</p>
+            <p class="nums text-3xl font-semibold">{{ pesos(item.price) }}</p>
+            <p class="mt-2 text-sm text-muted">A esta {{ item.account_label }}</p>
+            <p class="nums break-all text-lg font-semibold tracking-wide">{{ item.deposit_account }}</p>
+            <button type="button" class="btn btn-primary mt-3 h-12 w-full text-base" (click)="copyAccount()">{{ copied() ? '¡Copiada!' : 'Copiar ' + item.account_label }}</button>
+          </div>
+          @if (item.has_proof) {
+            <p class="rounded-xl badge-ok px-3 py-3 text-sm" role="status">
+              Recibimos tu comprobante. {{ item.business_name }} lo revisa y activa tu paquete; no tienes que hacer nada más.
+            </p>
+          } @else {
+            <p class="text-sm text-ink-soft">Cuando termines la transferencia, sube una foto o captura de tu comprobante para que lo revisen.</p>
+            <label class="btn btn-secondary h-12 cursor-pointer justify-center">
+              <mat-icon aria-hidden="true">upload</mat-icon>
+              {{ saving() ? 'Subiendo…' : 'Subir comprobante' }}
+              <input class="hidden" type="file" accept="image/png,image/jpeg,image/webp" [disabled]="saving()" (change)="onProof($event)" />
+            </label>
+          }
+          @if (errorMessage(); as message) {
+            <p class="field-error" role="alert">{{ message }}</p>
+          }
+          <p class="text-sm text-muted">Guarda esta página: aquí puedes ver si ya activaron tu paquete.</p>
+        }
+      </section>
+    } @else if (!offers().length) {
+      <p class="card text-center text-sm text-ink-soft">Por ahora {{ brand()?.name }} no tiene paquetes a la venta.</p>
+      <a class="btn btn-secondary h-12 justify-center" [routerLink]="['/', slug, 'book']">Reservar una cita</a>
+    } @else {
+      <p class="text-sm text-ink-soft">Paga varias visitas por adelantado y ahorra. Elige uno, transfiere y sube tu comprobante.</p>
+      <ul class="flex flex-col gap-2" role="radiogroup" aria-label="Paquetes disponibles">
+        @for (offer of offers(); track offer.id) {
+          <li>
+            <button
+              type="button"
+              role="radio"
+              class="card w-full text-left"
+              [attr.aria-checked]="picked()?.id === offer.id"
+              [class.ring-2]="picked()?.id === offer.id"
+              [class.ring-accent]="picked()?.id === offer.id"
+              (click)="picked.set(offer)"
+            >
+              <span class="flex items-start justify-between gap-3">
+                <span class="min-w-0">
+                  <span class="block font-semibold">{{ offer.name }}</span>
+                  <span class="block text-sm text-muted">{{ offer.visits }} visitas de {{ offer.service_name }}</span>
+                  <span class="block text-sm text-muted">{{ each(offer) }} por visita · {{ validity(offer.valid_days) }}</span>
+                </span>
+                <span class="nums shrink-0 text-xl font-semibold">{{ pesos(offer.price) }}</span>
+              </span>
+            </button>
+          </li>
+        }
+      </ul>
+      <form class="card flex flex-col gap-3" (submit)="$event.preventDefault(); send()">
+        <label class="block">
+          <span class="label req">Tu nombre</span>
+          <input class="input" name="name" autocomplete="name" aria-required="true" [(ngModel)]="name" />
+        </label>
+        <label class="block">
+          <span class="label req">Tu celular</span>
+          <input class="input" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="10 dígitos" aria-required="true" [(ngModel)]="phone" />
+          <span class="field-hint">Con este número se te activa el paquete y lo usas al reservar.</span>
+        </label>
+        @if (missing().length) {
+          <p class="form-missing" role="status">Para pedirlo falta: {{ missing().join(', ') }}.</p>
+        }
+        @if (errorMessage(); as message) {
+          <p class="field-error" role="alert">{{ message }}</p>
+        }
+        <button type="submit" class="btn btn-primary h-12 text-base" [disabled]="saving() || missing().length > 0">{{ saving() ? 'Guardando…' : 'Pedir y ver cómo pagar' }}</button>
+      </form>
+      <a class="btn btn-ghost justify-center" [routerLink]="['/', slug, 'book']">Mejor reservar una cita</a>
+    }
+  }
+</main>
