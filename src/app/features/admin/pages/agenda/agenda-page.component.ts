@@ -2078,6 +2078,11 @@ export class AgendaPageComponent {
     return !!this.services().find((item) => item.id === serviceId)?.is_hold;
   }
 
+  /** Contacto de Instagram o Messenger (sin celular): no recibe recordatorios por WhatsApp. */
+  protected isPhoneless(appointment: Appointment): boolean {
+    return !!appointment.client_phone && !this.telHref(appointment.client_phone);
+  }
+
   protected canSwapService(appointment: Appointment): boolean {
     return appointment.status === 'scheduled' || appointment.status === 'awaiting_deposit';
   }
@@ -2418,6 +2423,11 @@ export class AgendaPageComponent {
     }
   }
 
+  /** "7 nov 2026" para el historial de la ficha. */
+  private shortDay(timestamp: string): string {
+    return parseTimestamp(timestamp).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }).replace('.', '');
+  }
+
   private loadHistory(appointment: Appointment): void {
     const phone = appointment.client_phone;
     if (!phone) {
@@ -2434,7 +2444,7 @@ export class AgendaPageComponent {
           .slice(-3)
           .reverse();
         const lines = past.map(
-          (item) => `${item.starts_at.slice(0, 10)} · ${item.service_name}${item.deposit_amount ? ' · Anticipo' : ''}`,
+          (item) => `${this.shortDay(item.starts_at)} · ${item.service_name}${item.deposit_amount ? ' · con anticipo' : ''}`,
         );
         const named = appointment.client_name.trim().toLowerCase();
         if (reviews.some((review) => review.client_name.trim().toLowerCase() === named)) {
