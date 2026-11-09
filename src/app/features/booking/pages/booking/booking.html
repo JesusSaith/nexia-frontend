@@ -41,7 +41,7 @@
     @if (closedLabel(); as label) {
       <p class="px-5 text-sm" style="color: var(--booking-ink, var(--primary))">Cerramos: {{ label }}.</p>
     }
-    @if (!compact && (gallery().length || opinions().length || hasPlace())) {
+    @if (!compact && (gallery().length || opinions().length || hasPlace() || hasPackages())) {
       <!-- Acciones del negocio: botones grandes y a la vista; el contenido se abre debajo. -->
       <div class="flex flex-wrap gap-2 px-5">
         @if (gallery().length || opinions().length) {
@@ -52,6 +52,9 @@
               Ver fotos
             }
           </button>
+        }
+        @if (hasPackages()) {
+          <a class="action-pill" [routerLink]="['/', brand()?.slug || slug, 'paquetes']">Paquetes</a>
         }
         @if (hasPlace()) {
           <button type="button" class="action-pill" [attr.aria-expanded]="panel() === 'map'" aria-controls="panel-map" (click)="togglePanel('map')">Cómo llegar</button>
@@ -599,7 +602,7 @@
       @if (packageLeft(); as pack) {
         <label class="flex items-center gap-2 text-sm">
           <input type="checkbox" [checked]="usePackage()" (change)="usePackage.set($any($event.target).checked)" />
-          Usar paquete {{ pack.label }}. Quedan {{ pack.remaining }}.
+          Usar paquete {{ pack.label }}. Quedan {{ pack.remaining }}{{ pack.expires_at ? ' · vence el ' + shortDate(pack.expires_at) : '' }}.
         </label>
       }
       @if (selectedService()?.questions) {

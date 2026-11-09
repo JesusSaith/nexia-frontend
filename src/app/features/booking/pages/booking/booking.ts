@@ -21,7 +21,7 @@ import {
   ValidationErrors,
   Validators,
 } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 
@@ -81,6 +81,7 @@ function phoneDigits(control: AbstractControl): ValidationErrors | null {
     MatIconModule,
     PickFieldComponent,
     PlaceMap,
+    RouterLink,
   ],
   templateUrl: './booking.html',
   styleUrl: './booking.css',
@@ -220,7 +221,9 @@ export class Booking {
   protected readonly resource = signal<string | null>(null);
   protected readonly answers = signal('');
   protected readonly usePackage = signal(false);
-  protected readonly packageLeft = signal<{ label: string; total: number; remaining: number } | null>(null);
+  protected readonly packageLeft = signal<{ label: string; total: number; remaining: number; expires_at?: string | null } | null>(null);
+  /** El negocio vende paquetes en línea: sale el botón "Paquetes". */
+  protected readonly hasPackages = signal(false);
   protected readonly date = signal(this.minDate);
   protected readonly waitName = signal('');
   protected readonly waitPhone = signal('');
@@ -506,6 +509,7 @@ export class Booking {
       this.selectedVariant.set(null);
     }
     this.selectedService.set(service);
+    this.lookPackage(this.clientForm.controls.client_phone.value);
     this.track('service');
     this.selectedSlot.set(null);
     this.extraIds.update((ids) => ids.filter((id) => id !== service.id));
@@ -675,6 +679,12 @@ export class Booking {
     this.settleStaff();
   }
 
+  /** "2026-12-31" → "31 dic". */
+  protected shortDate(iso: string): string {
+    const date = new Date(`${iso}T12:00:00`);
+    return Number.isNaN(date.getTime()) ? iso : new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short' }).format(date).replace('.', '');
+  }
+
   protected lookPackage(phone: string): void {
     this.lookLoyalty(phone);
     const trimmed = phone.trim();
@@ -684,11 +694,13 @@ export class Booking {
       this.usePackage.set(false);
       return;
     }
-    if (trimmed === this.lastPackagePhone) {
+    // Un paquete sirve para un servicio: si cambia el servicio, se vuelve a preguntar.
+    const key = `${trimmed}|${this.selectedService()?.id ?? ''}`;
+    if (key === this.lastPackagePhone) {
       return;
     }
-    this.lastPackagePhone = trimmed;
-    this.bookingApi.packageLeft(this.slug, trimmed).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    this.lastPackagePhone = key;
+    this.bookingApi.packageLeft(this.slug, trimmed, this.selectedService()?.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (row) => {
         this.packageLeft.set(row);
         if (!row) {
@@ -1315,6 +1327,7 @@ export class Booking {
           // El teléfono recordado se revisó antes de conocer la lealtad del negocio.
           this.lastLoyaltyPhone = '';
           this.lookLoyalty(this.clientForm.controls.client_phone.value);
+          this.bookingApi.packageOffers(this.slug).pipe(catchError(() => of([]))).subscribe((rows) => this.hasPackages.set(rows.length > 0));
           this.reviewsApi.getPublicReviews(this.slug).pipe(catchError(() => of([] as Review[]))).subscribe((rows) => this.opinions.set(rows));
         },
         error: (error: unknown) => {

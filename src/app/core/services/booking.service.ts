@@ -6,6 +6,30 @@ import { API_BASE_URL } from '../config/api-base-url';
 import { Appointment, AppointmentCreate, AvailabilitySlot } from '../models/appointment.model';
 import { BusinessBrand, BusinessProfileUpdate, PublicService, PublicStaff } from '../models/business.model';
 
+/** Paquete a la venta en la página del negocio. */
+export interface PublicPackageOffer {
+  id: number;
+  name: string;
+  service_name: string;
+  visits: number;
+  price: number;
+  valid_days: number | null;
+}
+
+/** Pedido de un paquete, con los datos para transferir. */
+export interface PublicPackageOrder {
+  token: string;
+  name: string;
+  visits: number;
+  price: number;
+  valid_days: number | null;
+  status: 'awaiting' | 'approved' | 'rejected';
+  has_proof: boolean;
+  business_name: string;
+  deposit_account: string | null;
+  account_label: string;
+}
+
 export interface ManagedAppointment {
   client_name?: string;
   business_name: string;
@@ -327,11 +351,31 @@ export class BookingService {
     return this.http.post<ManagedAppointment>(`${this.apiBaseUrl}/public/appointments/${token}/reschedule`, data);
   }
 
-  packageLeft(slug: string, phone: string): Observable<{ label: string; total: number; remaining: number } | null> {
-    return this.http.get<{ label: string; total: number; remaining: number } | null>(
+  packageLeft(slug: string, phone: string, serviceId?: number): Observable<{ label: string; total: number; remaining: number; expires_at?: string | null } | null> {
+    let params = new HttpParams().set('phone', phone);
+    if (serviceId) {
+      params = params.set('service_id', serviceId);
+    }
+    return this.http.get<{ label: string; total: number; remaining: number; expires_at?: string | null } | null>(
       `${this.apiBaseUrl}/businesses/${slug}/package`,
-      { params: new HttpParams().set('phone', phone) },
+      { params },
     );
+  }
+
+  packageOffers(slug: string): Observable<PublicPackageOffer[]> {
+    return this.http.get<PublicPackageOffer[]>(`${this.apiBaseUrl}/businesses/${slug}/package-offers`);
+  }
+
+  orderPackage(slug: string, data: { offer_id: number; client_name: string; client_phone: string }): Observable<PublicPackageOrder> {
+    return this.http.post<PublicPackageOrder>(`${this.apiBaseUrl}/businesses/${slug}/package-orders`, data);
+  }
+
+  packageOrder(token: string): Observable<PublicPackageOrder> {
+    return this.http.get<PublicPackageOrder>(`${this.apiBaseUrl}/public/package-orders/${token}`);
+  }
+
+  uploadPackageProof(token: string, image: string): Observable<PublicPackageOrder> {
+    return this.http.post<PublicPackageOrder>(`${this.apiBaseUrl}/public/package-orders/${token}/proof`, { image });
   }
 
   markPaid(token: string): Observable<ManagedAppointment> {
