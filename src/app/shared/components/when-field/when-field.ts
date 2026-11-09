@@ -246,6 +246,8 @@ export class TimeFieldComponent implements ControlValueAccessor {
   private readonly panel = viewChild.required<TemplateRef<unknown>>('panel');
   private sheet: OverlayRef | null = null;
   readonly options = input<string[] | null>(null);
+  /** Horas de la lista que ya tienen otra cita: se siguen viendo, con la etiqueta "ocupada". */
+  readonly busy = input<string[]>([]);
   readonly locked = input(false);
   readonly valueIn = input<string | null>(null);
   readonly picked = output<string>();
@@ -260,7 +262,7 @@ export class TimeFieldComponent implements ControlValueAccessor {
     const current = this.shown();
     return current && !base.includes(current) ? [current, ...base] : base;
   });
-  protected readonly choiceItems = computed<WheelItem[]>(() => this.choices().map((time) => ({ value: time, label: clock12(time) })));
+  protected readonly choiceItems = computed<WheelItem[]>(() => this.choices().map((time) => ({ value: time, label: this.busy().map(clock).includes(time) ? `${clock12(time)} · ocupada` : clock12(time) })));
 
   // Selector libre: tres columnas (hora, minutos y AM/PM) sobre el valor en 24 h.
   protected readonly hours: WheelItem[] = Array.from({ length: 12 }, (_, index) => ({ value: String(index + 1), label: String(index + 1) }));
