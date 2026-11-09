@@ -237,6 +237,9 @@ export class SettingsPageComponent {
   protected readonly paymentMethodOptions = PAYMENT_METHODS;
   protected readonly paymentMethods = signal<ReadonlySet<string>>(new Set(PAYMENT_METHODS.map((item) => item.value)));
   protected readonly approveBookings = signal(false);
+  /** "Aún no sé qué quiero" solo existe en salones de belleza y de uñas. */
+  protected readonly holdAllowed = computed(() => ['belleza', 'unas'].includes(this.values().businessKind ?? ''));
+  protected readonly holdEnabled = signal(true);
   protected readonly usesCommissions = signal(true);
   protected readonly staffCanEditPrice = signal(false);
   /** Qué pasa con el anticipo si el cliente cancela dentro del plazo. */
@@ -341,6 +344,7 @@ export class SettingsPageComponent {
       closures: this.closures(),
       payment_methods: PAYMENT_METHODS.map((item) => item.value).filter((value) => this.paymentMethods().has(value)),
       approve_bookings: this.approveBookings(),
+      hold_enabled: this.holdEnabled(),
       uses_commissions: this.usesCommissions(),
       staff_can_edit_price: this.staffCanEditPrice(),
       auto_reminders: this.autoReminders(),
@@ -1059,6 +1063,7 @@ export class SettingsPageComponent {
     this.closureError.set('');
     this.paymentMethods.set(new Set(settings.payment_methods?.length ? settings.payment_methods : PAYMENT_METHODS.map((item) => item.value)));
     this.approveBookings.set(Boolean(settings.approve_bookings));
+    this.holdEnabled.set(settings.hold_enabled !== false);
     this.usesCommissions.set(settings.uses_commissions !== false);
     this.staffCanEditPrice.set(settings.staff_can_edit_price === true);
     this.depositCancelPolicy.set(settings.deposit_cancel_policy === 'keep' ? 'keep' : 'refund');
@@ -1115,7 +1120,7 @@ const FIELD_SECTION: Record<string, SectionId> = {
   min_notice_hours: 'reservas', max_days_ahead: 'reservas', buffer_minutes: 'reservas', cancel_hours: 'reservas', timezone: 'reservas', resources: 'reservas', cancel_policy: 'reservas', max_daily_appointments: 'reservas', deposit_cancel_policy: 'reservas', noshow_after: 'anticipo', noshow_deposit: 'anticipo',
   deposit_amount: 'anticipo', deposit_percent: 'anticipo', deposit_account: 'anticipo', deposit_hold_hours: 'anticipo', quote_hold_hours: 'anticipo', payment_url: 'anticipo',
   promo_text: 'promociones', promo_until: 'promociones', loyalty_every: 'promociones', loyalty_percent: 'promociones', coupons: 'promociones',
-  message_templates: 'mensajes', auto_reminders: 'mensajes', reminder_hours: 'mensajes', auto_return: 'mensajes', bookings_paused: 'pausa', closures: 'pausa', payment_methods: 'anticipo', approve_bookings: 'reservas', uses_commissions: 'negocio', staff_can_edit_price: 'negocio', email_alerts: 'avisos', privacy_notice: 'privacidad',
+  message_templates: 'mensajes', auto_reminders: 'mensajes', reminder_hours: 'mensajes', auto_return: 'mensajes', bookings_paused: 'pausa', closures: 'pausa', payment_methods: 'anticipo', approve_bookings: 'reservas', hold_enabled: 'reservas', uses_commissions: 'negocio', staff_can_edit_price: 'negocio', email_alerts: 'avisos', privacy_notice: 'privacidad',
 };
 
 function sectionOfError(error: unknown): SectionId | null {

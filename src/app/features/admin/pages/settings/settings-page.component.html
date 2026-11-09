@@ -450,6 +450,15 @@
               </div>
               <button type="button" role="switch" class="switch" [attr.aria-checked]="approveBookings()" (click)="approveBookings.set(!approveBookings())" aria-label="Aprobar cada cita a mano"><span></span></button>
             </div>
+            @if (holdAllowed()) {
+              <div class="flex items-center justify-between gap-4 rounded-xl border border-line p-4">
+                <div>
+                  <p class="text-sm font-semibold text-ink">Dejar apartar sin elegir servicio</p>
+                  <p class="field-hint">En tu página de reservas aparece "Aún no sé qué quiero": tu {{ copy.text().client.toLowerCase() }} aparta día y hora, y el servicio y el precio los acuerdan en la cita.</p>
+                </div>
+                <button type="button" role="switch" class="switch" [attr.aria-checked]="holdEnabled()" (click)="holdEnabled.set(!holdEnabled())" aria-label="Dejar apartar sin elegir servicio"><span></span></button>
+              </div>
+            }
             <div class="grid gap-4 sm:grid-cols-2">
               <div>
                 <span class="label">Zona horaria</span>
