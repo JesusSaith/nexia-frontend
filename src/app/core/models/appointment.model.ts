@@ -86,6 +86,17 @@ export interface AdminAppointmentCreate {
   waive_deposit?: boolean;
   /** Anticipo que ya recibió por fuera: la cita nace confirmada con ese monto. */
   deposit_received?: number | null;
+  /** Solo si la cita ya pasó: "done" se atendió, "no_show" no llegó. El servidor decide si ya pasó. */
+  past_outcome?: 'done' | 'no_show' | null;
+  payment_method?: string | null;
+  tip?: number | null;
+  visit_note?: string | null;
+}
+
+/** Una hora en que la persona trabaja un día pasado; `busy` si ya tenía otra cita. */
+export interface PastHour {
+  time: string;
+  busy: boolean;
 }
 
 export interface AppointmentStatusUpdate {

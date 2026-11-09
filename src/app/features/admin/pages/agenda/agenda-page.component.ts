@@ -33,7 +33,7 @@ import { Skeleton } from '@shared/components/skeleton/skeleton';
 import { buildDaySheet, daySheetHtml, daySheetText } from '@core/day-sheet';
 import { MessageVars, firstName, longDay, whatsappLink } from '@core/message-templates';
 import { Toasts } from '@core/toasts';
-import { Appointment, AppointmentStatus } from '@core/models/appointment.model';
+import { Appointment, AppointmentStatus, PastHour } from '@core/models/appointment.model';
 import { ScheduleItem } from '@core/models/schedule.model';
 import { Service } from '@core/models/service.model';
 import { Staff } from '@core/models/staff.model';
@@ -235,8 +235,20 @@ export class AgendaPageComponent {
     }
     const day = new Date(`${iso}T12:00:00`);
     const today = this.clock.today();
-    return day >= today && this.workingWindow(staffId, day) !== null;
+    const oldest = new Date(today);
+    oldest.setDate(oldest.getDate() - 365);
+    return day >= oldest && this.workingWindow(staffId, day) !== null;
   };
+
+  /** La fecha y hora del formulario ya pasaron: se registra una cita que ocurrió, sin anticipo ni avisos. */
+  protected readonly pastVisit = signal(false);
+  protected readonly pastOutcome = signal<'done' | 'no_show'>('done');
+  protected readonly pastMethod = signal('efectivo');
+  protected readonly pastTip = signal('');
+  protected readonly pastNote = signal('');
+  protected readonly busyTimes = signal<string[]>([]);
+  protected readonly pastMethods = computed(() => this.payMethods().filter((item) => item.value !== 'paquete'));
+
 
   protected readonly form = new FormGroup({
     service_id: new FormControl<number | null>(null, Validators.required),
@@ -526,6 +538,12 @@ export class AgendaPageComponent {
       const serviceId = this.serviceId();
       this.loadAppointments(range, staffId, serviceId);
     });
+    this.form.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      const { date, time } = this.form.getRawValue();
+      const today = toInputDate(this.clock.now());
+      const now = this.clock.now();
+      this.pastVisit.set(!!date && (date < today || (date === today && !!time && time < clockFromMinutes(now.getHours() * 60 + now.getMinutes()))));
+    });
     this.form.valueChanges
       .pipe(
         map((value) => `${value.service_id ?? ''}|${value.staff_id ?? ''}|${value.date}`),
@@ -536,9 +554,23 @@ export class AgendaPageComponent {
           if (!slug || !serviceId || !staffId || !date) {
             return of(null);
           }
-          return this.booking.getAvailability(slug, Number(serviceId), Number(staffId), date).pipe(
+          const free$ = this.booking.getAvailability(slug, Number(serviceId), Number(staffId), date).pipe(
             map((rows) => rows.map((row) => row.starts_at.slice(11, 16))),
             catchError(() => of([] as string[])),
+          );
+          if (date > toInputDate(this.clock.now())) {
+            this.busyTimes.set([]);
+            return free$;
+          }
+          // Hoy o antes: se muestran las horas que la persona trabaja (las ocupadas, marcadas), no solo los huecos de adelante.
+          const isToday = date === toInputDate(this.clock.now());
+          const nowClock = clockFromMinutes(this.clock.now().getHours() * 60 + this.clock.now().getMinutes());
+          return forkJoin([free$, this.appointmentsApi.getPastHours(Number(staffId), Number(serviceId), date).pipe(catchError(() => of([] as PastHour[])))]).pipe(
+            map(([free, hours]) => {
+              const worked = hours.filter((row) => !isToday || row.time < nowClock);
+              this.busyTimes.set(worked.filter((row) => row.busy).map((row) => row.time));
+              return [...new Set([...worked.map((row) => row.time), ...(isToday ? free : [])])].sort();
+            }),
           );
         }),
         takeUntilDestroyed(this.destroyRef),
@@ -1576,6 +1608,11 @@ export class AgendaPageComponent {
       deposit_mode: 'auto',
       deposit_received: '',
     });
+    this.pastOutcome.set('done');
+    this.pastMethod.set(this.pastMethods()[0]?.value ?? 'efectivo');
+    this.pastTip.set('');
+    this.pastNote.set('');
+    this.busyTimes.set([]);
     this.known.set(null);
     this.freshPhone.set(false);
     this.guestQuery.set('');
@@ -1939,8 +1976,13 @@ export class AgendaPageComponent {
     if (value.service_id == null || value.staff_id == null) {
       return;
     }
-    if (value.deposit_mode === 'received' && !(Number(value.deposit_received) > 0)) {
+    const past = this.pastVisit();
+    if (!past && value.deposit_mode === 'received' && !(Number(value.deposit_received) > 0)) {
       this.formError.set('Escribe cuánto anticipo te mandó.');
+      return;
+    }
+    if (past && this.pastOutcome() === 'done' && this.priceAtVisit(value.service_id) && !String(value.quoted_price ?? '').trim()) {
+      this.formError.set('Escribe cuánto se cobró.');
       return;
     }
     this.isSaving.set(true);
@@ -1954,8 +1996,16 @@ export class AgendaPageComponent {
         client_phone: value.client_phone.trim(),
         client_email: value.client_email.trim() || null,
         quoted_price: String(value.quoted_price ?? '').trim() ? Number(value.quoted_price) : null,
-        waive_deposit: value.deposit_mode === 'none',
-        deposit_received: value.deposit_mode === 'received' && Number(value.deposit_received) > 0 ? Number(value.deposit_received) : null,
+        waive_deposit: past || value.deposit_mode === 'none',
+        deposit_received: !past && value.deposit_mode === 'received' && Number(value.deposit_received) > 0 ? Number(value.deposit_received) : null,
+        ...(past
+          ? {
+              past_outcome: this.pastOutcome(),
+              payment_method: this.pastOutcome() === 'done' ? this.pastMethod() : null,
+              tip: this.pastOutcome() === 'done' && Number(this.pastTip()) > 0 ? Number(this.pastTip()) : null,
+              visit_note: this.pastNote().trim() || null,
+            }
+          : {}),
         notes: [this.copy.text().pet && this.petName().trim() ? `Mascota: ${this.petName().trim()}` : '', value.notes.trim()].filter(Boolean).join('\n') || null,
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -1964,8 +2014,12 @@ export class AgendaPageComponent {
           this.isSaving.set(false);
           this.closeEditor();
           this.loadAppointments(this.range(), this.staffId(), this.serviceId());
-          this.toasts.show(`Se agendó la ${this.copy.text().visit.toLowerCase()}.`);
-          this.clientNotice.set(this.clientWhatsapp(created));
+          if (past) {
+            this.toasts.show(`Se registró la ${this.copy.text().visit.toLowerCase()} que ya pasó.`);
+          } else {
+            this.toasts.show(`Se agendó la ${this.copy.text().visit.toLowerCase()}.`);
+            this.clientNotice.set(this.clientWhatsapp(created));
+          }
         },
         error: (error: unknown) => {
           this.isSaving.set(false);
