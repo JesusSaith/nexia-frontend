@@ -2536,7 +2536,7 @@ export class AgendaPageComponent {
   protected readonly moveStaff = signal(0);
   protected readonly moveError = signal<string | null>(null);
 
-  /** Horas libres para mover la cita (mismo servicio, día y colaboradora elegidos). */
+  /** Horas libres para mover la cita (cada 15 min, con su duración real, el día y la persona elegidos). */
   protected readonly moveTimes = signal<string[]>([]);
   private moveRequest = 0;
 
@@ -2566,16 +2566,14 @@ export class AgendaPageComponent {
   }
 
   private loadMoveTimes(appointment: Appointment): void {
-    const slug = this.auth.currentUser()?.slug;
     const request = ++this.moveRequest;
     this.moveTimes.set([]);
-    if (!slug || !this.moveDate()) {
+    if (!this.moveDate()) {
       return;
     }
-    this.booking
-      .getAvailability(slug, appointment.service_id, this.moveStaff(), this.moveDate())
+    this.appointmentsApi
+      .moveTimes(appointment.id, this.moveDate(), this.moveStaff())
       .pipe(
-        map((rows) => rows.map((row) => row.starts_at.slice(11, 16))),
         catchError(() => of([] as string[])),
         takeUntilDestroyed(this.destroyRef),
       )
