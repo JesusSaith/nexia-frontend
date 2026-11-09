@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
@@ -29,9 +29,22 @@ export class SchedulesService {
     return this.http.get<Schedule[]>(`${this.apiBaseUrl}/schedules/staff/${staffId}`);
   }
 
-  /** Horarios especiales que aún no terminan (un día o un periodo; de una persona o de todos). */
-  listSpecial(): Observable<SpecialHours[]> {
-    return this.http.get<SpecialHours[]>(`${this.apiBaseUrl}/schedules/special`);
+  /**
+   * Horarios especiales. Sin opciones: los que aún no terminan. Con `start` y `end`: los que tocan ese rango aunque ya
+   * hayan pasado (la Agenda los necesita para dibujar las horas de un día). Con `includePast`: también los de fechas pasadas.
+   */
+  listSpecial(options: { start?: string; end?: string; includePast?: boolean } = {}): Observable<SpecialHours[]> {
+    let params = new HttpParams();
+    if (options.start) {
+      params = params.set('start', options.start);
+    }
+    if (options.end) {
+      params = params.set('end', options.end);
+    }
+    if (options.includePast) {
+      params = params.set('include_past', 'true');
+    }
+    return this.http.get<SpecialHours[]>(`${this.apiBaseUrl}/schedules/special`, { params });
   }
 
   addSpecial(body: Omit<SpecialHours, 'id'>): Observable<SpecialHours> {

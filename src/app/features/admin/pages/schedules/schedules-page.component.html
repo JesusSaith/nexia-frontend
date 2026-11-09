@@ -172,12 +172,13 @@
         <ul class="mt-2 divide-y divide-line">
           @for (row of specials(); track row.id) {
             <li class="flex items-center gap-3 py-2 text-sm">
-              <span class="nums min-w-0 flex-1 text-ink">{{ specialLabel(row) }}</span>
+              <span class="nums min-w-0 flex-1 text-ink">{{ specialLabel(row) }}@if (isPastSpecial(row)) { <span class="badge badge-neutral ml-1">Ya pasó</span> }</span>
               <button type="button" class="btn btn-ghost shrink-0 text-(--nx-bad-fg)" (click)="removeSpecial(row)">Quitar</button>
             </li>
           }
         </ul>
       }
+      <button type="button" class="btn btn-ghost mt-1 px-2 text-sm" [attr.aria-pressed]="showPastSpecials()" (click)="togglePastSpecials()">{{ showPastSpecials() ? 'Ocultar los que ya pasaron' : 'Ver también los que ya pasaron' }}</button>
       <form class="mt-3 grid gap-3 border-t border-line pt-3 sm:grid-cols-4 sm:items-end" (submit)="$event.preventDefault(); saveSpecial()">
         <label class="block"><span class="label">Desde</span>
           <input class="input" type="date" name="specialDate" [(ngModel)]="special.date" />
