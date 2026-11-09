@@ -22,6 +22,7 @@ export type MessageKey =
   | 'opening'
   | 'waitlist'
   | 'share_link'
+  | 'dm_reply'
   | 'approved'
   | 'declined'
   | 'due';
@@ -185,6 +186,13 @@ export const MESSAGE_TEMPLATES: readonly MessageTemplate[] = [
     vars: ['negocio', 'enlace'],
     text: '¡Hola! 👋 Ya puedes reservar tu cita en {negocio} en línea: eliges servicio, día y hora en segundos.\n\n{enlace}',
   },
+  {
+    key: 'dm_reply',
+    label: 'Responder por Instagram o Messenger',
+    where: 'Mi negocio e Inicio → copiar respuesta',
+    vars: ['negocio', 'enlace'],
+    text: '¡Hola! 👋 Gracias por escribir a {negocio}. Aquí eliges tu día y hora en un minuto, y al terminar te llega tu confirmación:\n\n{enlace}\n\nSi prefieres que te agendemos nosotros, mándanos tu nombre y tu número de celular.',
+  },
 ];
 
 export type MessageMoment = 'before' | 'after' | 'attract';
@@ -193,7 +201,7 @@ export type MessageMoment = 'before' | 'after' | 'attract';
 export const MESSAGE_MOMENTS: readonly { id: MessageMoment; keys: readonly MessageKey[] }[] = [
   { id: 'before', keys: ['reminder', 'booked', 'approved', 'declined', 'deposit_ok', 'proof_retry', 'quote', 'repeat', 'chat'] },
   { id: 'after', keys: ['receipt', 'review'] },
-  { id: 'attract', keys: ['due', 'birthday', 'miss_you', 'opening', 'waitlist', 'share_link'] },
+  { id: 'attract', keys: ['due', 'birthday', 'miss_you', 'opening', 'waitlist', 'share_link', 'dm_reply'] },
 ];
 
 const DEFAULTS = new Map(MESSAGE_TEMPLATES.map((template) => [template.key, template.text]));
@@ -218,9 +226,16 @@ export function fillTemplate(text: string, vars: MessageVars): string {
   return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
+/** Un teléfono de verdad. Quien reservó por Instagram o Messenger se guarda con su usuario ("Instagram @lupita"), sin celular. */
+export function isPhone(value: string | null | undefined): boolean {
+  const text = value ?? '';
+  const digits = text.replace(/\D/g, '');
+  return !/[a-zA-ZÀ-ÿ]/.test(text) && digits.length >= 10 && digits.length <= 13;
+}
+
 /** Enlace de WhatsApp; a un número de 10 dígitos (México) se le antepone 52. Sin número abre "elegir chat". */
 export function whatsappLink(phone: string | null | undefined, text: string): string {
-  const digits = (phone ?? '').replace(/\D/g, '');
+  const digits = isPhone(phone) ? (phone ?? '').replace(/\D/g, '') : '';
   const number = digits.length === 10 ? `52${digits}` : digits;
   return `https://wa.me/${number}?text=${encodeURIComponent(text)}`;
 }

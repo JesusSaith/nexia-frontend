@@ -182,6 +182,11 @@ export class BusinessPageComponent {
     });
   }
 
+  /** Para pegar en Instagram o Messenger cuando alguien escribe: lo lleva a reservar solo y deja su celular. */
+  protected replyText(): string {
+    return this.copy.message('dm_reply', { negocio: this.brand()?.name ?? '', enlace: this.shareUrl() });
+  }
+
   protected whatsappHref(): string {
     return whatsappLink(null, this.copy.message('share_link', { negocio: this.brand()?.name ?? '', enlace: this.shareUrl() }));
   }

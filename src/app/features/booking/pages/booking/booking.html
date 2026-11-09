@@ -482,11 +482,11 @@
         } @else {
           <div class="flex flex-col gap-2 sm:max-w-sm">
             <label class="rounded-xl border border-line bg-surface px-3 py-2">
-              <span class="block text-xs text-muted">Tu nombre</span>
+              <span class="block text-xs text-muted">Tu nombre <span class="font-semibold text-[var(--nx-bad-fg)]" aria-hidden="true">*</span></span>
               <input class="w-full bg-transparent text-base outline-none" autocomplete="name" [value]="waitName()" (input)="waitName.set($any($event.target).value)" />
             </label>
             <label class="rounded-xl border border-line bg-surface px-3 py-2">
-              <span class="block text-xs text-muted">Teléfono (WhatsApp)</span>
+              <span class="block text-xs text-muted">Teléfono (WhatsApp) <span class="font-semibold text-[var(--nx-bad-fg)]" aria-hidden="true">*</span></span>
               <input class="w-full bg-transparent text-base outline-none" type="tel" inputmode="tel" autocomplete="tel" placeholder="10 dígitos" [value]="waitPhone()" (input)="waitPhone.set($any($event.target).value)" />
             </label>
             @if (waitError(); as message) {
@@ -556,6 +556,7 @@
           inputmode="tel"
           placeholder="10 dígitos"
           formControlName="client_phone"
+          aria-required="true"
           autocomplete="tel"
           (input)="lookPackage($any($event.target).value)"
         />
@@ -570,7 +571,7 @@
       }
       <label class="rounded-xl border border-line bg-surface px-3 py-2">
         <span class="block text-xs text-muted">Tu nombre</span>
-        <input class="w-full bg-transparent text-base outline-none" formControlName="client_name" autocomplete="name" />
+        <input class="w-full bg-transparent text-base outline-none" formControlName="client_name" aria-required="true" autocomplete="name" />
       </label>
       @if (nameError(); as message) {
         <p class="text-sm text-[var(--nx-bad-fg)]">{{ message }}</p>
@@ -758,6 +759,9 @@
         <a class="underline underline-offset-2" [href]="'/' + slug + '/privacidad'" target="_blank" rel="noopener">aviso de privacidad</a>
         de {{ brand()?.name || 'el negocio' }}: usamos tus datos solo para tu cita.
       </p>
+      @if (detailsMissing().length > 0) {
+        <p class="text-sm text-ink-soft" role="status">Para continuar falta: {{ detailsMissing().join(', ') }}. Los campos con <span class="font-semibold text-[var(--nx-bad-fg)]">*</span> son obligatorios.</p>
+      }
     </form>
   } @else if (confirmation(); as appointment) {
     <section class="nx-success mx-auto flex w-full max-w-md flex-col items-center card px-6 py-10 text-center shadow-sm">
@@ -1001,7 +1005,7 @@
             {{ selectedSlot() ? 'Continuar' : 'Elige una hora' }}
           </button>
         } @else {
-          <button type="submit" form="booking-form" class="brand-fill h-11 shrink-0 rounded-full px-5 text-sm font-medium disabled:opacity-50" [disabled]="isSaving()">
+          <button type="submit" form="booking-form" class="brand-fill h-11 shrink-0 rounded-full px-5 text-sm font-medium disabled:opacity-50" [disabled]="isSaving() || detailsMissing().length > 0">
             {{ isSaving() ? 'Reservando…' : (holdsDeposit() ? 'Apartar horario' : 'Confirmar ' + copy().visit.toLowerCase()) }}
           </button>
         }

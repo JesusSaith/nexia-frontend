@@ -88,6 +88,9 @@ export interface AdminAppointmentCreate {
   deposit_received?: number | null;
   /** Solo si la cita ya pasó: "done" se atendió, "no_show" no llegó. El servidor decide si ya pasó. */
   past_outcome?: 'done' | 'no_show' | null;
+  /** Sin celular: se agenda con su usuario en Instagram, Messenger o Facebook (y `client_phone` va vacío). */
+  contact_channel?: 'instagram' | 'messenger' | 'facebook' | 'otro';
+  contact_handle?: string;
   payment_method?: string | null;
   tip?: number | null;
   visit_note?: string | null;

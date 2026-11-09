@@ -44,17 +44,20 @@
   @if (adding()) {
     <form class="card mb-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end" (submit)="addClient($event)">
       <label class="block">
-        <span class="label">Nombre</span>
-        <input class="input" name="name" autocomplete="off" [(ngModel)]="newName" />
+        <span class="label req">Nombre</span>
+        <input class="input" name="name" aria-required="true" autocomplete="off" [(ngModel)]="newName" />
       </label>
       <label class="block">
-        <span class="label">WhatsApp</span>
-        <input class="input nums" name="phone" type="tel" inputmode="numeric" placeholder="10 dígitos" [(ngModel)]="newPhone" />
+        <span class="label req">WhatsApp</span>
+        <input class="input nums" name="phone" aria-required="true" type="tel" inputmode="numeric" placeholder="10 dígitos" [(ngModel)]="newPhone" />
       </label>
       <div class="flex gap-2">
-        <button type="submit" class="btn btn-primary">Guardar</button>
+        <button type="submit" class="btn btn-primary" [disabled]="!canAdd()">Guardar</button>
         <button type="button" class="btn btn-ghost" (click)="adding.set(false)">Cancelar</button>
       </div>
+      @if (!canAdd()) {
+        <p class="form-missing sm:col-span-3" role="status">Para guardar falta: {{ !newName.trim() ? 'el nombre' : '' }}{{ !newName.trim() && !canPhone() ? ' y ' : '' }}{{ !canPhone() ? 'el teléfono de 10 dígitos' : '' }}. Los campos con <b class="text-(--nx-bad-fg)">*</b> son obligatorios.</p>
+      }
       @if (addError(); as message) {
         <p class="field-error sm:col-span-3" role="alert">{{ message }}</p>
       }
@@ -225,7 +228,9 @@
                   }
                 </span>
               </button>
-              @if (filter() === 'missing') {
+              @if (!hasPhone(client)) {
+                <span class="badge badge-neutral shrink-0">Sin celular</span>
+              } @else if (filter() === 'missing') {
                 <a class="btn btn-whatsapp shrink-0 px-3!" [href]="missYou(client)" target="_blank" rel="noopener" (click)="logContact(client, 'invitar')">{{ client.last_contact_at ? 'Invitar otra vez' : 'Invitar' }}</a>
               } @else if (filter() === 'birthday') {
                 <a class="btn btn-whatsapp shrink-0 px-3!" [href]="birthdayWish(client)" target="_blank" rel="noopener" (click)="logContact(client, 'felicitar')">Felicitar</a>
@@ -322,11 +327,15 @@
     }
 
     <div class="grid grid-cols-2 gap-2">
+      @if (hasPhone(person)) {
       <a class="btn btn-whatsapp" [href]="chat(person.phone)" target="_blank" rel="noopener">WhatsApp</a>
       <a class="btn btn-secondary" [href]="tel(person.phone)">
         <mat-icon>call</mat-icon>
         Llamar
       </a>
+      } @else {
+        <p class="col-span-2 rounded-xl bg-canvas px-3 py-2 text-sm text-ink-soft">Sin celular · {{ person.phone }}. Cuando te lo dé, agrégalo en "Editar" y su historial se queda con él.</p>
+      }
       <button type="button" class="btn btn-primary col-span-2" (click)="newAppointment()">
         <mat-icon>{{ lastVisit() ? 'replay' : 'add' }}</mat-icon>
         {{ lastVisit() ? 'Nueva cita (como la última)' : 'Nueva cita' }}
