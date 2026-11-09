@@ -33,7 +33,7 @@ import { Skeleton } from '@shared/components/skeleton/skeleton';
 import { buildDaySheet, daySheetHtml, daySheetText } from '@core/day-sheet';
 import { MessageVars, firstName, longDay, whatsappLink } from '@core/message-templates';
 import { Toasts } from '@core/toasts';
-import { Appointment, AppointmentStatus, PastHour } from '@core/models/appointment.model';
+import { Appointment, AppointmentCorrection, AppointmentStatus, PastHour } from '@core/models/appointment.model';
 import { ScheduleItem } from '@core/models/schedule.model';
 import { Service } from '@core/models/service.model';
 import { Staff } from '@core/models/staff.model';
@@ -130,6 +130,7 @@ export class AgendaPageComponent {
   private readonly dialog = inject(MatDialog);
   private readonly destroyRef = inject(DestroyRef);
   private readonly editor = viewChild.required<TemplateRef<unknown>>('editor');
+  private readonly fixer = viewChild.required<TemplateRef<unknown>>('fixer');
   private dialogRef: MatDialogRef<unknown> | null = null;
   private requestId = 0;
   private readonly ownStaffReady = signal(!inject(AuthService).isStaff());
@@ -1943,6 +1944,89 @@ export class AgendaPageComponent {
 
   protected closeEditor(): void {
     this.dialogRef?.close();
+  }
+
+  // Corregir una cita que ya quedó cerrada (cobrada, no llegó o cancelada): precio, forma de pago, propina o cómo terminó.
+  protected readonly fixing = signal<Appointment | null>(null);
+  protected readonly fixStatus = signal<AppointmentCorrection['status']>('completed');
+  protected readonly fixPrice = signal('');
+  protected readonly fixMethod = signal('efectivo');
+  protected readonly fixTip = signal('');
+  protected readonly fixNote = signal('');
+  protected readonly fixError = signal<string | null>(null);
+  protected readonly fixSaving = signal(false);
+  protected readonly fixOutcomes: { value: AppointmentCorrection['status']; label: string }[] = [
+    { value: 'completed', label: 'Se atendió' },
+    { value: 'no_show', label: 'No llegó' },
+    { value: 'cancelled', label: 'Cancelada' },
+    { value: 'scheduled', label: 'Pendiente' },
+  ];
+
+  protected canCorrect(appointment: Appointment): boolean {
+    return appointment.status === 'completed' || appointment.status === 'no_show' || appointment.status === 'cancelled';
+  }
+
+  protected startFix(appointment: Appointment): void {
+    this.selected.set(null);
+    this.fixing.set(appointment);
+    this.fixError.set(null);
+    this.fixStatus.set(appointment.status as AppointmentCorrection['status']);
+    this.fixPrice.set(appointment.quoted_price != null ? String(appointment.quoted_price) : '');
+    this.fixMethod.set(appointment.payment_method ?? this.pastMethods()[0]?.value ?? 'efectivo');
+    this.fixTip.set(appointment.tip ? String(appointment.tip) : '');
+    this.fixNote.set(appointment.visit_note ?? '');
+    this.dialogRef = this.dialog.open(this.fixer(), { width: '460px', maxWidth: 'calc(100vw - 32px)', panelClass: 'service-sheet', autoFocus: 'first-tabbable' });
+  }
+
+  protected async saveFix(): Promise<void> {
+    const appointment = this.fixing();
+    if (!appointment || this.fixSaving()) {
+      return;
+    }
+    const done = this.fixStatus() === 'completed';
+    if (done && this.priceAtVisit(appointment.service_id) && !this.fixPrice().trim()) {
+      this.fixError.set('Escribe cuánto se cobró.');
+      return;
+    }
+    const price = this.fixPrice().trim() ? Number(this.fixPrice()) : null;
+    const tip = Number(this.fixTip()) > 0 ? Number(this.fixTip()) : null;
+    const moneyChanged =
+      (appointment.status === 'completed') !== done || (done && (price !== (appointment.quoted_price ?? null) || tip !== (appointment.tip || null) || this.fixMethod() !== (appointment.payment_method ?? '')));
+    const old = (this.clock.now().getTime() - parseTimestamp(appointment.starts_at).getTime()) / 86_400_000 > 7;
+    if (moneyChanged && old) {
+      const ok = await this.confirm.ask({
+        title: 'Corregir un cobro de hace más de una semana',
+        message: 'Se van a actualizar tus reportes y comisiones de ese día. ¿Quieres guardar el cambio?',
+        confirm: 'Guardar cambio',
+      });
+      if (!ok) {
+        return;
+      }
+    }
+    this.fixSaving.set(true);
+    this.fixError.set(null);
+    this.appointmentsApi
+      .correctAppointment(appointment.id, {
+        status: this.fixStatus(),
+        final_price: done ? price : null,
+        payment_method: done ? this.fixMethod() : null,
+        tip: done ? tip : null,
+        visit_note: this.fixNote().trim() || null,
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.fixSaving.set(false);
+          this.closeEditor();
+          this.fixing.set(null);
+          this.loadAppointments(this.range(), this.staffId(), this.serviceId());
+          this.toasts.show(`Se corrigió la ${this.copy.text().visit.toLowerCase()}.`);
+        },
+        error: (error: unknown) => {
+          this.fixSaving.set(false);
+          this.fixError.set(readError(error, 'No pudimos guardar la corrección.'));
+        },
+      });
   }
 
   protected save(): void {
