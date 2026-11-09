@@ -542,19 +542,45 @@
     <div class="flex justify-center pt-2 md:hidden" aria-hidden="true">
       <span class="h-1.5 w-10 rounded-full bg-line-strong"></span>
     </div>
-    <header class="flex items-start justify-between gap-3 border-b border-line px-4 pb-3 pt-2 md:pt-4">
-      <div class="min-w-0">
-        <h2 class="truncate text-base font-semibold text-ink">{{ pop.appointment.client_name }}</h2>
-        <p class="text-sm text-ink-soft">{{ pop.appointment.service_name }}</p>
-        <p class="nums text-sm text-muted first-letter:uppercase">{{ whenLabel(pop.appointment.starts_at) }}</p>
-        <span class="badge mt-1.5" [class]="statusBadge(pop.appointment)">{{ statusText(pop.appointment) }}</span>
+    <header class="border-b border-line px-4 pb-3 pt-2 md:pt-4">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <h2 class="truncate text-lg font-semibold text-ink">{{ pop.appointment.client_name }}</h2>
+          @if (!isHold(pop.appointment.service_id)) {
+            <p class="text-sm text-ink-soft">{{ pop.appointment.service_name }}</p>
+          }
+          <p class="nums mt-0.5 flex items-center gap-1.5 text-sm text-muted first-letter:uppercase">
+            <mat-icon class="h-4! w-4! shrink-0 text-[16px]!" aria-hidden="true">event</mat-icon>{{ whenLabel(pop.appointment.starts_at) }}
+          </p>
+        </div>
+        <button type="button" class="btn btn-ghost w-11! shrink-0 px-0!" aria-label="Cerrar" (click)="closeAppointment()">
+          <mat-icon>close</mat-icon>
+        </button>
       </div>
-      <button type="button" class="btn btn-ghost w-11! shrink-0 px-0!" aria-label="Cerrar" (click)="closeAppointment()">
-        <mat-icon>close</mat-icon>
-      </button>
+      <div class="mt-2 flex flex-wrap items-center gap-2">
+        <span class="badge" [class]="statusBadge(pop.appointment)">{{ statusText(pop.appointment) }}</span>
+        @if (isHold(pop.appointment.service_id)) {
+          <span class="badge badge-warn">Servicio por elegir</span>
+        }
+      </div>
     </header>
 
-    <div class="flex flex-col gap-3 px-4 py-3">
+    <div class="flex flex-col gap-3 px-4 py-4">
+      @if (isHold(pop.appointment.service_id) && canSwapService(pop.appointment)) {
+        <section class="card card-tint flex flex-col gap-3 p-4!">
+          <div class="flex items-start gap-3">
+            <span class="sec-icon"><mat-icon>event_available</mat-icon></span>
+            <div class="min-w-0">
+              <p class="text-sm font-semibold text-ink">Falta elegir el servicio</p>
+              <p class="mt-0.5 text-sm text-ink-soft">Apartó su lugar sin saber qué quiere. Elígelo cuando lo decidan para ver el precio y poder cobrar.</p>
+            </div>
+          </div>
+          <button type="button" class="btn h-12 w-full" [class.btn-primary]="pop.appointment.status !== 'awaiting_deposit'" [class.btn-secondary]="pop.appointment.status === 'awaiting_deposit'" (click)="startSwap(pop.appointment)">
+            <mat-icon aria-hidden="true">swap_horiz</mat-icon>
+            Elegir servicio
+          </button>
+        </section>
+      }
       @if (lastNote(); as last) {
         <div class="rounded-lg border border-line bg-canvas px-3 py-2">
           <p class="card-title">Última visita{{ last.date ? ' · ' + last.date : '' }}</p>
@@ -578,46 +604,48 @@
         <ng-container [ngTemplateOutlet]="quoteBox" [ngTemplateOutletContext]="{ $implicit: pop.appointment }" />
       }
 
-      <div class="text-sm text-ink-soft">
+      <div class="divide-y divide-line overflow-hidden rounded-xl border border-line text-sm">
+        <p class="flex min-h-11 items-center gap-3 px-3 text-ink">
+          <span class="ml-1 h-2.5 w-2.5 shrink-0 rounded-full" [style.background]="staffColor(pop.appointment.staff_id)" aria-hidden="true"></span>
+          <span class="min-w-0 truncate">{{ pop.appointment.staff_name }}</span>
+        </p>
         @if (pop.appointment.extra_label) {
-          <p>También: {{ pop.appointment.extra_label }}</p>
+          <p class="flex min-h-11 items-center gap-3 px-3 text-ink-soft"><mat-icon class="h-5! w-5! shrink-0 text-[18px]! text-muted" aria-hidden="true">add_circle</mat-icon>También: {{ pop.appointment.extra_label }}</p>
         }
-        <p class="flex items-center gap-2"><span class="h-2.5 w-2.5 rounded-full" [style.background]="staffColor(pop.appointment.staff_id)" aria-hidden="true"></span>{{ pop.appointment.staff_name }}</p>
         @if (pop.appointment.resource_name) {
-          <p>Recurso: {{ pop.appointment.resource_name }}</p>
+          <p class="flex min-h-11 items-center gap-3 px-3 text-ink-soft"><mat-icon class="h-5! w-5! shrink-0 text-[18px]! text-muted" aria-hidden="true">meeting_room</mat-icon>{{ pop.appointment.resource_name }}</p>
         }
         @if (telHref(pop.appointment.client_phone); as tel) {
-          <a class="nums mt-1 inline-flex min-h-11 items-center gap-1.5 font-medium text-ink hover:underline" [href]="tel">
-            <mat-icon class="h-5! w-5! text-[18px]! text-muted">call</mat-icon>{{ pop.appointment.client_phone }}
+          <a class="row-hover nums flex min-h-11 items-center gap-3 px-3 font-medium text-ink" [href]="tel">
+            <mat-icon class="h-5! w-5! shrink-0 text-[18px]! text-muted" aria-hidden="true">call</mat-icon>{{ pop.appointment.client_phone }}
           </a>
         } @else if (pop.appointment.client_phone) {
-          <p class="mt-1 flex items-center gap-1.5 font-medium text-ink"><mat-icon class="h-5! w-5! text-[18px]! text-muted" aria-hidden="true">alternate_email</mat-icon>{{ pop.appointment.client_phone }}</p>
-          <p class="field-hint mt-1">Sin celular: no le llega recordatorio por WhatsApp. Avísale por el mismo chat.</p>
+          <p class="flex min-h-11 items-center gap-3 px-3 font-medium text-ink"><mat-icon class="h-5! w-5! shrink-0 text-[18px]! text-muted" aria-hidden="true">alternate_email</mat-icon>{{ pop.appointment.client_phone }}</p>
         } @else {
-          <p class="mt-1 text-ink">Sin teléfono</p>
-        }
-        @if (packVisitsLeft(pop.appointment); as left) {
-          <p class="badge badge-ok mt-1 inline-flex w-fit items-center gap-1.5"><mat-icon class="h-4! w-4! text-[16px]!">card_membership</mat-icon>Paquete: le {{ left === 1 ? 'queda 1 visita' : 'quedan ' + left + ' visitas' }}</p>
+          <p class="flex min-h-11 items-center gap-3 px-3 text-muted"><mat-icon class="h-5! w-5! shrink-0 text-[18px]!" aria-hidden="true">call</mat-icon>Sin teléfono</p>
         }
         @if (pop.appointment.client_email) {
-          <p class="text-ink">{{ pop.appointment.client_email }}</p>
+          <p class="flex min-h-11 items-center gap-3 px-3 text-ink"><mat-icon class="h-5! w-5! shrink-0 text-[18px]! text-muted" aria-hidden="true">mail</mat-icon><span class="min-w-0 truncate">{{ pop.appointment.client_email }}</span></p>
         }
       </div>
-      @if (pop.history.length) {
-        <ul class="text-sm text-muted">
-          @for (line of pop.history; track line) {
-            <li>{{ line }}</li>
+      @if (isPhoneless(pop.appointment)) {
+        <p class="field-hint">Sin celular: no le llega recordatorio por WhatsApp. Avísale por el mismo chat.</p>
+      }
+      @if (packVisitsLeft(pop.appointment); as left) {
+        <p class="badge badge-ok inline-flex w-fit items-center gap-1.5"><mat-icon class="h-4! w-4! text-[16px]!">card_membership</mat-icon>Paquete: le {{ left === 1 ? 'queda 1 visita' : 'quedan ' + left + ' visitas' }}</p>
+      }
+      @if (pop.appointment.answers || pop.appointment.notes || pop.appointment.visit_note) {
+        <div class="flex flex-col gap-1.5 rounded-xl bg-canvas px-3 py-2.5 text-sm text-ink-soft">
+          @if (pop.appointment.answers) {
+            <p class="whitespace-pre-line">{{ pop.appointment.answers }}</p>
           }
-        </ul>
-      }
-      @if (pop.appointment.answers) {
-        <p class="whitespace-pre-line text-sm text-ink-soft">{{ pop.appointment.answers }}</p>
-      }
-      @if (pop.appointment.notes) {
-        <p class="text-sm text-ink-soft">{{ pop.appointment.notes }}</p>
-      }
-      @if (pop.appointment.visit_note) {
-        <p class="text-sm text-ink-soft"><span class="font-medium text-ink">Nota de la visita:</span> {{ pop.appointment.visit_note }}</p>
+          @if (pop.appointment.notes) {
+            <p>{{ pop.appointment.notes }}</p>
+          }
+          @if (pop.appointment.visit_note) {
+            <p><span class="font-medium text-ink">Nota de la visita:</span> {{ pop.appointment.visit_note }}</p>
+          }
+        </div>
       }
       @if (!quoteFocus() && pop.appointment.photo_count && pop.appointment.cancel_token) {
         <div>
@@ -631,13 +659,24 @@
           </div>
         </div>
       }
-      @if (bill(pop.appointment); as row) {
-        <p class="text-sm text-ink">
-          Total <span class="nums">{{ pesos(row.total) }}</span>.
-          @if (row.deposit) {
-            {{ row.pending ? 'Falta el anticipo de' : 'Anticipo' }} {{ pesos(row.deposit) }}{{ row.pending ? '' : ' ya pagado' }}. En la cita cobra {{ pesos(row.rest) }}.
+      @let money = bill(pop.appointment);
+      @if (isHold(pop.appointment.service_id)) {
+        <dl class="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1.5 rounded-xl border border-line px-3 py-2.5 text-sm">
+          <dt class="text-ink-soft">Precio</dt><dd class="text-right text-muted">Por definir</dd>
+          @if (pop.appointment.deposit_amount) {
+            <dt class="text-ink-soft">Apartado</dt>
+            <dd class="nums text-right font-medium text-ink">{{ pesos(pop.appointment.deposit_amount) }} · {{ pop.appointment.status === 'awaiting_deposit' ? 'falta pagarlo' : 'ya pagado' }}</dd>
           }
-        </p>
+        </dl>
+      } @else if (money) {
+        <dl class="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1.5 rounded-xl border border-line px-3 py-2.5 text-sm">
+          <dt class="text-ink-soft">Precio</dt><dd class="nums text-right font-medium text-ink">{{ pesos(money.total) }}</dd>
+          @if (money.deposit) {
+            <dt class="text-ink-soft">Anticipo</dt>
+            <dd class="nums text-right text-ink">{{ pesos(money.deposit) }} · {{ money.pending ? 'falta pagarlo' : 'ya pagado' }}</dd>
+            <dt class="font-semibold text-ink">En la cita cobras</dt><dd class="nums text-right font-semibold text-ink">{{ pesos(money.rest) }}</dd>
+          }
+        </dl>
       }
       @if (pop.appointment.tip) {
         <p class="text-sm text-ink-soft">Propina <span class="nums">{{ pesos(pop.appointment.tip) }}</span></p>
@@ -654,24 +693,46 @@
           </div>
         </div>
       }
-      @if (pop.appointment.payment_proof) {
+      @if (pop.appointment.status === 'awaiting_deposit') {
+        <section class="flex flex-col gap-3 rounded-xl border border-line p-3" aria-label="Anticipo">
+          <div class="flex items-start gap-3">
+            <span class="sec-icon"><mat-icon>payments</mat-icon></span>
+            <div class="min-w-0">
+              <p class="text-sm font-semibold text-ink">{{ pop.appointment.payment_proof ? 'Revisa el comprobante' : 'Esperando el anticipo' }}</p>
+              <p class="mt-0.5 text-sm text-muted">{{ pop.appointment.paid_claim ? 'Dice que pagó con tu enlace de pago. Revisa tu cuenta antes de aceptar.' : pop.appointment.payment_proof ? 'Compara el monto con lo que te llegó antes de aceptar.' : 'Aún no sube el comprobante.' }}</p>
+            </div>
+          </div>
+          @if (pop.appointment.payment_proof) {
+            <img [src]="pop.appointment.payment_proof" alt="Comprobante" class="max-h-48 w-full rounded-lg border border-line object-contain" />
+          }
+          <button class="btn btn-primary h-12 w-full" type="button" (click)="acceptAndTell(pop.appointment)">
+            {{ pop.appointment.payment_proof ? 'Aceptar y avisar' : 'Depósito recibido' }}
+          </button>
+          <div class="grid gap-2" [class.grid-cols-2]="pop.appointment.payment_proof">
+            @if (pop.appointment.payment_proof) {
+              <button class="btn btn-secondary" type="button" (click)="askAnother(pop.appointment)">Pedir otra foto</button>
+            }
+            <button class="btn btn-secondary" type="button" (click)="setStatus(pop.appointment, 'cancelled')">Liberar horario</button>
+          </div>
+        </section>
+      } @else if (pop.appointment.payment_proof) {
         <div>
           <p class="card-title">Comprobante</p>
           <img [src]="pop.appointment.payment_proof" alt="Comprobante" class="mt-1 max-h-48 w-full rounded-lg object-contain" />
         </div>
-      } @else if (pop.appointment.status === 'awaiting_deposit') {
-        <p class="text-sm text-muted">{{ pop.appointment.paid_claim ? 'Dice que pagó con tu enlace de pago. Revisa tu cuenta antes de aceptar.' : 'Aún no sube el comprobante.' }}</p>
       }
-      @if (pop.appointment.status === 'awaiting_deposit') {
-        <div class="flex flex-col gap-2">
-          <button class="btn btn-primary h-12" type="button" (click)="acceptAndTell(pop.appointment)">
-            {{ pop.appointment.payment_proof ? 'Aceptar y avisar' : 'Depósito recibido' }}
-          </button>
-          @if (pop.appointment.payment_proof) {
-            <button class="btn btn-secondary" type="button" (click)="askAnother(pop.appointment)">Pedir otra foto</button>
-          }
-          <button class="btn btn-secondary" type="button" (click)="setStatus(pop.appointment, 'cancelled')">Liberar horario</button>
-        </div>
+      @if (pop.history.length) {
+        <details class="rounded-xl border border-line">
+          <summary class="flex min-h-11 cursor-pointer items-center justify-between gap-2 px-3 text-sm text-ink-soft">
+            <span>Historial · {{ pop.history.length }}</span>
+            <mat-icon class="h-5! w-5! text-[18px]!" aria-hidden="true">expand_more</mat-icon>
+          </summary>
+          <ul class="flex flex-col gap-1 px-3 pb-3 text-sm text-muted">
+            @for (line of pop.history; track line) {
+              <li>{{ line }}</li>
+            }
+          </ul>
+        </details>
       }
 
       @if (pop.appointment.status === 'scheduled' && pendingId() !== pop.appointment.id) {
@@ -803,10 +864,7 @@
             <button type="button" class="btn btn-primary h-12 w-full text-base" (click)="completeWithCharge(pop.appointment)">
               Cobrar {{ pesos(dueNow()) }} y completar
             </button>
-          } @else if (isHold(pop.appointment.service_id)) {
-            <button type="button" class="btn btn-primary h-12 w-full text-base" (click)="startSwap(pop.appointment)">Elegir servicio</button>
-            <p class="field-hint -mt-1 text-center">Primero elige el servicio y luego cobras.</p>
-          } @else {
+          } @else if (!isHold(pop.appointment.service_id)) {
             <button type="button" class="btn btn-primary h-12 w-full text-base" (click)="startCharge(pop.appointment)">Cobrar y completar</button>
           }
         }
@@ -818,10 +876,10 @@
             <button type="button" class="btn btn-secondary h-12" [class.col-span-2]="!chatHref(pop.appointment)" (click)="startMove(pop.appointment)">Cambiar día u hora</button>
           }
         </div>
-        @if (canSwapService(pop.appointment) && !(pop.appointment.status === 'scheduled' && isHold(pop.appointment.service_id))) {
+        @if (canSwapService(pop.appointment) && !isHold(pop.appointment.service_id)) {
           <button type="button" class="btn btn-secondary h-12 w-full" (click)="startSwap(pop.appointment)">
             <mat-icon aria-hidden="true">swap_horiz</mat-icon>
-            {{ isHold(pop.appointment.service_id) ? 'Elegir servicio' : 'Cambiar servicio' }}
+            Cambiar servicio
           </button>
         }
         @if (canCorrect(pop.appointment)) {
@@ -928,7 +986,7 @@
 </ng-template>
 
 <ng-template #quoteBox let-appointment>
-  @if (canPrice(appointment.service_id) && appointment.status !== 'cancelled' && appointment.status !== 'no_show') {
+  @if (canPrice(appointment.service_id) && !isHold(appointment.service_id) && appointment.status !== 'cancelled' && appointment.status !== 'no_show') {
   <div class="flex flex-col gap-2">
     <label class="label mb-0!" for="quote-price">Precio acordado</label>
     <div class="flex gap-2">
