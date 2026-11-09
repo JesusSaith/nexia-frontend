@@ -400,6 +400,23 @@ export class Booking {
     });
   });
 
+  /** Lo que falta para poder reservar: mientras haya algo, el botón queda apagado y se dice qué es. */
+  protected readonly detailsMissing = computed<string[]>(() => {
+    this.formEvents();
+    const { client_name, client_phone, client_email } = this.clientForm.controls;
+    const list: string[] = [];
+    if (!client_name.value.trim()) {
+      list.push('tu nombre');
+    }
+    if (client_phone.invalid || !client_phone.value.trim()) {
+      list.push('tu teléfono a 10 dígitos');
+    }
+    if (client_email.value.trim() && client_email.invalid) {
+      list.push('un correo válido');
+    }
+    return list;
+  });
+
   protected readonly emailError = computed(() => {
     this.formEvents();
     this.validationTick();

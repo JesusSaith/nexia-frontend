@@ -68,3 +68,23 @@ describe('MESSAGE_MOMENTS', () => {
     expect([...keys].sort()).toEqual(MESSAGE_TEMPLATES.map((template) => template.key).sort());
   });
 });
+
+describe('contacto sin celular', () => {
+  it('distingue un teléfono de un usuario de Instagram o Messenger', async () => {
+    const { isPhone, whatsappLink } = await import('./message-templates');
+    expect(isPhone('55 1234 5678')).toBe(true);
+    expect(isPhone('+52 55 1234 5678')).toBe(true);
+    expect(isPhone('Instagram @lupita2')).toBe(false);
+    expect(isPhone('')).toBe(false);
+    // Los dígitos sueltos de un usuario no se vuelven un número de WhatsApp.
+    expect(whatsappLink('Instagram @lupita12345678', 'hola')).toBe('https://wa.me/?text=hola');
+    expect(whatsappLink('5512345678', 'hola')).toBe('https://wa.me/525512345678?text=hola');
+  });
+
+  it('la respuesta para Instagram y Messenger lleva el enlace del negocio', async () => {
+    const { fillTemplate, defaultText } = await import('./message-templates');
+    const text = fillTemplate(defaultText('dm_reply'), { negocio: 'Salón Luna', enlace: 'https://nexiacitas.com/s/luna' });
+    expect(text).toContain('Salón Luna');
+    expect(text).toContain('https://nexiacitas.com/s/luna');
+  });
+});
