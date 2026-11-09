@@ -229,6 +229,11 @@ export class BookingService {
     return this.http.patch<ClientCard>(`${this.apiBaseUrl}/clients/${id}`, data);
   }
 
+  /** Une la ficha `fromId` en la ficha `id`: sus citas, paquetes y notas pasan a `id` y la otra se borra. */
+  mergeClient(id: number, fromId: number): Observable<ClientCard> {
+    return this.http.post<ClientCard>(`${this.apiBaseUrl}/clients/${id}/merge`, { from_id: fromId });
+  }
+
   /** Pone o quita etiquetas a varios a la vez (solo propietario y administración). `full`: a cuántos no les cupo (máximo 10). */
   bulkTags(ids: number[], add: string[], remove: string[] = []): Observable<{ updated: number; full: number }> {
     return this.http.post<{ updated: number; full: number }>(`${this.apiBaseUrl}/clients/tags`, { client_ids: ids, add, remove });

@@ -165,6 +165,9 @@
                 <span class="nums mt-0.5 block truncate text-sm text-muted">
                   {{ row.duration_minutes }} min · {{ row.price_at_visit ? 'Precio en la cita' : row.variable_price ? 'Precio variable' : formatPrice(row.price) }}{{ (row.variants ?? []).length ? ' · ' + (row.variants ?? []).length + ' opciones' : '' }}
                 </span>
+                @if (row.is_active && isFree(row)) {
+                  <span class="mt-0.5 flex items-center gap-1 text-sm text-(--nx-warn-fg)"><mat-icon class="h-4! w-4! text-[16px]!">warning</mat-icon>Se cobra en $0: ponle precio o cámbialo a "Lo cotizo antes de la cita"</span>
+                }
                 @if (row.is_active && people.length === 0) {
                   <span class="mt-0.5 flex items-center gap-1 text-sm text-(--nx-warn-fg)"><mat-icon class="h-4! w-4! text-[16px]!">warning</mat-icon>Nadie lo hace: asígnalo en Equipo</span>
                 } @else if (people.length) {
@@ -270,6 +273,9 @@
           </div>
           @if (priceError()) {
             <p class="field-error">{{ priceError() }}</p>
+          }
+          @if (zeroFixed()) {
+            <p class="field-hint flex items-start gap-1 text-(--nx-warn-fg)"><mat-icon class="h-4! w-4! shrink-0 text-[16px]!" aria-hidden="true">warning</mat-icon>Este servicio se cobraría en $0. Si es a propósito, por ejemplo una valoración gratis, déjalo así.</p>
           }
           <div>
             <span class="label">¿Cuándo se define el precio?</span>

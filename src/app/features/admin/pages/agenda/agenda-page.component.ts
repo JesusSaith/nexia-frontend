@@ -1622,7 +1622,7 @@ export class AgendaPageComponent {
       return null;
     }
     const sameDay = toInputDate(this.clock.now()) === item.starts_at.slice(0, 10);
-    return whatsappLink(phone, this.copy.message('reminder', { ...this.visitVars(item), cuando: sameDay ? 'hoy' : 'mañana', enlace: this.manageLink(item) }));
+    return whatsappLink(phone, this.copy.message(this.isHold(item.service_id) ? 'hold_idea' : 'reminder', { ...this.visitVars(item), cuando: sameDay ? 'hoy' : 'mañana', enlace: this.manageLink(item) }));
   }
 
   /** Abre la ficha de la cita ya en el cobro (igual que el botón Cobrar de Inicio). */

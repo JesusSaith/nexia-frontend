@@ -543,7 +543,8 @@ export class HomePageComponent {
   protected remind(item: Appointment, when: 'hoy' | 'mañana' = 'mañana'): string {
     const slug = this.auth.currentUser()?.slug ?? '';
     const start = parseLocal(item.starts_at);
-    const text = this.copy.message('reminder', {
+    const hold = !!this.services().find((row) => row.id === item.service_id)?.is_hold;
+    const text = this.copy.message(hold ? 'hold_idea' : 'reminder', {
       nombre: firstName(item.client_name),
       cuando: when,
       negocio: this.shopName(),
