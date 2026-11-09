@@ -125,8 +125,8 @@
         <button class="btn btn-secondary" type="button" (click)="openCreate(categoryFilter())">Agregar servicio</button>
       </div>
     } @else {
-      <ul class="card divide-y divide-line overflow-hidden px-0! py-0!">
-        <li class="card-head bg-canvas px-4 py-3 sm:px-5">
+      <ul class="card divide-y divide-line px-0! py-0!">
+        <li class="card-head rounded-t-2xl bg-canvas px-4 py-3 sm:px-5">
           <span class="sec-icon"><mat-icon>list_alt</mat-icon></span>
           <div>
             <h2 class="card-title">{{ categoryFilter() || 'Todos los servicios' }}</h2>
