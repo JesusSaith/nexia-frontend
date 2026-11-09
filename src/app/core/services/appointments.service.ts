@@ -5,6 +5,7 @@ import { Observable } from 'rxjs';
 import { API_BASE_URL } from '../config/api-base-url';
 import {
   AdminAppointmentCreate,
+  AppointmentCorrection,
   PastHour,
   Appointment,
   AppointmentQuery,
@@ -57,6 +58,10 @@ export class AppointmentsService {
       httpParams = httpParams.set('client_phone', params.client_phone);
     }
     return this.http.get<Appointment[]>(`${this.apiBaseUrl}/appointments`, { params: httpParams });
+  }
+
+  correctAppointment(id: number, data: AppointmentCorrection): Observable<Appointment> {
+    return this.http.put<Appointment>(`${this.apiBaseUrl}/appointments/${id}/correct`, data);
   }
 
   getPastHours(staffId: number, serviceId: number, date: string): Observable<PastHour[]> {

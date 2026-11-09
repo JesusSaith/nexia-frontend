@@ -811,6 +811,12 @@
             <button type="button" class="btn btn-secondary h-12" [class.col-span-2]="!chatHref(pop.appointment)" (click)="startMove(pop.appointment)">Cambiar día u hora</button>
           }
         </div>
+        @if (canCorrect(pop.appointment)) {
+          <button type="button" class="btn btn-secondary h-12 w-full" (click)="startFix(pop.appointment)">
+            <mat-icon aria-hidden="true">edit</mat-icon>
+            Corregir {{ copy.text().visit.toLowerCase() }}
+          </button>
+        }
         <!-- Lo que se hace con más prisa (no llegó o cancelar) queda a un toque, sin buscarlo en "Más opciones". -->
         @if (pop.appointment.status === 'scheduled') {
           <div class="grid grid-cols-2 gap-2">
@@ -822,6 +828,57 @@
     </footer>
   </article>
 }
+
+<ng-template #fixer>
+  @if (fixing(); as item) {
+    <div class="flex max-h-[92vh] flex-col bg-surface">
+      <header class="flex items-center justify-between border-b border-line px-4 py-3">
+        <button type="button" class="btn btn-ghost w-11! px-0!" aria-label="Cerrar" (click)="closeEditor()" [disabled]="fixSaving()"><mat-icon>close</mat-icon></button>
+        <h2 class="text-lg font-semibold">Corregir {{ copy.text().visit.toLowerCase() }}</h2>
+        <button type="button" class="btn btn-primary" [disabled]="fixSaving()" (click)="saveFix()">{{ fixSaving() ? 'Guardando…' : 'Guardar' }}</button>
+      </header>
+      <div class="flex flex-col gap-4 overflow-y-auto p-5">
+        <p class="text-sm text-muted">{{ item.client_name }} · {{ item.service_name }} · {{ whenLabel(item.starts_at) }}</p>
+        <div>
+          <span class="label">¿Cómo terminó?</span>
+          <div class="flex flex-wrap gap-2" role="group" aria-label="Cómo terminó">
+            @for (option of fixOutcomes; track option.value) {
+              <button type="button" class="chip h-11!" [class.chip-on]="fixStatus() === option.value" [attr.aria-pressed]="fixStatus() === option.value" (click)="fixStatus.set(option.value)">{{ option.label }}</button>
+            }
+          </div>
+        </div>
+        @if (fixStatus() === 'completed') {
+          @if (canPrice(item.service_id)) {
+            <label class="block">
+              <span class="label">Cuánto se cobró</span>
+              <input type="number" min="0" inputmode="decimal" class="input nums" placeholder="El del servicio" [value]="fixPrice()" (input)="fixPrice.set($any($event.target).value)" />
+            </label>
+          }
+          <div>
+            <span class="label">Forma de pago</span>
+            <div class="flex flex-wrap gap-2" role="group" aria-label="Forma de pago">
+              @for (method of payMethods(); track method.value) {
+                <button type="button" class="chip h-11!" [class.chip-on]="fixMethod() === method.value" [attr.aria-pressed]="fixMethod() === method.value" (click)="fixMethod.set(method.value)">{{ method.label }}</button>
+              }
+            </div>
+          </div>
+          <label class="block">
+            <span class="label">Propina</span>
+            <input type="number" min="0" inputmode="decimal" class="input nums" placeholder="0" [value]="fixTip()" (input)="fixTip.set($any($event.target).value)" />
+          </label>
+        }
+        <label class="block">
+          <span class="label">Nota de la {{ copy.text().visit.toLowerCase() }}</span>
+          <textarea rows="2" class="input" [value]="fixNote()" (input)="fixNote.set($any($event.target).value)"></textarea>
+        </label>
+        <p class="field-hint">Al guardar se actualizan tus reportes, comisiones e historial del {{ copy.text().client.toLowerCase() }}.</p>
+        @if (fixError(); as message) {
+          <p role="alert" class="field-error">{{ message }}</p>
+        }
+      </div>
+    </div>
+  }
+</ng-template>
 
 <ng-template #quoteBox let-appointment>
   @if (canPrice(appointment.service_id) && appointment.status !== 'cancelled' && appointment.status !== 'no_show') {
