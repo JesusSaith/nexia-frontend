@@ -101,7 +101,7 @@ export class ServicesPageComponent {
     deposit_amount: new FormControl('', { nonNullable: true }),
     price: new FormControl('', {
       nonNullable: true,
-      validators: [Validators.required, Validators.min(0)],
+      validators: [Validators.min(0)],
     }),
     variable_price: new FormControl(false, { nonNullable: true }),
     price_at_visit: new FormControl(false, { nonNullable: true }),
@@ -126,7 +126,17 @@ export class ServicesPageComponent {
   /** Lo que falta para guardar el servicio: el botón queda apagado y se dice qué es. */
   protected readonly missing = computed(() => {
     this.formEvents();
-    return missingLabels(this.form.controls, { name: 'el nombre', price: 'el precio', duration_minutes: 'la duración' });
+    return missingLabels(
+      this.form.controls,
+      this.priceMissing()
+        ? { name: 'el nombre', price: 'el precio', duration_minutes: 'la duración' }
+        : { name: 'el nombre', duration_minutes: 'la duración' },
+    );
+  });
+  /** El precio solo es obligatorio cuando es fijo: si se cotiza o se acuerda en la cita aún no se sabe. */
+  protected readonly priceMissing = computed(() => {
+    this.formEvents();
+    return this.priceMode() === 'fixed' && !String(this.form.controls.price.value ?? '').trim();
   });
 
   /** Recién registrada: solo están los servicios sugeridos del giro, todos apagados. */
@@ -183,8 +193,10 @@ export class ServicesPageComponent {
   protected readonly priceError = computed(() => {
     this.formEvents();
     this.validationTick();
+    if (this.priceMissing() && this.form.controls.price.touched) {
+      return 'Ingresa el precio.';
+    }
     return this.fieldError('price', {
-      required: 'Ingresa el precio.',
       min: 'El precio no puede ser negativo.',
     });
   });
@@ -326,7 +338,7 @@ export class ServicesPageComponent {
   protected save(): void {
     this.form.markAllAsTouched();
     this.validationTick.update((tick) => tick + 1);
-    if (this.form.invalid || this.isSaving()) {
+    if (this.form.invalid || this.priceMissing() || this.isSaving()) {
       return;
     }
 
@@ -335,7 +347,7 @@ export class ServicesPageComponent {
       name: raw.name.trim(),
       category: raw.category.trim() || null,
       description: raw.description.trim() || null,
-      price: Number(raw.price),
+      price: Number(raw.price) || 0,
       deposit_amount: String(raw.deposit_amount ?? '').trim() ? Number(raw.deposit_amount) : null,
       duration_minutes: Number(raw.duration_minutes),
       variable_price: raw.variable_price || raw.price_at_visit,

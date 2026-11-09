@@ -260,8 +260,8 @@
           <legend class="card-title mb-2">Precio</legend>
           <div class="grid grid-cols-2 gap-3">
             <label class="block">
-              <span class="label req">Precio</span>
-              <input class="input nums" type="number" min="0" step="0.01" inputmode="decimal" formControlName="price" aria-required="true" />
+              <span class="label" [class.req]="priceMode() === 'fixed'" [class.opt]="priceMode() !== 'fixed'">Precio</span>
+              <input class="input nums" type="number" min="0" step="0.01" inputmode="decimal" formControlName="price" [attr.aria-required]="priceMode() === 'fixed'" [placeholder]="priceMode() === 'fixed' ? '' : 'Aún no lo sé'" />
             </label>
             <label class="block">
               <span class="label opt">Anticipo</span>
@@ -282,10 +282,10 @@
               <p class="field-hint">
                 @switch (priceMode()) {
                   @case ('quote') {
-                    El {{ copy.text().client.toLowerCase() }} describe lo que quiere, tú le pones el precio y él lo acepta antes de pagar el anticipo. Si no cotizas a tiempo, el horario se libera.
+                    El {{ copy.text().client.toLowerCase() }} describe lo que quiere, tú le pones el precio y él lo acepta antes de pagar el anticipo. Si no cotizas a tiempo, el horario se libera. El precio de arriba es opcional: déjalo vacío si cada caso es distinto.
                   }
                   @case ('visit') {
-                    El horario se aparta sin precio y el diseño y el costo se acuerdan ya en la cita. El anticipo (si lo pides) es un monto fijo, no un porcentaje, y el horario no se libera por falta de precio.
+                    El horario se aparta sin precio y el diseño y el costo se acuerdan ya en la cita. El anticipo (si lo pides) es un monto fijo, no un porcentaje, y el horario no se libera por falta de precio. El precio de arriba es opcional.
                   }
                   @default {
                     Se cobra el precio que escribiste arriba.
