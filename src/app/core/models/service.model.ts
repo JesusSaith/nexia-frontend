@@ -16,6 +16,8 @@ export interface Service {
   variable_price?: boolean;
   /** Con precio variable: el precio y el diseño se acuerdan en la cita, sin cotizar antes (salón de belleza y de uñas). */
   price_at_visit?: boolean;
+  /** "Por elegir": servicio oculto de la reserva "Aún no sé qué quiero"; lo maneja Nexia. */
+  is_hold?: boolean;
   image_url?: string | null;
   questions?: string | null;
   capacity?: number;

@@ -96,6 +96,7 @@ export interface PublicService {
   duration_minutes: number;
   variable_price?: boolean;
   price_at_visit?: boolean;
+  is_hold?: boolean;
   image_url?: string | null;
   questions?: string | null;
   capacity?: number;

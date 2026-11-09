@@ -187,6 +187,8 @@ export class Booking {
   protected readonly loyaltyPercent = signal<number | null>(null);
   private lastLoyaltyPhone = '';
   protected readonly services = signal<PublicService[]>([]);
+  /** "Por elegir": para quien aún no sabe qué servicio o diseño quiere (salones de belleza y de uñas). */
+  protected readonly holdService = signal<PublicService | null>(null);
   protected readonly categoryFilter = signal('');
   protected readonly staff = signal<PublicStaff[]>([]);
   protected readonly selectedService = signal<PublicService | null>(null);
@@ -1306,7 +1308,8 @@ export class Booking {
           }
           this.brand.set(brand);
           document.title = brand.name;
-          this.services.set(services);
+          this.services.set(services.filter((service) => !service.is_hold));
+          this.holdService.set(services.find((service) => service.is_hold) ?? null);
           this.staff.set(staff);
           this.isLoading.set(false);
           // El teléfono recordado se revisó antes de conocer la lealtad del negocio.

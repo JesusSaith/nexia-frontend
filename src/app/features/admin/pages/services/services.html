@@ -118,15 +118,6 @@
         <span>Te dejamos servicios típicos de tu giro. Ajusta precio y duración, activa los que ofreces y borra los que no (menú ⋯). Mientras estén pausados, tus {{ copy.text().clients.toLowerCase() }} no los ven.</span>
       </p>
     }
-    @if (holdOffer()) {
-      <div class="card card-tint mb-3 flex flex-wrap items-center justify-between gap-3">
-        <p class="min-w-0 flex-1 text-sm text-ink">
-          <span class="font-semibold">¿Hay {{ copy.text().clients.toLowerCase() }} que solo quieren apartar su lugar?</span>
-          Agrega "Apartar lugar": reservan sin elegir servicio ni precio y tú los defines en la cita con "Elegir servicio".
-        </p>
-        <button class="btn btn-secondary" type="button" [disabled]="holdAdding()" (click)="addHold()">{{ holdAdding() ? 'Agregando…' : 'Agregar "Apartar lugar"' }}</button>
-      </div>
-    }
     @if (visible().length === 0) {
       <div class="empty">
         <mat-icon>category</mat-icon>
@@ -280,34 +271,20 @@
           @if (priceError()) {
             <p class="field-error">{{ priceError() }}</p>
           }
-          @if (atVisitAllowed() || priceMode() === 'visit') {
-            <div>
-              <span class="label">¿Cuándo se define el precio?</span>
-              <div class="mt-1 flex flex-wrap gap-2" role="group" aria-label="Cuándo se define el precio">
-                <button type="button" class="chip" [class.chip-on]="priceMode() === 'fixed'" [attr.aria-pressed]="priceMode() === 'fixed'" (click)="setPriceMode('fixed')">Precio fijo</button>
-                <button type="button" class="chip" [class.chip-on]="priceMode() === 'quote'" [attr.aria-pressed]="priceMode() === 'quote'" (click)="setPriceMode('quote')">Lo cotizo antes de la cita</button>
-                <button type="button" class="chip" [class.chip-on]="priceMode() === 'visit'" [attr.aria-pressed]="priceMode() === 'visit'" (click)="setPriceMode('visit')">Lo acordamos en la cita</button>
-              </div>
-              <p class="field-hint">
-                @switch (priceMode()) {
-                  @case ('quote') {
-                    El {{ copy.text().client.toLowerCase() }} describe lo que quiere, tú le pones el precio y él lo acepta antes de pagar el anticipo. Si no cotizas a tiempo, el horario se libera. El precio de arriba es opcional: déjalo vacío si cada caso es distinto.
-                  }
-                  @case ('visit') {
-                    El horario se aparta sin precio y el diseño y el costo se acuerdan ya en la cita. El anticipo (si lo pides) es un monto fijo, no un porcentaje, y el horario no se libera por falta de precio. El precio de arriba es opcional.
-                  }
-                  @default {
-                    Se cobra el precio que escribiste arriba.
-                  }
-                }
-              </p>
+          <div>
+            <span class="label">¿Cuándo se define el precio?</span>
+            <div class="mt-1 flex flex-wrap gap-2" role="group" aria-label="Cuándo se define el precio">
+              <button type="button" class="chip" [class.chip-on]="priceMode() === 'fixed'" [attr.aria-pressed]="priceMode() === 'fixed'" (click)="setPriceMode('fixed')">Precio fijo</button>
+              <button type="button" class="chip" [class.chip-on]="priceMode() === 'quote'" [attr.aria-pressed]="priceMode() === 'quote'" (click)="setPriceMode('quote')">Lo cotizo antes de la cita</button>
             </div>
-          } @else {
-            <label class="flex min-h-11 items-start gap-2 text-sm text-ink">
-              <input class="mt-0.5 h-5 w-5" type="checkbox" formControlName="variable_price" />
-              <span>El precio cambia según lo que pidan <span class="block text-muted">El {{ copy.text().client.toLowerCase() }} describe lo que quiere y tú confirmas el costo.</span></span>
-            </label>
-          }
+            <p class="field-hint">
+              @if (priceMode() === 'quote') {
+                El {{ copy.text().client.toLowerCase() }} describe lo que quiere, tú le pones el precio y él lo acepta antes de pagar el anticipo. Si no cotizas a tiempo, el horario se libera. El precio de arriba es opcional: déjalo vacío si cada caso es distinto.
+              } @else {
+                Se cobra el precio que escribiste arriba.
+              }
+            </p>
+          </div>
           <label class="block">
             <span class="label opt">Material por servicio ($)</span>
             <input formControlName="supplyCost" type="number" min="0" inputmode="decimal" placeholder="0" class="input nums" />

@@ -50,7 +50,6 @@ export class ServicesPageComponent {
   private readonly settingsApi = inject(SettingsService);
   /** Giro del negocio: "Lo acordamos en la cita" solo se ofrece en salón de belleza y de uñas. */
   private readonly kind = signal('');
-  protected readonly atVisitAllowed = computed(() => this.kind() === 'belleza' || this.kind() === 'unas');
   private readonly confirm = inject(Confirm);
   private readonly destroyRef = inject(DestroyRef);
   private readonly dialog = inject(MatDialog);
@@ -140,29 +139,6 @@ export class ServicesPageComponent {
   });
 
   /** Recién registrada: solo están los servicios sugeridos del giro, todos apagados. */
-  /** Salones y uñas: sugerir "Apartar lugar" (cliente que separa su horario sin saber aún qué servicio quiere). */
-  protected readonly holdOffer = computed(
-    () => this.atVisitAllowed() && this.services().length > 0 && !this.services().some((row) => row.name.trim().toLowerCase() === 'apartar lugar'),
-  );
-  protected readonly holdAdding = signal(false);
-
-  protected addHold(): void {
-    if (this.holdAdding()) {
-      return;
-    }
-    this.holdAdding.set(true);
-    this.servicesApi
-      .createService({ name: 'Apartar lugar', category: 'Citas', description: null, price: 0, duration_minutes: 60, variable_price: true, price_at_visit: true, is_active: true })
-      .pipe(takeUntilDestroyed(this.destroyRef), finalize(() => this.holdAdding.set(false)))
-      .subscribe({
-        next: () => {
-          this.load(true);
-          this.toasts.show('Listo, ya pueden apartar su lugar.');
-        },
-        error: (error: HttpErrorResponse) => this.toasts.show(this.messageFor(error, 'No pudimos agregar el servicio.')),
-      });
-  }
-
   protected readonly onlySuggested = computed(() => this.services().length > 0 && this.services().every((row) => !row.is_active));
   protected readonly categories = computed(() =>
     [...this.catalog()].sort((a, b) => a.localeCompare(b, 'es')),
@@ -244,13 +220,12 @@ export class ServicesPageComponent {
   }
 
   /** Cómo se define el precio del servicio que se está editando. */
-  protected priceMode(): 'fixed' | 'quote' | 'visit' {
-    const { variable_price, price_at_visit } = this.form.getRawValue();
-    return price_at_visit ? 'visit' : variable_price ? 'quote' : 'fixed';
+  protected priceMode(): 'fixed' | 'quote' {
+    return this.form.getRawValue().variable_price ? 'quote' : 'fixed';
   }
 
-  protected setPriceMode(mode: 'fixed' | 'quote' | 'visit'): void {
-    this.form.patchValue({ variable_price: mode !== 'fixed', price_at_visit: mode === 'visit' });
+  protected setPriceMode(mode: 'fixed' | 'quote'): void {
+    this.form.patchValue({ variable_price: mode === 'quote' });
     this.form.markAsDirty();
   }
 
@@ -373,8 +348,8 @@ export class ServicesPageComponent {
       price: Number(raw.price) || 0,
       deposit_amount: String(raw.deposit_amount ?? '').trim() ? Number(raw.deposit_amount) : null,
       duration_minutes: Number(raw.duration_minutes),
-      variable_price: raw.variable_price || raw.price_at_visit,
-      price_at_visit: raw.price_at_visit,
+      variable_price: raw.variable_price,
+      price_at_visit: false,
       is_active: raw.is_active,
       image_url: raw.image_url || null,
       questions: raw.questions.trim() || null,
@@ -702,7 +677,7 @@ export class ServicesPageComponent {
       )
       .subscribe({
         next: ({ services, categories }) => {
-          this.services.set(services);
+          this.services.set(services.filter((row) => !row.is_hold)); // "Por elegir" lo maneja Nexia
           this.catalog.set(categories.map((item) => item.name));
           this.categoryRows.set(categories);
         },
