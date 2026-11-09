@@ -60,6 +60,12 @@ export const adminRoutes: Routes = [
         loadComponent: () => import('./pages/services/services').then((m) => m.ServicesPageComponent),
       },
       {
+        path: 'paquetes',
+        title: 'Paquetes · Nexia',
+        canActivate: [managers],
+        loadComponent: () => import('./pages/packages/packages-page.component').then((m) => m.PackagesPageComponent),
+      },
+      {
         path: 'staff',
         title: 'Equipo · Nexia',
         canActivate: [managers],

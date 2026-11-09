@@ -1,0 +1,166 @@
+<section>
+  <header class="page-head">
+    <div>
+      <h1>Paquetes</h1>
+      <p>Véndelos en tu página: el pago llega a tu cuenta y tú lo apruebas.</p>
+    </div>
+    <button class="btn btn-primary" type="button" (click)="openForm()">
+      <mat-icon>add</mat-icon>
+      Nuevo paquete
+    </button>
+  </header>
+
+  @if (loadError(); as message) {
+    <p role="alert" class="field-error mb-4">{{ message }}</p>
+  }
+
+  @if (!hasAccount()) {
+    <p class="card card-tint mb-4 flex items-start gap-3 text-sm" role="status">
+      <mat-icon aria-hidden="true">info</mat-icon>
+      <span>
+        Tus paquetes no salen en tu página porque falta tu cuenta para recibir transferencias. Agrégala en Configuración, en "Anticipo y pagos".
+      </span>
+    </p>
+  }
+
+  @if (creating()) {
+    <form class="card mb-4 flex flex-col gap-4" (submit)="$event.preventDefault(); save()">
+      <div class="card-head">
+        <span class="sec-icon"><mat-icon>card_membership</mat-icon></span>
+        <h2 class="card-title">Nuevo paquete</h2>
+      </div>
+      <app-form-status [missing]="missing()" />
+      <label class="block">
+        <span class="label req">Para qué servicio</span>
+        <select class="input" name="service" aria-required="true" [(ngModel)]="serviceId" (ngModelChange)="suggestName()">
+          <option [ngValue]="null">Elige un servicio</option>
+          @for (service of services(); track service.id) {
+            <option [ngValue]="service.id">{{ service.name }}</option>
+          }
+        </select>
+        <span class="field-hint">Solo se descuenta cuando reservan ese servicio.</span>
+      </label>
+      <div class="grid grid-cols-2 gap-3">
+        <label class="block">
+          <span class="label req">Visitas</span>
+          <input class="input nums" name="visits" type="number" inputmode="numeric" min="2" max="100" placeholder="5" aria-required="true" [(ngModel)]="visits" (ngModelChange)="suggestName()" />
+        </label>
+        <label class="block">
+          <span class="label req">Precio total</span>
+          <input class="input nums" name="price" type="number" inputmode="decimal" min="1" placeholder="800" aria-required="true" [(ngModel)]="price" />
+        </label>
+      </div>
+      @if (perVisit(); as each) {
+        <p class="field-hint -mt-2">Sale a {{ each }} por visita. {{ savings() }}</p>
+      }
+      <label class="block">
+        <span class="label req">Nombre en tu página</span>
+        <input class="input" name="name" maxlength="80" placeholder="5 manicuras" aria-required="true" [(ngModel)]="name" />
+      </label>
+      <label class="block">
+        <span class="label opt">Días para usarlo</span>
+        <input class="input nums" name="days" type="number" inputmode="numeric" min="7" max="730" placeholder="90" [(ngModel)]="validDays" />
+        <span class="field-hint">Si lo dejas vacío, no vence.</span>
+      </label>
+      @if (formError(); as message) {
+        <p class="field-error" role="alert">{{ message }}</p>
+      }
+      <div class="flex gap-2">
+        <button type="submit" class="btn btn-primary flex-1" [disabled]="saving() || missing().length > 0">{{ saving() ? 'Guardando…' : 'Guardar paquete' }}</button>
+        <button type="button" class="btn btn-ghost" (click)="creating.set(false)">Cancelar</button>
+      </div>
+    </form>
+  }
+
+  @if (waiting().length) {
+    <section class="card mb-4" aria-labelledby="waiting-title">
+      <div class="card-head">
+        <span class="sec-icon"><mat-icon>hourglass_top</mat-icon></span>
+        <div>
+          <h2 class="card-title" id="waiting-title">Esperan tu aprobación</h2>
+          <p class="text-sm text-muted">Revisa que el pago ya te llegó antes de aprobar.</p>
+        </div>
+      </div>
+      <ul class="mt-2 divide-y divide-line">
+        @for (order of waiting(); track order.id) {
+          <li class="flex flex-col gap-2 py-3">
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <p class="truncate font-medium text-ink">{{ order.client_name }}</p>
+                <p class="text-sm text-muted">{{ order.name }} · {{ pesos(order.price) }}</p>
+              </div>
+              <span class="badge-warn shrink-0">{{ order.has_proof ? 'Mandó comprobante' : 'Sin comprobante' }}</span>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              @if (order.has_proof) {
+                <button type="button" class="btn btn-secondary" (click)="seeProof(order)">
+                  <mat-icon>receipt_long</mat-icon>
+                  Ver comprobante
+                </button>
+              }
+              <a class="btn btn-whatsapp" [href]="whatsapp(order)" target="_blank" rel="noopener">WhatsApp</a>
+              <button type="button" class="btn btn-primary" [disabled]="working() === order.id" (click)="approve(order)">Aprobar</button>
+              <button type="button" class="btn btn-ghost" [disabled]="working() === order.id" (click)="reject(order)">Rechazar</button>
+            </div>
+          </li>
+        }
+      </ul>
+    </section>
+  }
+
+  <section class="card" aria-labelledby="offers-title">
+    <div class="card-head">
+      <span class="sec-icon"><mat-icon>sell</mat-icon></span>
+      <h2 class="card-title" id="offers-title">Lo que vendes</h2>
+    </div>
+    @if (loading()) {
+      <p class="mt-2 text-sm text-muted">Cargando…</p>
+    } @else if (!offers().length) {
+      <p class="mt-2 text-sm text-ink-soft">Todavía no tienes paquetes. Un paquete de varias visitas, como "5 manicuras", hace que tu cliente pague por adelantado y regrese.</p>
+      <button type="button" class="btn btn-secondary mt-3" (click)="openForm()">Crear mi primer paquete</button>
+    } @else {
+      <ul class="mt-2 divide-y divide-line">
+        @for (offer of offers(); track offer.id) {
+          <li class="flex items-center gap-3 py-3">
+            <div class="min-w-0 flex-1">
+              <p class="truncate font-medium text-ink">{{ offer.name }}</p>
+              <p class="text-sm text-muted">{{ offer.visits }} visitas de {{ offer.service_name }} · {{ pesos(offer.price) }} · {{ validity(offer) }}</p>
+            </div>
+            <span class="text-sm text-ink-soft">{{ offer.is_active ? 'A la venta' : 'Pausado' }}</span>
+            <button type="button" role="switch" class="switch" [attr.aria-checked]="offer.is_active" [attr.aria-label]="'Vender ' + offer.name" (click)="toggle(offer)"><span></span></button>
+            <button type="button" class="btn btn-ghost w-11! px-0!" [attr.aria-label]="'Borrar ' + offer.name" (click)="remove(offer)">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </li>
+        }
+      </ul>
+    }
+  </section>
+
+  @if (done().length) {
+    <section class="card mt-4" aria-labelledby="done-title">
+      <h2 class="card-title" id="done-title">Pedidos recientes</h2>
+      <ul class="mt-2 divide-y divide-line">
+        @for (order of done(); track order.id) {
+          <li class="flex items-center justify-between gap-3 py-2 text-sm">
+            <span class="min-w-0 truncate text-ink">{{ order.client_name }} · {{ order.name }}</span>
+            <span [class]="order.status === 'approved' ? 'badge-ok' : 'badge-bad'">{{ statusLabel(order) }}</span>
+          </li>
+        }
+      </ul>
+    </section>
+  }
+</section>
+
+@if (proof(); as shown) {
+  <div class="fixed inset-0 z-50 flex items-end justify-center bg-ink/60 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Comprobante de pago">
+    <div class="flex max-h-[92vh] w-full max-w-md flex-col gap-3 overflow-y-auto rounded-t-2xl bg-surface p-4 sm:rounded-2xl">
+      @if (shown.image) {
+        <img class="w-full rounded-xl border border-line" [src]="shown.image" alt="Comprobante que mandó el cliente" />
+      } @else {
+        <p class="text-sm text-ink-soft">Este pedido no tiene comprobante.</p>
+      }
+      <button type="button" class="btn btn-secondary h-12" (click)="proof.set(null)">Cerrar</button>
+    </div>
+  </div>
+}

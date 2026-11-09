@@ -17,6 +17,7 @@ const BY_KIND: Record<string, NoticeGroup> = {
   accepted: 'bookings',
   payment: 'payments',
   proof: 'payments',
+  package: 'payments',
   deposit_expired: 'payments',
   cancelled: 'cancels',
   cancelled_admin: 'cancels',
