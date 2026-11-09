@@ -61,6 +61,8 @@ export class SchedulesPageComponent {
   /** Citas completadas por día (0 = lunes) y hora, de las últimas 8 semanas. */
   private readonly demand = signal<{ day: number; hour: number; count: number }[]>([]);
   protected readonly specials = signal<SpecialHours[]>([]);
+  /** Por defecto la lista solo trae los horarios especiales que aún no terminan; con esto también los de fechas pasadas. */
+  protected readonly showPastSpecials = signal(false);
   /** Tras guardar: citas que quedaron fuera del horario nuevo. */
   protected readonly outside = signal<{ count: number; day: string } | null>(null);
   private requestId = 0;
@@ -250,6 +252,25 @@ export class SchedulesPageComponent {
       .deleteSpecial(row.id)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => this.specials.update((rows) => rows.filter((item) => item.id !== row.id)));
+  }
+
+  private loadSpecials(): void {
+    this.schedulesApi
+      .listSpecial({ includePast: this.showPastSpecials() })
+      .pipe(catchError(() => of([] as SpecialHours[])), takeUntilDestroyed(this.destroyRef))
+      .subscribe((rows) => this.specials.set(rows));
+  }
+
+  protected togglePastSpecials(): void {
+    this.showPastSpecials.update((value) => !value);
+    this.loadSpecials();
+  }
+
+  /** Ya terminó: se sigue aplicando en la Agenda de esos días, pero no en las reservas nuevas. */
+  protected isPastSpecial(row: SpecialHours): boolean {
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    return row.date_to < today;
   }
 
   protected specialLabel(row: SpecialHours): string {
@@ -626,7 +647,7 @@ export class SchedulesPageComponent {
   }
 
   private loadInsights(): void {
-    this.schedulesApi.listSpecial().pipe(catchError(() => of([] as SpecialHours[])), takeUntilDestroyed(this.destroyRef)).subscribe((rows) => this.specials.set(rows));
+    this.loadSpecials();
     const today = new Date();
     const key = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     this.shopApi

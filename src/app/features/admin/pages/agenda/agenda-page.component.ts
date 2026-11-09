@@ -46,7 +46,7 @@ import { AuthService } from '@core/services/auth.service';
 import { PackagesService, VisitPackage } from '@core/services/packages.service';
 import { BookingService } from '@core/services/booking.service';
 import { ReviewsService } from '@core/services/reviews.service';
-import { SchedulesService } from '@core/services/schedules.service';
+import { SchedulesService, SpecialHours } from '@core/services/schedules.service';
 import { ServicesService } from '@core/services/services.service';
 import { StaffService } from '@core/services/staff.service';
 
@@ -188,6 +188,8 @@ export class AgendaPageComponent {
   protected readonly services = signal<Service[]>([]);
   protected readonly staff = signal<Staff[]>([]);
   protected readonly schedules = signal<ReadonlyMap<number, ScheduleItem[]>>(new Map());
+  /** Horarios especiales que tocan el rango a la vista (incluso de días que ya pasaron): mandan sobre el turno normal. */
+  private readonly specials = signal<SpecialHours[]>([]);
   protected readonly appointments = signal<Appointment[]>([]);
   protected readonly blocks = signal<TimeBlock[]>([]);
   protected readonly blocking = signal(false);
@@ -345,6 +347,13 @@ export class AgendaPageComponent {
           start = Math.min(start, minutesOf(row.start_time));
           end = Math.max(end, minutesOf(row.end_time));
         }
+      }
+    }
+    const visibleIds = new Set(this.visibleStaff().map((member) => member.id));
+    for (const row of this.specials()) {
+      if (!row.closed && (row.staff_id === null || visibleIds.has(row.staff_id))) {
+        start = Math.min(start, minutesOf(row.start_time));
+        end = Math.max(end, minutesOf(row.end_time));
       }
     }
     for (const item of this.appointments()) {
@@ -2600,6 +2609,10 @@ export class AgendaPageComponent {
       this.isLoading.set(true);
     }
     this.loadError.set(null);
+    this.schedulesApi
+      .listSpecial({ start: range.start, end: range.end })
+      .pipe(catchError(() => of([] as SpecialHours[])), takeUntilDestroyed(this.destroyRef))
+      .subscribe((rows) => this.specials.set(rows));
     forkJoin({
       items: this.appointmentsApi.getAppointments({
         start_date: range.start,
@@ -2656,7 +2669,24 @@ export class AgendaPageComponent {
     return this.services().find((item) => item.id === appointment.service_id)?.duration_minutes ?? 60;
   }
 
+  /** El horario especial de ese día (el de la persona gana sobre el de todo el equipo), igual que `special_for` en el backend. */
+  private specialOn(staffId: number, day: Date): SpecialHours | null {
+    const key = toInputDate(day);
+    const weekday = String((day.getDay() + 6) % 7);
+    const rows = this.specials().filter(
+      (row) => row.date_from <= key && row.date_to >= key && (!row.weekdays || row.weekdays.split(',').some((part) => part.trim() === weekday)),
+    );
+    const mine = rows.filter((row) => row.staff_id === staffId);
+    const everyone = rows.filter((row) => row.staff_id === null);
+    const found = mine.length ? mine : everyone;
+    return found.length ? found[found.length - 1] : null;
+  }
+
   private workingWindow(staffId: number, day: Date): { start: number; end: number } | null {
+    const special = this.specialOn(staffId, day);
+    if (special) {
+      return special.closed ? null : { start: minutesOf(special.start_time), end: minutesOf(special.end_time) };
+    }
     const weekday = (day.getDay() + 6) % 7;
     const rows = this.schedules().get(staffId);
     if (!rows || rows.length === 0) {
