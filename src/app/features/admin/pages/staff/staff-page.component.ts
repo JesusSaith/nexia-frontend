@@ -145,7 +145,7 @@ export class StaffPageComponent {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
   }
   protected readonly activeCount = computed(() => this.staff().filter((member) => member.is_active).length);
-  protected readonly activeServices = computed(() => this.services().filter((item) => item.is_active));
+  protected readonly activeServices = computed(() => this.services().filter((item) => item.is_active && !item.is_hold));
   protected readonly photoPreview = signal<string | null>(null);
   protected readonly photoPending = signal(false);
   protected readonly dialogTitle = computed(() =>

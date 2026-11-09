@@ -267,6 +267,20 @@
               </button>
             }
           </div>
+          @if (holdService(); as hold) {
+            <button
+              type="button"
+              class="choice-card mt-3 flex w-full items-center gap-3 p-4 text-left"
+              [class.choice-selected]="selectedService()?.id === hold.id"
+              (click)="selectService(hold)"
+            >
+              <mat-icon class="shrink-0" aria-hidden="true">event_available</mat-icon>
+              <span class="min-w-0">
+                <span class="block font-medium">Aún no sé qué quiero</span>
+                <span class="mt-0.5 block text-sm text-muted">Aparta tu lugar y decides el servicio y el diseño en tu cita.</span>
+              </span>
+            </button>
+          }
           <!-- Ancla: al elegir un servicio en celular la página baja hasta lo que sigue. -->
           <div id="tras-servicio" class="scroll-mt-4"></div>
           @if (selectedService(); as picked) {
@@ -284,7 +298,7 @@
               </div>
             }
           }
-          @if (selectedService() && services().length > 1) {
+          @if (selectedService() && !selectedService()?.is_hold && services().length > 1) {
             <div class="mt-5">
               <p class="text-sm font-medium">¿Sumas otro servicio?</p>
               <p class="mb-3 text-sm text-muted">Queda en la misma {{ copy().visit.toLowerCase() }}, con el mismo {{ copy().person.toLowerCase() }}.</p>
