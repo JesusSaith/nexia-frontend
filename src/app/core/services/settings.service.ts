@@ -89,6 +89,7 @@ export interface BusinessSettings {
   closures: Closure[];
   payment_methods: string[];
   approve_bookings: boolean;
+  hold_enabled?: boolean;
   uses_commissions?: boolean;
   staff_can_edit_price?: boolean;
   auto_reminders: boolean;
@@ -153,6 +154,7 @@ export interface ProfileUpdate {
   closures?: Closure[];
   payment_methods?: string[];
   approve_bookings?: boolean;
+  hold_enabled?: boolean;
   uses_commissions?: boolean;
   staff_can_edit_price?: boolean;
   auto_reminders?: boolean;
