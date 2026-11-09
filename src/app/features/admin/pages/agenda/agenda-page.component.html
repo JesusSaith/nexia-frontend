@@ -803,6 +803,9 @@
             <button type="button" class="btn btn-primary h-12 w-full text-base" (click)="completeWithCharge(pop.appointment)">
               Cobrar {{ pesos(dueNow()) }} y completar
             </button>
+          } @else if (isHold(pop.appointment.service_id)) {
+            <button type="button" class="btn btn-primary h-12 w-full text-base" (click)="startSwap(pop.appointment)">Elegir servicio</button>
+            <p class="field-hint -mt-1 text-center">Primero elige el servicio y luego cobras.</p>
           } @else {
             <button type="button" class="btn btn-primary h-12 w-full text-base" (click)="startCharge(pop.appointment)">Cobrar y completar</button>
           }
@@ -815,10 +818,10 @@
             <button type="button" class="btn btn-secondary h-12" [class.col-span-2]="!chatHref(pop.appointment)" (click)="startMove(pop.appointment)">Cambiar día u hora</button>
           }
         </div>
-        @if (canSwapService(pop.appointment)) {
+        @if (canSwapService(pop.appointment) && !(pop.appointment.status === 'scheduled' && isHold(pop.appointment.service_id))) {
           <button type="button" class="btn btn-secondary h-12 w-full" (click)="startSwap(pop.appointment)">
             <mat-icon aria-hidden="true">swap_horiz</mat-icon>
-            {{ priceAtVisit(pop.appointment.service_id) ? 'Elegir servicio' : 'Cambiar servicio' }}
+            {{ isHold(pop.appointment.service_id) ? 'Elegir servicio' : 'Cambiar servicio' }}
           </button>
         }
         @if (canCorrect(pop.appointment)) {
@@ -844,7 +847,7 @@
     <div class="flex max-h-[92vh] flex-col bg-surface">
       <header class="flex items-center justify-between border-b border-line px-4 py-3">
         <button type="button" class="btn btn-ghost w-11! px-0!" aria-label="Cerrar" (click)="closeEditor()" [disabled]="swapSaving()"><mat-icon>close</mat-icon></button>
-        <h2 class="text-lg font-semibold">{{ priceAtVisit(item.service_id) ? 'Elegir servicio' : 'Cambiar servicio' }}</h2>
+        <h2 class="text-lg font-semibold">{{ isHold(item.service_id) ? 'Elegir servicio' : 'Cambiar servicio' }}</h2>
         <button type="button" class="btn btn-primary" [disabled]="swapSaving() || !swapService()" (click)="saveSwap()">{{ swapSaving() ? 'Guardando…' : 'Guardar' }}</button>
       </header>
       <div class="flex flex-col gap-4 overflow-y-auto p-5">

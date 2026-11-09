@@ -94,7 +94,8 @@ export class WelcomePageComponent {
     })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: ({ staff, services, ready }) => {
+        next: ({ staff, services: all, ready }) => {
+          const services = all.filter((item) => !item.is_hold);
           this.ready.set(ready);
           this.step.set(firstStepLeft(ready));
           const active = staff.filter((member) => member.is_active);

@@ -346,7 +346,7 @@ export class AgendaPageComponent {
     deposit_received: new FormControl('', { nonNullable: true }),
   });
 
-  protected readonly activeServices = computed(() => this.services().filter((item) => item.is_active));
+  protected readonly activeServices = computed(() => this.services().filter((item) => item.is_active && !item.is_hold));
   protected readonly servicePicks = computed(() => [
     { value: null, label: 'Elegir' },
     ...this.activeServices().map((item) => ({ value: item.id, label: item.name })),
@@ -900,7 +900,7 @@ export class AgendaPageComponent {
 
   private pickedService(): Service | undefined {
     const id = this.serviceId();
-    return this.services().find((item) => (id === null ? item.is_active : item.id === id));
+    return this.services().find((item) => (id === null ? item.is_active && !item.is_hold : item.id === id));
   }
 
   private pickedStaff(): Staff | undefined {
@@ -1896,6 +1896,10 @@ export class AgendaPageComponent {
   private productsLoaded = false;
 
   protected startCharge(appointment: Appointment): void {
+    if (this.isHold(appointment.service_id)) {
+      this.startSwap(appointment);
+      return;
+    }
     this.charging.set(appointment.id);
     this.moving.set(null);
     this.chargeAmount.set(String(this.bill(appointment)?.total ?? appointment.quoted_price ?? this.services().find((item) => item.id === appointment.service_id)?.price ?? ''));
@@ -2064,10 +2068,15 @@ export class AgendaPageComponent {
   protected readonly swapSaving = signal(false);
   protected readonly swapPicks = computed(() =>
     this.services()
-      .filter((item) => item.is_active || item.id === this.swapping()?.service_id)
+      .filter((item) => !item.is_hold && (item.is_active || item.id === this.swapping()?.service_id))
       .map((item) => ({ value: item.id, label: item.name })),
   );
   protected readonly swapChosen = computed(() => this.services().find((item) => item.id === this.swapService()) ?? null);
+
+  /** La cita es de "Por elegir" (la clienta apartó sin decidir): primero se elige el servicio y luego se cobra. */
+  protected isHold(serviceId: number | null | undefined): boolean {
+    return !!this.services().find((item) => item.id === serviceId)?.is_hold;
+  }
 
   protected canSwapService(appointment: Appointment): boolean {
     return appointment.status === 'scheduled' || appointment.status === 'awaiting_deposit';
