@@ -633,7 +633,39 @@ export class Customers {
           this.patchRow(next.id, { full_name: next.full_name, phone: next.phone });
           this.editing.set(false);
         },
-        error: (error: unknown) => this.editError.set(readError(error, 'No pudimos guardar los cambios.')),
+        error: (error: unknown) => {
+          const twin = this.clients().find((row) => row.id !== card.id && cleanPhone(row.phone) === phone);
+          if (error instanceof HttpErrorResponse && error.status === 409 && twin) {
+            void this.offerMerge(card.id, card.full_name, twin);
+            return;
+          }
+          this.editError.set(readError(error, 'No pudimos guardar los cambios.'));
+        },
+      });
+  }
+
+  /** Ese teléfono ya es de otra ficha: en vez de un error, se ofrece juntarlas (típico: primero escribió por Instagram y luego dio su celular). */
+  private async offerMerge(keepId: number, keepName: string, twin: ClientRow): Promise<void> {
+    const ok = await this.confirm.ask({
+      title: `Ese teléfono ya es de ${twin.full_name}`,
+      message: `¿Son la misma persona? Se unen en una sola ficha: las citas, paquetes y notas de ${twin.full_name} pasan a la de ${keepName}, y la ficha repetida se borra. No se puede deshacer.`,
+      confirm: 'Unir las fichas',
+    });
+    if (!ok) {
+      return;
+    }
+    this.bookingApi
+      .mergeClient(keepId, twin.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (card) => {
+          this.card.set(card);
+          this.editing.set(false);
+          this.clients.update((rows) => rows.filter((row) => row.id !== twin.id));
+          this.patchRow(card.id, { full_name: card.full_name, phone: card.phone });
+          this.toasts.show('Listo, las fichas quedaron unidas.');
+        },
+        error: (error: unknown) => this.editError.set(readError(error, 'No pudimos unir las fichas.')),
       });
   }
 
