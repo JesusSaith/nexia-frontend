@@ -146,34 +146,35 @@
   @if (blocking()) {
     <form class="card mb-4 grid gap-3 sm:grid-cols-5 sm:items-end" [formGroup]="blockForm" (ngSubmit)="saveBlock()">
       <label class="block">
-        <span class="label">{{ copy.text().person }}</span>
+        <span class="label req">{{ copy.text().person }}</span>
         <app-pick-field class="block" formControlName="staff_id" [options]="blockStaff()" [placeholder]="copy.text().person" />
       </label>
       <label class="block">
-        <span class="label">Día</span>
+        <span class="label req">Día</span>
         <app-date-field class="block" formControlName="date" [fromToday]="true" />
       </label>
       <label class="block">
-        <span class="label">Desde</span>
+        <span class="label req">Desde</span>
         <app-time-field class="block" formControlName="start" />
       </label>
       <label class="block">
-        <span class="label">Hasta</span>
+        <span class="label req">Hasta</span>
         <app-time-field class="block" formControlName="end" />
       </label>
       <label class="block">
-        <span class="label">Nota</span>
+        <span class="label opt">Nota</span>
         <input class="input" formControlName="note" />
       </label>
       <label class="block sm:col-span-2">
-        <span class="label">Repetir</span>
+        <span class="label opt">Repetir</span>
         <app-pick-field class="block" formControlName="repeat" [options]="repeatPicks" placeholder="Repetir" />
       </label>
       @if (blockError(); as message) {
         <p class="field-error sm:col-span-5" role="alert">{{ message }}</p>
       }
+      <app-form-status class="sm:col-span-5" [missing]="blockMissing()" />
       <div class="flex gap-2 sm:col-span-5">
-        <button class="btn btn-primary" type="submit" [disabled]="blockSaving()">
+        <button class="btn btn-primary" type="submit" [disabled]="blockSaving() || blockMissing().length > 0">
           {{ blockSaving() ? 'Guardando…' : 'Guardar bloqueo' }}
         </button>
         <button class="btn btn-ghost" type="button" (click)="blocking.set(false)">Cancelar</button>
@@ -693,7 +694,7 @@
               <p class="field-hint">Tiene un paquete con visitas por usar. Elige "Paquete" para descontar una en lugar de cobrar.</p>
             }
             <label class="block">
-              <span class="label">Propina <span class="font-normal text-muted">(opcional)</span></span>
+              <span class="label opt">Propina</span>
               <input class="input nums" type="number" min="0" inputmode="decimal" placeholder="0" [value]="chargeTip()" (input)="chargeTip.set($any($event.target).value)" />
             </label>
             @if (products().length) {
@@ -719,7 +720,7 @@
               </div>
             }
             <label class="block">
-              <span class="label">Nota de la visita (privada)</span>
+              <span class="label opt">Nota de la visita (privada)</span>
               <textarea class="input" rows="2" maxlength="2000" placeholder="Fórmula, tono, alergias…" [value]="chargeNote()" (input)="chargeNote.set($any($event.target).value)"></textarea>
             </label>
             <dl class="grid grid-cols-[1fr_auto] gap-x-3 gap-y-0.5 border-t border-line pt-2 text-sm">
@@ -743,11 +744,11 @@
             <p class="card-title">Cambiar a</p>
             <div class="grid grid-cols-[minmax(0,1fr)_8rem] gap-2">
               <label class="block">
-                <span class="label">Día</span>
+                <span class="label req">Día</span>
                 <app-date-field class="block" [fromToday]="true" [valueIn]="moveDate()" (picked)="pickMoveDate(pop.appointment, $event)" />
               </label>
               <label class="block">
-                <span class="label">Hora</span>
+                <span class="label req">Hora</span>
                 <app-time-field class="block" [options]="moveTimes()" [valueIn]="moveTime()" (picked)="moveTime.set($event)" />
               </label>
             </div>
@@ -858,7 +859,7 @@
             </label>
           }
           <div>
-            <span class="label">Forma de pago</span>
+            <span class="label opt">Forma de pago</span>
             <div class="flex flex-wrap gap-2" role="group" aria-label="Forma de pago">
               @for (method of payMethods(); track method.value) {
                 <button type="button" class="chip h-11!" [class.chip-on]="fixMethod() === method.value" [attr.aria-pressed]="fixMethod() === method.value" (click)="fixMethod.set(method.value)">{{ method.label }}</button>
@@ -866,12 +867,12 @@
             </div>
           </div>
           <label class="block">
-            <span class="label">Propina</span>
+            <span class="label opt">Propina</span>
             <input type="number" min="0" inputmode="decimal" class="input nums" placeholder="0" [value]="fixTip()" (input)="fixTip.set($any($event.target).value)" />
           </label>
         }
         <label class="block">
-          <span class="label">Nota de la {{ copy.text().visit.toLowerCase() }}</span>
+          <span class="label opt">Nota de la {{ copy.text().visit.toLowerCase() }}</span>
           <textarea rows="2" class="input" [value]="fixNote()" (input)="fixNote.set($any($event.target).value)"></textarea>
         </label>
         <p class="field-hint">Al guardar se actualizan tus reportes, comisiones e historial del {{ copy.text().client.toLowerCase() }}.</p>
@@ -1044,7 +1045,7 @@
                 </label>
               }
               <div class="mt-3">
-                <span class="label">Forma de pago</span>
+                <span class="label opt">Forma de pago</span>
                 <div class="flex flex-wrap gap-2" role="group" aria-label="Forma de pago">
                   @for (method of pastMethods(); track method.value) {
                     <button type="button" class="chip h-11!" [class.chip-on]="pastMethod() === method.value" [attr.aria-pressed]="pastMethod() === method.value" (click)="pastMethod.set(method.value)">{{ method.label }}</button>
@@ -1052,12 +1053,12 @@
                 </div>
               </div>
               <label class="mt-3 block">
-                <span class="label">Propina</span>
+                <span class="label opt">Propina</span>
                 <input type="number" min="0" inputmode="decimal" class="input nums" placeholder="0" [value]="pastTip()" (input)="pastTip.set($any($event.target).value)" />
               </label>
             }
             <label class="mt-3 block">
-              <span class="label">Nota de la {{ copy.text().visit.toLowerCase() }}</span>
+              <span class="label opt">Nota de la {{ copy.text().visit.toLowerCase() }}</span>
               <textarea rows="2" class="input" [value]="pastNote()" (input)="pastNote.set($any($event.target).value)"></textarea>
             </label>
             <p class="field-hint mt-2">Como ya pasó, no se pide anticipo ni se le manda nada al {{ copy.text().client.toLowerCase() }}. Cuenta en tus reportes, comisiones e historial.</p>
@@ -1075,7 +1076,7 @@
         }
         @if (canWaiveDeposit() && !pastVisit()) {
           <div>
-            <span class="label">Anticipo</span>
+            <span class="label opt">Anticipo</span>
             <div class="flex flex-wrap gap-2" role="group" aria-label="Anticipo">
               <button type="button" class="chip" [class.chip-on]="form.controls.deposit_mode.value === 'auto'" (click)="form.controls.deposit_mode.setValue('auto')">Según el negocio</button>
               <button type="button" class="chip" [class.chip-on]="form.controls.deposit_mode.value === 'received'" (click)="form.controls.deposit_mode.setValue('received')">Ya lo recibí</button>
@@ -1083,7 +1084,7 @@
             </div>
             @if (form.controls.deposit_mode.value === 'received') {
               <label class="mt-2 block">
-                <span class="label">Cuánto te mandó</span>
+                <span class="label req">Cuánto te mandó</span>
                 <input type="number" min="1" inputmode="decimal" formControlName="deposit_received" class="input nums" placeholder="Ej. 200" />
               </label>
               <p class="field-hint">La cita queda confirmada y ese anticipo se descuenta de lo que cobras al final.</p>

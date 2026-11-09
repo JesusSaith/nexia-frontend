@@ -2,6 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { pesos } from '@core/money';
 import { Component, DestroyRef, TemplateRef, computed, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { FormStatusComponent, missingLabels } from '@shared/components/form-status/form-status';
 import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
@@ -27,6 +28,7 @@ import { PickFieldComponent } from '@shared/components/when-field/when-field';
 @Component({
   selector: 'app-services-page',
   imports: [
+    FormStatusComponent,
     FormsModule,
     ReactiveFormsModule,
     PickFieldComponent,
@@ -121,6 +123,11 @@ export class ServicesPageComponent {
   protected readonly durationPicks = [30, 45, 60, 90, 120];
 
   private readonly formEvents = toSignal(this.form.events, { initialValue: undefined });
+  /** Lo que falta para guardar el servicio: el botón queda apagado y se dice qué es. */
+  protected readonly missing = computed(() => {
+    this.formEvents();
+    return missingLabels(this.form.controls, { name: 'el nombre', price: 'el precio', duration_minutes: 'la duración' });
+  });
 
   /** Recién registrada: solo están los servicios sugeridos del giro, todos apagados. */
   protected readonly onlySuggested = computed(() => this.services().length > 0 && this.services().every((row) => !row.is_active));
@@ -476,6 +483,10 @@ export class ServicesPageComponent {
     [rows[index], rows[target]] = [rows[target], rows[index]];
     this.services.set(rows);
     this.servicesApi.orderServices(rows.map((row) => row.id)).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ error: () => this.load(true) });
+  }
+
+  protected raiseOk(): boolean {
+    return Number(this.raisePercent) !== 0 && Number.isFinite(Number(this.raisePercent));
   }
 
   protected applyRaise(): void {

@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, DestroyRef, inject, input, output, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, input, output, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { ManagedAppointment, BookingService } from '@core/services/booking.service';
@@ -20,7 +20,7 @@ import { SPEI_BANKS } from '@core/spei-banks';
       <form class="mt-3 flex w-full flex-col gap-3 rounded-2xl border border-stone-200 p-4 text-left text-sm" (submit)="$event.preventDefault(); check()">
         <p class="font-medium">Confirma tu transferencia con Banxico</p>
         <label class="flex flex-col gap-1">
-          <span class="text-stone-600">Banco desde el que transferiste</span>
+          <span class="text-stone-600">Banco desde el que transferiste <span class="font-semibold text-[var(--nx-bad-fg)]" aria-hidden="true">*</span></span>
           <select class="h-11 rounded-xl border border-stone-300 bg-white px-3" [value]="bank()" (change)="bank.set($any($event.target).value)">
             <option value="">Elegir</option>
             @for (item of banks; track item.code) {
@@ -29,23 +29,26 @@ import { SPEI_BANKS } from '@core/spei-banks';
           </select>
         </label>
         <label class="flex flex-col gap-1">
-          <span class="text-stone-600">Clave de rastreo</span>
+          <span class="text-stone-600">Clave de rastreo <span class="font-semibold text-[var(--nx-bad-fg)]" aria-hidden="true">*</span></span>
           <input class="h-11 rounded-xl border border-stone-300 bg-white px-3 uppercase" autocomplete="off" maxlength="30" [value]="tracking()" (input)="tracking.set($any($event.target).value.replace(/\\s/g, ''))" placeholder="Viene en el comprobante de tu app" />
         </label>
         <div class="grid grid-cols-2 gap-3">
           <label class="flex flex-col gap-1">
-            <span class="text-stone-600">Fecha</span>
+            <span class="text-stone-600">Fecha <span class="font-semibold text-[var(--nx-bad-fg)]" aria-hidden="true">*</span></span>
             <input class="h-11 rounded-xl border border-stone-300 bg-white px-3" type="date" [attr.max]="today" [value]="day()" (change)="day.set($any($event.target).value)" />
           </label>
           <label class="flex flex-col gap-1">
-            <span class="text-stone-600">Monto</span>
+            <span class="text-stone-600">Monto <span class="font-semibold text-[var(--nx-bad-fg)]" aria-hidden="true">*</span></span>
             <input class="h-11 rounded-xl border border-stone-300 bg-white px-3" type="number" min="1" step="0.01" inputmode="decimal" [value]="amountText() || (amount() ?? '')" (input)="amountText.set($any($event.target).value)" />
           </label>
         </div>
+        @if (missing().length > 0) {
+          <p class="text-stone-600" role="status">Para confirmar falta: {{ missing().join(', ') }}. Los campos con <span class="font-semibold text-[var(--nx-bad-fg)]">*</span> son obligatorios.</p>
+        }
         @if (error(); as message) {
           <p class="text-[var(--nx-bad-fg)]" role="alert">{{ message }}</p>
         }
-        <button type="submit" class="flex h-11 items-center justify-center rounded-full bg-ink text-sm font-medium text-white disabled:opacity-50" [disabled]="busy()">
+        <button type="submit" class="flex h-11 items-center justify-center rounded-full bg-ink text-sm font-medium text-white disabled:opacity-50" [disabled]="busy() || missing().length > 0">
           {{ busy() ? 'Consultando a Banxico…' : 'Confirmar pago' }}
         </button>
         <p class="text-xs text-stone-500">Si no tienes la clave de rastreo, sube la foto del comprobante y el negocio la revisa.</p>
@@ -70,6 +73,24 @@ export class SpeiCheckComponent {
   protected readonly tracking = signal('');
   protected readonly day = signal(isoToday());
   protected readonly amountText = signal('');
+
+  /** Lo que falta para confirmar el pago: el botón queda apagado y se dice qué es. */
+  protected readonly missing = computed<string[]>(() => {
+    const list: string[] = [];
+    if (!this.bank()) {
+      list.push('el banco');
+    }
+    if (this.tracking().length < 6) {
+      list.push('la clave de rastreo');
+    }
+    if (!this.day()) {
+      list.push('la fecha');
+    }
+    if (!(Number(this.amountText() || this.amount()) > 0)) {
+      list.push('el monto');
+    }
+    return list;
+  });
 
   protected check(): void {
     const amount = Number(this.amountText() || this.amount());

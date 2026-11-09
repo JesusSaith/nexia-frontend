@@ -28,12 +28,14 @@ import { SchedulesService } from '@core/services/schedules.service';
 import { ShopService, CommissionRow } from '@core/services/shop.service';
 import { STAFF_PALETTE, staffColorOf } from '@core/staff-colors';
 import { Confirm } from '@shared/components/confirm/confirm';
+import { FormStatusComponent, missingLabels } from '@shared/components/form-status/form-status';
 
 type StaffSection = 'info' | 'services';
 
 @Component({
   selector: 'app-staff-page',
   imports: [
+    FormStatusComponent,
     RouterLink,
     FormsModule,
     ReactiveFormsModule,
@@ -130,6 +132,18 @@ export class StaffPageComponent {
   });
 
   private readonly formEvents = toSignal(this.form.events, { initialValue: undefined });
+  /** Lo que falta para guardar: el botón queda apagado y se dice qué es. */
+  protected readonly missing = computed(() => {
+    this.formEvents();
+    const list = missingLabels(this.form.controls, { full_name: 'el nombre', role_title: `el puesto` });
+    if (this.form.controls.email.value.trim() && this.form.controls.email.invalid) {
+      list.push('un correo válido');
+    }
+    return list;
+  });
+  protected validEmail(value: string): boolean {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+  }
   protected readonly activeCount = computed(() => this.staff().filter((member) => member.is_active).length);
   protected readonly activeServices = computed(() => this.services().filter((item) => item.is_active));
   protected readonly photoPreview = signal<string | null>(null);

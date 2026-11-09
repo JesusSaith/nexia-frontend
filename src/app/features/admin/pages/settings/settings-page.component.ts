@@ -936,6 +936,30 @@ export class SettingsPageComponent {
     }
   }
 
+  /** Lo que impide guardar: la barra de cambios lo dice y el botón queda apagado. */
+  protected readonly blockers = computed<string[]>(() => {
+    this.values();
+    const c = this.form.controls;
+    const names: [keyof typeof c, string][] = [
+      ['name', 'el nombre del negocio'],
+      ['phone', 'un WhatsApp de 10 dígitos'],
+      ['description', 'una descripción de máximo 500 letras'],
+      ['primaryColor', 'un color válido'],
+      ['paymentUrl', 'un enlace de pago que empiece con https://'],
+      ['depositAmount', 'el monto del anticipo'],
+      ['depositPercent', 'el porcentaje del anticipo (de 1 a 100)'],
+      ['maxDaily', 'el tope de citas al día (de 1 a 200)'],
+      ['noshowAfter', 'cuántas faltas (de 1 a 10)'],
+      ['noshowDeposit', 'el anticipo por faltas'],
+      ['privacyNotice', 'el aviso de privacidad (máximo 10,000 letras)'],
+    ];
+    const list = names.filter(([key]) => c[key].invalid).map(([, label]) => label);
+    if (this.couponIssues().some(Boolean) || this.loyaltyError() || this.promoError()) {
+      list.push('revisar tus promociones');
+    }
+    return list;
+  });
+
   protected save(): void {
     this.form.markAllAsTouched();
     if (this.saving()) {

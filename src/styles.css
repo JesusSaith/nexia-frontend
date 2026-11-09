@@ -322,6 +322,8 @@ a.stat-group > :hover, .stat-group > a:hover { background: var(--color-canvas); 
 /* Obligatorio (*) y opcional: así se sabe qué falta sin adivinar. */
 .label.req::after { content: ' *'; color: var(--nx-bad-fg); font-weight: 700; }
 .label.opt::after { content: ' (opcional)'; color: var(--color-muted); font-weight: 400; font-size: 0.8125rem; }
+.mark-req::after { content: ' *'; color: var(--nx-bad-fg); font-weight: 700; }
+.mark-opt::after { content: ' (opcional)'; color: var(--color-muted); font-weight: 400; }
 .form-missing { display: flex; align-items: flex-start; gap: 0.5rem; border-radius: var(--radius-lg); background: var(--color-canvas); padding: 0.625rem 0.75rem; font-size: 0.875rem; color: var(--color-ink-soft); }
 .btn:disabled, .btn[disabled] { cursor: not-allowed; }
 .input { display: block; width: 100%; height: 2.75rem; padding: 0 0.875rem; border: 1px solid var(--color-control); border-radius: var(--radius-lg); background: var(--color-surface); font-size: 0.9375rem; color: var(--color-ink); outline: none; transition: border-color .15s, box-shadow .15s; }
@@ -353,6 +355,7 @@ textarea.input { height: auto; padding: 0.625rem 0.875rem; line-height: 1.5; }
 .field:focus-within { border-color: var(--color-accent); box-shadow: 0 0 0 3px var(--color-accent-soft); }
 .field-invalid, .field-invalid:focus-within { border-color: var(--nx-bad-fg); }
 .field-label { display: block; font-size: 0.8125rem; color: var(--color-muted); }
+.field-label.req::after { content: ' *'; color: var(--nx-bad-fg); font-weight: 700; }
 .field-input { width: 100%; background: transparent; font-size: 0.9375rem; line-height: 1.4rem; outline: none; }
 .field-hint { font-size: 0.875rem; line-height: 1.45; color: var(--color-muted); }
 .field-error { font-size: 0.875rem; line-height: 1.45; color: var(--nx-bad-fg); }

@@ -34,7 +34,7 @@
       @if (mode() !== 'sent') {
         <form class="flex flex-col gap-3" [formGroup]="form" (ngSubmit)="submit()" novalidate>
           <label class="field" [class.field-invalid]="emailError()">
-            <span class="field-label">Correo</span>
+            <span class="field-label req">Correo</span>
             <input class="field-input" type="email" formControlName="email" autocomplete="email" [attr.aria-invalid]="!!emailError()" />
           </label>
           @if (emailError()) {
@@ -43,7 +43,7 @@
 
           @if (mode() === 'login') {
             <label class="field" [class.field-invalid]="passwordError()">
-              <span class="field-label">Contraseña</span>
+              <span class="field-label req">Contraseña</span>
               <span class="flex items-center gap-2">
                 <input class="field-input min-w-0 flex-1" [type]="hidePassword() ? 'password' : 'text'" formControlName="password" autocomplete="current-password" [attr.aria-invalid]="!!passwordError()" />
                 <button type="button" class="grid h-5 w-5 shrink-0 place-items-center text-muted" (click)="hidePassword.set(!hidePassword())" [attr.aria-label]="hidePassword() ? 'Mostrar contraseña' : 'Ocultar contraseña'">

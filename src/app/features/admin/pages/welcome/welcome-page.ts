@@ -2,6 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TimeFieldComponent } from '@shared/components/when-field/when-field';
+import { FormStatusComponent } from '@shared/components/form-status/form-status';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 import { Observable, catchError, forkJoin, of, switchMap } from 'rxjs';
@@ -30,7 +31,7 @@ const DAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
  */
 @Component({
   selector: 'app-welcome-page',
-  imports: [MatIconModule, RouterLink, TimeFieldComponent],
+  imports: [MatIconModule, RouterLink, TimeFieldComponent, FormStatusComponent],
   templateUrl: './welcome-page.html',
 })
 export class WelcomePageComponent {
@@ -148,6 +149,45 @@ export class WelcomePageComponent {
   }
 
   /** Paso 1 → crea a quien falte (la dueña y su equipo) y sigue. */
+  /** Lo que falta en el paso actual: "Siguiente" queda apagado y se dice qué es. */
+  protected readonly missing = computed<string[]>(() => {
+    const list: string[] = [];
+    switch (this.step()) {
+      case 1: {
+        const named = (this.ownerWorks() && this.ownerName().trim()) || (this.withTeam() && this.teamNames().some((name) => name.trim()));
+        if (!named && !this.existing().length) {
+          list.push(`el nombre de al menos una persona que atienda`);
+        }
+        break;
+      }
+      case 2:
+        if (!this.openDays().size) {
+          list.push('al menos un día');
+        }
+        if (this.closes() <= this.opens()) {
+          list.push('una hora de cierre después de la de apertura');
+        }
+        break;
+      case 3:
+        if (!this.picked().size) {
+          list.push('al menos un servicio');
+        }
+        break;
+      case 4:
+        if (this.askDeposit()) {
+          const amount = Number(this.depositAmount());
+          if (!(amount > 0) || amount > 100000) {
+            list.push('el monto del anticipo');
+          }
+          if (!this.depositAccount().trim()) {
+            list.push('la cuenta o CLABE');
+          }
+        }
+        break;
+    }
+    return list;
+  });
+
   protected saveTeam(): void {
     const names = [
       ...(this.ownerWorks() ? [this.ownerName().trim()] : []),

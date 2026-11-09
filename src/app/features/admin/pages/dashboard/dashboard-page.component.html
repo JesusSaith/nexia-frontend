@@ -280,7 +280,7 @@
             <p class="mt-1 text-sm text-muted">Incluye propinas y venta de productos. El anticipo no cuenta: ya entró por transferencia.</p>
             <div class="mt-4 rounded-xl border border-line p-4">
               <label class="block">
-                <span class="label">Fondo con el que abriste la caja</span>
+                <span class="label opt">Fondo con el que abriste la caja</span>
                 <input class="input nums" type="number" min="0" inputmode="decimal" [value]="cashOpening()" [disabled]="cashClosed()" (input)="cashOpening.set($any($event.target).value)" placeholder="0" />
                 @if (!data.count && data.suggested_opening > 0) {
                   <span class="mt-1 block text-sm text-muted">Propuesto: lo que contaste en el corte anterior ({{ money(data.suggested_opening) }}). Cámbialo si dejaste otra cantidad.</span>
@@ -302,11 +302,11 @@
               <p class="nums text-2xl font-semibold text-ink">{{ money(cashExpected()) }}</p>
               <div class="mt-3 grid gap-3 sm:grid-cols-2">
                 <label class="block">
-                  <span class="label">Efectivo que contaste</span>
+                  <span class="label req">Efectivo que contaste</span>
                   <input class="input nums text-lg!" type="number" min="0" inputmode="decimal" [value]="cashCounted()" [disabled]="cashClosed()" (input)="cashCounted.set($any($event.target).value)" placeholder="0" />
                 </label>
                 <label class="block">
-                  <span class="label">Nota (opcional)</span>
+                  <span class="label opt">Nota</span>
                   <input class="input" maxlength="500" [value]="cashNote()" [disabled]="cashClosed()" (input)="cashNote.set($any($event.target).value)" placeholder="Se dio cambio de…" />
                 </label>
               </div>
@@ -354,11 +354,11 @@
                     </select>
                   </label>
                   <label class="block">
-                    <span class="label">Para qué fue</span>
+                    <span class="label req">Para qué fue</span>
                     <input class="input" maxlength="255" [value]="cashMoveReason()" (input)="cashMoveReason.set($any($event.target).value)" placeholder="Compré esmaltes" />
                   </label>
                   <label class="block">
-                    <span class="label">Cuánto</span>
+                    <span class="label req">Cuánto</span>
                     <input class="input nums" type="number" min="0" inputmode="decimal" [value]="cashMoveAmount()" (input)="cashMoveAmount.set($any($event.target).value)" placeholder="0" />
                   </label>
                 </div>
@@ -368,7 +368,10 @@
                     Anotarlo también como gasto del día
                   </label>
                 }
-                <button type="button" class="btn btn-secondary mt-2 w-full sm:w-auto" (click)="addCashMove()">Agregar</button>
+                @if (cashMoveMissing().length > 0) {
+                  <p class="form-missing mt-2" role="status">Para agregar falta: {{ cashMoveMissing().join(' y ') }}. Los campos con <b class="text-(--nx-bad-fg)">*</b> son obligatorios.</p>
+                }
+                <button type="button" class="btn btn-secondary mt-2 w-full sm:w-auto" [disabled]="cashMoveMissing().length > 0" (click)="addCashMove()">Agregar</button>
               }
             </div>
           } @else {
@@ -720,10 +723,10 @@
               <h2 class="card-title">Agregar gasto</h2>
             </div>
             <div class="mt-3 grid gap-3">
-              <label class="block"><span class="label">Concepto</span>
+              <label class="block"><span class="label req">Concepto</span>
                 <input class="input" placeholder="Renta, luz, insumos…" [value]="expenseName()" (input)="expenseName.set($any($event.target).value)" />
               </label>
-              <label class="block"><span class="label">Monto</span>
+              <label class="block"><span class="label req">Monto</span>
                 <input class="input nums" type="number" min="0" inputmode="decimal" [value]="expenseAmount()" (input)="expenseAmount.set($any($event.target).value)" />
               </label>
               <label class="block"><span class="label">Categoría</span>
@@ -743,7 +746,10 @@
                   </label>
                 }
               }
-              <button type="button" class="btn btn-primary" (click)="addExpense()">{{ editingExpense() ? 'Guardar' : 'Agregar gasto' }}</button>
+              @if (expenseMissing().length > 0) {
+                <p class="form-missing" role="status">Para guardar falta: {{ expenseMissing().join(' y ') }}. Los campos con <b class="text-(--nx-bad-fg)">*</b> son obligatorios.</p>
+              }
+              <button type="button" class="btn btn-primary" [disabled]="expenseMissing().length > 0" (click)="addExpense()">{{ editingExpense() ? 'Guardar' : 'Agregar gasto' }}</button>
             </div>
             @if ((books()?.expenses ?? []).length) {
               <ul class="mt-4 divide-y divide-line text-sm">
