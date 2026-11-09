@@ -93,6 +93,15 @@ export interface AdminAppointmentCreate {
   visit_note?: string | null;
 }
 
+/** Corregir una cita ya cerrada: cómo terminó y lo que se cobró. */
+export interface AppointmentCorrection {
+  status: 'completed' | 'no_show' | 'cancelled' | 'scheduled';
+  final_price?: number | null;
+  payment_method?: string | null;
+  tip?: number | null;
+  visit_note?: string | null;
+}
+
 /** Una hora en que la persona trabaja un día pasado; `busy` si ya tenía otra cita. */
 export interface PastHour {
   time: string;
