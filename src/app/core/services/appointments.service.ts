@@ -113,6 +113,11 @@ export class AppointmentsService {
     });
   }
 
+  /** Horas libres (cada 15 min) para mover una cita: su duración real y sin contar su propio lugar. */
+  moveTimes(id: number, date: string, staffId: number): Observable<string[]> {
+    return this.http.get<string[]>(`${this.apiBaseUrl}/appointments/${id}/move-times`, { params: { date, staff_id: staffId } });
+  }
+
   /** Cambia día, hora o persona de una cita conservando su duración. */
   move(id: number, startsAt: string, staffId: number): Observable<Appointment> {
     return this.http.put<Appointment>(`${this.apiBaseUrl}/appointments/${id}/time`, { starts_at: startsAt, staff_id: staffId });
