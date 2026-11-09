@@ -840,6 +840,9 @@
             }
             <button class="btn btn-ghost justify-start" type="button" (click)="repeat(pop.appointment, 3)">Repetir cada 3 semanas</button>
             <button class="btn btn-ghost justify-start" type="button" (click)="repeat(pop.appointment, 4)">Repetir cada 4 semanas</button>
+            <!-- En celular el pie no cabe con todo: "No llegó" y "Cancelar" pasan aquí. En pantalla grande siguen en el pie. -->
+            <button class="btn btn-ghost justify-start sm:hidden" type="button" (click)="setStatus(pop.appointment, 'no_show')">No llegó</button>
+            <button class="btn btn-ghost justify-start text-(--nx-bad-fg) sm:hidden" type="button" (click)="setStatus(pop.appointment, 'cancelled')">Cancelar cita</button>
           </div>
         </details>
       }
@@ -899,9 +902,9 @@
             Corregir {{ copy.text().visit.toLowerCase() }}
           </button>
         }
-        <!-- Lo que se hace con más prisa (no llegó o cancelar) queda a un toque, sin buscarlo en "Más opciones". -->
+        <!-- Pantalla grande: no llegó y cancelar quedan a un toque. En celular están en "Más opciones" para que el pie no ocupe tanto. -->
         @if (pop.appointment.status === 'scheduled') {
-          <div class="grid grid-cols-2 gap-2">
+          <div class="hidden grid-cols-2 gap-2 sm:grid">
             <button type="button" class="btn btn-ghost" (click)="setStatus(pop.appointment, 'no_show')">No llegó</button>
             <button type="button" class="btn btn-ghost text-(--nx-bad-fg)" (click)="setStatus(pop.appointment, 'cancelled')">Cancelar cita</button>
           </div>
