@@ -132,6 +132,17 @@ export class ServicesPageComponent {
         : { name: 'el nombre', duration_minutes: 'la duración' },
     );
   });
+  /** Precio fijo en $0: puede ser a propósito (valoración gratis), pero casi siempre es un olvido y se cobraría gratis. */
+  protected readonly zeroFixed = computed(() => {
+    this.formEvents();
+    const value = String(this.form.controls.price.value ?? '').trim();
+    return this.priceMode() === 'fixed' && value !== '' && Number(value) === 0;
+  });
+
+  protected isFree(service: Service): boolean {
+    return !service.variable_price && !service.price_at_visit && !service.is_hold && Number(service.price) === 0;
+  }
+
   /** El precio solo es obligatorio cuando es fijo: si se cotiza o se acuerda en la cita aún no se sabe. */
   protected readonly priceMissing = computed(() => {
     this.formEvents();

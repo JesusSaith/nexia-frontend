@@ -9,6 +9,7 @@
 
 export type MessageKey =
   | 'reminder'
+  | 'hold_idea'
   | 'booked'
   | 'deposit_ok'
   | 'proof_retry'
@@ -68,6 +69,16 @@ export const MESSAGE_TEMPLATES: readonly MessageTemplate[] = [
     text:
       'Hola {nombre} 👋 Te recordamos tu cita de {cuando} en {negocio}:\n\n📋 {servicio}\n📅 {dia}\n🕐 {hora}\n💁 Con {equipo}\n\n' +
       'Por favor confírmanos tu asistencia aquí. Si ya no puedes, ahí mismo la cambias o la cancelas para darle el lugar a alguien más:\n{enlace}\n\n¡Te esperamos!',
+  },
+  {
+    key: 'hold_idea',
+    label: 'Recordatorio: ¿ya sabes qué quieres?',
+    where: 'Inicio y Agenda → recordatorio de las citas de "Aún no sé qué quiero"',
+    vars: ['nombre', 'cuando', 'negocio', 'dia', 'hora', 'equipo', 'enlace'],
+    text:
+      'Hola {nombre} 👋 Te esperamos {cuando} en {negocio}:\n\n📅 {dia}\n🕐 {hora}\n💁 Con {equipo}\n\n' +
+      'Para que tu cita sea más ágil, ve pensando qué servicio o diseño te gustaría. Si tienes una foto de referencia, mándamela por aquí. ' +
+      'Si ya no puedes venir, avísame en este enlace para darle el lugar a alguien más:\n{enlace}',
   },
   {
     key: 'booked',
@@ -199,7 +210,7 @@ export type MessageMoment = 'before' | 'after' | 'attract';
 
 /** Los mensajes por momento, para que la dueña encuentre cada uno sin leer toda la lista. */
 export const MESSAGE_MOMENTS: readonly { id: MessageMoment; keys: readonly MessageKey[] }[] = [
-  { id: 'before', keys: ['reminder', 'booked', 'approved', 'declined', 'deposit_ok', 'proof_retry', 'quote', 'repeat', 'chat'] },
+  { id: 'before', keys: ['reminder', 'hold_idea', 'booked', 'approved', 'declined', 'deposit_ok', 'proof_retry', 'quote', 'repeat', 'chat'] },
   { id: 'after', keys: ['receipt', 'review'] },
   { id: 'attract', keys: ['due', 'birthday', 'miss_you', 'opening', 'waitlist', 'share_link', 'dm_reply'] },
 ];

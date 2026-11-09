@@ -359,7 +359,7 @@
         </p>
       }
       @if (info.service || info.ticket) {
-        <dl class="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+        <dl class="card grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
           @if (info.service) {
             <div><dt class="text-muted">Pide más</dt><dd class="truncate font-medium text-ink">{{ info.service }}</dd></div>
           }
@@ -376,7 +376,7 @@
       }
     }
 
-    <div>
+    <section class="card">
       <span class="label opt">Etiquetas</span>
       <div class="flex flex-wrap items-center gap-2">
         @for (tag of person.tags ?? []; track tag) {
@@ -390,7 +390,7 @@
           <button type="submit" class="btn btn-secondary px-3!" aria-label="Agregar etiqueta"><mat-icon>add</mat-icon></button>
         </form>
       </div>
-    </div>
+    </section>
 
     <div class="grid grid-cols-3 gap-2">
       <div class="rounded-xl border border-line px-3 py-2">
@@ -433,6 +433,7 @@
       }
     </section>
 
+    <section class="card flex flex-col gap-3">
     <label class="block">
       <span class="label opt">Cumpleaños</span>
       <input class="input" type="date" [value]="person.birthday ?? ''" (change)="saveBirthday($any($event.target).value)" />
@@ -455,6 +456,7 @@
         }
       </span>
     </label>
+    </section>
 
     @if ((person.contacts ?? []).length) {
       <section class="card">

@@ -832,8 +832,25 @@
         <details class="rounded-lg border border-line">
           <summary class="flex min-h-11 cursor-pointer items-center px-3 text-sm text-ink-soft">Más opciones</summary>
           <div class="flex flex-col gap-1 px-2 pb-2">
+            @if (canSwapService(pop.appointment) && !isHold(pop.appointment.service_id)) {
+              <button class="btn btn-ghost justify-start" type="button" (click)="startSwap(pop.appointment)">
+                <mat-icon aria-hidden="true">swap_horiz</mat-icon>
+                Cambiar servicio
+              </button>
+            }
             <button class="btn btn-ghost justify-start" type="button" (click)="repeat(pop.appointment, 3)">Repetir cada 3 semanas</button>
             <button class="btn btn-ghost justify-start" type="button" (click)="repeat(pop.appointment, 4)">Repetir cada 4 semanas</button>
+          </div>
+        </details>
+      }
+      @if (pop.appointment.status === 'awaiting_deposit' && canSwapService(pop.appointment) && !isHold(pop.appointment.service_id)) {
+        <details class="rounded-lg border border-line">
+          <summary class="flex min-h-11 cursor-pointer items-center px-3 text-sm text-ink-soft">Más opciones</summary>
+          <div class="flex flex-col gap-1 px-2 pb-2">
+            <button class="btn btn-ghost justify-start" type="button" (click)="startSwap(pop.appointment)">
+              <mat-icon aria-hidden="true">swap_horiz</mat-icon>
+              Cambiar servicio
+            </button>
           </div>
         </details>
       }
@@ -876,12 +893,6 @@
             <button type="button" class="btn btn-secondary h-12" [class.col-span-2]="!chatHref(pop.appointment)" (click)="startMove(pop.appointment)">Cambiar día u hora</button>
           }
         </div>
-        @if (canSwapService(pop.appointment) && !isHold(pop.appointment.service_id)) {
-          <button type="button" class="btn btn-secondary h-12 w-full" (click)="startSwap(pop.appointment)">
-            <mat-icon aria-hidden="true">swap_horiz</mat-icon>
-            Cambiar servicio
-          </button>
-        }
         @if (canCorrect(pop.appointment)) {
           <button type="button" class="btn btn-secondary h-12 w-full" (click)="startFix(pop.appointment)">
             <mat-icon aria-hidden="true">edit</mat-icon>

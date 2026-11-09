@@ -88,3 +88,12 @@ describe('contacto sin celular', () => {
     expect(text).toContain('https://nexiacitas.com/s/luna');
   });
 });
+
+describe('recordatorio de "Aún no sé qué quiero"', () => {
+  it('pide pensar en el servicio y no menciona uno que no existe', () => {
+    const text = fillTemplate(defaultText('hold_idea'), { nombre: 'Ana', cuando: 'mañana', negocio: 'Salón', dia: 'jueves', hora: '10:00', equipo: 'Bety', enlace: 'https://x.mx/c' });
+    expect(text).toContain('ve pensando qué servicio o diseño');
+    expect(text).toContain('mañana en Salón');
+    expect(text).not.toContain('{');
+  });
+});
