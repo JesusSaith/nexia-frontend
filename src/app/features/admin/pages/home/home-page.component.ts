@@ -12,7 +12,7 @@ import { catchError, map } from 'rxjs/operators';
 import { Appointment } from '@core/models/appointment.model';
 import { Service } from '@core/models/service.model';
 import { BusinessCopy } from '@core/business-copy';
-import { firstName, longDay, whatsappLink } from '@core/message-templates';
+import { firstName, isPhone, longDay, whatsappLink } from '@core/message-templates';
 import { ReadinessStep, SettingsService } from '@core/services/settings.service';
 import { Confirm } from '@shared/components/confirm/confirm';
 import { AppointmentsService } from '@core/services/appointments.service';
@@ -138,7 +138,7 @@ export class HomePageComponent {
   protected readonly reminded = signal<number[]>(readReminded(this.clock.now()));
   protected readonly pendingReminders = computed(() =>
     this.tomorrow().filter(
-      (item) => (item.client_phone ?? '').replace(/\D/g, '').length >= 8 && attendanceState(item) === 'pending' && !this.reminded().includes(item.id),
+      (item) => isPhone(item.client_phone) && attendanceState(item) === 'pending' && !this.reminded().includes(item.id),
     ),
   );
 
@@ -250,6 +250,7 @@ export class HomePageComponent {
     const slug = this.auth.currentUser()?.slug ?? '';
     return slug ? this.bookingApi.shareUrl(slug).replace(/^https?:\/\//, '') : '';
   });
+  protected readonly isPhoneValue = isPhone;
   protected readonly linkCopied = signal(false);
   protected copyLink(): void {
     const slug = this.auth.currentUser()?.slug ?? '';
@@ -259,6 +260,19 @@ export class HomePageComponent {
     void navigator.clipboard.writeText(this.bookingApi.shareUrl(slug)).then(() => {
       this.linkCopied.set(true);
       setTimeout(() => this.linkCopied.set(false), 2500);
+    });
+  }
+
+  protected readonly replyCopied = signal(false);
+  /** Texto listo para pegar cuando alguien escribe por Instagram o Messenger: lo lleva a reservar solo y deja su celular. */
+  protected copyReply(): void {
+    const slug = this.auth.currentUser()?.slug ?? '';
+    if (!slug) {
+      return;
+    }
+    void navigator.clipboard.writeText(this.copy.message('dm_reply', { negocio: this.shopName(), enlace: this.bookingApi.shareUrl(slug) })).then(() => {
+      this.replyCopied.set(true);
+      setTimeout(() => this.replyCopied.set(false), 2500);
     });
   }
 

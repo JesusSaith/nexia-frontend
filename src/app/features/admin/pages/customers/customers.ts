@@ -9,7 +9,7 @@ import { of } from 'rxjs';
 import { catchError, distinctUntilChanged, filter, map } from 'rxjs/operators';
 
 import { BusinessCopy } from '@core/business-copy';
-import { firstName, whatsappLink } from '@core/message-templates';
+import { firstName, isPhone, whatsappLink } from '@core/message-templates';
 import { AuthService } from '@core/services/auth.service';
 import { BookingService, ClientCard, ClientRow } from '@core/services/booking.service';
 import { PackagesService, VisitPackage } from '@core/services/packages.service';
@@ -382,8 +382,12 @@ export class Customers {
   }
 
   /** WhatsApp no deja mandar a varios a la vez: se arma una fila y se abre un chat tras otro. */
+  protected hasPhone(row: { phone: string }): boolean {
+    return isPhone(row.phone);
+  }
+
   protected startChat(): void {
-    this.chatRows.set(this.selectedRows());
+    this.chatRows.set(this.selectedRows().filter((row) => isPhone(row.phone)));
     this.chatIndex.set(0);
     this.chatKind.set(this.filter() === 'birthday' ? 'birthday' : 'miss_you');
     this.bulkPanel.set('chat');
@@ -618,6 +622,14 @@ export class Customers {
         },
         error: (error: unknown) => this.editError.set(readError(error, 'No pudimos guardar los cambios.')),
       });
+  }
+
+  protected canPhone(): boolean {
+    return !!cleanPhone(this.newPhone);
+  }
+
+  protected canAdd(): boolean {
+    return !!this.newName.trim() && this.canPhone();
   }
 
   protected addClient(event: Event): void {

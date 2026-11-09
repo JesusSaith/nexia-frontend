@@ -97,6 +97,9 @@
                 <mat-icon>{{ copied() === 'link' ? 'check' : 'content_copy' }}</mat-icon>{{ copied() === 'link' ? 'Copiado' : 'Copiar enlace' }}
               </button>
               <a class="btn btn-whatsapp" [href]="whatsappHref()" target="_blank" rel="noopener" (click)="markShared()">Enviar por WhatsApp</a>
+              <button type="button" class="btn btn-secondary" (click)="copyText('reply', replyText())">
+                <mat-icon>{{ copied() === 'reply' ? 'check' : 'chat' }}</mat-icon>{{ copied() === 'reply' ? 'Copiado' : 'Copiar respuesta para Instagram o Messenger' }}
+              </button>
               <a class="btn btn-ghost" [href]="bookingUrl()" target="_blank" rel="noopener"><mat-icon>open_in_new</mat-icon>Abrir</a>
             </div>
             @if (isOwner()) {

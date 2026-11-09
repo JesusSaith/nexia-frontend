@@ -31,7 +31,7 @@ import { dragTarget } from '@core/drag-move';
 import { updatedAgo } from '@core/updated-ago';
 import { Skeleton } from '@shared/components/skeleton/skeleton';
 import { buildDaySheet, daySheetHtml, daySheetText } from '@core/day-sheet';
-import { MessageVars, firstName, longDay, whatsappLink } from '@core/message-templates';
+import { MessageVars, firstName, isPhone, longDay, whatsappLink } from '@core/message-templates';
 import { Toasts } from '@core/toasts';
 import { Appointment, AppointmentCorrection, AppointmentStatus, PastHour } from '@core/models/appointment.model';
 import { ScheduleItem } from '@core/models/schedule.model';
@@ -241,6 +241,57 @@ export class AgendaPageComponent {
     return day >= oldest && this.workingWindow(staffId, day) !== null;
   };
 
+  /** Quien escribió por Instagram o Messenger y no tiene celular: se agenda con su usuario. */
+  protected readonly noPhone = signal(false);
+  protected readonly contactChannel = signal<'instagram' | 'messenger' | 'facebook' | 'otro'>('instagram');
+  protected readonly contactHandle = signal('');
+  protected readonly contactChannels: { value: 'instagram' | 'messenger' | 'facebook' | 'otro'; label: string }[] = [
+    { value: 'instagram', label: 'Instagram' },
+    { value: 'messenger', label: 'Messenger' },
+    { value: 'facebook', label: 'Facebook' },
+    { value: 'otro', label: 'Otro' },
+  ];
+  private readonly formTick = signal(0);
+  /** Lo que falta para poder guardar. Mientras haya algo, el botón Guardar queda apagado y se dice qué es. */
+  protected readonly missing = computed<string[]>(() => {
+    this.formTick();
+    const value = this.form.getRawValue();
+    const list: string[] = [];
+    if (value.service_id == null) {
+      list.push('el servicio');
+    }
+    if (value.staff_id == null) {
+      list.push(`${this.copy.text().person.toLowerCase()}`);
+    }
+    if (!value.date) {
+      list.push('la fecha');
+    }
+    if (!value.time) {
+      list.push('la hora');
+    }
+    if (!value.client_name.trim()) {
+      list.push(`el nombre del ${this.copy.text().client.toLowerCase()}`);
+    }
+    if (this.noPhone()) {
+      const handle = this.contactHandle().trim();
+      if (handle.length < 2 || !/[a-zA-ZÀ-ÿ]/.test(handle)) {
+        list.push('su usuario o nombre en la red');
+      }
+    } else if (!isPhone(value.client_phone)) {
+      list.push('el teléfono de 10 dígitos');
+    }
+    if (value.client_email.trim() && this.form.controls.client_email.invalid) {
+      list.push('un correo válido');
+    }
+    if (this.pastVisit() && this.pastOutcome() === 'done' && this.priceAtVisit(value.service_id) && !String(value.quoted_price ?? '').trim()) {
+      list.push('cuánto se cobró');
+    }
+    if (!this.pastVisit() && value.deposit_mode === 'received' && !(Number(value.deposit_received) > 0)) {
+      list.push('cuánto anticipo te mandó');
+    }
+    return list;
+  });
+
   /** La fecha y hora del formulario ya pasaron: se registra una cita que ocurrió, sin anticipo ni avisos. */
   protected readonly pastVisit = signal(false);
   protected readonly pastOutcome = signal<'done' | 'no_show'>('done');
@@ -260,9 +311,10 @@ export class AgendaPageComponent {
       nonNullable: true,
       validators: [Validators.required, Validators.maxLength(255)],
     }),
+    // El teléfono es obligatorio salvo que no tenga celular: eso lo revisa `missing()`.
     client_phone: new FormControl('', {
       nonNullable: true,
-      validators: [Validators.required, Validators.maxLength(32)],
+      validators: [Validators.maxLength(32)],
     }),
     client_email: new FormControl('', {
       nonNullable: true,
@@ -540,6 +592,7 @@ export class AgendaPageComponent {
       this.loadAppointments(range, staffId, serviceId);
     });
     this.form.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.formTick.update((count) => count + 1);
       const { date, time } = this.form.getRawValue();
       const today = toInputDate(this.clock.now());
       const now = this.clock.now();
@@ -1609,6 +1662,9 @@ export class AgendaPageComponent {
       deposit_mode: 'auto',
       deposit_received: '',
     });
+    this.noPhone.set(false);
+    this.contactChannel.set('instagram');
+    this.contactHandle.set('');
     this.pastOutcome.set('done');
     this.pastMethod.set(this.pastMethods()[0]?.value ?? 'efectivo');
     this.pastTip.set('');
@@ -1664,6 +1720,7 @@ export class AgendaPageComponent {
 
   private applyTel(tel: string): void {
     this.pendingTel = null;
+    this.applyContact(tel);
     this.matchClient(tel);
     const person = this.known();
     if (person && !this.form.controls.client_name.value.trim()) {
@@ -1776,7 +1833,8 @@ export class AgendaPageComponent {
 
   /** Al elegir de la lista, llena nombre y teléfono y muestra su historial. */
   protected pickGuest(row: { full_name: string; phone: string }): void {
-    this.form.patchValue({ client_name: row.full_name, client_phone: row.phone });
+    this.form.patchValue({ client_name: row.full_name, client_phone: isPhone(row.phone) ? row.phone : '' });
+    this.applyContact(row.phone);
     this.matchClient(row.phone);
     this.guestOpen.set(false);
   }
@@ -1930,14 +1988,27 @@ export class AgendaPageComponent {
     }
   }
 
+  /** Un cliente que se guardó con su usuario ("Instagram @lupita"): se abre en modo "No tiene celular". */
+  private applyContact(value: string): void {
+    if (isPhone(value) || !value.trim()) {
+      this.noPhone.set(false);
+      return;
+    }
+    const [first, ...rest] = value.trim().split(/\s+/);
+    const channel = this.contactChannels.find((item) => item.label.toLowerCase() === first.toLowerCase());
+    this.noPhone.set(true);
+    this.contactChannel.set(channel?.value ?? 'otro');
+    this.contactHandle.set((channel ? rest.join(' ') : value).trim());
+  }
+
   protected matchClient(phone: string): void {
-    const key = phone.replace(/\D/g, '');
+    const key = isPhone(phone) ? phone.replace(/\D/g, '') : phone.trim().toLowerCase();
     if (key.length < 7) {
       this.known.set(null);
       this.freshPhone.set(false);
       return;
     }
-    const found = this.guests().find((row) => row.phone.replace(/\D/g, '') === key);
+    const found = this.guests().find((row) => (isPhone(row.phone) ? row.phone.replace(/\D/g, '') : row.phone.trim().toLowerCase()) === key);
     this.known.set(found ?? null);
     this.freshPhone.set(!found);
   }
@@ -2034,7 +2105,7 @@ export class AgendaPageComponent {
       return;
     }
     this.form.markAllAsTouched();
-    if (this.form.invalid) {
+    if (this.form.invalid || this.missing().length > 0) {
       return;
     }
     const value = this.form.getRawValue();
@@ -2057,7 +2128,7 @@ export class AgendaPageComponent {
         return;
       }
     }
-    if (value.service_id == null || value.staff_id == null) {
+    if (value.service_id == null || value.staff_id == null || this.missing().length > 0) {
       return;
     }
     const past = this.pastVisit();
@@ -2077,7 +2148,8 @@ export class AgendaPageComponent {
         staff_id: value.staff_id,
         starts_at: `${value.date}T${value.time}:00`,
         client_name: value.client_name.trim(),
-        client_phone: value.client_phone.trim(),
+        client_phone: this.noPhone() ? '' : value.client_phone.trim(),
+        ...(this.noPhone() ? { contact_channel: this.contactChannel(), contact_handle: this.contactHandle().trim() } : {}),
         client_email: value.client_email.trim() || null,
         quoted_price: String(value.quoted_price ?? '').trim() ? Number(value.quoted_price) : null,
         waive_deposit: past || value.deposit_mode === 'none',
@@ -2422,7 +2494,7 @@ export class AgendaPageComponent {
   }
 
   protected telHref(phone: string | null): string | null {
-    const digits = (phone ?? '').replace(/\D/g, '');
+    const digits = isPhone(phone) ? (phone ?? '').replace(/\D/g, '') : '';
     return digits ? `tel:${digits.length === 10 ? `+52${digits}` : `+${digits}`}` : null;
   }
 
@@ -2969,6 +3041,9 @@ function monthTheme(month: number): { title: string; mark: string; wash: string;
 
 /** Teléfono para wa.me: solo dígitos; a 10 dígitos (México) se le antepone 52. */
 function waPhone(value: string | null | undefined): string {
+  if (!isPhone(value)) {
+    return '';
+  }
   const digits = (value ?? '').replace(/\D/g, '');
   return digits.length === 10 ? `52${digits}` : digits;
 }
