@@ -132,6 +132,7 @@ export class AgendaPageComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly editor = viewChild.required<TemplateRef<unknown>>('editor');
   private readonly fixer = viewChild.required<TemplateRef<unknown>>('fixer');
+  private readonly changer = viewChild.required<TemplateRef<unknown>>('changer');
   private dialogRef: MatDialogRef<unknown> | null = null;
   private requestId = 0;
   private readonly ownStaffReady = signal(!inject(AuthService).isStaff());
@@ -2054,6 +2055,65 @@ export class AgendaPageComponent {
 
   protected canCorrect(appointment: Appointment): boolean {
     return appointment.status === 'completed' || appointment.status === 'no_show' || appointment.status === 'cancelled';
+  }
+
+  protected readonly swapping = signal<Appointment | null>(null);
+  protected readonly swapService = signal<number | null>(null);
+  protected readonly swapPrice = signal('');
+  protected readonly swapError = signal<string | null>(null);
+  protected readonly swapSaving = signal(false);
+  protected readonly swapPicks = computed(() =>
+    this.services()
+      .filter((item) => item.is_active || item.id === this.swapping()?.service_id)
+      .map((item) => ({ value: item.id, label: item.name })),
+  );
+  protected readonly swapChosen = computed(() => this.services().find((item) => item.id === this.swapService()) ?? null);
+
+  protected canSwapService(appointment: Appointment): boolean {
+    return appointment.status === 'scheduled' || appointment.status === 'awaiting_deposit';
+  }
+
+  protected startSwap(appointment: Appointment): void {
+    this.selected.set(null);
+    this.swapping.set(appointment);
+    this.swapService.set(null);
+    this.swapPrice.set('');
+    this.swapError.set(null);
+    this.dialogRef = this.dialog.open(this.changer(), { width: '460px', maxWidth: 'calc(100vw - 32px)', panelClass: 'service-sheet', autoFocus: 'first-tabbable' });
+  }
+
+  protected pickSwap(value: string | number | null): void {
+    if (typeof value === 'number') {
+      this.swapService.set(value);
+      this.swapPrice.set('');
+    }
+  }
+
+  protected saveSwap(): void {
+    const appointment = this.swapping();
+    const service = this.swapChosen();
+    if (!appointment || !service || this.swapSaving()) {
+      return;
+    }
+    const price = this.swapPrice().trim() && this.canPrice(service.id) ? Number(this.swapPrice()) : null;
+    this.swapSaving.set(true);
+    this.swapError.set(null);
+    this.appointmentsApi
+      .changeService(appointment.id, service.id, price)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.swapSaving.set(false);
+          this.closeEditor();
+          this.swapping.set(null);
+          this.loadAppointments(this.range(), this.staffId(), this.serviceId());
+          this.toasts.show('Listo, cambiamos el servicio.');
+        },
+        error: (error: unknown) => {
+          this.swapSaving.set(false);
+          this.swapError.set(readError(error, 'No pudimos cambiar el servicio.'));
+        },
+      });
   }
 
   protected startFix(appointment: Appointment): void {

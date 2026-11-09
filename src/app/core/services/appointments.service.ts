@@ -64,6 +64,10 @@ export class AppointmentsService {
     return this.http.put<Appointment>(`${this.apiBaseUrl}/appointments/${id}/correct`, data);
   }
 
+  changeService(id: number, serviceId: number, quotedPrice: number | null): Observable<Appointment> {
+    return this.http.put<Appointment>(`${this.apiBaseUrl}/appointments/${id}/service`, { service_id: serviceId, quoted_price: quotedPrice });
+  }
+
   getPastHours(staffId: number, serviceId: number, date: string): Observable<PastHour[]> {
     const params = new HttpParams().set('staff_id', staffId).set('service_id', serviceId).set('date', date);
     return this.http.get<PastHour[]>(`${this.apiBaseUrl}/appointments/past-hours`, { params });

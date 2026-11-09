@@ -815,6 +815,12 @@
             <button type="button" class="btn btn-secondary h-12" [class.col-span-2]="!chatHref(pop.appointment)" (click)="startMove(pop.appointment)">Cambiar día u hora</button>
           }
         </div>
+        @if (canSwapService(pop.appointment)) {
+          <button type="button" class="btn btn-secondary h-12 w-full" (click)="startSwap(pop.appointment)">
+            <mat-icon aria-hidden="true">swap_horiz</mat-icon>
+            {{ priceAtVisit(pop.appointment.service_id) ? 'Elegir servicio' : 'Cambiar servicio' }}
+          </button>
+        }
         @if (canCorrect(pop.appointment)) {
           <button type="button" class="btn btn-secondary h-12 w-full" (click)="startFix(pop.appointment)">
             <mat-icon aria-hidden="true">edit</mat-icon>
@@ -832,6 +838,40 @@
     </footer>
   </article>
 }
+
+<ng-template #changer>
+  @if (swapping(); as item) {
+    <div class="flex max-h-[92vh] flex-col bg-surface">
+      <header class="flex items-center justify-between border-b border-line px-4 py-3">
+        <button type="button" class="btn btn-ghost w-11! px-0!" aria-label="Cerrar" (click)="closeEditor()" [disabled]="swapSaving()"><mat-icon>close</mat-icon></button>
+        <h2 class="text-lg font-semibold">{{ priceAtVisit(item.service_id) ? 'Elegir servicio' : 'Cambiar servicio' }}</h2>
+        <button type="button" class="btn btn-primary" [disabled]="swapSaving() || !swapService()" (click)="saveSwap()">{{ swapSaving() ? 'Guardando…' : 'Guardar' }}</button>
+      </header>
+      <div class="flex flex-col gap-4 overflow-y-auto p-5">
+        <p class="text-sm text-muted">{{ item.client_name }} · {{ item.service_name }} · {{ whenLabel(item.starts_at) }}</p>
+        <label class="block">
+          <span class="label req">Servicio</span>
+          <app-pick-field class="block" [options]="swapPicks()" [valueIn]="swapService()" placeholder="Elige el servicio" (picked)="pickSwap($event)" />
+        </label>
+        @if (swapChosen(); as chosen) {
+          @if (canPrice(chosen.id) && (chosen.variable_price || chosen.price_at_visit)) {
+            <label class="block">
+              <span class="label opt">Precio acordado</span>
+              <input type="number" min="0" inputmode="decimal" class="input nums" placeholder="Aún no lo sé" [value]="swapPrice()" (input)="swapPrice.set($any($event.target).value)" />
+            </label>
+          }
+          <p class="field-hint">
+            Dura {{ chosen.duration_minutes }} min: la cita pasa a terminar a esa duración. Si el horario se cruza con otra cita, te avisamos y no se cambia.
+          </p>
+        }
+        <app-form-status [missing]="swapService() ? [] : ['el servicio']" />
+        @if (swapError(); as message) {
+          <p role="alert" class="field-error">{{ message }}</p>
+        }
+      </div>
+    </div>
+  }
+</ng-template>
 
 <ng-template #fixer>
   @if (fixing(); as item) {
