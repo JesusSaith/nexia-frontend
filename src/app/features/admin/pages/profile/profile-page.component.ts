@@ -5,6 +5,7 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
+import { FormStatusComponent, missingLabels } from '@shared/components/form-status/form-status';
 import { PhotoError, squarePhotoFromFile } from '@core/image-file';
 import { Staff } from '@core/models/staff.model';
 import { StaffService } from '@core/services/staff.service';
@@ -12,6 +13,7 @@ import { StaffService } from '@core/services/staff.service';
 @Component({
   selector: 'app-profile-page',
   imports: [
+    FormStatusComponent,
     ReactiveFormsModule,
     MatIconModule,
     MatProgressSpinnerModule,
@@ -44,6 +46,10 @@ export class ProfilePageComponent {
   });
 
   private readonly formEvents = toSignal(this.form.events, { initialValue: undefined });
+  protected readonly missing = computed(() => {
+    this.formEvents();
+    return missingLabels(this.form.controls, { full_name: 'tu nombre' });
+  });
   protected readonly nameError = computed(() => {
     this.formEvents();
     this.validationTick();

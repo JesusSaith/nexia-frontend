@@ -798,6 +798,30 @@ export class DashboardPageComponent {
     });
   }
 
+  /** Lo que falta para anotar el movimiento de caja. */
+  protected cashMoveMissing(): string[] {
+    const list: string[] = [];
+    if (!this.cashMoveReason().trim()) {
+      list.push('para qué fue');
+    }
+    if (!(Number(this.cashMoveAmount()) > 0)) {
+      list.push('cuánto');
+    }
+    return list;
+  }
+
+  /** Lo que falta para guardar el gasto. */
+  protected expenseMissing(): string[] {
+    const list: string[] = [];
+    if (!this.expenseName().trim()) {
+      list.push('el concepto');
+    }
+    if (!(Number(this.expenseAmount()) > 0)) {
+      list.push('el monto');
+    }
+    return list;
+  }
+
   protected addCashMove(): void {
     const amount = Number(this.cashMoveAmount());
     const reason = this.cashMoveReason().trim();

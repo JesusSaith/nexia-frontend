@@ -1,4 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { FormStatusComponent } from '@shared/components/form-status/form-status';
 import { pesos } from '@core/money';
 import { hora12 } from '../../../../core/hours';
 import { HoraPipe } from '../../../../shared/pipes/hora.pipe';
@@ -74,7 +75,7 @@ const SLOT_HEIGHT = 28;
 const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 @Component({
   selector: 'app-agenda-page',
-  imports: [
+  imports: [FormStatusComponent, 
     HoraPipe,
     NgTemplateOutlet,
     Skeleton,
@@ -215,6 +216,23 @@ export class AgendaPageComponent {
     end: new FormControl('15:00', { nonNullable: true, validators: Validators.required }),
     note: new FormControl('Hora de comida', { nonNullable: true }),
     repeat: new FormControl<'day' | 'weekdays' | 'weeks' | 'always'>('day', { nonNullable: true }),
+  });
+  private readonly blockTick = signal(0);
+  /** Lo que falta para guardar el bloqueo: el botón queda apagado y se dice qué es. */
+  protected readonly blockMissing = computed<string[]>(() => {
+    this.blockTick();
+    const value = this.blockForm.getRawValue();
+    const list: string[] = [];
+    if (value.staff_id == null) {
+      list.push(this.copy.text().person.toLowerCase());
+    }
+    if (!value.date) {
+      list.push('el día');
+    }
+    if (!value.start || !value.end || value.start >= value.end) {
+      list.push('que la hora de fin sea después de la de inicio');
+    }
+    return list;
   });
   protected readonly selected = signal<SelectedAppointment | null>(null);
   protected readonly isLoading = signal(true);
@@ -591,6 +609,7 @@ export class AgendaPageComponent {
       const serviceId = this.serviceId();
       this.loadAppointments(range, staffId, serviceId);
     });
+    this.blockForm.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.blockTick.update((count) => count + 1));
     this.form.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       this.formTick.update((count) => count + 1);
       const { date, time } = this.form.getRawValue();

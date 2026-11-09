@@ -14,8 +14,8 @@ import { Toasts } from '@core/toasts';
       <h2 id="feedback-title" class="text-base font-semibold text-ink">Enviar comentario</h2>
       <p class="mt-1.5 text-sm text-ink-soft">Cuéntanos qué te gustaría que Nexia hiciera mejor o qué no te quedó claro. Lo leemos todos.</p>
       <label class="field mt-4">
-        <span class="field-label">Tu comentario</span>
-        <textarea class="field-input" rows="5" maxlength="1000" [formControl]="message" [attr.aria-invalid]="showError()"></textarea>
+        <span class="field-label req">Tu comentario</span>
+        <textarea class="field-input" rows="5" maxlength="1000" [formControl]="message" aria-required="true" [attr.aria-invalid]="showError()"></textarea>
       </label>
       @if (showError()) {
         <p class="field-error mt-1" role="alert">Escribe al menos unas palabras.</p>
@@ -25,7 +25,7 @@ import { Toasts } from '@core/toasts';
       }
       <div class="mt-5 flex justify-end gap-2">
         <button type="button" class="btn btn-secondary" (click)="ref.close(false)">Cancelar</button>
-        <button type="submit" class="btn btn-primary" [disabled]="sending()">{{ sending() ? 'Enviando…' : 'Enviar' }}</button>
+        <button type="submit" class="btn btn-primary" [disabled]="sending() || message.invalid">{{ sending() ? 'Enviando…' : 'Enviar' }}</button>
       </div>
     </form>
   `,

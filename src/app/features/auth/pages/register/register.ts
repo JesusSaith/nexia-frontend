@@ -1,5 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, ElementRef, computed, inject, signal } from '@angular/core';
+import { FormStatusComponent } from '@shared/components/form-status/form-status';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
@@ -39,7 +40,7 @@ function browserTimezone(): string | null {
 
 @Component({
   selector: 'app-register',
-  imports: [ReactiveFormsModule, RouterLink, MatIconModule],
+  imports: [ReactiveFormsModule, RouterLink, MatIconModule, FormStatusComponent],
   templateUrl: './register.html',
 })
 export class Register {
@@ -90,6 +91,37 @@ export class Register {
   });
 
   private readonly formEvents = toSignal(this.form.events, { initialValue: undefined });
+  /** Lo que falta para crear el negocio: el botón queda apagado y se dice qué es. */
+  protected readonly missing = computed<string[]>(() => {
+    this.formEvents();
+    const c = this.form.controls;
+    const list: string[] = [];
+    if (c.businessKind.invalid) {
+      list.push('el tipo de negocio');
+    }
+    if (c.businessName.invalid) {
+      list.push('el nombre del negocio');
+    }
+    if (c.phone.invalid) {
+      list.push('el WhatsApp a 10 dígitos');
+    }
+    if (c.usesCommissions.invalid) {
+      list.push('si pagas comisión');
+    }
+    if (c.fullName.invalid) {
+      list.push('tu nombre');
+    }
+    if (c.email.invalid) {
+      list.push('un correo válido');
+    }
+    if (c.password.invalid) {
+      list.push('una contraseña de 8 o más caracteres');
+    }
+    if (c.acceptTerms.invalid) {
+      list.push('aceptar los términos');
+    }
+    return list;
+  });
 
   protected readonly errors = computed(() => {
     this.formEvents();

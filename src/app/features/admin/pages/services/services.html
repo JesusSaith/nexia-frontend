@@ -29,8 +29,8 @@
   @if (raising()) {
     <form class="card mb-4 grid gap-3 sm:grid-cols-[8rem_1fr_auto] sm:items-end" (submit)="$event.preventDefault(); applyRaise()">
       <label class="block">
-        <span class="label">Cambio (%)</span>
-        <input class="input nums" name="percent" type="number" step="1" [(ngModel)]="raisePercent" />
+        <span class="label req">Cambio (%)</span>
+        <input class="input nums" name="percent" type="number" step="1" aria-required="true" [(ngModel)]="raisePercent" />
       </label>
       <label class="block">
         <span class="label">A qué servicios</span>
@@ -42,7 +42,7 @@
         </select>
       </label>
       <div class="flex gap-2">
-        <button type="submit" class="btn btn-primary">Aplicar</button>
+        <button type="submit" class="btn btn-primary" [disabled]="!raiseOk()">Aplicar</button>
         <button type="button" class="btn btn-ghost" (click)="raising.set(false)">Cancelar</button>
       </div>
       <p class="field-hint sm:col-span-3">Usa un número negativo para bajar. Se redondea a pesos e incluye las opciones de cada servicio.</p>
@@ -66,7 +66,7 @@
       </ul>
       <form class="mt-3 flex gap-2" (submit)="$event.preventDefault(); saveCategory()">
         <input class="input flex-1" name="newCategory" placeholder="Nueva categoría" [value]="categoryName()" (input)="categoryName.set($any($event.target).value)" />
-        <button type="submit" class="btn btn-secondary" [disabled]="isSaving()">Agregar</button>
+        <button type="submit" class="btn btn-secondary" [disabled]="isSaving() || !categoryName().trim()">Agregar</button>
       </form>
       @if (categoryError(); as message) {
         <p class="field-error mt-1">{{ message }}</p>
@@ -207,32 +207,33 @@
         <mat-icon>close</mat-icon>
       </button>
       <h2 class="truncate text-base font-semibold text-ink">{{ dialogTitle() }}</h2>
-      <button type="submit" class="btn btn-primary" [disabled]="isSaving() || photoPending()">
+      <button type="submit" class="btn btn-primary" [disabled]="isSaving() || photoPending() || missing().length > 0">
         {{ isSaving() ? 'Guardando…' : (photoPending() ? 'Preparando foto…' : 'Guardar') }}
       </button>
     </header>
     <div class="grid gap-6 overflow-y-auto px-4 py-5 md:grid-cols-[minmax(0,1fr)_260px] md:px-6">
       <div class="flex flex-col gap-5">
+        <app-form-status [missing]="missing()" />
         <!-- Lo básico -->
         <fieldset class="flex flex-col gap-3">
           <legend class="card-title mb-2">Lo básico</legend>
           <label class="block">
-            <span class="label">Nombre</span>
-            <input class="input" formControlName="name" />
+            <span class="label req">Nombre</span>
+            <input class="input" formControlName="name" aria-required="true" />
           </label>
           @if (nameError()) {
             <p class="field-error">{{ nameError() }}</p>
           }
           <label class="block">
-            <span class="label">Categoría</span>
+            <span class="label opt">Categoría</span>
             <app-pick-field class="block" formControlName="category" [options]="categoryPicks()" />
           </label>
           <label class="block">
-            <span class="label">Descripción para el {{ copy.text().client.toLowerCase() }}</span>
+            <span class="label opt">Descripción para el {{ copy.text().client.toLowerCase() }}</span>
             <textarea class="input resize-none" rows="3" formControlName="description"></textarea>
           </label>
           <div>
-            <span class="label">Foto</span>
+            <span class="label opt">Foto</span>
             <div class="flex items-center gap-3">
               <button type="button" class="shrink-0" aria-label="Subir foto del servicio" (click)="photoInput.click()">
                 @if (photoPreview(); as photo) {
@@ -259,11 +260,11 @@
           <legend class="card-title mb-2">Precio</legend>
           <div class="grid grid-cols-2 gap-3">
             <label class="block">
-              <span class="label">Precio</span>
-              <input class="input nums" type="number" min="0" step="0.01" inputmode="decimal" formControlName="price" />
+              <span class="label req">Precio</span>
+              <input class="input nums" type="number" min="0" step="0.01" inputmode="decimal" formControlName="price" aria-required="true" />
             </label>
             <label class="block">
-              <span class="label">Anticipo</span>
+              <span class="label opt">Anticipo</span>
               <input class="input nums" type="number" min="0" step="0.01" inputmode="decimal" formControlName="deposit_amount" placeholder="El del negocio" />
             </label>
           </div>
@@ -299,7 +300,7 @@
             </label>
           }
           <label class="block">
-            <span class="label">Material por servicio ($)</span>
+            <span class="label opt">Material por servicio ($)</span>
             <input formControlName="supplyCost" type="number" min="0" inputmode="decimal" placeholder="0" class="input nums" />
             <span class="field-hint">Lo que gastas en material o insumos en cada servicio. Reportes lo resta para mostrar lo que te deja.</span>
           </label>
@@ -362,8 +363,8 @@
 
         <!-- Tiempo -->
         <div>
-          <span class="label">Duración (min)</span>
-          <input class="input nums" type="number" min="1" step="1" formControlName="duration_minutes" />
+          <span class="label req">Duración (min)</span>
+          <input class="input nums" type="number" min="1" step="1" formControlName="duration_minutes" aria-required="true" />
           <div class="mt-2 flex flex-wrap gap-1.5">
             @for (minutes of durationPicks; track minutes) {
               <button type="button" class="chip h-11! px-3!" [class.chip-on]="+form.controls.duration_minutes.value === minutes" (click)="form.controls.duration_minutes.setValue('' + minutes)">{{ minutes }}</button>
@@ -378,12 +379,12 @@
           <summary class="flex min-h-11 cursor-pointer items-center px-3 text-sm font-medium text-ink-soft">Opciones avanzadas</summary>
           <div class="flex flex-col gap-4 px-3 pb-3">
             <label class="block">
-              <span class="label">Limpieza al terminar (min)</span>
+              <span class="label opt">Limpieza al terminar (min)</span>
               <input formControlName="cleanup" type="number" min="0" max="240" placeholder="0" class="input nums" />
               <span class="field-hint">Tiempo para dejar todo listo; nadie más puede reservar ahí.</span>
             </label>
             <div>
-              <span class="label">Espera dentro del servicio</span>
+              <span class="label opt">Espera dentro del servicio</span>
               <div class="grid grid-cols-2 gap-2">
                 <label class="block"><span class="field-hint">Empieza al min</span>
                   <input formControlName="waitStart" type="number" min="1" placeholder="30" class="input nums" />
@@ -395,17 +396,17 @@
               <span class="field-hint">Por ejemplo mientras actúa un producto o tratamiento: en ese rato se puede atender a otro {{ copy.text().client.toLowerCase() }}.</span>
             </div>
             <label class="block">
-              <span class="label">Cupo a la misma hora</span>
+              <span class="label opt">Cupo a la misma hora</span>
               <input formControlName="capacity" type="number" min="1" max="100" class="input nums" />
               <span class="field-hint">1 es una persona a la vez. Súbelo para clases o grupos.</span>
             </label>
             <label class="block">
-              <span class="label">Vuelven cada (días)</span>
+              <span class="label opt">Vuelven cada (días)</span>
               <input formControlName="returnDays" type="number" min="7" max="365" placeholder="Automático" class="input nums" />
               <span class="field-hint">Para "Les toca volver". Vacío: se calcula con tu historial.</span>
             </label>
             <label class="block">
-              <span class="label">Preguntas al reservar</span>
+              <span class="label opt">Preguntas al reservar</span>
               <textarea formControlName="questions" rows="3" class="input" placeholder="Una pregunta por línea"></textarea>
             </label>
           </div>
@@ -422,14 +423,14 @@
   <form class="flex flex-col gap-4 bg-surface p-5" (ngSubmit)="saveCategory()">
     <h2 class="text-base font-semibold text-ink">Nueva categoría</h2>
     <label class="block">
-      <span class="label">Nombre</span>
-      <input class="input" [value]="categoryName()" (input)="categoryName.set($any($event.target).value)" />
+      <span class="label req">Nombre</span>
+      <input class="input" aria-required="true" [value]="categoryName()" (input)="categoryName.set($any($event.target).value)" />
     </label>
     @if (categoryError(); as message) {
       <p class="field-error">{{ message }}</p>
     }
     <div class="flex justify-end">
-      <button type="submit" class="btn btn-primary" [disabled]="isSaving()">
+      <button type="submit" class="btn btn-primary" [disabled]="isSaving() || !categoryName().trim()">
         {{ isSaving() ? 'Guardando…' : 'Crear' }}
       </button>
     </div>

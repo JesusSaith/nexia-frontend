@@ -3,6 +3,7 @@ import { horario12 } from '../../../../core/hours';
 import { HoraPipe } from '../../../../shared/pipes/hora.pipe';
 import { HttpErrorResponse } from '@angular/common/http';
 import { SaveStateComponent } from '@shared/components/save-state/save-state';
+import { FormStatusComponent } from '@shared/components/form-status/form-status';
 import { Component, DestroyRef, HostListener, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -34,6 +35,7 @@ const DAY_LABELS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sába
 @Component({
   selector: 'app-schedules-page',
   imports: [
+    FormStatusComponent,
     HoraPipe,
     RouterLink,
     FormsModule,
@@ -204,6 +206,25 @@ export class SchedulesPageComponent {
   }
 
   /** Un día o un periodo (temporada) con horario distinto; manda sobre el turno normal. */
+  /** Lo que falta para guardar el horario especial. */
+  protected specialMissing(): string[] {
+    const { date, until, closed } = this.special;
+    const clocks = closed ? [] : this.specialClocks();
+    const from = clocks.length ? clocks[0] : this.special.from;
+    const to = clocks.length ? clocks[clocks.length - 1] : this.special.to;
+    const list: string[] = [];
+    if (!date) {
+      list.push('la fecha');
+    }
+    if (until && date && until < date) {
+      list.push('que "Hasta" no sea antes de "Desde"');
+    }
+    if (!closed && (!from || !to || (clocks.length ? to < from : to <= from))) {
+      list.push('que el cierre sea después de la apertura');
+    }
+    return list;
+  }
+
   protected saveSpecial(): void {
     const { date, until, all, closed, note } = this.special;
     const clocks = closed ? [] : this.specialClocks();

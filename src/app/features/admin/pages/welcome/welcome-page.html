@@ -47,7 +47,7 @@
           </label>
           @if (ownerWorks()) {
             <label class="block">
-              <span class="label">Tu nombre como aparece en la página</span>
+              <span class="label req">Tu nombre como aparece en la página</span>
               <input class="input" [value]="ownerName()" (input)="ownerName.set($any($event.target).value)" maxlength="120" />
             </label>
           }
@@ -79,11 +79,11 @@
           </div>
           <div class="grid grid-cols-2 gap-4">
             <div class="block">
-              <span class="label">Abres</span>
+              <span class="label req">Abres</span>
               <app-time-field class="block" [valueIn]="opens()" (picked)="opens.set($event)" />
             </div>
             <div class="block">
-              <span class="label">Cierras</span>
+              <span class="label req">Cierras</span>
               <app-time-field class="block" [valueIn]="closes()" (picked)="closes.set($event)" />
             </div>
           </div>
@@ -129,14 +129,14 @@
           @if (askDeposit()) {
             <div class="grid gap-4 sm:grid-cols-2">
               <label class="block">
-                <span class="label">Monto del anticipo</span>
+                <span class="label req">Monto del anticipo</span>
                 <span class="flex items-center gap-1.5 text-sm text-muted">
                   $
                   <input class="input nums" type="number" min="1" inputmode="decimal" placeholder="100" [value]="depositAmount()" (input)="depositAmount.set($any($event.target).value)" />
                 </span>
               </label>
               <label class="block">
-                <span class="label">CLABE o cuenta donde te depositan</span>
+                <span class="label req">CLABE o cuenta donde te depositan</span>
                 <input class="input nums" inputmode="numeric" maxlength="120" autocomplete="off" [value]="depositAccount()" (input)="depositAccount.set($any($event.target).value)" />
               </label>
             </div>
@@ -164,6 +164,9 @@
         }
       }
 
+      @if (step() < 5 && missing().length > 0) {
+        <app-form-status verb="continuar" [missing]="missing()" />
+      }
       @if (error(); as message) {
         <p class="field-error" role="alert">{{ message }}</p>
       }
@@ -176,16 +179,16 @@
         }
         @switch (step()) {
           @case (1) {
-            <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="saveTeam()">{{ saving() ? 'Guardando…' : 'Siguiente' }}</button>
+            <button type="button" class="btn btn-primary" [disabled]="saving() || missing().length > 0" (click)="saveTeam()">{{ saving() ? 'Guardando…' : 'Siguiente' }}</button>
           }
           @case (2) {
-            <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="saveHours()">{{ saving() ? 'Guardando…' : 'Siguiente' }}</button>
+            <button type="button" class="btn btn-primary" [disabled]="saving() || missing().length > 0" (click)="saveHours()">{{ saving() ? 'Guardando…' : 'Siguiente' }}</button>
           }
           @case (3) {
-            <button type="button" class="btn btn-primary" [disabled]="saving() || !services().length" (click)="saveServices()">{{ saving() ? 'Guardando…' : 'Siguiente' }}</button>
+            <button type="button" class="btn btn-primary" [disabled]="saving() || !services().length || missing().length > 0" (click)="saveServices()">{{ saving() ? 'Guardando…' : 'Siguiente' }}</button>
           }
           @case (4) {
-            <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="saveDeposit()">{{ saving() ? 'Guardando…' : askDeposit() ? 'Terminar' : 'Saltar y terminar' }}</button>
+            <button type="button" class="btn btn-primary" [disabled]="saving() || missing().length > 0" (click)="saveDeposit()">{{ saving() ? 'Guardando…' : askDeposit() ? 'Terminar' : 'Saltar y terminar' }}</button>
           }
           @case (5) {
             <a routerLink="/admin/home" class="btn btn-primary">Ir a mi Inicio</a>

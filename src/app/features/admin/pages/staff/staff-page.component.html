@@ -145,10 +145,10 @@
               } @else {
                 <p class="mt-1 text-sm text-muted">Con su correo entra al panel y ve solo su agenda. Le creamos una contraseña temporal y la cambia al entrar.</p>
                 <form class="mt-3 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end" (submit)="$event.preventDefault(); giveAccess()">
-                  <label class="block"><span class="label">Correo</span>
-                    <input class="input" type="email" name="access_email" inputmode="email" autocomplete="off" [(ngModel)]="accessEmail" />
+                  <label class="block"><span class="label req">Correo</span>
+                    <input class="input" type="email" name="access_email" aria-required="true" inputmode="email" autocomplete="off" [(ngModel)]="accessEmail" />
                   </label>
-                  <button type="submit" class="btn btn-primary" [disabled]="accessBusy()">Dar acceso</button>
+                  <button type="submit" class="btn btn-primary" [disabled]="accessBusy() || !validEmail(accessEmail)">Dar acceso</button>
                 </form>
               }
               @if (accessError(); as message) {
@@ -159,14 +159,14 @@
           @if (vacationFor()?.id === member.id) {
             <li class="bg-canvas px-5 py-4">
               <form class="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end" (submit)="$event.preventDefault(); saveVacation()">
-                <label class="block"><span class="label">Desde</span>
-                  <input class="input" type="date" name="from" [(ngModel)]="vacationFrom" />
+                <label class="block"><span class="label req">Desde</span>
+                  <input class="input" type="date" name="from" aria-required="true" [(ngModel)]="vacationFrom" />
                 </label>
-                <label class="block"><span class="label">Hasta</span>
+                <label class="block"><span class="label opt">Hasta</span>
                   <input class="input" type="date" name="to" [(ngModel)]="vacationTo" />
                 </label>
                 <div class="flex gap-2">
-                  <button type="submit" class="btn btn-primary">Guardar</button>
+                  <button type="submit" class="btn btn-primary" [disabled]="!vacationFrom">Guardar</button>
                   <button type="button" class="btn btn-ghost" (click)="vacationFor.set(null)">Cancelar</button>
                 </div>
                 <p class="field-hint sm:col-span-3">Bloquea esos días solo para {{ member.full_name.split(' ')[0] }}. Si ya tiene citas, muévelas en la Agenda.</p>
@@ -196,12 +196,13 @@
         <mat-icon>close</mat-icon>
       </button>
       <h2 class="min-w-0 flex-1 truncate text-base font-semibold text-ink">{{ dialogTitle() }}</h2>
-      <button type="submit" class="btn btn-primary" [disabled]="isSaving() || photoPending()">
+      <button type="submit" class="btn btn-primary" [disabled]="isSaving() || photoPending() || missing().length > 0">
         {{ photoPending() ? 'Preparando foto…' : isSaving() ? 'Guardando…' : 'Guardar' }}
       </button>
     </header>
     <div class="grid gap-4 overflow-y-auto bg-canvas p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_300px]">
       <div class="flex flex-col gap-4">
+        <app-form-status [missing]="missing()" />
         <section class="card flex flex-col gap-3">
           <div>
             <h3 class="card-title">Perfil público</h3>
@@ -224,16 +225,16 @@
             </div>
           </div>
           <div class="grid gap-3 sm:grid-cols-2">
-            <label class="block"><span class="label">Nombre</span>
-              <input formControlName="full_name" class="input" />
+            <label class="block"><span class="label req">Nombre</span>
+              <input formControlName="full_name" class="input" aria-required="true" />
             </label>
-            <label class="block"><span class="label">Puesto</span>
-              <input formControlName="role_title" class="input" [placeholder]="copy.text().person" />
+            <label class="block"><span class="label req">Puesto</span>
+              <input formControlName="role_title" class="input" aria-required="true" [placeholder]="copy.text().person" />
             </label>
           </div>
           @if (nameError()) { <p class="field-error">{{ nameError() }}</p> }
           @if (roleError()) { <p class="field-error">{{ roleError() }}</p> }
-          <label class="block"><span class="label">Descripción para tus {{ copy.text().clients.toLowerCase() }} (pública)</span>
+          <label class="block"><span class="label opt">Descripción para tus {{ copy.text().clients.toLowerCase() }} (pública)</span>
             <textarea formControlName="bio" rows="3" class="input" [placeholder]="bioExample()"></textarea>
             <span class="field-hint">Se ve en tu página. No escribas aquí notas privadas.</span>
           </label>
@@ -246,18 +247,18 @@
           </div>
           <div class="grid gap-3 sm:grid-cols-2">
             @if (copy.commissions()) {
-              <label class="block"><span class="label">Comisión %</span>
+              <label class="block"><span class="label opt">Comisión %</span>
                 <input type="number" min="0" max="100" formControlName="commission_percent" class="input nums" />
               </label>
             }
-            <label class="block"><span class="label">Meta de venta al mes ($)</span>
+            <label class="block"><span class="label opt">Meta de venta al mes ($)</span>
               <input type="number" min="0" formControlName="goal" placeholder="Sin meta" class="input nums" />
             </label>
             @if (copy.commissions()) {
-              <label class="block"><span class="label">Desde vender ($)</span>
+              <label class="block"><span class="label opt">Desde vender ($)</span>
                 <input type="number" min="0" formControlName="tier_amount" placeholder="Opcional" class="input nums" />
               </label>
-              <label class="block"><span class="label">Comisión sube a %</span>
+              <label class="block"><span class="label opt">Comisión sube a %</span>
                 <input type="number" min="0" max="100" formControlName="tier_percent" placeholder="Opcional" class="input nums" />
               </label>
             }
@@ -273,10 +274,10 @@
             <p class="field-hint">Para que la tengas a la mano; no se publica ni le llegan mensajes de Nexia.</p>
           </div>
           <div class="grid gap-3 sm:grid-cols-2">
-            <label class="block"><span class="label">Teléfono</span>
+            <label class="block"><span class="label opt">Teléfono</span>
               <input type="tel" inputmode="numeric" formControlName="phone" class="input nums" />
             </label>
-            <label class="block"><span class="label">Correo</span>
+            <label class="block"><span class="label opt">Correo</span>
               <input type="email" formControlName="email" class="input" />
             </label>
           </div>
