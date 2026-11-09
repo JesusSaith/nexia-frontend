@@ -113,8 +113,8 @@
           <ng-container *ngTemplateOutlet="head; context: { $implicit: 'negocio' }" />
           <div class="grid gap-4 p-4 sm:grid-cols-2 sm:p-5">
             <label class="block">
-              <span class="label">Nombre del negocio</span>
-              <input class="input" formControlName="name" autocomplete="organization" />
+              <span class="label req">Nombre del negocio</span>
+              <input class="input" aria-required="true" formControlName="name" autocomplete="organization" />
               @if (form.controls.name.invalid && form.controls.name.touched) {
                 <span class="field-error mt-1 block">Escribe el nombre del negocio.</span>
               }
@@ -125,12 +125,12 @@
               <span class="field-hint mt-1 block">Cambia cómo se llama a tu equipo en la página.</span>
             </div>
             <label class="block sm:col-span-2">
-              <span class="label">Qué hace tu negocio</span>
+              <span class="label opt">Qué hace tu negocio</span>
               <textarea class="input" rows="2" formControlName="description" maxlength="500" [placeholder]="examples().description"></textarea>
               <span class="field-hint mt-1 block text-right nums">{{ form.controls.description.value.length }}/500</span>
             </label>
             <label class="block">
-              <span class="label">WhatsApp del negocio</span>
+              <span class="label opt">WhatsApp del negocio</span>
               <input class="input nums" type="tel" inputmode="numeric" maxlength="16" formControlName="phone" placeholder="10 dígitos" (input)="onPhoneInput()" />
               @if (form.controls.phone.invalid && form.controls.phone.touched) {
                 <span class="field-error mt-1 block">El teléfono debe tener 10 dígitos.</span>
@@ -139,15 +139,15 @@
               }
             </label>
             <label class="block">
-              <span class="label">Dirección</span>
+              <span class="label opt">Dirección</span>
               <input class="input" formControlName="address" autocomplete="street-address" placeholder="Calle, número y colonia" />
             </label>
             <label class="block">
-              <span class="label">Instagram</span>
+              <span class="label opt">Instagram</span>
               <input class="input" formControlName="instagram" placeholder="@tunegocio" />
             </label>
             <label class="block">
-              <span class="label">Facebook</span>
+              <span class="label opt">Facebook</span>
               <input class="input" formControlName="facebook" placeholder="facebook.com/tunegocio" />
               <span class="field-hint mt-1 block">Basta con el nombre de tu página; el enlace se arma solo.</span>
             </label>
@@ -369,7 +369,7 @@
             </div>
 
             <div>
-              <span class="label">Fotos de tu trabajo</span>
+              <span class="label opt">Fotos de tu trabajo</span>
               <div class="flex flex-wrap items-center gap-3">
                 @for (photo of photos(); track photo) {
                   <div class="relative">
@@ -426,7 +426,7 @@
               <span class="field-hint mt-1 block">Pasado ese plazo, tu {{ copy.text().client.toLowerCase() }} ya no puede cancelar ni cambiar desde su enlace y te tiene que escribir. Así el horario no se pierde a última hora.</span>
             </div>
             <div>
-              <span class="label">Tope de citas al día por {{ copy.text().person.toLowerCase() }}</span>
+              <span class="label opt">Tope de citas al día por {{ copy.text().person.toLowerCase() }}</span>
               <ng-container *ngTemplateOutlet="chips; context: { field: 'maxDaily', unit: 'citas', max: 200 }" />
               <span class="field-hint mt-1 block">Al llegar al tope, ese día ya no aparece para reservar con esa persona. Tú puedes seguir agendando a mano.</span>
             </div>
@@ -439,7 +439,7 @@
               <span class="field-hint mt-1 block">Se lo decimos a tu {{ copy.text().client.toLowerCase() }} antes de pagar y en su cita. Quien no llega pierde el anticipo en ambos casos.</span>
             </div>
             <label class="block">
-              <span class="label">Mensaje sobre cancelaciones</span>
+              <span class="label opt">Mensaje sobre cancelaciones</span>
               <textarea class="input" rows="2" formControlName="cancelPolicy" placeholder="Si no puedes venir, avísanos con 24 horas para darle tu lugar a alguien más."></textarea>
               <span class="field-hint mt-1 block">Lo ven tus {{ copy.text().clients.toLowerCase() }} al reservar y al cancelar.</span>
             </label>
@@ -457,7 +457,7 @@
                 <span class="field-hint mt-1 block">Con ella se sabe qué horarios ya pasaron.</span>
               </div>
               <label class="block">
-                <span class="label">Salas o equipos (opcional)</span>
+                <span class="label opt">Salas o equipos</span>
                 <input class="input" formControlName="resources" placeholder="Sala 1, Sala 2" />
                 <span class="field-hint mt-1 block">Sepáralos con comas. El {{ copy.text().client.toLowerCase() }} elige uno al reservar.</span>
               </label>
@@ -543,7 +543,7 @@
               <span class="field-hint mt-2 block">Cuenta las citas en que el {{ copy.text().client.toLowerCase() }} no llegó. Se le pide este anticipo aunque el servicio no lo pida, y necesitas una cuenta para recibirlo.</span>
             </div>
             <label class="block">
-              <span class="label">Enlace de pago (opcional)</span>
+              <span class="label opt">Enlace de pago</span>
               <input class="input" formControlName="paymentUrl" placeholder="https://" inputmode="url" />
               @if (form.controls.paymentUrl.invalid && form.controls.paymentUrl.touched) {
                 <span class="field-error mt-1 block">El enlace debe empezar con https://</span>
@@ -560,12 +560,12 @@
           <div class="flex flex-col gap-5 p-4 sm:p-5">
             <div class="grid gap-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
               <label class="block">
-                <span class="label">Anuncio en tu página</span>
+                <span class="label opt">Anuncio en tu página</span>
                 <input class="input" maxlength="80" placeholder="2x1 en color todo octubre" [value]="promo()" (input)="promo.set($any($event.target).value)" />
                 <span class="field-hint mt-1 block">Aparece arriba de tu página de reservas.</span>
               </label>
               <label class="block">
-                <span class="label">Visible hasta</span>
+                <span class="label opt">Visible hasta</span>
                 <input class="input" type="date" [attr.min]="today" [class.input-invalid]="promoError()" [value]="promoUntil()" [disabled]="!promo().trim()" (change)="promoUntil.set($any($event.target).value)" />
                 @if (promoError(); as message) {
                   <span class="field-error mt-1 block">{{ message }}</span>
@@ -608,11 +608,11 @@
                 @for (coupon of coupons(); track $index) {
                   <div class="grid items-end gap-3 rounded-xl border border-line bg-canvas p-3 sm:grid-cols-[1fr_6rem_auto_auto]">
                     <label class="block">
-                      <span class="label">Código</span>
+                      <span class="label req">Código</span>
                       <input class="input uppercase" maxlength="40" placeholder="BIENVENIDA" [class.input-invalid]="couponIssues()[$index]" [value]="coupon.code" (input)="editCoupon($index, { code: $any($event.target).value })" />
                     </label>
                     <label class="block">
-                      <span class="label">%</span>
+                      <span class="label req">%</span>
                       <input class="input nums" type="number" min="1" max="100" [value]="coupon.percent" (input)="editCoupon($index, { percent: toNumber($any($event.target).value) ?? 0 })" />
                     </label>
                     <label class="flex min-h-11 items-center gap-2 text-sm text-ink-soft">
@@ -761,21 +761,21 @@
 
               <div class="mt-4 grid gap-3 rounded-xl border border-line p-3 sm:grid-cols-[1fr_1fr_1.3fr_auto] sm:items-end">
                 <label class="block">
-                  <span class="label">Desde</span>
+                  <span class="label req">Desde</span>
                   <input class="input" type="date" [attr.min]="today" [class.input-invalid]="closureError()" [value]="newFrom()" (change)="newFrom.set($any($event.target).value); closureError.set('')" />
                 </label>
                 <label class="block">
-                  <span class="label">Hasta <span class="text-muted">(si es más de un día)</span></span>
+                  <span class="label opt">Hasta <span class="text-muted">(si es más de un día)</span></span>
                   <input class="input" type="date" [attr.min]="newFrom() || today" [class.input-invalid]="closureError()" [value]="newTo()" (change)="newTo.set($any($event.target).value); closureError.set('')" />
                 </label>
                 <label class="block">
-                  <span class="label">Nombre (opcional)</span>
+                  <span class="label opt">Nombre</span>
                   <input class="input" maxlength="60" placeholder="Vacaciones, Puente…" [value]="newLabel()" (input)="newLabel.set($any($event.target).value)" (keydown.enter)="$event.preventDefault(); addClosure()" />
                 </label>
                 <button type="button" class="btn btn-secondary" (click)="addClosure()"><mat-icon>add</mat-icon>Agregar</button>
                 @if (newTo() && newTo() !== newFrom()) {
                   <div class="sm:col-span-4">
-                    <span class="label">Solo estos días <span class="text-muted">(opcional)</span></span>
+                    <span class="label opt">Solo estos días</span>
                     <app-weekday-picker label="Días de la semana que cierras" [value]="newDays()" (changed)="newDays.set($event)" />
                     <p class="field-hint">{{ newDays().length && newDays().length < 7 ? 'Cierras únicamente esos días del periodo; los demás sí abres.' : 'Sin elegir, cierras todos los días del periodo. Toca los días para cerrar solo esos, por ejemplo los domingos.' }}</p>
                   </div>
@@ -833,7 +833,7 @@
           <ng-container *ngTemplateOutlet="head; context: { $implicit: 'privacidad' }" />
           <div class="flex flex-col gap-5 p-4 sm:p-5">
             <label class="block">
-              <span class="label">Aviso de privacidad</span>
+              <span class="label opt">Aviso de privacidad</span>
               <textarea class="input" rows="5" formControlName="privacyNotice" placeholder="Pega aquí tu aviso de privacidad."></textarea>
               <span class="field-hint mt-1 block">
                 Si lo dejas vacío usamos uno genérico con lo que tu página recaba. Te conviene revisarlo con tu asesor.
@@ -911,8 +911,11 @@
           <p class="min-w-0 flex-1 text-sm">
             <span class="font-semibold nums">{{ changeCount() }}</span> cambio{{ changeCount() === 1 ? '' : 's' }} sin guardar
           </p>
+          @if (blockers().length > 0) {
+            <p class="w-full text-sm text-[var(--nx-rail-soft)]" role="status">Para guardar falta: {{ blockers().join(', ') }}. Los campos con <b>*</b> son obligatorios.</p>
+          }
           <button type="button" class="btn h-11! text-[var(--nx-rail-soft)] hover:bg-[var(--nx-rail-hover)]" [disabled]="saving()" (click)="discard()">Descartar</button>
-          <button type="submit" form="settings-form" class="btn h-11! text-white" style="background: var(--primary)" [disabled]="saving()">
+          <button type="submit" form="settings-form" class="btn h-11! text-white" style="background: var(--primary)" [disabled]="saving() || blockers().length > 0">
             {{ saving() ? 'Guardando…' : 'Guardar cambios' }}
           </button>
         </div>

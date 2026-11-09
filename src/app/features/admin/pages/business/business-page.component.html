@@ -109,7 +109,7 @@
                   <label class="block min-w-0 flex-1"><span class="label">{{ bookingUrl().split('/').slice(0, 3).join('/') }}/</span>
                     <input class="input" name="slug" maxlength="60" [(ngModel)]="newSlug" />
                   </label>
-                  <button type="submit" class="btn btn-secondary">Cambiar</button>
+                  <button type="submit" class="btn btn-secondary" [disabled]="!newSlug.trim()">Cambiar</button>
                 </form>
                 <p class="field-hint mt-1">El enlace anterior y los QR que ya imprimiste siguen funcionando.</p>
                 @if (slugError(); as message) {
@@ -197,7 +197,7 @@
                   } @else {
                     <form class="mt-2 flex gap-2" (submit)="$event.preventDefault(); sendReply(review)">
                       <input class="input flex-1" [attr.aria-label]="'Responder a ' + review.client_name" placeholder="Responder…" [value]="replyDraft()[review.id] ?? ''" (input)="typeReply(review.id, $any($event.target).value)" />
-                      <button type="submit" class="btn btn-secondary">Responder</button>
+                      <button type="submit" class="btn btn-secondary" [disabled]="!(replyDraft()[review.id] ?? '').trim()">Responder</button>
                     </form>
                   }
                 </li>
@@ -206,7 +206,7 @@
           }
           @if (isOwner()) {
             <form class="mt-3 border-t border-line pt-3" (submit)="$event.preventDefault(); saveGoogle()">
-              <label class="block"><span class="label">Enlace para opinar en Google</span>
+              <label class="block"><span class="label opt">Enlace para opinar en Google</span>
                 <input class="input" name="google" placeholder="https://g.page/r/…/review" [(ngModel)]="googleUrl" (input)="googleSaved.set(false)" />
               </label>
               <p class="field-hint mt-1">Quien te califica con 4 o 5 estrellas verá un botón para opinar también en Google. Lo encuentras en tu Perfil de Negocio → "Pedir opiniones".</p>

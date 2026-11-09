@@ -74,7 +74,7 @@
           <div class="grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-2.5">
             <div class="min-w-0">
               <label class="field" [class.field-invalid]="errors().businessName">
-                <span class="field-label">Nombre del negocio</span>
+                <span class="field-label req">Nombre del negocio</span>
                 <input
                   class="field-input"
                   formControlName="businessName"
@@ -95,7 +95,7 @@
 
             <div class="min-w-0">
               <label class="field" [class.field-invalid]="errors().phone">
-                <span class="field-label truncate">WhatsApp<span class="hidden sm:inline"> del negocio</span></span>
+                <span class="field-label req truncate">WhatsApp<span class="hidden sm:inline"> del negocio</span></span>
                 <input
                   class="field-input nums"
                   type="tel"
@@ -151,7 +151,7 @@
           <div class="grid grid-cols-2 gap-2.5">
             <div class="min-w-0">
               <label class="field" [class.field-invalid]="errors().fullName">
-                <span class="field-label">Tu nombre</span>
+                <span class="field-label req">Tu nombre</span>
                 <input
                   class="field-input"
                   formControlName="fullName"
@@ -168,7 +168,7 @@
 
             <div class="min-w-0">
               <label class="field" [class.field-invalid]="errors().email">
-                <span class="field-label">Correo</span>
+                <span class="field-label req">Correo</span>
                 <input
                   class="field-input"
                   type="email"
@@ -192,7 +192,7 @@
 
           <div>
             <label class="field" [class.field-invalid]="errors().password">
-              <span class="field-label">Contraseña</span>
+              <span class="field-label req">Contraseña</span>
               <span class="flex items-center gap-2">
                 <input
                   class="field-input min-w-0 flex-1"
@@ -245,7 +245,8 @@
         }
 
         <div class="flex flex-col gap-2">
-          <button class="btn btn-primary h-11 disabled:opacity-50" type="submit" [disabled]="submitting()">
+          <app-form-status verb="crear tu negocio" [missing]="missing()" />
+          <button class="btn btn-primary h-11 disabled:opacity-50" type="submit" [disabled]="submitting() || missing().length > 0">
             {{ submitting() ? 'Creando tu negocio…' : 'Crear mi negocio' }}
           </button>
           <p class="text-center text-sm text-muted">

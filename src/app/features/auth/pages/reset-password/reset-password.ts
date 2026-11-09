@@ -30,7 +30,7 @@ import { Toasts } from '@core/toasts';
 
           <form class="flex flex-col gap-3" [formGroup]="form" (ngSubmit)="submit()" novalidate>
             <label class="field" [class.field-invalid]="passwordError()">
-              <span class="field-label">Nueva contraseña</span>
+              <span class="field-label req">Nueva contraseña</span>
               <span class="flex items-center gap-2">
                 <input
                   class="field-input min-w-0 flex-1"
@@ -58,7 +58,7 @@ import { Toasts } from '@core/toasts';
               <p role="alert" class="badge-bad rounded-xl px-3 py-2 text-sm">{{ message }}</p>
             }
 
-            <button class="btn btn-primary disabled:opacity-50" type="submit" [disabled]="submitting()">
+            <button class="btn btn-primary disabled:opacity-50" type="submit" [disabled]="submitting() || form.invalid">
               {{ submitting() ? 'Guardando…' : 'Guardar y entrar' }}
             </button>
           </form>

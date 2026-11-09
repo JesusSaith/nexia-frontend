@@ -295,18 +295,19 @@
     @if (editing()) {
       <form class="flex flex-col gap-3" (submit)="$event.preventDefault(); saveEdit()">
         <label class="block">
-          <span class="label">Nombre</span>
+          <span class="label req">Nombre</span>
           <input class="input" name="editName" [(ngModel)]="editName" />
         </label>
         <label class="block">
-          <span class="label">WhatsApp</span>
+          <span class="label req">WhatsApp</span>
           <input class="input nums" name="editPhone" type="tel" inputmode="numeric" [(ngModel)]="editPhone" />
         </label>
         @if (editError(); as message) {
           <p class="field-error" role="alert">{{ message }}</p>
         }
+        <app-form-status [missing]="editMissing()" />
         <div class="flex gap-2">
-          <button type="submit" class="btn btn-primary">Guardar</button>
+          <button type="submit" class="btn btn-primary" [disabled]="editMissing().length > 0">Guardar</button>
           <button type="button" class="btn btn-ghost" (click)="editing.set(false)">Cancelar</button>
         </div>
       </form>
@@ -376,7 +377,7 @@
     }
 
     <div>
-      <span class="label">Etiquetas</span>
+      <span class="label opt">Etiquetas</span>
       <div class="flex flex-wrap items-center gap-2">
         @for (tag of person.tags ?? []; track tag) {
           <span class="chip chip-on gap-1 pr-1!">
@@ -433,7 +434,7 @@
     </section>
 
     <label class="block">
-      <span class="label">Cumpleaños (opcional)</span>
+      <span class="label opt">Cumpleaños</span>
       <input class="input" type="date" [value]="person.birthday ?? ''" (change)="saveBirthday($any($event.target).value)" />
       @if (birthdayState() === 'error') {
         <span class="field-error" role="alert">No pudimos guardar el cumpleaños.</span>
@@ -443,7 +444,7 @@
     </label>
 
     <label class="block">
-      <span class="label">Notas internas</span>
+      <span class="label opt">Notas internas</span>
       <textarea class="input" rows="3" placeholder="Solo las ves tú" [ngModel]="notes()" (ngModelChange)="notes.set($event)" (blur)="saveNotes()"></textarea>
       <span class="field-hint" [style.color]="notesState() === 'error' ? 'var(--nx-bad-fg)' : null">
         @switch (notesState()) {

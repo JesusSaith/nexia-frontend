@@ -1,4 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { FormStatusComponent } from '@shared/components/form-status/form-status';
 import { Component, DestroyRef, HostListener, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
@@ -25,7 +26,7 @@ const AWAY_DAYS = 45;
 
 @Component({
   selector: 'app-customers',
-  imports: [MatIconModule, MatMenuModule, FormsModule, RouterLink, Skeleton],
+  imports: [MatIconModule, MatMenuModule, FormsModule, RouterLink, Skeleton, FormStatusComponent],
   templateUrl: './customers.html',
 })
 export class Customers {
@@ -594,6 +595,18 @@ export class Customers {
     this.editPhone = card.phone;
     this.editError.set(null);
     this.editing.set(true);
+  }
+
+  /** Lo que falta para guardar la ficha: el botón queda apagado y se dice qué es. */
+  protected editMissing(): string[] {
+    const list: string[] = [];
+    if (!this.editName.trim()) {
+      list.push('el nombre');
+    }
+    if (!cleanPhone(this.editPhone)) {
+      list.push('el WhatsApp (10 dígitos)');
+    }
+    return list;
   }
 
   protected saveEdit(): void {
