@@ -715,6 +715,9 @@
           <button class="btn btn-primary h-12 w-full" type="button" (click)="acceptAndTell(pop.appointment)">
             {{ pop.appointment.payment_proof ? 'Aceptar y avisar' : 'Depósito recibido' }}
           </button>
+          @if (!pop.appointment.payment_proof && canWaiveDeposit()) {
+            <button class="btn btn-secondary h-12 w-full" type="button" [disabled]="pendingId() !== null" (click)="waiveDeposit(pop.appointment)">No dio anticipo, paga todo en la cita</button>
+          }
           <div class="grid gap-2" [class.grid-cols-2]="pop.appointment.payment_proof">
             @if (pop.appointment.payment_proof) {
               <button class="btn btn-secondary" type="button" (click)="askAnother(pop.appointment)">Pedir otra foto</button>
