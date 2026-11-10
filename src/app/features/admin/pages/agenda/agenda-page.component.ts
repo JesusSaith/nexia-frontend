@@ -2459,6 +2459,7 @@ export class AgendaPageComponent {
 
   protected closeAppointment(): void {
     this.selected.set(null);
+    this.fixingDeposit.set(null);
   }
 
   private clientWhatsapp(appointment: Appointment): string | null {
@@ -2513,6 +2514,32 @@ export class AgendaPageComponent {
     if (phone) {
       window.open(whatsappLink(phone, this.copy.message('deposit_ok', this.visitVars(appointment))), '_blank', 'noopener');
     }
+  }
+
+  /** Cita con "Anticipo pagado" que en realidad no lo pagó: la ficha ofrece corregirlo. */
+  protected readonly fixingDeposit = signal<number | null>(null);
+
+  protected fixDeposit(appointment: Appointment, mode: 'unpaid' | 'none'): void {
+    if (this.pendingId() !== null) {
+      return;
+    }
+    this.pendingId.set(appointment.id);
+    this.appointmentsApi
+      .correctDeposit(appointment.id, mode)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (updated) => {
+          this.pendingId.set(null);
+          this.fixingDeposit.set(null);
+          this.patchLocal({ ...appointment, ...updated });
+          this.refreshQuietly();
+          this.toasts.show(mode === 'unpaid' ? 'Listo: la cita espera el anticipo.' : 'Listo: la cita ya no lleva anticipo.');
+        },
+        error: (error: unknown) => {
+          this.pendingId.set(null);
+          this.toasts.show(readError(error, 'No pudimos corregir el anticipo.'));
+        },
+      });
   }
 
   protected askAnother(appointment: Appointment): void {
