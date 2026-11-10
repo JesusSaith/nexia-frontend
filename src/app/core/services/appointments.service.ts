@@ -121,6 +121,11 @@ export class AppointmentsService {
     return this.http.put<Appointment>(`${this.apiBaseUrl}/appointments/${id}/quote`, { quoted_price: quotedPrice });
   }
 
+  /** No mandó anticipo pero sí va a ir: queda confirmada sin anticipo. */
+  waiveDeposit(id: number): Observable<Appointment> {
+    return this.http.post<Appointment>(`${this.apiBaseUrl}/appointments/${id}/waive-deposit`, {});
+  }
+
   waiters(day: string, serviceId: number, staffId: number): Observable<{ client_name: string; client_phone: string }[]> {
     return this.http.get<{ client_name: string; client_phone: string }[]>(`${this.apiBaseUrl}/appointments/waiters`, {
       params: { day, service_id: serviceId, staff_id: staffId },
