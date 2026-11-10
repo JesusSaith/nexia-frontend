@@ -94,6 +94,8 @@ export interface AdminAppointmentCreate {
   payment_method?: string | null;
   tip?: number | null;
   visit_note?: string | null;
+  /** La dueña confirmó que quiere agendar aunque choque con otra cita. */
+  allow_overlap?: boolean;
 }
 
 export interface AdminAppointmentUpdate {
@@ -110,6 +112,22 @@ export interface AdminAppointmentUpdate {
   deposit_received?: number | null;
   contact_channel?: 'instagram' | 'messenger' | 'facebook' | 'otro';
   contact_handle?: string;
+  allow_overlap?: boolean;
+}
+
+/** Una hora ocupada y quién la tiene (el nombre de la cita o "Bloqueado"). */
+export interface BusyTime {
+  time: string;
+  label: string;
+}
+
+/** Horas para agendar o editar: libres, ocupadas y, si no hay libres, por qué y el siguiente día libre. */
+export interface FreeTimes {
+  times: string[];
+  busy: BusyTime[];
+  reason: string | null;
+  note: string | null;
+  next_day: string | null;
 }
 
 /** Corregir una cita ya cerrada: cómo terminó y lo que se cobró. */

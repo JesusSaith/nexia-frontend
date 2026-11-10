@@ -34,7 +34,7 @@ import { Skeleton } from '@shared/components/skeleton/skeleton';
 import { buildDaySheet, daySheetHtml, daySheetText } from '@core/day-sheet';
 import { MessageVars, firstName, isPhone, longDay, whatsappLink } from '@core/message-templates';
 import { Toasts } from '@core/toasts';
-import { Appointment, AppointmentCorrection, AppointmentStatus, PastHour } from '@core/models/appointment.model';
+import { AdminAppointmentCreate, AdminAppointmentUpdate, Appointment, AppointmentCorrection, AppointmentStatus, FreeTimes, PastHour } from '@core/models/appointment.model';
 import { ScheduleItem } from '@core/models/schedule.model';
 import { Service } from '@core/models/service.model';
 import { Staff } from '@core/models/staff.model';
@@ -243,6 +243,16 @@ export class AgendaPageComponent {
   protected readonly formError = signal<string | null>(null);
   protected readonly slotTimes = signal<string[]>([]);
   protected readonly slotsReady = signal(false);
+  /** Quién ocupa cada hora ocupada de la lista ("12:30": "Alejandra"). */
+  protected readonly busyLabels = signal<Record<string, string>>({});
+  /** Cuántas horas libres hay (la lista también trae las ocupadas, atenuadas). */
+  protected readonly freeCount = signal(0);
+  /** Si no hay horas libres: por qué y cuál es el siguiente día libre. */
+  protected readonly dayReason = signal<string | null>(null);
+  protected readonly dayNote = signal<string | null>(null);
+  protected readonly nextDay = signal<string | null>(null);
+  /** Escribir una hora que no está en la lista (fuera del turno); se pregunta antes de guardar. */
+  protected readonly customTime = signal(false);
   protected readonly guests = signal<{ phone: string; visit_count: number; total_spent: number; cancel_count: number; full_name: string }[]>([]);
   protected readonly known = signal<{ visit_count: number; total_spent: number; cancel_count: number; full_name: string } | null>(null);
   protected readonly freshPhone = signal(false);
@@ -629,32 +639,42 @@ export class AgendaPageComponent {
             return of(null);
           }
           // Para la dueña salen todas las horas libres cada 15 min (sin las reglas de la página pública); al editar no cuenta la propia cita.
-          const free$ = this.appointmentsApi.freeTimes(Number(staffId), Number(serviceId), date, editing ? Number(editing) : null).pipe(
-            catchError(() => of([] as string[])),
-          );
-          if (editing || date > toInputDate(this.clock.now())) {
-            this.busyTimes.set([]);
-            return free$;
+          const none: FreeTimes = { times: [], busy: [], reason: null, note: null, next_day: null };
+          const day$ = this.appointmentsApi.freeTimes(Number(staffId), Number(serviceId), date, editing ? Number(editing) : null).pipe(catchError(() => of(none)));
+          const today = toInputDate(this.clock.now());
+          if (editing || date > today) {
+            return day$.pipe(map((day) => this.dayTimes(day, day.times, [])));
           }
           // Hoy o antes: se muestran las horas que la persona trabaja (las ocupadas, marcadas), no solo los huecos de adelante.
-          const isToday = date === toInputDate(this.clock.now());
+          const isToday = date === today;
           const nowClock = clockFromMinutes(this.clock.now().getHours() * 60 + this.clock.now().getMinutes());
-          return forkJoin([free$, this.appointmentsApi.getPastHours(Number(staffId), Number(serviceId), date).pipe(catchError(() => of([] as PastHour[])))]).pipe(
-            map(([free, hours]) => {
+          return forkJoin([day$, this.appointmentsApi.getPastHours(Number(staffId), Number(serviceId), date).pipe(catchError(() => of([] as PastHour[])))]).pipe(
+            map(([day, hours]) => {
               const worked = hours.filter((row) => !isToday || row.time < nowClock);
-              this.busyTimes.set(worked.filter((row) => row.busy).map((row) => row.time));
-              return [...new Set([...worked.map((row) => row.time), ...(isToday ? free : [])])].sort();
+              const view = this.dayTimes(isToday ? day : { ...none }, isToday ? day.times : [], worked.map((row) => row.time));
+              const busy = worked.filter((row) => row.busy).map((row) => row.time);
+              return { ...view, busy: [...new Set([...busy, ...view.busy])].sort(), reason: isToday ? view.reason : null };
             }),
           );
         }),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe((times) => {
-        this.slotsReady.set(times !== null);
-        this.slotTimes.set(times ?? []);
+      .subscribe((view) => {
+        this.slotsReady.set(view !== null);
+        this.slotTimes.set(view?.options ?? []);
+        this.busyTimes.set(view?.busy ?? []);
+        this.busyLabels.set(view?.labels ?? {});
+        this.freeCount.set(view?.free ?? 0);
+        this.dayReason.set(view?.reason ?? null);
+        this.dayNote.set(view?.note ?? null);
+        this.nextDay.set(view?.nextDay ?? null);
         const current = this.form.controls.time.value;
-        if (current && times && !times.includes(current)) {
+        if (current && view && !view.options.includes(current) && !this.customTime()) {
+          const clean = !this.hasChanges();
           this.form.controls.time.setValue('', { emitEvent: false });
+          if (clean) {
+            this.baseline = this.snapshot();
+          }
         }
       });
     interval(20000)
@@ -1665,6 +1685,165 @@ export class AgendaPageComponent {
     return this.workingWindow(staffId, this.cursor()) !== null;
   }
 
+  /** Qué cambió respecto a la cita tal como se abrió (solo al editar). */
+  protected readonly changedList = computed<string[]>(() => {
+    this.formTick();
+    this.noPhone();
+    this.petName();
+    this.contactHandle();
+    this.contactChannel();
+    if (this.editingId() === null || !this.baseline) {
+      return [];
+    }
+    const [before, pet, noPhone, channel, handle] = JSON.parse(this.baseline) as [ReturnType<typeof this.form.getRawValue>, string, boolean, string, string];
+    const now = this.form.getRawValue();
+    const list: string[] = [];
+    if (now.service_id !== before.service_id) {
+      list.push('el servicio');
+    }
+    if (now.staff_id !== before.staff_id) {
+      list.push(this.copy.text().person.toLowerCase());
+    }
+    if (now.date !== before.date || now.time !== before.time) {
+      list.push('el día u hora');
+    }
+    if (now.client_name !== before.client_name || now.client_phone !== before.client_phone || now.client_email !== before.client_email || noPhone !== this.noPhone() || channel !== this.contactChannel() || handle !== this.contactHandle().trim()) {
+      list.push('los datos del cliente');
+    }
+    if (now.quoted_price !== before.quoted_price) {
+      list.push('el precio');
+    }
+    if (now.deposit_mode !== before.deposit_mode || (now.deposit_mode === 'received' && now.deposit_received !== before.deposit_received)) {
+      list.push('el anticipo');
+    }
+    if (now.notes !== before.notes || pet !== this.petName()) {
+      list.push('las notas');
+    }
+    return list;
+  });
+
+  /** Lo que la clienta debe saber si cambia: día, hora, servicio, persona, precio o anticipo. */
+  private changesToTell(): boolean {
+    return this.changedList().some((item) => item !== 'los datos del cliente' && item !== 'las notas');
+  }
+
+  /** Anticipo que pediría el negocio con el servicio y precio elegidos (para mostrarlo en el botón y sugerirlo). */
+  protected readonly suggestedDeposit = computed<number | null>(() => {
+    this.formTick();
+    const value = this.form.getRawValue();
+    const service = this.services().find((item) => item.id === value.service_id);
+    if (!service) {
+      return null;
+    }
+    const quoted = String(value.quoted_price ?? '').trim() ? Number(value.quoted_price) : null;
+    return this.previewDeposit(service, quoted);
+  });
+
+  protected pickDepositMode(mode: 'auto' | 'none' | 'received'): void {
+    this.form.controls.deposit_mode.setValue(mode);
+    const suggested = this.suggestedDeposit();
+    if (mode === 'received' && !String(this.form.controls.deposit_received.value).trim() && suggested) {
+      this.form.controls.deposit_received.setValue(String(suggested));
+    }
+  }
+
+  protected useSuggestedDeposit(): void {
+    const suggested = this.suggestedDeposit();
+    if (suggested) {
+      this.form.controls.deposit_received.setValue(String(suggested));
+    }
+  }
+
+  /** Resumen fijo al pie del formulario: cuándo, con quién, qué y cuánto, con la hora en que termina. */
+  protected readonly summary = computed<string | null>(() => {
+    this.formTick();
+    const value = this.form.getRawValue();
+    const service = this.services().find((item) => item.id === value.service_id);
+    const member = this.staff().find((item) => item.id === value.staff_id);
+    if (!service || !member || !value.date || !value.time) {
+      return null;
+    }
+    const editing = this.editingAppointment();
+    const real = editing?.ends_at && editing.service_id === service.id ? Math.round((new Date(editing.ends_at).getTime() - new Date(editing.starts_at).getTime()) / 60000) : 0;
+    const minutes = real > 0 ? real : service.duration_minutes;
+    const [hour, minute] = value.time.split(':').map(Number);
+    const end = clockFromMinutes((hour * 60 + minute + minutes) % 1440);
+    const day = this.dayShort(value.date);
+    const quoted = String(value.quoted_price ?? '').trim() ? Number(value.quoted_price) : null;
+    const open = quoted == null && !!(service.price_at_visit || service.is_hold || !service.price);
+    const parts = [`${day.charAt(0).toUpperCase()}${day.slice(1)}`, `${hora12(value.time)} a ${hora12(end)}`, firstName(member.full_name), service.name];
+    parts.push(open ? 'Precio por definir' : pesos(quoted ?? service.price));
+    if (!this.pastVisit()) {
+      const suggested = this.suggestedDeposit();
+      const got = Number(value.deposit_received);
+      if (value.deposit_mode === 'none') {
+        parts.push('Sin anticipo');
+      } else if (value.deposit_mode === 'received') {
+        parts.push(got > 0 ? `${open ? 'Apartado' : 'Anticipo'} ${pesos(got)} recibido` : 'Falta el monto del anticipo');
+      } else if (suggested) {
+        parts.push(`Anticipo ${pesos(suggested)} por pagar`);
+      }
+    }
+    return parts.join(' · ');
+  });
+
+  /** Si esa persona ya tiene otra cita ese día (se ve en la agenda cargada): avisa para no duplicar. */
+  protected readonly sameDayNote = computed<string | null>(() => {
+    this.formTick();
+    this.noPhone();
+    this.contactHandle();
+    this.contactChannel();
+    const value = this.form.getRawValue();
+    if (!value.date) {
+      return null;
+    }
+    const channel = this.contactChannels.find((item) => item.value === this.contactChannel())?.label ?? '';
+    const key = this.noPhone() ? `${channel} ${this.contactHandle().trim()}`.toLowerCase().replace(/\s+/g, ' ') : value.client_phone.replace(/\D/g, '').slice(-10);
+    if (key.length < 7) {
+      return null;
+    }
+    const same = this.appointments().filter((item) => {
+      if (item.id === this.editingId() || !item.starts_at.startsWith(value.date) || item.status === 'cancelled' || item.status === 'no_show') {
+        return false;
+      }
+      const stored = item.client_phone ?? '';
+      return this.noPhone() ? stored.toLowerCase().replace(/\s+/g, ' ') === key : stored.replace(/\D/g, '').slice(-10) === key;
+    });
+    if (same.length === 0) {
+      return null;
+    }
+    return `Ya tiene ${same.length === 1 ? 'otra cita' : 'otras citas'} ese día: ${same.map((item) => `${item.service_name} a las ${hora12(item.starts_at.slice(11, 16))}`).join(' y ')}.`;
+  });
+
+  /** Arma lo que muestra la lista de horas: libres y ocupadas juntas (las ocupadas atenuadas, con su cita) y el motivo si no hay ninguna libre. */
+  private dayTimes(day: FreeTimes, free: string[], worked: string[]) {
+    const busy = day.busy.map((row) => row.time);
+    const options = [...new Set([...worked, ...free, ...busy])].sort();
+    return {
+      options,
+      busy,
+      labels: Object.fromEntries(day.busy.map((row) => [row.time, row.label])) as Record<string, string>,
+      free: free.length,
+      reason: free.length ? null : day.reason,
+      note: day.note,
+      nextDay: free.length ? null : day.next_day,
+    };
+  }
+
+  /** "mar 10 nov" para el botón "Ver el siguiente día libre". */
+  protected dayShort(value: string): string {
+    const [year, month, day] = value.split('-').map(Number);
+    return new Date(year, month - 1, day).toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' }).replace('.', '');
+  }
+
+  protected goToNextDay(): void {
+    const next = this.nextDay();
+    if (next) {
+      this.form.controls.date.setValue(next);
+      this.form.controls.time.setValue('');
+    }
+  }
+
   protected openCreateAt(day: Date, minutes: number, staffId?: number): void {
     this.openForm(day, minutes, staffId);
   }
@@ -1681,6 +1860,13 @@ export class AgendaPageComponent {
     this.formError.set(null);
     this.petName.set('');
     this.editingId.set(editing?.id ?? null);
+    this.editingAppointment.set(editing ?? null);
+    this.customTime.set(false);
+    this.freeCount.set(0);
+    this.dayReason.set(null);
+    this.dayNote.set(null);
+    this.nextDay.set(null);
+    this.busyLabels.set({});
     this.form.reset({
       service_id: this.serviceId(),
       staff_id: staffId ?? this.staffId(),
@@ -1720,12 +1906,53 @@ export class AgendaPageComponent {
     if (this.isStaff()) {
       this.form.controls.staff_id.disable();
     }
+    this.baseline = this.snapshot();
+    // Cerrar con la X, tocando fuera o con Escape pregunta antes si hay cambios sin guardar.
     this.dialogRef = this.dialog.open(this.editor(), {
       width: '980px',
       maxWidth: 'calc(100vw - 32px)',
       panelClass: 'service-sheet',
       autoFocus: 'first-tabbable',
+      disableClose: true,
     });
+    const ref = this.dialogRef;
+    ref.backdropClick().subscribe(() => void this.requestClose());
+    ref.keydownEvents().subscribe((event) => {
+      if (event.key === 'Escape') {
+        void this.requestClose();
+      }
+    });
+  }
+
+  private readonly editingAppointment = signal<Appointment | null>(null);
+  private baseline = '';
+
+  /** Lo que hay en el formulario ahora, para saber si algo cambió desde que se abrió. */
+  private snapshot(): string {
+    return JSON.stringify([this.form.getRawValue(), this.petName(), this.noPhone(), this.contactChannel(), this.contactHandle().trim()]);
+  }
+
+  protected hasChanges(): boolean {
+    return this.snapshot() !== this.baseline;
+  }
+
+  protected async requestClose(): Promise<void> {
+    if (this.isSaving()) {
+      return;
+    }
+    if (
+      this.hasChanges() &&
+      !(await this.confirm.ask({
+        title: '¿Salir sin guardar?',
+        message: this.editingId() !== null ? `Los cambios de la ${this.copy.text().visit.toLowerCase()} se perderán.` : `Lo que escribiste de la ${this.copy.text().visit.toLowerCase()} se perderá.`,
+        confirm: 'Salir sin guardar',
+        cancel: 'Seguir editando',
+        danger: true,
+      }))
+    ) {
+      return;
+    }
+    this.closeEditor();
   }
 
   private fillFrom(appointment: Appointment): void {
@@ -2272,15 +2499,15 @@ export class AgendaPageComponent {
       this.formError.set('Escribe cuánto se cobró.');
       return;
     }
+    if (await this.confirmOutOfShift(value.time)) {
+      return;
+    }
     const editing = this.editingId();
     if (editing !== null) {
       this.saveEdit(editing, value);
       return;
     }
-    this.isSaving.set(true);
-    this.formError.set(null);
-    this.appointmentsApi
-      .createAdminAppointment({
+    const payload: AdminAppointmentCreate = {
         service_id: value.service_id,
         staff_id: value.staff_id,
         starts_at: `${value.date}T${value.time}:00`,
@@ -2300,7 +2527,35 @@ export class AgendaPageComponent {
             }
           : {}),
         notes: [this.copy.text().pet && this.petName().trim() ? `Mascota: ${this.petName().trim()}` : '', value.notes.trim()].filter(Boolean).join('\n') || null,
-      })
+      };
+    void this.submitCreate(payload, past);
+  }
+
+  /** Una hora escrita a mano que no está en la lista (fuera del turno): se pregunta antes de guardar. Devuelve true si se canceló. */
+  private async confirmOutOfShift(time: string): Promise<boolean> {
+    if (!this.customTime() || !time || this.slotTimes().includes(time)) {
+      return false;
+    }
+    const ok = await this.confirm.ask({
+      title: 'Esa hora no está en su horario',
+      message: `${hora12(time)} queda fuera del turno de ese día. ¿Quieres agendarla de todos modos?`,
+      confirm: 'Agendar de todos modos',
+      cancel: 'Elegir otra hora',
+    });
+    return !ok;
+  }
+
+  /** Si la hora choca con otra cita, el servidor lo dice y la dueña decide si agenda encimado. */
+  private overlapMessage(error: unknown): string | null {
+    const detail = error instanceof HttpErrorResponse ? error.error?.detail : null;
+    return detail && typeof detail === 'object' && detail.code === 'overlap' ? String(detail.message) : null;
+  }
+
+  private async submitCreate(payload: AdminAppointmentCreate, past: boolean): Promise<void> {
+    this.isSaving.set(true);
+    this.formError.set(null);
+    this.appointmentsApi
+      .createAdminAppointment(payload)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (created) => {
@@ -2314,9 +2569,14 @@ export class AgendaPageComponent {
             this.clientNotice.set(this.clientWhatsapp(created));
           }
         },
-        error: (error: unknown) => {
+        error: async (error: unknown) => {
           this.isSaving.set(false);
-          this.formError.set(readError(error, 'No pudimos agendar la cita.'));
+          const clash = this.overlapMessage(error);
+          if (clash && !payload.allow_overlap && (await this.confirm.ask({ title: 'Esa hora ya está ocupada', message: `${clash} ¿Quieres agendar encimada de todos modos?`, confirm: 'Agendar de todos modos', cancel: 'Elegir otra hora' }))) {
+            void this.submitCreate({ ...payload, allow_overlap: true }, past);
+            return;
+          }
+          this.formError.set(clash ?? readError(error, 'No pudimos agendar la cita.'));
         },
       });
   }
@@ -2325,10 +2585,10 @@ export class AgendaPageComponent {
     if (value.service_id == null || value.staff_id == null) {
       return;
     }
-    this.isSaving.set(true);
-    this.formError.set(null);
-    this.appointmentsApi
-      .updateAdminAppointment(id, {
+    const tell = this.changesToTell();
+    void this.submitEdit(
+      id,
+      {
         service_id: value.service_id,
         staff_id: value.staff_id,
         starts_at: `${value.date}T${value.time}:00`,
@@ -2340,18 +2600,36 @@ export class AgendaPageComponent {
         deposit_mode: value.deposit_mode,
         deposit_received: value.deposit_mode === 'received' && Number(value.deposit_received) > 0 ? Number(value.deposit_received) : null,
         notes: [this.copy.text().pet && this.petName().trim() ? `Mascota: ${this.petName().trim()}` : '', value.notes.trim()].filter(Boolean).join('\n') || null,
-      })
+      },
+      tell,
+    );
+  }
+
+  private async submitEdit(id: number, payload: AdminAppointmentUpdate, tell: boolean): Promise<void> {
+    this.isSaving.set(true);
+    this.formError.set(null);
+    this.appointmentsApi
+      .updateAdminAppointment(id, payload)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: () => {
+        next: (updated) => {
           this.isSaving.set(false);
           this.closeEditor();
           this.loadAppointments(this.range(), this.staffId(), this.serviceId());
           this.toasts.show(`Se guardaron los cambios de la ${this.copy.text().visit.toLowerCase()}.`);
+          // Cambió algo que la clienta debe saber (día, hora, servicio, persona, precio o anticipo): se ofrece avisarle por WhatsApp.
+          if (tell) {
+            this.clientNotice.set(this.clientWhatsapp(updated));
+          }
         },
-        error: (error: unknown) => {
+        error: async (error: unknown) => {
           this.isSaving.set(false);
-          this.formError.set(readError(error, 'No pudimos guardar los cambios.'));
+          const clash = this.overlapMessage(error);
+          if (clash && !payload.allow_overlap && (await this.confirm.ask({ title: 'Esa hora ya está ocupada', message: `${clash} ¿Quieres guardarla encimada de todos modos?`, confirm: 'Guardar de todos modos', cancel: 'Elegir otra hora' }))) {
+            void this.submitEdit(id, { ...payload, allow_overlap: true }, tell);
+            return;
+          }
+          this.formError.set(clash ?? readError(error, 'No pudimos guardar los cambios.'));
         },
       });
   }
