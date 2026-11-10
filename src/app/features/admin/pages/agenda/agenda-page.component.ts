@@ -616,23 +616,23 @@ export class AgendaPageComponent {
       const { date, time } = this.form.getRawValue();
       const today = toInputDate(this.clock.now());
       const now = this.clock.now();
-      this.pastVisit.set(!!date && (date < today || (date === today && !!time && time < clockFromMinutes(now.getHours() * 60 + now.getMinutes()))));
+      this.pastVisit.set(this.editingId() === null && !!date && (date < today || (date === today && !!time && time < clockFromMinutes(now.getHours() * 60 + now.getMinutes()))));
     });
     this.form.valueChanges
       .pipe(
-        map((value) => `${value.service_id ?? ''}|${value.staff_id ?? ''}|${value.date}`),
+        map((value) => `${value.service_id ?? ''}|${value.staff_id ?? ''}|${value.date}|${this.editingId() ?? ''}`),
         distinctUntilChanged(),
         switchMap((key) => {
-          const [serviceId, staffId, date] = key.split('|');
+          const [serviceId, staffId, date, editing] = key.split('|');
           const slug = this.auth.currentUser()?.slug;
           if (!slug || !serviceId || !staffId || !date) {
             return of(null);
           }
-          const free$ = this.booking.getAvailability(slug, Number(serviceId), Number(staffId), date).pipe(
-            map((rows) => rows.map((row) => row.starts_at.slice(11, 16))),
+          // Para la dueña salen todas las horas libres cada 15 min (sin las reglas de la página pública); al editar no cuenta la propia cita.
+          const free$ = this.appointmentsApi.freeTimes(Number(staffId), Number(serviceId), date, editing ? Number(editing) : null).pipe(
             catchError(() => of([] as string[])),
           );
-          if (date > toInputDate(this.clock.now())) {
+          if (editing || date > toInputDate(this.clock.now())) {
             this.busyTimes.set([]);
             return free$;
           }
@@ -1666,9 +1666,21 @@ export class AgendaPageComponent {
   }
 
   protected openCreateAt(day: Date, minutes: number, staffId?: number): void {
+    this.openForm(day, minutes, staffId);
+  }
+
+  /** Editar una cita pendiente: el mismo formulario de "Nueva cita", ya con los datos de la cita. */
+  protected readonly editingId = signal<number | null>(null);
+
+  protected openEdit(appointment: Appointment): void {
+    this.openForm(new Date(`${appointment.starts_at.slice(0, 10)}T00:00:00`), 0, undefined, appointment);
+  }
+
+  private openForm(day: Date, minutes: number, staffId?: number, editing?: Appointment): void {
     this.selected.set(null);
     this.formError.set(null);
     this.petName.set('');
+    this.editingId.set(editing?.id ?? null);
     this.form.reset({
       service_id: this.serviceId(),
       staff_id: staffId ?? this.staffId(),
@@ -1685,6 +1697,9 @@ export class AgendaPageComponent {
     this.noPhone.set(false);
     this.contactChannel.set('instagram');
     this.contactHandle.set('');
+    if (editing) {
+      this.fillFrom(editing);
+    }
     this.pastOutcome.set('done');
     this.pastMethod.set(this.pastMethods()[0]?.value ?? 'efectivo');
     this.pastTip.set('');
@@ -1711,6 +1726,30 @@ export class AgendaPageComponent {
       panelClass: 'service-sheet',
       autoFocus: 'first-tabbable',
     });
+  }
+
+  private fillFrom(appointment: Appointment): void {
+    const phone = appointment.client_phone ?? '';
+    const notes = appointment.notes ?? '';
+    const pet = this.copy.text().pet && notes.startsWith('Mascota: ') ? notes.split('\n')[0].slice('Mascota: '.length) : '';
+    if (pet) {
+      this.petName.set(pet);
+    }
+    const paid = appointment.status === 'scheduled' && (appointment.deposit_amount ?? 0) > 0;
+    this.form.patchValue({
+      service_id: this.isHold(appointment.service_id) ? null : appointment.service_id,
+      staff_id: appointment.staff_id,
+      date: appointment.starts_at.slice(0, 10),
+      time: appointment.starts_at.slice(11, 16),
+      client_name: appointment.client_name,
+      client_phone: isPhone(phone) ? phone : '',
+      client_email: appointment.client_email ?? '',
+      notes: pet ? notes.split('\n').slice(1).join('\n') : notes,
+      quoted_price: appointment.quoted_price != null ? String(appointment.quoted_price) : '',
+      deposit_mode: appointment.status === 'awaiting_deposit' ? 'auto' : paid ? 'received' : 'none',
+      deposit_received: paid ? String(appointment.deposit_amount) : '',
+    });
+    this.applyContact(phone);
   }
 
   protected openCreate(): void {
@@ -2233,6 +2272,11 @@ export class AgendaPageComponent {
       this.formError.set('Escribe cuánto se cobró.');
       return;
     }
+    const editing = this.editingId();
+    if (editing !== null) {
+      this.saveEdit(editing, value);
+      return;
+    }
     this.isSaving.set(true);
     this.formError.set(null);
     this.appointmentsApi
@@ -2273,6 +2317,41 @@ export class AgendaPageComponent {
         error: (error: unknown) => {
           this.isSaving.set(false);
           this.formError.set(readError(error, 'No pudimos agendar la cita.'));
+        },
+      });
+  }
+
+  private saveEdit(id: number, value: ReturnType<typeof this.form.getRawValue>): void {
+    if (value.service_id == null || value.staff_id == null) {
+      return;
+    }
+    this.isSaving.set(true);
+    this.formError.set(null);
+    this.appointmentsApi
+      .updateAdminAppointment(id, {
+        service_id: value.service_id,
+        staff_id: value.staff_id,
+        starts_at: `${value.date}T${value.time}:00`,
+        client_name: value.client_name.trim(),
+        client_phone: this.noPhone() ? '' : value.client_phone.trim(),
+        ...(this.noPhone() ? { contact_channel: this.contactChannel(), contact_handle: this.contactHandle().trim() } : {}),
+        client_email: value.client_email.trim() || null,
+        quoted_price: String(value.quoted_price ?? '').trim() ? Number(value.quoted_price) : null,
+        deposit_mode: value.deposit_mode,
+        deposit_received: value.deposit_mode === 'received' && Number(value.deposit_received) > 0 ? Number(value.deposit_received) : null,
+        notes: [this.copy.text().pet && this.petName().trim() ? `Mascota: ${this.petName().trim()}` : '', value.notes.trim()].filter(Boolean).join('\n') || null,
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.isSaving.set(false);
+          this.closeEditor();
+          this.loadAppointments(this.range(), this.staffId(), this.serviceId());
+          this.toasts.show(`Se guardaron los cambios de la ${this.copy.text().visit.toLowerCase()}.`);
+        },
+        error: (error: unknown) => {
+          this.isSaving.set(false);
+          this.formError.set(readError(error, 'No pudimos guardar los cambios.'));
         },
       });
   }
@@ -2459,7 +2538,6 @@ export class AgendaPageComponent {
 
   protected closeAppointment(): void {
     this.selected.set(null);
-    this.fixingDeposit.set(null);
   }
 
   private clientWhatsapp(appointment: Appointment): string | null {
@@ -2514,32 +2592,6 @@ export class AgendaPageComponent {
     if (phone) {
       window.open(whatsappLink(phone, this.copy.message('deposit_ok', this.visitVars(appointment))), '_blank', 'noopener');
     }
-  }
-
-  /** Cita con "Anticipo pagado" que en realidad no lo pagó: la ficha ofrece corregirlo. */
-  protected readonly fixingDeposit = signal<number | null>(null);
-
-  protected fixDeposit(appointment: Appointment, mode: 'unpaid' | 'none'): void {
-    if (this.pendingId() !== null) {
-      return;
-    }
-    this.pendingId.set(appointment.id);
-    this.appointmentsApi
-      .correctDeposit(appointment.id, mode)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (updated) => {
-          this.pendingId.set(null);
-          this.fixingDeposit.set(null);
-          this.patchLocal({ ...appointment, ...updated });
-          this.refreshQuietly();
-          this.toasts.show(mode === 'unpaid' ? 'Listo: la cita espera el anticipo.' : 'Listo: la cita ya no lleva anticipo.');
-        },
-        error: (error: unknown) => {
-          this.pendingId.set(null);
-          this.toasts.show(readError(error, 'No pudimos corregir el anticipo.'));
-        },
-      });
   }
 
   protected askAnother(appointment: Appointment): void {

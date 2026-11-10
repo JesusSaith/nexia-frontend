@@ -5,6 +5,7 @@ import { Observable } from 'rxjs';
 import { API_BASE_URL } from '../config/api-base-url';
 import {
   AdminAppointmentCreate,
+  AdminAppointmentUpdate,
   AppointmentCorrection,
   PastHour,
   Appointment,
@@ -77,6 +78,18 @@ export class AppointmentsService {
     return this.http.post<Appointment>(`${this.apiBaseUrl}/appointments`, data);
   }
 
+  /** Editar una cita pendiente con los mismos datos del formulario de "Nueva cita". */
+  updateAdminAppointment(id: number, data: AdminAppointmentUpdate): Observable<Appointment> {
+    return this.http.put<Appointment>(`${this.apiBaseUrl}/appointments/${id}`, data);
+  }
+
+  /** Horas libres (cada 15 min) para agendar o editar: sin las reglas de la página pública; con `ignoreId` no cuenta esa cita. */
+  freeTimes(staffId: number, serviceId: number, date: string, ignoreId: number | null = null): Observable<string[]> {
+    return this.http.get<string[]>(`${this.apiBaseUrl}/appointments/free-times`, {
+      params: { staff_id: staffId, service_id: serviceId, date, ...(ignoreId !== null ? { ignore_id: ignoreId } : {}) },
+    });
+  }
+
   getBlocks(params: AppointmentQuery): Observable<TimeBlock[]> {
     let httpParams = new HttpParams();
     if (params.start_date) {
@@ -105,11 +118,6 @@ export class AppointmentsService {
 
   quote(id: number, quotedPrice: number): Observable<Appointment> {
     return this.http.put<Appointment>(`${this.apiBaseUrl}/appointments/${id}/quote`, { quoted_price: quotedPrice });
-  }
-
-  /** Corrige un anticipo marcado como pagado por error: "unpaid" vuelve a esperarlo, "none" se lo quita. */
-  correctDeposit(id: number, mode: 'unpaid' | 'none'): Observable<Appointment> {
-    return this.http.put<Appointment>(`${this.apiBaseUrl}/appointments/${id}/deposit`, { mode });
   }
 
   waiters(day: string, serviceId: number, staffId: number): Observable<{ client_name: string; client_phone: string }[]> {
