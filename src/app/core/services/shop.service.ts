@@ -169,6 +169,9 @@ export interface SalesReport {
   deposit_count: number;
   deposit_due: number;
   proofs_pending: number;
+  /** Anticipos ya recibidos de citas por venir (dinero en mano que todavía no es ingreso). */
+  deposit_held: number;
+  deposit_held_count: number;
   no_shows: string[];
   deposits_expired: number;
   top_name: string;
