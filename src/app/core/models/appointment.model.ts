@@ -96,6 +96,22 @@ export interface AdminAppointmentCreate {
   visit_note?: string | null;
 }
 
+export interface AdminAppointmentUpdate {
+  service_id: number;
+  staff_id: number;
+  starts_at: string;
+  client_name: string;
+  client_phone: string;
+  client_email?: string | null;
+  notes?: string | null;
+  quoted_price?: number | null;
+  /** 'auto' como lo pide el negocio, 'none' sin anticipo, 'received' ya lo recibió (con `deposit_received`). */
+  deposit_mode: 'auto' | 'none' | 'received';
+  deposit_received?: number | null;
+  contact_channel?: 'instagram' | 'messenger' | 'facebook' | 'otro';
+  contact_handle?: string;
+}
+
 /** Corregir una cita ya cerrada: cómo terminó y lo que se cobró. */
 export interface AppointmentCorrection {
   status: 'completed' | 'no_show' | 'cancelled' | 'scheduled';
