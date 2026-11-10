@@ -227,7 +227,7 @@ export class DashboardPageComponent {
   /** Sin nada en el periodo: se muestra un aviso en lugar de una fila de $0.00. */
   protected readonly isEmpty = computed(() => {
     const row = this.books();
-    return Boolean(row) && !row!.total && !row!.completed_count && !row!.missed_count && !row!.deposit_due && !row!.expense_fixed && !row!.expense_variable;
+    return Boolean(row) && !row!.total && !row!.completed_count && !row!.missed_count && !row!.deposit_due && !row!.deposit_held && !row!.expense_fixed && !row!.expense_variable;
   });
   /** Ocupación de cada colaboradora: horas ocupadas sobre horas de trabajo. */
   protected readonly occupancyRows = computed(() =>
@@ -1110,6 +1110,7 @@ export class DashboardPageComponent {
           ['Citas que ya pasaron sin cobrar', row?.uncollected_count ?? 0],
           ['Falta cobrar de esas citas', money(row?.uncollected_amount)],
           ['Anticipos por cobrar', money(row?.deposit_due)],
+          ['Anticipos ya recibidos de citas por venir', money(row?.deposit_held)],
           ['Gastos fijos que faltan por pagar este mes', money(row?.fixed_pending)],
           ['Servicio más pedido', this.topService()],
         ],
