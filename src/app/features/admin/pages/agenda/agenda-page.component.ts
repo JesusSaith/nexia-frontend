@@ -2872,6 +2872,29 @@ export class AgendaPageComponent {
     }
   }
 
+  /** No mandó anticipo pero sí va a ir: queda confirmada sin anticipo y paga todo en la cita. */
+  protected waiveDeposit(appointment: Appointment): void {
+    if (this.pendingId() !== null) {
+      return;
+    }
+    this.pendingId.set(appointment.id);
+    this.appointmentsApi
+      .waiveDeposit(appointment.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (updated) => {
+          this.pendingId.set(null);
+          this.patchLocal({ ...appointment, ...updated });
+          this.refreshQuietly();
+          this.toasts.show('Listo: la cita queda confirmada sin anticipo. Paga todo en la cita.');
+        },
+        error: (error: unknown) => {
+          this.pendingId.set(null);
+          this.toasts.show(readError(error, 'No pudimos quitar el anticipo.'));
+        },
+      });
+  }
+
   protected askAnother(appointment: Appointment): void {
     this.appointmentsApi
       .clearProof(appointment.id)
