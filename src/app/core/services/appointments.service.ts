@@ -107,6 +107,11 @@ export class AppointmentsService {
     return this.http.put<Appointment>(`${this.apiBaseUrl}/appointments/${id}/quote`, { quoted_price: quotedPrice });
   }
 
+  /** Corrige un anticipo marcado como pagado por error: "unpaid" vuelve a esperarlo, "none" se lo quita. */
+  correctDeposit(id: number, mode: 'unpaid' | 'none'): Observable<Appointment> {
+    return this.http.put<Appointment>(`${this.apiBaseUrl}/appointments/${id}/deposit`, { mode });
+  }
+
   waiters(day: string, serviceId: number, staffId: number): Observable<{ client_name: string; client_phone: string }[]> {
     return this.http.get<{ client_name: string; client_phone: string }[]>(`${this.apiBaseUrl}/appointments/waiters`, {
       params: { day, service_id: serviceId, staff_id: staffId },
