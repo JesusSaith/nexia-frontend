@@ -1760,7 +1760,7 @@ export class AgendaPageComponent {
     }
     const quoted = String(value.quoted_price ?? '').trim() ? Number(value.quoted_price) : null;
     const total = quoted ?? service.price;
-    if (service.price_at_visit && quoted == null) {
+    if ((service.price_at_visit || service.is_hold || !service.price) && quoted == null) {
       // Aún no hay precio: solo se habla del apartado; el total se define en la cita.
       if (value.deposit_mode === 'none') {
         return 'Sin apartado. El precio se define en la cita.';
