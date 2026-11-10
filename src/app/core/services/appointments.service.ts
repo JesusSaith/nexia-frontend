@@ -6,6 +6,7 @@ import { API_BASE_URL } from '../config/api-base-url';
 import {
   AdminAppointmentCreate,
   AdminAppointmentUpdate,
+  FreeTimes,
   AppointmentCorrection,
   PastHour,
   Appointment,
@@ -84,8 +85,8 @@ export class AppointmentsService {
   }
 
   /** Horas libres (cada 15 min) para agendar o editar: sin las reglas de la página pública; con `ignoreId` no cuenta esa cita. */
-  freeTimes(staffId: number, serviceId: number, date: string, ignoreId: number | null = null): Observable<string[]> {
-    return this.http.get<string[]>(`${this.apiBaseUrl}/appointments/free-times`, {
+  freeTimes(staffId: number, serviceId: number, date: string, ignoreId: number | null = null): Observable<FreeTimes> {
+    return this.http.get<FreeTimes>(`${this.apiBaseUrl}/appointments/free-times`, {
       params: { staff_id: staffId, service_id: serviceId, date, ...(ignoreId !== null ? { ignore_id: ignoreId } : {}) },
     });
   }
