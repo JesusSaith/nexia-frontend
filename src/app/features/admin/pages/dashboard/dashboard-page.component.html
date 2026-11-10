@@ -798,6 +798,9 @@
             <span class="stat-value block">{{ money(row.deposit_due) }}</span>
             <span class="stat-label block">Anticipos pendientes</span>
             <span class="mt-0.5 block text-sm text-muted"><span class="nums">{{ row.deposit_count }}</span> por cobrar · <span class="nums">{{ row.proofs_pending }}</span> por revisar</span>
+            @if (row.deposit_held_count > 0) {
+              <span class="block text-sm text-muted">Ya recibiste <span class="nums">{{ money(row.deposit_held) }}</span> de <span class="nums">{{ row.deposit_held_count }}</span> {{ row.deposit_held_count === 1 ? 'cita por venir' : 'citas por venir' }}</span>
+            }
             <a class="mt-1 inline-flex min-h-11 items-center gap-0.5 text-xs font-medium text-accent hover:text-ink" [routerLink]="['/admin/agenda']" [queryParams]="agendaQuery('deposit')">Ver en la agenda <mat-icon class="h-4! w-4! text-[16px]!">chevron_right</mat-icon></a>
           </span>
         </div>
