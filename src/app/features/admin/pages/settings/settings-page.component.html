@@ -575,7 +575,7 @@
               </label>
               <label class="block">
                 <span class="label opt">Visible hasta</span>
-                <input class="input" type="date" [attr.min]="today" [class.input-invalid]="promoError()" [value]="promoUntil()" [disabled]="!promo().trim()" (change)="promoUntil.set($any($event.target).value)" />
+                <app-date-field [min]="today" [valueIn]="promoUntil()" [disabledIn]="!promo().trim()" (picked)="promoUntil.set($event)" />
                 @if (promoError(); as message) {
                   <span class="field-error mt-1 block">{{ message }}</span>
                 }
@@ -769,13 +769,9 @@
               }
 
               <div class="mt-4 grid gap-3 rounded-xl border border-line p-3 sm:grid-cols-[1fr_1fr_1.3fr_auto] sm:items-end">
-                <label class="block">
-                  <span class="label req">Desde</span>
-                  <input class="input" type="date" [attr.min]="today" [class.input-invalid]="closureError()" [value]="newFrom()" (change)="newFrom.set($any($event.target).value); closureError.set('')" />
-                </label>
-                <label class="block">
-                  <span class="label opt">Hasta <span class="text-muted">(si es más de un día)</span></span>
-                  <input class="input" type="date" [attr.min]="newFrom() || today" [class.input-invalid]="closureError()" [value]="newTo()" (change)="newTo.set($any($event.target).value); closureError.set('')" />
+                <label class="block sm:col-span-2">
+                  <span class="label req">Fechas <span class="text-muted">(toca el primer y el último día; para un solo día, toca el mismo dos veces)</span></span>
+                  <app-date-range-field [min]="today" [start]="newFrom() || null" [end]="newTo() || newFrom() || null" (rangePicked)="newFrom.set($event.start); newTo.set($event.end); closureError.set('')" />
                 </label>
                 <label class="block">
                   <span class="label opt">Nombre</span>

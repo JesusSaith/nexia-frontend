@@ -1,3 +1,4 @@
+import { DateFieldComponent } from '@shared/components/when-field/when-field';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormStatusComponent } from '@shared/components/form-status/form-status';
 import { Component, DestroyRef, HostListener, computed, inject, signal } from '@angular/core';
@@ -26,7 +27,7 @@ const AWAY_DAYS = 45;
 
 @Component({
   selector: 'app-customers',
-  imports: [MatIconModule, MatMenuModule, FormsModule, RouterLink, Skeleton, FormStatusComponent],
+  imports: [DateFieldComponent, MatIconModule, MatMenuModule, FormsModule, RouterLink, Skeleton, FormStatusComponent],
   templateUrl: './customers.html',
 })
 export class Customers {

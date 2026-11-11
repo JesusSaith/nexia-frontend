@@ -4,6 +4,7 @@ import { TemplatePortal } from '@angular/cdk/portal';
 import { Component, DestroyRef, ElementRef, HostListener, TemplateRef, ViewContainerRef, computed, forwardRef, inject, input, output, signal, viewChild } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 
+import { CalendarComponent } from '../calendar/calendar';
 import { WheelColumnComponent, WheelItem } from '../wheel/wheel-column';
 
 function clock(value: string): string {
@@ -37,41 +38,29 @@ function openSheet(overlay: Overlay, view: ViewContainerRef, anchor: HTMLElement
   return ref;
 }
 
+const dayFormat = new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
+const dayShortFormat = new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short' });
+
+function todayIso(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+function longDay(iso: string): string {
+  return dayFormat.format(new Date(`${iso.slice(0, 10)}T12:00:00`)).replace(/\./g, '');
+}
+
 @Component({
   selector: 'app-date-field',
-  imports: [MatIconModule],
+  imports: [MatIconModule, CalendarComponent],
   template: `
     <div class="relative">
-      <button type="button" class="flex h-11 w-full items-center justify-between rounded-lg border border-line-strong bg-surface px-3.5 text-left text-sm text-ink disabled:opacity-50" [disabled]="disabled()" aria-haspopup="dialog" (click)="toggle($event)">
-        <span [class.text-muted]="!value()">{{ shown() }}</span>
-        <mat-icon class="text-muted" aria-hidden="true">expand_more</mat-icon>
+      <button type="button" class="flex h-11 w-full items-center justify-between rounded-lg border border-line-strong bg-surface px-3.5 text-left text-sm text-ink disabled:opacity-50" [disabled]="disabled() || disabledIn()" aria-haspopup="dialog" (click)="toggle($event)">
+        <span [class.text-muted]="!current()">{{ shown() }}</span>
+        <mat-icon class="text-muted" aria-hidden="true">event</mat-icon>
       </button>
     <ng-template #panel>
-      <div class="w-[280px] rounded-2xl border border-line bg-surface p-3 text-ink shadow-lg" (click)="$event.stopPropagation()">
-        <div class="mb-2 flex items-center justify-between">
-          <button type="button" class="h-11 w-11 rounded-full text-muted" (click)="shift(-1)" aria-label="Mes anterior"><mat-icon aria-hidden="true">chevron_left</mat-icon></button>
-          <p class="text-sm font-medium">{{ monthLabel() }}</p>
-          <button type="button" class="h-11 w-11 rounded-full text-muted" (click)="shift(1)" aria-label="Mes siguiente"><mat-icon aria-hidden="true">chevron_right</mat-icon></button>
-        </div>
-        <div class="grid grid-cols-7 text-center text-xs text-muted">
-          @for (label of labels; track label) { <span>{{ label }}</span> }
-        </div>
-        <div class="mt-1 grid grid-cols-7 gap-1 text-center">
-          @for (day of cells(); track iso(day)) {
-            <button
-              type="button"
-              class="flex h-9 flex-col items-center justify-center rounded-lg text-sm disabled:text-line-strong"
-              [class.bg-accent]="value() === iso(day)"
-              [class.text-white]="value() === iso(day)"
-              [disabled]="blocked(day)"
-              (click)="pick(iso(day))"
-            >
-              {{ day.getDate() }}
-              @if (marked(day)) { <span class="mt-0.5 h-1 w-1 rounded-full bg-emerald-500" [class.bg-white]="value() === iso(day)"></span> }
-            </button>
-          }
-        </div>
-      </div>
+      <app-calendar mode="single" [start]="current() || null" [min]="minDay()" [max]="max()" [allow]="allow()" (picked)="pick($event)" />
     </ng-template>
     </div>
   `,
@@ -83,34 +72,33 @@ export class DateFieldComponent implements ControlValueAccessor {
   private readonly view = inject(ViewContainerRef);
   private readonly panel = viewChild.required<TemplateRef<unknown>>('panel');
   private sheet: OverlayRef | null = null;
-  private readonly format = new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
-  private readonly monthFormat = new Intl.DateTimeFormat('es-MX', { month: 'long', year: 'numeric' });
   readonly allow = input<((iso: string) => boolean) | null>(null);
   readonly fromToday = input(false);
   readonly valueIn = input<string | null>(null);
+  /** Primer y último día que se pueden elegir ("YYYY-MM-DD"). */
+  readonly min = input<string | null>(null);
+  readonly max = input<string | null>(null);
+  readonly disabledIn = input(false);
   readonly picked = output<string>();
-  protected readonly labels = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
   protected readonly open = signal(false);
   protected readonly value = signal('');
   protected readonly disabled = signal(false);
-  protected readonly cursor = signal(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   protected readonly shown = computed(() => {
-    const iso = this.value() || this.valueIn() || '';
-    if (!iso) {
-      return 'Elegir fecha';
-    }
-    return this.format.format(new Date(`${iso.slice(0, 10)}T12:00:00`));
+    const iso = this.current();
+    return iso ? longDay(iso) : 'Elegir fecha';
   });
-  protected readonly monthLabel = computed(() => this.monthFormat.format(this.cursor()));
-  protected readonly cells = computed(() => {
-    const start = new Date(this.cursor());
-    const offset = (start.getDay() + 6) % 7;
-    const first = new Date(start.getFullYear(), start.getMonth(), 1 - offset);
-    return Array.from({ length: 42 }, (_, index) => {
-      const day = new Date(first);
-      day.setDate(first.getDate() + index);
-      return day;
-    });
+  /** Si el padre manda `valueIn`, ese es el día; si no, el del formulario. */
+  protected readonly current = computed(() => {
+    const given = this.valueIn();
+    return given !== null ? given : this.value();
+  });
+  protected readonly minDay = computed(() => {
+    const min = this.min();
+    if (!this.fromToday()) {
+      return min;
+    }
+    const today = todayIso();
+    return min && min > today ? min : today;
   });
   private onChange: (value: string) => void = () => undefined;
   private onTouched: () => void = () => undefined;
@@ -121,10 +109,6 @@ export class DateFieldComponent implements ControlValueAccessor {
 
   writeValue(value: string | null): void {
     this.value.set(value ? value.slice(0, 10) : '');
-    if (value) {
-      const day = new Date(`${value.slice(0, 10)}T12:00:00`);
-      this.cursor.set(new Date(day.getFullYear(), day.getMonth(), 1));
-    }
   }
 
   registerOnChange(fn: (value: string) => void): void {
@@ -154,7 +138,7 @@ export class DateFieldComponent implements ControlValueAccessor {
       this.dismiss();
       return;
     }
-    this.sheet = openSheet(this.overlay, this.view, event.currentTarget as HTMLElement, this.panel(), 280);
+    this.sheet = openSheet(this.overlay, this.view, event.currentTarget as HTMLElement, this.panel(), 352);
     this.open.set(true);
   }
 
@@ -164,42 +148,89 @@ export class DateFieldComponent implements ControlValueAccessor {
     this.open.set(false);
   }
 
-  protected shift(amount: number): void {
-    const cursor = this.cursor();
-    this.cursor.set(new Date(cursor.getFullYear(), cursor.getMonth() + amount, 1));
-  }
-
-  protected iso(day: Date): string {
-    const month = String(day.getMonth() + 1).padStart(2, '0');
-    const date = String(day.getDate()).padStart(2, '0');
-    return `${day.getFullYear()}-${month}-${date}`;
-  }
-
-  protected blocked(day: Date): boolean {
-    const key = this.iso(day);
-    if (day.getMonth() !== this.cursor().getMonth()) {
-      return true;
-    }
-    if (this.fromToday()) {
-      const now = new Date();
-      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-      if (key < today) {
-        return true;
-      }
-    }
-    const allow = this.allow();
-    return allow ? !allow(key) : false;
-  }
-
-  protected marked(day: Date): boolean {
-    return !!this.allow() && !this.blocked(day);
-  }
-
   protected pick(iso: string): void {
     this.value.set(iso);
     this.onChange(iso);
     this.onTouched();
     this.picked.emit(iso);
+    this.dismiss();
+  }
+}
+
+/** Elegir un rango de fechas (desde - hasta) en un solo calendario: toca el primer día y luego el último. */
+@Component({
+  selector: 'app-date-range-field',
+  imports: [MatIconModule, CalendarComponent],
+  template: `
+    <div class="relative">
+      <button type="button" class="flex h-11 w-full items-center justify-between gap-2 rounded-lg border border-line-strong bg-surface px-3.5 text-left text-sm text-ink disabled:opacity-50" [disabled]="disabledIn()" aria-haspopup="dialog" (click)="toggle($event)">
+        <span class="nums min-w-0 truncate" [class.text-muted]="!start()">{{ shown() }}</span>
+        <mat-icon class="shrink-0 text-muted" aria-hidden="true">date_range</mat-icon>
+      </button>
+    <ng-template #panel>
+      <app-calendar mode="range" [start]="start()" [end]="end()" [min]="min()" [max]="max()" (rangePicked)="pick($event)" />
+    </ng-template>
+    </div>
+  `,
+})
+export class DateRangeFieldComponent {
+  private readonly host = inject(ElementRef<HTMLElement>);
+  private readonly overlay = inject(Overlay);
+  private readonly view = inject(ViewContainerRef);
+  private readonly panel = viewChild.required<TemplateRef<unknown>>('panel');
+  private sheet: OverlayRef | null = null;
+  readonly start = input<string | null>(null);
+  readonly end = input<string | null>(null);
+  readonly min = input<string | null>(null);
+  readonly max = input<string | null>(null);
+  readonly disabledIn = input(false);
+  readonly rangePicked = output<{ start: string; end: string }>();
+  protected readonly open = signal(false);
+  protected readonly shown = computed(() => {
+    const start = this.start();
+    const end = this.end();
+    if (!start) {
+      return 'Elegir fechas';
+    }
+    if (!end || end === start) {
+      return longDay(start);
+    }
+    const sameYear = start.slice(0, 4) === end.slice(0, 4);
+    const from = sameYear ? dayShortFormat.format(new Date(`${start}T12:00:00`)).replace(/\./g, '') : longDay(start);
+    return `${from} – ${longDay(end)}`;
+  });
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => this.dismiss());
+  }
+
+  @HostListener('document:click', ['$event'])
+  protected closeOutside(event: MouseEvent): void {
+    const target = event.target as Node;
+    if (!this.open() || this.host.nativeElement.contains(target) || this.sheet?.overlayElement.contains(target)) {
+      return;
+    }
+    this.dismiss();
+  }
+
+  protected toggle(event: MouseEvent): void {
+    event.stopPropagation();
+    if (this.open()) {
+      this.dismiss();
+      return;
+    }
+    this.sheet = openSheet(this.overlay, this.view, event.currentTarget as HTMLElement, this.panel(), 352);
+    this.open.set(true);
+  }
+
+  private dismiss(): void {
+    this.sheet?.dispose();
+    this.sheet = null;
+    this.open.set(false);
+  }
+
+  protected pick(range: { start: string; end: string }): void {
+    this.rangePicked.emit(range);
     this.dismiss();
   }
 }

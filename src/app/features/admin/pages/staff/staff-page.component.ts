@@ -1,3 +1,4 @@
+import { DateRangeFieldComponent } from '@shared/components/when-field/when-field';
 import { HttpErrorResponse } from '@angular/common/http';
 import { horario12 } from '../../../../core/hours';
 import { Component, DestroyRef, TemplateRef, computed, inject, signal, viewChild } from '@angular/core';
@@ -35,6 +36,7 @@ type StaffSection = 'info' | 'services';
 @Component({
   selector: 'app-staff-page',
   imports: [
+    DateRangeFieldComponent,
     FormStatusComponent,
     RouterLink,
     FormsModule,

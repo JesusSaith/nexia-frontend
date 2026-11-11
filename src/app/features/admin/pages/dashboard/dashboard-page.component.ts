@@ -20,14 +20,14 @@ import { ServicesService } from '@core/services/services.service';
 import { SegmentedDirective } from '@shared/directives/segmented.directive';
 import { Confirm } from '@shared/components/confirm/confirm';
 import { BookingFunnel, CashDay, CashRow, SalesReport, ShopExpense, ShopService } from '@core/services/shop.service';
-import { PickFieldComponent } from '@shared/components/when-field/when-field';
+import { DateFieldComponent, DateRangeFieldComponent, PickFieldComponent } from '@shared/components/when-field/when-field';
 import { ReportSheet, downloadExcel, downloadPdf } from './dashboard-export';
 
 type DashView = 'income' | 'staff' | 'commission' | 'expenses' | 'cash';
 
 @Component({
   selector: 'app-dashboard-page',
-  imports: [PickFieldComponent, RouterLink, MatIconModule, KeyValuePipe, SegmentedDirective],
+  imports: [DateFieldComponent, DateRangeFieldComponent, PickFieldComponent, RouterLink, MatIconModule, KeyValuePipe, SegmentedDirective],
   templateUrl: './dashboard-page.component.html',
 })
 export class DashboardPageComponent {
@@ -384,25 +384,52 @@ export class DashboardPageComponent {
     if (points.length < 1 || total <= 0) {
       return [];
     }
-    return points.map((point, index) => ({
+    // Máximo 6 colores distintos: lo demás se junta en "Otros" (los colores no se repiten).
+    const shown = points.length > PIE_COLORS ? points.slice(0, PIE_COLORS - 1) : points;
+    const rest = points.length > PIE_COLORS ? points.slice(PIE_COLORS - 1) : [];
+    const rows = rest.length ? [...shown, { label: 'Otros', amount: rest.reduce((sum, point) => sum + point.amount, 0) }] : shown;
+    return rows.map((point, index) => ({
       label: point.label,
       amount: point.amount,
       share: Math.round((point.amount / total) * 100),
-      color: pieShade(index),
+      fraction: point.amount / total,
+      color: rest.length && index === rows.length - 1 ? 'var(--color-control)' : `var(--viz-${index + 1})`,
     }));
   });
-  protected readonly pieGradient = computed(() => {
+  /** Dona de gastos en SVG: anillo fino de colores, el porcentaje afuera con su línea y el total al centro. */
+  protected readonly donut = computed(() => {
     const slices = this.pieSlices();
-    if (slices.length === 0) {
-      return 'none';
-    }
+    const cx = 160;
+    const cy = 118;
+    const radius = 68;
+    const point = (angle: number, distance: number) => ({ x: cx + distance * Math.sin(angle), y: cy - distance * Math.cos(angle) });
+    const gap = slices.length > 1 ? 0.025 : 0;
     let cursor = 0;
-    const stops = slices.map((slice) => {
-      const start = cursor;
-      cursor += slice.share;
-      return `${slice.color} ${start}% ${cursor}%`;
+    return slices.map((slice) => {
+      const from = cursor * Math.PI * 2;
+      cursor += slice.fraction;
+      const to = cursor * Math.PI * 2;
+      const start = point(from + gap, radius);
+      // Una sola categoría llena todo el anillo: se corta apenas antes para que el arco no desaparezca.
+      const end = point(Math.max(from + gap, to - gap - (slices.length === 1 ? 0.0001 : 0)), radius);
+      const large = to - from - gap * 2 > Math.PI ? 1 : 0;
+      const mid = (from + to) / 2;
+      const side = Math.sin(mid) >= 0 ? 1 : -1;
+      const a = point(mid, radius + 11);
+      const b = point(mid, radius + 24);
+      return {
+        label: slice.label,
+        amount: slice.amount,
+        color: slice.color,
+        path: `M ${start.x.toFixed(2)} ${start.y.toFixed(2)} A ${radius} ${radius} 0 ${large} 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)}`,
+        line: `${a.x.toFixed(1)},${a.y.toFixed(1)} ${b.x.toFixed(1)},${b.y.toFixed(1)} ${(b.x + side * 12).toFixed(1)},${b.y.toFixed(1)}`,
+        textX: b.x + side * 17,
+        textY: b.y + 4,
+        anchor: side > 0 ? 'start' : 'end',
+        text: slice.share < 1 ? '<1%' : `${slice.share}%`,
+        showLabel: slice.fraction >= 0.04,
+      };
     });
-    return `conic-gradient(${stops.join(', ')})`;
   });
   protected readonly area = computed(() => {
     const points = this.series();
@@ -1274,11 +1301,8 @@ function iso(date: Date): string {
   return `${date.getFullYear()}-${month}-${day}`;
 }
 
-function pieShade(index: number): string {
-  const mixes = [100, 70, 45, 25];
-  const mix = mixes[index % mixes.length];
-  return `color-mix(in srgb, var(--color-ink) ${mix}%, white)`;
-}
+/** Cuántos colores distintos tiene la dona de gastos (el resto se junta en "Otros"). */
+const PIE_COLORS = 6;
 
 function readError(error: unknown, fallback: string): string {
   if (error instanceof HttpErrorResponse) {

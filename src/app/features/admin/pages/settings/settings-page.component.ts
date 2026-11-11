@@ -24,7 +24,7 @@ import { GoogleMapPicker } from '@shared/components/google-map-picker/google-map
 import { GOOGLE_MAPS_KEY } from '@core/config/google-maps';
 import { WeekdayPickerComponent } from '@shared/components/weekday-picker/weekday-picker';
 import { weekdayHit, weekdaysText } from '@core/shop-note';
-import { PickFieldComponent } from '@shared/components/when-field/when-field';
+import { DateFieldComponent, DateRangeFieldComponent, PickFieldComponent } from '@shared/components/when-field/when-field';
 
 type SectionId = 'negocio' | 'apariencia' | 'reservas' | 'anticipo' | 'promociones' | 'mensajes' | 'pausa' | 'avisos' | 'privacidad';
 
@@ -113,7 +113,7 @@ const ALERT_OPTIONS: readonly { value: string; label: string; hint: string }[] =
 
 @Component({
   selector: 'app-settings-page',
-  imports: [ReactiveFormsModule, NgTemplateOutlet, PickFieldComponent, WeekdayPickerComponent, MatIconModule, MapPicker, GoogleMapPicker, SaveStateComponent],
+  imports: [ReactiveFormsModule, NgTemplateOutlet, DateFieldComponent, DateRangeFieldComponent, PickFieldComponent, WeekdayPickerComponent, MatIconModule, MapPicker, GoogleMapPicker, SaveStateComponent],
   templateUrl: './settings-page.component.html',
 })
 export class SettingsPageComponent {

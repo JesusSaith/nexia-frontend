@@ -870,3 +870,12 @@ mat-icon {
 @media (max-width: 639px) {
   :root[data-panel] .stat-icon { width: 1.25rem; height: 1.25rem; border-radius: 0; }
 }
+
+/* Colores de gráficas (dona de gastos): paleta categórica validada, en orden fijo; en oscuro, los mismos tonos ajustados. */
+:root {
+  --viz-1: #2a78d6; --viz-2: #eb6834; --viz-3: #1baf7a; --viz-4: #eda100; --viz-5: #e87ba4; --viz-6: #008300;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme='light'])) { --viz-1: #3987e5; --viz-2: #d95926; --viz-3: #199e70; --viz-4: #c98500; --viz-5: #d55181; --viz-6: #008300; }
+}
+:root[data-theme='dark'] { --viz-1: #3987e5; --viz-2: #d95926; --viz-3: #199e70; --viz-4: #c98500; --viz-5: #d55181; --viz-6: #008300; }

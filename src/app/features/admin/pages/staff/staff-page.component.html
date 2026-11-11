@@ -158,12 +158,9 @@
           }
           @if (vacationFor()?.id === member.id) {
             <li class="bg-canvas px-5 py-4">
-              <form class="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end" (submit)="$event.preventDefault(); saveVacation()">
-                <label class="block"><span class="label req">Desde</span>
-                  <input class="input" type="date" name="from" aria-required="true" [(ngModel)]="vacationFrom" />
-                </label>
-                <label class="block"><span class="label opt">Hasta</span>
-                  <input class="input" type="date" name="to" [(ngModel)]="vacationTo" />
+              <form class="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end" (submit)="$event.preventDefault(); saveVacation()">
+                <label class="block"><span class="label req">Fechas <span class="text-muted">(primer y último día; para un solo día, toca el mismo dos veces)</span></span>
+                  <app-date-range-field [start]="vacationFrom || null" [end]="vacationTo || vacationFrom || null" (rangePicked)="vacationFrom = $event.start; vacationTo = $event.end" />
                 </label>
                 <div class="flex gap-2">
                   <button type="submit" class="btn btn-primary" [disabled]="!vacationFrom">Guardar</button>
