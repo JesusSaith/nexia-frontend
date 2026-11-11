@@ -792,9 +792,13 @@ mat-icon {
 
 /* Esqueleto de carga: la silueta de lo que viene, con un brillo suave (se detiene con "reducir movimiento"). */
 .skeleton { display: block; border-radius: var(--shape-md); background: linear-gradient(90deg, var(--color-line) 25%, color-mix(in srgb, var(--color-line) 45%, var(--color-surface)) 50%, var(--color-line) 75%); background-size: 200% 100%; animation: nx-shimmer 1.4s var(--ease-standard) infinite; }
-.skeleton.rounded-full { border-radius: 999px; }
+.skeleton.rounded-full, .skeleton-circle { border-radius: 999px; }
+.skeleton-text { border-radius: 4px; }
+.skeleton-pulse { background: var(--color-line); animation: nx-skeleton-pulse 1.4s ease-in-out infinite; }
+.skeleton-still { animation: none; }
+@keyframes nx-skeleton-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
 @keyframes nx-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
-@media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .skeleton, .skeleton-pulse { animation: none; } }
 
 /* Ícono relleno en lo activo (Material Symbols: eje FILL 0 a 1), como en las apps de Google. */
 .nx-rail-link mat-icon, .chip mat-icon, .nav-icon { transition: font-variation-settings var(--dur-short) var(--ease-standard); }

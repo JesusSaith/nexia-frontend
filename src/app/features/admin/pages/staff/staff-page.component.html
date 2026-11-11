@@ -15,13 +15,13 @@
   }
 
   @if (isLoading()) {
-    <div class="animate-pulse space-y-4" aria-label="Cargando">
+    <div class="space-y-4" role="status" aria-label="Cargando">
       <div class="grid grid-cols-3 gap-3">
-        <div class="h-20 rounded-2xl bg-line"></div>
-        <div class="h-20 rounded-2xl bg-line"></div>
-        <div class="h-20 rounded-2xl bg-line"></div>
+        <div class="skeleton h-20"></div>
+        <div class="skeleton h-20"></div>
+        <div class="skeleton h-20"></div>
       </div>
-      <div class="h-64 rounded-2xl bg-line"></div>
+      <div class="skeleton h-64"></div>
     </div>
   } @else if (staff().length === 0) {
     <div class="empty">
@@ -94,7 +94,7 @@
               </span>
             </button>
             @if (pendingId() === member.id) {
-              <span class="flex h-11 w-11 items-center justify-center"><mat-spinner diameter="20" /></span>
+              <span class="flex h-11 w-11 items-center justify-center"><app-loader type="spinner" size="sm" /></span>
             } @else {
               <details class="relative shrink-0" #more>
                 <summary class="btn btn-ghost w-11! list-none px-0! [&::-webkit-details-marker]:hidden" aria-label="Más acciones"><mat-icon>more_horiz</mat-icon></summary>

@@ -1,12 +1,12 @@
 @if (isLoading()) {
-  <div class="animate-pulse space-y-4" aria-label="Cargando">
-    <div class="h-14 w-64 max-w-full rounded-lg bg-line"></div>
+  <div class="space-y-4" role="status" aria-label="Cargando">
+    <div class="skeleton h-14 w-64 max-w-full"></div>
     <div class="grid grid-cols-3 gap-3">
-      <div class="h-20 rounded-2xl bg-line"></div>
-      <div class="h-20 rounded-2xl bg-line"></div>
-      <div class="h-20 rounded-2xl bg-line"></div>
+      <div class="skeleton h-20"></div>
+      <div class="skeleton h-20"></div>
+      <div class="skeleton h-20"></div>
     </div>
-    <div class="h-48 rounded-2xl bg-line"></div>
+    <div class="skeleton h-48"></div>
   </div>
 } @else if (brand(); as shop) {
   <div class="text-ink">

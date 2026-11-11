@@ -86,7 +86,7 @@
       }
     </div>
     @if (isLoading()) {
-      <mat-spinner diameter="18" />
+      <app-loader type="spinner" size="sm" />
     }
     <button type="button" class="btn btn-secondary ml-auto sm:hidden" [attr.aria-expanded]="filtersOpen()" (click)="filtersOpen.set(!filtersOpen())">
       <mat-icon>tune</mat-icon>
@@ -893,7 +893,7 @@
 
     <footer class="sticky bottom-0 mt-auto flex flex-col gap-2 border-t border-line bg-surface px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
       @if (pendingId() === pop.appointment.id) {
-        <div class="flex h-12 items-center justify-center"><mat-spinner diameter="22" /></div>
+        <div class="flex h-12 items-center justify-center"><app-loader type="spinner" size="md" /></div>
       } @else {
         @if (pop.appointment.status === 'scheduled') {
           @if (charging() === pop.appointment.id) {

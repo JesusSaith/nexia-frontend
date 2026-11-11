@@ -25,9 +25,9 @@
   }
 
   @if (isLoading()) {
-    <div class="space-y-3" aria-label="Cargando">
-      <div class="h-20 animate-pulse rounded-2xl bg-line"></div>
-      <div class="h-64 animate-pulse rounded-2xl bg-line"></div>
+    <div class="space-y-3" role="status" aria-label="Cargando">
+      <div class="skeleton h-20"></div>
+      <div class="skeleton h-64"></div>
     </div>
   } @else {
     <!-- Lo más importante primero: si la página está tomando citas o no. -->

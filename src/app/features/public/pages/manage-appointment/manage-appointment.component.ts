@@ -1,3 +1,4 @@
+import { Loader } from '@shared/components/loader/loader';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
@@ -19,7 +20,7 @@ import { whatsappLink } from '@core/message-templates';
 
 @Component({
   selector: 'app-manage-appointment',
-  imports: [DateFieldComponent, MatIconModule, PlaceMap], // FUTURE_PHASE_SPEI: SpeiCheckComponent
+  imports: [Loader, DateFieldComponent, MatIconModule, PlaceMap], // FUTURE_PHASE_SPEI: SpeiCheckComponent
   templateUrl: './manage-appointment.component.html',
   styleUrl: './manage-appointment.component.css',
 })

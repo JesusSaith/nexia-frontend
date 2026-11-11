@@ -3,7 +3,7 @@ import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { Loader } from '@shared/components/loader/loader';
 import { MatTableModule } from '@angular/material/table';
 import { Router } from '@angular/router';
 
@@ -21,7 +21,7 @@ const TAB_KEY = 'nexia-super-admin-tab';
 
 @Component({
   selector: 'app-super-admin-page',
-  imports: [MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatTableModule],
+  imports: [MatButtonModule, MatIconModule, Loader, MatTableModule],
   templateUrl: './super-admin-page.component.html',
 })
 export class SuperAdminPageComponent {

@@ -3,7 +3,6 @@ import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import { FormStatusComponent, missingLabels } from '@shared/components/form-status/form-status';
 import { PhotoError, squarePhotoFromFile } from '@core/image-file';
@@ -16,7 +15,6 @@ import { StaffService } from '@core/services/staff.service';
     FormStatusComponent,
     ReactiveFormsModule,
     MatIconModule,
-    MatProgressSpinnerModule,
   ],
   templateUrl: './profile-page.component.html',
 })

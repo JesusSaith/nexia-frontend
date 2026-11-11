@@ -1,3 +1,4 @@
+import { Loader } from '@shared/components/loader/loader';
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { pesos } from '@core/money';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -11,7 +12,7 @@ import { BookingService } from '@core/services/booking.service';
 
 @Component({
   selector: 'app-client-page',
-  imports: [MatButtonModule, RouterLink],
+  imports: [Loader, MatButtonModule, RouterLink],
   templateUrl: './client-page.component.html',
 })
 export class ClientPageComponent {

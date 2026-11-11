@@ -76,9 +76,9 @@
   }
 
   @if (isLoading()) {
-    <div class="animate-pulse space-y-3" aria-label="Cargando">
-      <div class="h-9 w-64 rounded-lg bg-line"></div>
-      <div class="h-64 rounded-2xl bg-line"></div>
+    <div class="space-y-3" role="status" aria-label="Cargando">
+      <div class="skeleton h-9 w-64"></div>
+      <div class="skeleton h-64"></div>
     </div>
   } @else if (services().length === 0 && categories().length === 0) {
     <div class="empty">
@@ -176,7 +176,7 @@
               </span>
             </button>
             @if (pendingId() === row.id) {
-              <span class="flex h-11 w-11 items-center justify-center"><mat-spinner diameter="20" /></span>
+              <span class="flex h-11 w-11 items-center justify-center"><app-loader type="spinner" size="sm" /></span>
             } @else {
               <button class="btn btn-secondary hidden shrink-0 sm:inline-flex" type="button" (click)="toggleActive(row)">{{ row.is_active ? 'Pausar' : 'Activar' }}</button>
             }

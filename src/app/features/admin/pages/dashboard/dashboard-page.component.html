@@ -2,10 +2,10 @@
   @if (loadError(); as message) {
     <p role="alert" class="field-error">{{ message }}</p>
   } @else if (isLoading()) {
-    <div class="animate-pulse space-y-4" aria-label="Cargando">
-      <div class="h-8 w-48 rounded-lg bg-line"></div>
-      <div class="h-10 w-72 max-w-full rounded-lg bg-line"></div>
-      <div class="h-72 rounded-2xl bg-line"></div>
+    <div class="space-y-4" role="status" aria-label="Cargando">
+      <div class="skeleton h-8 w-48"></div>
+      <div class="skeleton h-10 w-72 max-w-full"></div>
+      <div class="skeleton h-72"></div>
     </div>
   } @else if (summary(); as summary) {
     <header class="page-head">
@@ -371,7 +371,7 @@
               }
             </div>
           } @else {
-            <div class="mt-3 h-40 animate-pulse rounded-xl bg-line"></div>
+            <div class="skeleton mt-3 h-40"></div>
           }
         </article>
         <article class="card">
