@@ -1,7 +1,7 @@
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { Loader } from '@shared/components/loader/loader';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { BookingService, PrivacyNotice } from '@core/services/booking.service';
@@ -13,13 +13,13 @@ import { BookingService, PrivacyNotice } from '@core/services/booking.service';
  */
 @Component({
   selector: 'app-privacy',
-  imports: [MatIconModule, MatProgressSpinnerModule, RouterLink],
+  imports: [MatIconModule, Loader, RouterLink],
   template: `
     <main class="mx-auto w-full max-w-2xl px-4 py-10 text-ink">
       @if (error()) {
         <p role="alert" class="text-sm text-[var(--nx-bad-fg)]">No pudimos cargar el aviso de privacidad.</p>
       } @else if (!notice()) {
-        <div class="flex justify-center py-16"><mat-spinner diameter="32" /></div>
+        <div class="flex justify-center py-16"><app-loader type="spinner" size="lg" /></div>
       } @else {
         <a class="text-sm underline underline-offset-2" [routerLink]="['/', slug, 'book']"><mat-icon class="h-4! w-4! align-middle text-[16px]!" aria-hidden="true">arrow_back</mat-icon> Volver a reservar</a>
         <h1 class="mt-4 text-2xl font-semibold">Aviso de privacidad</h1>

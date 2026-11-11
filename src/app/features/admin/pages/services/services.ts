@@ -9,7 +9,7 @@ import { MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dial
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { Loader } from '@shared/components/loader/loader';
 import { finalize, forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 
@@ -20,6 +20,7 @@ import { ShopService } from '@core/services/shop.service';
 import { SettingsService } from '@core/services/settings.service';
 import { kindOf } from '@core/business-kinds';
 import { StaffService } from '@core/services/staff.service';
+import { SegmentedDirective } from '@shared/directives/segmented.directive';
 import { Confirm } from '@shared/components/confirm/confirm';
 import { Toasts } from '@core/toasts';
 import { ServicesService } from '@core/services/services.service';
@@ -28,6 +29,7 @@ import { PickFieldComponent } from '@shared/components/when-field/when-field';
 @Component({
   selector: 'app-services-page',
   imports: [
+    SegmentedDirective,
     FormStatusComponent,
     FormsModule,
     ReactiveFormsModule,
@@ -37,7 +39,7 @@ import { PickFieldComponent } from '@shared/components/when-field/when-field';
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
-    MatProgressSpinnerModule,
+    Loader,
   ],
   templateUrl: './services.html',
 })

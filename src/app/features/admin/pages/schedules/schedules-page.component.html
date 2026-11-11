@@ -12,9 +12,9 @@
   }
 
   @if (isLoadingStaff() || isLoadingSchedule()) {
-    <div class="animate-pulse space-y-3" aria-label="Cargando">
-      <div class="h-32 rounded-2xl bg-line"></div>
-      <div class="h-80 rounded-2xl bg-line"></div>
+    <div class="space-y-3" role="status" aria-label="Cargando">
+      <div class="skeleton h-32"></div>
+      <div class="skeleton h-80"></div>
     </div>
   } @else if (loadError() && staffId() !== null) {
     <div class="empty">
@@ -285,7 +285,7 @@
         <app-save-state [saving]="isLoading()" [changes]="dirty() ? 1 : 0" />
       }
       <button class="btn btn-primary" type="button" [disabled]="isLoading() || (!dirty() && !notSaved())" (click)="save()">
-        @if (isLoading()) { <mat-spinner diameter="18" /> } @else { <mat-icon>save</mat-icon> }
+        @if (isLoading()) { <app-loader type="spinner" size="sm" /> } @else { <mat-icon>save</mat-icon> }
         {{ isLoading() ? 'Guardando…' : 'Guardar horario' }}
       </button>
     </div>

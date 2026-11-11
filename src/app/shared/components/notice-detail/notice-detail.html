@@ -12,7 +12,7 @@
     @if (data.appointmentId) {
       <section class="card mt-4 p-4" aria-live="polite">
         @if (loading()) {
-          <p class="text-sm text-muted">Cargando la {{ copy.text().visit.toLowerCase() }}…</p>
+          <div class="flex items-center gap-2"><app-loader type="pulsing" size="sm" /><p class="text-sm text-muted">Cargando la {{ copy.text().visit.toLowerCase() }}…</p></div>
         } @else if (appointment(); as item) {
           <p class="text-xs font-semibold uppercase tracking-wide text-muted">{{ copy.text().visit }}</p>
           <p class="mt-1 text-sm font-semibold text-ink">{{ item.client_name }}</p>

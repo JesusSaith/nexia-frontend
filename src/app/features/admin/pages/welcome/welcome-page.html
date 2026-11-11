@@ -26,7 +26,7 @@
   </ol>
 
   @if (loading()) {
-    <div class="h-64 animate-pulse rounded-2xl bg-line"></div>
+    <div class="skeleton h-64"></div>
   } @else {
     <div class="card flex flex-col gap-5">
       @switch (step()) {

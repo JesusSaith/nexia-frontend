@@ -1,3 +1,4 @@
+import { Loader } from '@shared/components/loader/loader';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -13,7 +14,7 @@ import { BookingService, PublicPackageOffer, PublicPackageOrder } from '@core/se
 /** Paquetes del negocio: se elige uno, se transfiere y se sube el comprobante. El negocio lo aprueba. */
 @Component({
   selector: 'app-public-packages',
-  imports: [FormsModule, MatIconModule, RouterLink],
+  imports: [Loader, FormsModule, MatIconModule, RouterLink],
   templateUrl: './packages.component.html',
 })
 export class PublicPackagesComponent {

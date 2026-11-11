@@ -1,3 +1,4 @@
+import { SegmentedDirective } from '@shared/directives/segmented.directive';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AfterViewInit, Component, DestroyRef, ElementRef, HostListener, computed, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -30,7 +31,7 @@ interface SavedQuiz { step: number; kind: string; people: number | null; how: st
  */
 @Component({
   selector: 'app-landing-page',
-  imports: [CountUpDirective, MatIconModule, ReactiveFormsModule, RevealDirective, RouterLink, TiltDirective],
+  imports: [SegmentedDirective, CountUpDirective, MatIconModule, ReactiveFormsModule, RevealDirective, RouterLink, TiltDirective],
   templateUrl: './landing-page.html',
 })
 export class LandingPage implements AfterViewInit {
