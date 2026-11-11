@@ -331,12 +331,12 @@ textarea.input { height: auto; padding: 0.625rem 0.875rem; line-height: 1.5; }
 .input:focus { border-color: var(--color-accent); box-shadow: 0 0 0 3px var(--color-accent-soft); }
 .input.ng-invalid.ng-touched, .input-invalid { border-color: var(--nx-bad-fg); }
 /* Opciones rápidas (chips) para elegir un valor común a un toque. */
-/* Barra de opciones (reporte, periodo, comparar): un solo contorno suave y la opción activa levantada. Se desliza si no cabe. */
-.seg { display: inline-flex; max-width: 100%; gap: 0.125rem; padding: 0.25rem; overflow-x: auto; scrollbar-width: none; border-radius: 0.875rem; background: var(--color-canvas); border: 1px solid var(--color-line); }
+/* Control segmentado (como el SegmentedControl de Kendo): pista gris en píldora y la opción activa como píldora blanca levantada. Se desliza si no cabe. */
+.seg { display: inline-flex; max-width: 100%; gap: 0.125rem; padding: 0.25rem; overflow-x: auto; scrollbar-width: none; border-radius: 999px; background: color-mix(in srgb, var(--color-ink) 9%, var(--color-surface)); }
 .seg::-webkit-scrollbar { display: none; }
-.seg > button { flex-shrink: 0; min-height: 2.75rem; padding: 0 1rem; border-radius: 0.625rem; font-size: 0.875rem; font-weight: 500; white-space: nowrap; color: var(--color-ink-soft); transition: background-color .15s, color .15s, box-shadow .15s; }
+.seg > button { flex-shrink: 0; min-height: 2.75rem; padding: 0 1.25rem; border-radius: 999px; font-size: 0.9375rem; font-weight: 500; white-space: nowrap; color: var(--color-ink-soft); transition: background-color .2s, color .2s, box-shadow .2s; }
 .seg > button:hover:not(.is-on) { color: var(--color-ink); }
-.seg > button.is-on { background: var(--color-surface); color: var(--color-ink); font-weight: 600; box-shadow: 0 1px 3px rgb(0 0 0 / 0.14), 0 0 0 1px var(--color-line); }
+.seg > button.is-on { background: var(--color-surface); color: var(--color-ink); font-weight: 600; box-shadow: 0 1px 3px rgb(0 0 0 / 0.14), 0 0 0 1px color-mix(in srgb, var(--color-ink) 6%, transparent); }
 .seg-label { font-size: 0.8125rem; color: var(--color-muted); }
 .chip { display: inline-flex; align-items: center; height: 2.75rem; padding: 0 0.875rem; border: 1px solid var(--color-line-strong); border-radius: 999px; background: var(--color-surface); font-size: 0.875rem; color: var(--color-ink-soft); transition: background-color .15s, border-color .15s, color .15s; }
 .chip:hover { border-color: var(--color-accent); color: var(--color-ink); }
@@ -857,10 +857,8 @@ mat-icon {
 :root[data-panel] .avatar { background: var(--color-canvas); border: 1px solid var(--color-line); color: var(--color-ink-soft); border-radius: var(--radius-xl); }
 /* Tarjeta destacada: sin tinte de la marca, solo un borde más marcado. */
 :root[data-panel] .card-tint { background: var(--color-surface); border-color: var(--color-line-strong); }
-/* Opciones rápidas y pestañas: esquinas chicas; la píldora queda para los estados (.badge). */
+/* Opciones rápidas: esquinas chicas. La píldora queda para los estados (.badge) y el control segmentado (.seg). */
 :root[data-panel] .chip { border-radius: var(--radius-lg); }
-:root[data-panel] .seg { border-radius: var(--radius-xl); }
-:root[data-panel] .seg > button { border-radius: var(--radius-lg); }
 :root[data-panel] .nx-rail-link, :root[data-panel] .nx-rail-btn, :root[data-panel] .nx-rail-status { border-radius: var(--radius-lg); }
 @media (max-width: 639px) {
   :root[data-panel] .stat-icon { width: 1.25rem; height: 1.25rem; border-radius: 0; }
