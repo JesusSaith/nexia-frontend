@@ -705,6 +705,7 @@ export class AgendaPageComponent {
         if (current && view && !view.options.includes(current) && !this.customTime()) {
           const clean = !this.hasChanges();
           this.form.controls.time.setValue('', { emitEvent: false });
+          this.formTick.update((count) => count + 1); // el resumen de abajo deja de mostrar la hora que se quitó
           if (clean) {
             this.baseline = this.snapshot();
           }
