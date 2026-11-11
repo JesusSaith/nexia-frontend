@@ -7,6 +7,7 @@ import {
   AdminAppointmentCreate,
   AdminAppointmentUpdate,
   FreeTimes,
+  VisitPart,
   AppointmentCorrection,
   PastHour,
   Appointment,
@@ -85,10 +86,15 @@ export class AppointmentsService {
   }
 
   /** Horas libres (cada 15 min) para agendar o editar: sin las reglas de la página pública; con `ignoreId` no cuenta esa cita. */
-  freeTimes(staffId: number, serviceId: number, date: string, ignoreId: number | null = null): Observable<FreeTimes> {
+  freeTimes(staffId: number, serviceId: number, date: string, ignoreId: number | null = null, minutes: number | null = null): Observable<FreeTimes> {
     return this.http.get<FreeTimes>(`${this.apiBaseUrl}/appointments/free-times`, {
-      params: { staff_id: staffId, service_id: serviceId, date, ...(ignoreId !== null ? { ignore_id: ignoreId } : {}) },
+      params: { staff_id: staffId, service_id: serviceId, date, ...(ignoreId !== null ? { ignore_id: ignoreId } : {}), ...(minutes !== null ? { minutes } : {}) },
     });
+  }
+
+  /** Las otras partes de la misma visita (cuando se agendó en dos horarios). */
+  visitGroup(id: number): Observable<VisitPart[]> {
+    return this.http.get<VisitPart[]>(`${this.apiBaseUrl}/appointments/${id}/group`);
   }
 
   getBlocks(params: AppointmentQuery): Observable<TimeBlock[]> {
