@@ -154,6 +154,9 @@ export interface ClientRow {
   no_show_count?: number;
   /** Última visita cobrada (AAAA-MM-DD). */
   last_visit?: string | null;
+  /** Servicio y persona de su última visita atendida (para repetirla al agendar). */
+  last_service_id?: number | null;
+  last_staff_id?: number | null;
   /** Próxima cita agendada, hora local del negocio. */
   next_visit?: string | null;
   tags?: string[];

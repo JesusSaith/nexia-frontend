@@ -256,7 +256,7 @@ export class AgendaPageComponent {
   /** Escribir una hora que no está en la lista (fuera del turno); se pregunta antes de guardar. */
   protected readonly customTime = signal(false);
   protected readonly guests = signal<{ phone: string; visit_count: number; total_spent: number; cancel_count: number; full_name: string }[]>([]);
-  protected readonly known = signal<{ visit_count: number; total_spent: number; cancel_count: number; full_name: string } | null>(null);
+  protected readonly known = signal<{ visit_count: number; total_spent: number; cancel_count: number; full_name: string; last_service_id?: number | null; last_staff_id?: number | null } | null>(null);
   protected readonly freshPhone = signal(false);
   protected readonly freed = signal<{ name: string; href: string }[]>([]);
   private readonly pesosFormat = { format: pesos };
@@ -400,6 +400,51 @@ export class AgendaPageComponent {
       .filter((member) => member.is_active)
       .map((member) => ({ value: member.id, label: member.full_name })),
   ]);
+  /** Horas como botones: la primera libre (para el botón "Primer horario libre") y quitar la rueda salvo en "Otra hora". */
+  protected readonly firstFree = computed(() => {
+    const busy = new Set(this.busyTimes());
+    return this.slotTimes().find((time) => !busy.has(time)) ?? null;
+  });
+  protected readonly selectedBusy = computed(() => {
+    this.formTick();
+    return this.busyTimes().includes(this.form.controls.time.value);
+  });
+
+  protected clock12(time: string): string {
+    return hora12(time);
+  }
+
+  protected pickTime(time: string): void {
+    this.form.controls.time.setValue(time);
+    this.form.controls.time.markAsDirty();
+  }
+
+  /** Cliente que ya vino: ofrece repetir su última visita (servicio y persona) con un toque. */
+  protected readonly repeatLast = computed(() => {
+    this.formTick();
+    const person = this.known();
+    if (this.editingId() !== null || !person?.last_service_id) {
+      return null;
+    }
+    const service = this.activeServices().find((item) => item.id === person.last_service_id);
+    const member = this.staff().find((item) => item.id === person.last_staff_id && item.is_active);
+    if (!service || this.form.controls.service_id.value === service.id) {
+      return null;
+    }
+    return { service, member: this.isStaff() ? null : (member ?? null) };
+  });
+
+  protected applyLast(): void {
+    const last = this.repeatLast();
+    if (!last) {
+      return;
+    }
+    this.form.controls.service_id.setValue(last.service.id);
+    if (last.member) {
+      this.form.controls.staff_id.setValue(last.member.id);
+    }
+  }
+
   protected readonly filterServices = computed(() => [
     { value: '', label: 'Todos los servicios' },
     ...this.activeServices().map((item) => ({ value: item.id, label: item.name })),
@@ -705,6 +750,7 @@ export class AgendaPageComponent {
         if (current && view && !view.options.includes(current) && !this.customTime()) {
           const clean = !this.hasChanges();
           this.form.controls.time.setValue('', { emitEvent: false });
+          this.formTick.update((count) => count + 1); // el resumen de abajo deja de mostrar la hora que se quitó
           if (clean) {
             this.baseline = this.snapshot();
           }
@@ -733,6 +779,18 @@ export class AgendaPageComponent {
           }
         });
       onCleanup(() => sub.unsubscribe());
+    });
+    // Si solo una persona hace el servicio elegido, se elige sola.
+    effect(() => {
+      this.formTick();
+      const { service_id, staff_id } = this.form.getRawValue();
+      if (this.editingId() !== null || service_id == null || staff_id != null || this.isStaff()) {
+        return;
+      }
+      const able = this.staff().filter((member) => member.is_active && (!member.service_ids || member.service_ids.includes(service_id)));
+      if (able.length === 1) {
+        this.form.controls.staff_id.setValue(able[0].id);
+      }
     });
     // Ficha: si la cita es una parte de una visita en dos horarios, se cargan las otras partes.
     effect((onCleanup) => {
@@ -1809,7 +1867,23 @@ export class AgendaPageComponent {
     return this.previewDeposit(service, quoted);
   });
 
+  /** Última forma de anticipo elegida al agendar (solo "según el negocio" o "sin anticipo"): comodidad de este navegador. */
+  private rememberedDeposit(): 'auto' | 'none' {
+    try {
+      return localStorage.getItem('nx-deposit-mode') === 'none' ? 'none' : 'auto';
+    } catch {
+      return 'auto';
+    }
+  }
+
   protected pickDepositMode(mode: 'auto' | 'none' | 'received'): void {
+    if (mode !== 'received') {
+      try {
+        localStorage.setItem('nx-deposit-mode', mode);
+      } catch {
+        // sin almacenamiento: simplemente no se recuerda
+      }
+    }
     this.form.controls.deposit_mode.setValue(mode);
     const suggested = this.suggestedDeposit();
     if (mode === 'received' && !String(this.form.controls.deposit_received.value).trim() && suggested) {
@@ -2035,6 +2109,9 @@ export class AgendaPageComponent {
     this.contactChannel.set('instagram');
     this.contactHandle.set('');
     this.partnerServices.set(0);
+    if (!editing && this.canWaiveDeposit() && this.rememberedDeposit() === 'none') {
+      this.form.controls.deposit_mode.setValue('none');
+    }
     if (editing) {
       this.fillFrom(editing);
       this.loadVisitForEdit(editing);
@@ -2148,7 +2225,19 @@ export class AgendaPageComponent {
   }
 
   protected openCreate(): void {
-    this.openCreateAt(this.cursor(), 9 * 60, this.staffId() ?? undefined);
+    // Hoy: abre con la siguiente hora (cada 15 min); si ya es tarde, con mañana a las 9:00. Un día pasado se respeta (registrar una cita que ya pasó).
+    let day = this.cursor();
+    let minutes = 9 * 60;
+    const now = this.clock.now();
+    if (toInputDate(day) === toInputDate(now)) {
+      const next = Math.ceil((now.getHours() * 60 + now.getMinutes() + 1) / 15) * 15;
+      if (next >= 21 * 60) {
+        day = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1);
+      } else {
+        minutes = Math.max(next, 9 * 60);
+      }
+    }
+    this.openCreateAt(day, minutes, this.staffId() ?? undefined);
   }
 
   /** Desde Clientes ("repetir última cita"): ?tel=, ?servicio= y ?con= prellenan el formulario. */
@@ -2999,7 +3088,37 @@ export class AgendaPageComponent {
     if (!phone) {
       return null;
     }
-    return whatsappLink(phone, this.copy.message('booked', { ...this.visitVars(appointment), enlace: this.manageLink(appointment) }));
+    const text = this.copy.message('booked', { ...this.visitVars(appointment), enlace: this.manageLink(appointment) });
+    this.lastNotice = { text, phone: appointment.client_phone ?? '' };
+    return whatsappLink(phone, text);
+  }
+
+  private lastNotice: { text: string; phone: string } | null = null;
+
+  /** "Copiar mensaje": el mismo aviso del WhatsApp, para pegarlo donde el cliente escribió (WhatsApp Web, Instagram…). */
+  protected copyNotice(): void {
+    const text = this.lastNotice?.text;
+    if (!text) {
+      return;
+    }
+    navigator.clipboard.writeText(text).then(
+      () => this.toasts.show('Mensaje copiado.'),
+      () => this.toasts.show('No pudimos copiarlo. Usa "Enviar por WhatsApp".'),
+    );
+  }
+
+  /** "Agendar otra": abre Nueva cita con el mismo cliente. */
+  protected bookAnother(): void {
+    const phone = this.lastNotice?.phone ?? '';
+    this.clientNotice.set(null);
+    this.openCreate();
+    if (phone) {
+      this.form.controls.client_phone.setValue(phone);
+      this.pendingTel = phone;
+      if (this.guests().length) {
+        this.applyTel(phone);
+      }
+    }
   }
 
   /** Aprobar a mano: el horario ya estaba apartado; queda confirmada y sale el WhatsApp para avisarle. */
