@@ -218,6 +218,9 @@ export class AdminLayoutComponent {
     // Modo claro/oscuro solo dentro del panel: al salir (p. ej. a /:slug/book) se vuelve a claro.
     effect(() => applyMode(this.themeMode(), this.isDark()));
     this.destroyRef.onDestroy(() => applyMode('light', false));
+    // Estilo del panel (ver bloque `data-panel` de styles.css): solo mientras se está en /admin.
+    document.documentElement.dataset['panel'] = '1';
+    this.destroyRef.onDestroy(() => delete document.documentElement.dataset['panel']);
     const media = typeof matchMedia === 'function' ? matchMedia('(prefers-color-scheme: dark)') : null;
     if (media) {
       const onChange = (event: MediaQueryListEvent) => this.systemDark.set(event.matches);
