@@ -1,3 +1,4 @@
+import { AutocompleteFieldComponent } from '@shared/components/autocomplete/autocomplete';
 import { DateFieldComponent } from '@shared/components/when-field/when-field';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormStatusComponent } from '@shared/components/form-status/form-status';
@@ -27,7 +28,7 @@ const AWAY_DAYS = 45;
 
 @Component({
   selector: 'app-customers',
-  imports: [DateFieldComponent, MatIconModule, MatMenuModule, FormsModule, RouterLink, Skeleton, FormStatusComponent],
+  imports: [AutocompleteFieldComponent, DateFieldComponent, MatIconModule, MatMenuModule, FormsModule, RouterLink, Skeleton, FormStatusComponent],
   templateUrl: './customers.html',
 })
 export class Customers {
@@ -261,6 +262,11 @@ export class Customers {
 
   // Etiquetas de la ficha
   protected newTag = '';
+  /** Etiquetas que ya existen en el negocio, menos las que esta persona ya tiene. */
+  protected readonly tagSuggestions = computed(() => {
+    const own = new Set(this.card()?.tags ?? []);
+    return this.allTags().filter((tag) => !own.has(tag));
+  });
 
   protected addTag(): void {
     const tag = this.newTag.trim();

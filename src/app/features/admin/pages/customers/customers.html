@@ -386,7 +386,7 @@
           </span>
         }
         <form class="flex gap-2" (submit)="$event.preventDefault(); addTag()">
-          <input class="input h-11! w-36!" name="newTag" maxlength="30" placeholder="VIP, alergia…" [(ngModel)]="newTag" />
+          <app-autocomplete-field class="block w-40" label="Etiqueta nueva" [maxlength]="30" placeholder="VIP, alergia…" [suggestions]="tagSuggestions()" [(value)]="newTag" />
           <button type="submit" class="btn btn-secondary px-3!" aria-label="Agregar etiqueta"><mat-icon>add</mat-icon></button>
         </form>
       </div>

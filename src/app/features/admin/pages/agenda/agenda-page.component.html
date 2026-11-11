@@ -554,7 +554,7 @@
           </p>
         </div>
         <div class="flex shrink-0 items-center">
-          @if (pop.appointment.status === 'scheduled' || pop.appointment.status === 'awaiting_deposit') {
+          @if (pop.appointment.status === 'scheduled' || pop.appointment.status === 'awaiting_deposit' || pop.appointment.status === 'completed' || pop.appointment.status === 'no_show') {
             <button type="button" class="btn btn-ghost w-11! px-0!" aria-label="Editar cita" (click)="openEdit(pop.appointment)">
               <mat-icon>edit</mat-icon>
             </button>
@@ -1197,6 +1197,8 @@
             </label>
             <p class="field-hint mt-2">Como ya pasó, no se pide anticipo ni se le manda nada al {{ copy.text().client.toLowerCase() }}. Cuenta en tus reportes, comisiones e historial.</p>
           </div>
+        } @else if (editingClosed()) {
+          <p class="rounded-xl bg-accent-soft px-3 py-2 text-sm">Aquí cambias los datos de la {{ copy.text().visit.toLowerCase() }}. El cobro (precio, forma de pago y propina) se corrige desde "Corregir" en su ficha.</p>
         } @else if (canPrice(form.controls.service_id.value)) {
           <label class="block">
             <span class="label opt">Precio acordado</span>
@@ -1208,7 +1210,7 @@
             <p class="field-hint">El precio que cerraron por WhatsApp. Si lo dejas vacío, se usa el del servicio.</p>
           }
         }
-        @if (canWaiveDeposit() && !pastVisit()) {
+        @if (canWaiveDeposit() && !pastVisit() && !editingClosed()) {
           <div>
             <span class="label opt">Anticipo</span>
             <div class="flex flex-wrap gap-2" role="group" aria-label="Anticipo">
@@ -1232,7 +1234,7 @@
             }
           </div>
         }
-        @if (!pastVisit() && chargeHint(); as hint) {
+        @if (!pastVisit() && !editingClosed() && chargeHint(); as hint) {
           <p class="rounded-xl bg-accent-soft px-3 py-2 text-sm">{{ hint }}</p>
         }
         @if (formError(); as message) {
@@ -1246,14 +1248,16 @@
             <span class="label req">Servicio</span>
             <app-pick-field class="block" formControlName="service_id" [options]="servicePicks()" />
           </label>
-          @if (!editingId() && !pastVisit() && form.controls.service_id.value) {
+          @if (!editingClosed() && form.controls.service_id.value) {
             <!-- Varios servicios en la misma visita: los de abajo siguen al principal; con "Otro horario" van en un segundo horario libre del mismo día. -->
             <div class="mt-3">
               @for (item of extraServices(); track item.id) {
                 <div class="mb-2 flex min-h-11 items-center gap-2 rounded-lg border border-line bg-canvas px-3">
                   <mat-icon class="h-5! w-5! shrink-0 text-[18px]! text-muted" aria-hidden="true">add</mat-icon>
                   <span class="min-w-0 flex-1 truncate text-sm text-ink">{{ item.name }} <span class="text-muted">· {{ item.duration_minutes }} min</span></span>
-                  <button type="button" class="btn btn-ghost px-2!" (click)="toggleLater(item.id)">Otro horario</button>
+                  @if (!editingId()) {
+                    <button type="button" class="btn btn-ghost px-2!" (click)="toggleLater(item.id)">Otro horario</button>
+                  }
                   <button type="button" class="btn btn-ghost px-2!" (click)="removeVisitService(item.id)" [attr.aria-label]="'Quitar ' + item.name"><mat-icon aria-hidden="true">close</mat-icon></button>
                 </div>
               }
@@ -1266,7 +1270,7 @@
                 </div>
               }
               @if (canAddService()) {
-                <app-pick-field class="block" [options]="extraPicks()" [valueIn]="''" (picked)="addExtra($event)" />
+                <app-multi-select-field [options]="extraPicks()" [values]="visitValues()" (valuesChange)="setVisitServices($event)" [showChips]="false" [max]="4" placeholder="Agregar servicios a esta visita" />
               } @else {
                 <p class="field-hint">Una visita lleva hasta 5 servicios.</p>
               }
@@ -1274,8 +1278,8 @@
                 <div class="mt-3 rounded-lg border border-line-strong p-3">
                   <p class="text-sm font-medium text-ink">Segundo horario</p>
                   <p class="field-hint mt-0.5">El mismo día, con la misma persona. Salen las horas libres para {{ laterMinutes() }} min.</p>
-                  <app-time-field class="mt-2 block" [options]="laterSlots()" [valueIn]="laterTime()" (picked)="laterTime.set($event)" />
-                  @if (laterSlots().length === 0) {
+                  <app-time-field class="mt-2 block" [options]="pastVisit() ? null : laterSlots()" [valueIn]="laterTime()" (picked)="laterTime.set($event)" />
+                  @if (laterSlots().length === 0 && !pastVisit()) {
                     <p class="field-hint mt-1">No hay horas libres para esos servicios ese día. Quita uno o elige otro día.</p>
                   }
                 </div>

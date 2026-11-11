@@ -18,7 +18,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
-import { forkJoin, interval, of } from 'rxjs';
+import { firstValueFrom, forkJoin, interval, of } from 'rxjs';
 import { catchError, distinctUntilChanged, map, switchMap } from 'rxjs/operators';
 
 import { BusinessCopy } from '@core/business-copy';
@@ -39,7 +39,8 @@ import { AdminAppointmentCreate, AdminAppointmentUpdate, Appointment, Appointmen
 import { ScheduleItem } from '@core/models/schedule.model';
 import { Service } from '@core/models/service.model';
 import { Staff } from '@core/models/staff.model';
-import { DateFieldComponent, PickFieldComponent, TimeFieldComponent } from '@shared/components/when-field/when-field';
+import { MultiSelectFieldComponent } from '@shared/components/multi-select/multi-select';
+import { DateFieldComponent, PickFieldComponent, PickOption, TimeFieldComponent } from '@shared/components/when-field/when-field';
 import { AgendaService } from '@core/services/agenda.service';
 import { AppointmentsService, StatusCharge, TimeBlock } from '@core/services/appointments.service';
 import { ShopProduct, ShopService } from '@core/services/shop.service';
@@ -76,7 +77,7 @@ const SLOT_HEIGHT = 28;
 const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 @Component({
   selector: 'app-agenda-page',
-  imports: [SegmentedDirective, FormStatusComponent, 
+  imports: [MultiSelectFieldComponent, SegmentedDirective, FormStatusComponent, 
     HoraPipe,
     NgTemplateOutlet,
     Skeleton,
@@ -358,10 +359,21 @@ export class AgendaPageComponent {
   });
 
   protected readonly activeServices = computed(() => this.services().filter((item) => item.is_active && !item.is_hold));
-  protected readonly servicePicks = computed(() => [
-    { value: null, label: 'Elegir' },
-    ...this.activeServices().map((item) => ({ value: item.id, label: item.name })),
-  ]);
+  /** Servicios agrupados por categoría; los que la persona elegida no hace salen apagados con el motivo en vez de desaparecer. */
+  protected readonly servicePicks = computed(() => {
+    this.formTick();
+    const member = this.staff().find((item) => item.id === this.form.getRawValue().staff_id);
+    return [{ value: null, label: 'Elegir' }, ...this.serviceOptions(member)];
+  });
+  private serviceOptions(member: { full_name: string; service_ids?: number[] } | undefined, skip: Set<number | null> = new Set()): PickOption[] {
+    return this.activeServices()
+      .filter((item) => !skip.has(item.id))
+      .map((item) => {
+        const blocked = !!member?.service_ids && !member.service_ids.includes(item.id);
+        return { value: item.id, label: item.name, group: item.category?.trim() || 'Otros', disabled: blocked, hint: blocked ? `No lo hace ${firstName(member!.full_name)}` : undefined };
+      })
+      .sort((a, b) => (a.group === 'Otros' ? 1 : 0) - (b.group === 'Otros' ? 1 : 0) || a.group.localeCompare(b.group));
+  }
   // Varios servicios en una misma visita (solo al crear): los extras siguen al principal; los "después" van en un segundo horario del mismo día.
   protected readonly extraIds = signal<number[]>([]);
   protected readonly laterIds = signal<number[]>([]);
@@ -372,18 +384,15 @@ export class AgendaPageComponent {
   protected readonly extraServices = computed(() => this.byIds(this.extraIds()));
   protected readonly laterServices = computed(() => this.byIds(this.laterIds()));
   protected readonly visitCount = computed(() => 1 + this.extraIds().length + this.laterIds().length);
-  protected readonly canAddService = computed(() => this.visitCount() < this.maxVisitServices);
+  /** Servicios que lleva la otra parte de la visita (al editar una cita partida en dos horarios): cuentan para el tope de 5. */
+  protected readonly partnerServices = signal(0);
+  protected readonly canAddService = computed(() => this.visitCount() + this.partnerServices() < this.maxVisitServices);
   protected readonly laterMinutes = computed(() => this.laterServices().reduce((sum, item) => sum + item.duration_minutes, 0));
   /** Servicios que se pueden sumar: los de la lista que no están ya y que la persona elegida hace. */
   protected readonly extraPicks = computed(() => {
     this.formTick();
     const { service_id, staff_id } = this.form.getRawValue();
-    const taken = new Set([service_id, ...this.extraIds(), ...this.laterIds()]);
-    const does = this.staff().find((member) => member.id === staff_id)?.service_ids;
-    return [
-      { value: null, label: 'Agregar otro servicio' },
-      ...this.activeServices().filter((item) => !taken.has(item.id) && (!does || does.includes(item.id))).map((item) => ({ value: item.id, label: item.name })),
-    ];
+    return this.serviceOptions(this.staff().find((member) => member.id === staff_id), new Set([service_id]));
   });
   protected readonly staffPicks = computed(() => [
     { value: null, label: 'Elegir' },
@@ -666,7 +675,7 @@ export class AgendaPageComponent {
           const none: FreeTimes = { times: [], busy: [], reason: null, note: null, next_day: null };
           const day$ = this.appointmentsApi.freeTimes(Number(staffId), Number(serviceId), date, editing ? Number(editing) : null, visitMinutes ? Number(visitMinutes) : null).pipe(catchError(() => of(none)));
           const today = toInputDate(this.clock.now());
-          if (editing || date > today) {
+          if ((editing && !this.editingClosed()) || date > today) {
             return day$.pipe(map((day) => this.dayTimes(day, day.times, [])));
           }
           // Hoy o antes: se muestran las horas que la persona trabaja (las ocupadas, marcadas), no solo los huecos de adelante.
@@ -706,7 +715,8 @@ export class AgendaPageComponent {
       this.formTick();
       const minutes = this.laterMinutes();
       const { service_id, staff_id, date, time } = this.form.getRawValue();
-      if (!minutes || service_id == null || staff_id == null || !date) {
+      // En una cita que ya pasó no hay "horas libres": el segundo horario se escribe libre.
+      if (!minutes || service_id == null || staff_id == null || !date || this.pastVisit()) {
         this.laterSlots.set([]);
         return;
       }
@@ -1928,12 +1938,19 @@ export class AgendaPageComponent {
     return main.duration_minutes + this.extraServices().reduce((sum, item) => sum + item.duration_minutes, 0);
   }
 
-  protected addExtra(value: unknown): void {
-    const id = Number(value);
-    if (!id || !this.canAddService()) {
-      return;
+  /** Servicios de la visita ya elegidos (sin el principal), para el selector múltiple. */
+  protected readonly visitValues = computed(() => [...this.extraIds(), ...this.laterIds()]);
+
+  /** El selector múltiple manda la lista completa: lo nuevo se suma al primer horario y lo quitado se va de ambos. */
+  protected setVisitServices(values: (string | number)[]): void {
+    const wanted = values.map(Number).slice(0, this.maxVisitServices - 1 - this.partnerServices());
+    const keep = (list: number[]) => list.filter((id) => wanted.includes(id));
+    const known = new Set([...this.extraIds(), ...this.laterIds()]);
+    this.extraIds.set([...keep(this.extraIds()), ...wanted.filter((id) => !known.has(id))]);
+    this.laterIds.set(keep(this.laterIds()));
+    if (this.laterIds().length === 0) {
+      this.laterTime.set('');
     }
-    this.extraIds.update((list) => [...list, id]);
     this.form.updateValueAndValidity();
   }
 
@@ -1978,6 +1995,11 @@ export class AgendaPageComponent {
 
   /** Editar una cita pendiente: el mismo formulario de "Nueva cita", ya con los datos de la cita. */
   protected readonly editingId = signal<number | null>(null);
+  /** Cita de un día pasado (atendida o "No llegó"): se edita lo que no mueve dinero; el cobro se corrige con "Corregir". */
+  protected readonly editingClosed = computed(() => {
+    const status = this.editingAppointment()?.status;
+    return status === 'completed' || status === 'no_show';
+  });
 
   protected openEdit(appointment: Appointment): void {
     this.openForm(new Date(`${appointment.starts_at.slice(0, 10)}T00:00:00`), 0, undefined, appointment);
@@ -2012,8 +2034,10 @@ export class AgendaPageComponent {
     this.noPhone.set(false);
     this.contactChannel.set('instagram');
     this.contactHandle.set('');
+    this.partnerServices.set(0);
     if (editing) {
       this.fillFrom(editing);
+      this.loadVisitForEdit(editing);
     }
     this.pastOutcome.set('done');
     this.pastMethod.set(this.pastMethods()[0]?.value ?? 'efectivo');
@@ -2051,6 +2075,21 @@ export class AgendaPageComponent {
         void this.requestClose();
       }
     });
+  }
+
+  /** Al editar: los servicios sumados de la cita y cuántos lleva la otra parte de la visita (si está partida en dos horarios). */
+  private loadVisitForEdit(appointment: Appointment): void {
+    const names = (appointment.extra_label ?? '').split(', ').filter(Boolean);
+    const ids = names.map((name) => this.services().find((item) => item.name === name)?.id).filter((id): id is number => id != null);
+    this.extraIds.set(ids);
+    this.baseline = this.snapshot();
+    if (!appointment.visit_group) {
+      return;
+    }
+    this.appointmentsApi
+      .visitGroup(appointment.id)
+      .pipe(catchError(() => of([] as VisitPart[])), takeUntilDestroyed(this.destroyRef))
+      .subscribe((parts) => this.partnerServices.set(parts.reduce((sum, part) => sum + 1 + (part.extra_label ? part.extra_label.split(', ').length : 0), 0)));
   }
 
   private readonly editingAppointment = signal<Appointment | null>(null);
@@ -2644,8 +2683,8 @@ export class AgendaPageComponent {
         service_id: value.service_id,
         staff_id: value.staff_id,
         starts_at: `${value.date}T${value.time}:00`,
-        ...(!past && this.extraIds().length ? { extra_service_ids: this.extraIds() } : {}),
-        ...(!past && this.laterIds().length ? { later_part: { starts_at: `${value.date}T${this.laterTime()}:00`, service_ids: this.laterIds() } } : {}),
+        ...(this.extraIds().length ? { extra_service_ids: this.extraIds() } : {}),
+        ...(this.laterIds().length ? { later_part: { starts_at: `${value.date}T${this.laterTime()}:00`, service_ids: this.laterIds() } } : {}),
         client_name: value.client_name.trim(),
         client_phone: this.noPhone() ? '' : value.client_phone.trim(),
         ...(this.noPhone() ? { contact_channel: this.contactChannel(), contact_handle: this.contactHandle().trim() } : {}),
@@ -2720,11 +2759,13 @@ export class AgendaPageComponent {
     if (value.service_id == null || value.staff_id == null) {
       return;
     }
-    const tell = this.changesToTell();
+    const closed = this.editingClosed();
+    const tell = !closed && this.changesToTell();
     void this.submitEdit(
       id,
       {
         service_id: value.service_id,
+        ...(closed ? {} : { extra_service_ids: this.extraIds() }),
         staff_id: value.staff_id,
         starts_at: `${value.date}T${value.time}:00`,
         client_name: value.client_name.trim(),
@@ -3173,6 +3214,24 @@ export class AgendaPageComponent {
     ) {
       return;
     }
+    // Visita partida en dos horarios: cancelar o marcar "No llegó" una parte pregunta si va igual para la otra.
+    let others: VisitPart[] = [];
+    if ((status === 'cancelled' || status === 'no_show') && appointment.visit_group && !after) {
+      others = await this.pendingVisitParts(appointment);
+      if (others.length > 0) {
+        const names = others.map((part) => `${part.service_name} a las ${hora12(part.starts_at.slice(11, 16))}`).join(' y ');
+        const both = await this.confirm.ask({
+          title: 'Esta visita tiene otro horario',
+          message: `También está agendado ${names}. ¿${status === 'cancelled' ? 'Lo cancelas' : 'Lo marcas como "No llegó"'} también?`,
+          confirm: status === 'cancelled' ? 'Sí, cancelar los dos' : 'Sí, los dos',
+          cancel: 'Solo este',
+          danger: true,
+        });
+        if (!both) {
+          others = [];
+        }
+      }
+    }
     const previous = appointment.status;
     // Cambio al instante en la agenda; si el servidor falla, se regresa.
     this.patchLocal({ ...appointment, status });
@@ -3191,6 +3250,12 @@ export class AgendaPageComponent {
           if (status === 'cancelled' || status === 'no_show') {
             this.offerFreed(appointment);
           }
+          for (const part of others) {
+            this.appointmentsApi.updateStatus(part.id, status).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ next: () => this.refreshQuietly(), error: () => this.toasts.show('No pudimos cambiar el otro horario. Hazlo desde su cita.') });
+          }
+          if (status === 'completed' && appointment.visit_group) {
+            void this.remindOtherPart(appointment);
+          }
           if (status === 'no_show') {
             this.offerStepUndo(`Marcada como "No llegó" · ${appointment.client_name}`, () => this.undoNoShow(appointment, previous));
           }
@@ -3206,6 +3271,25 @@ export class AgendaPageComponent {
           this.loadError.set(readError(error, 'No pudimos actualizar la cita.'));
         },
       });
+  }
+
+  /** Las otras partes de la visita que siguen pendientes (agendadas o esperando anticipo). */
+  private async pendingVisitParts(appointment: Appointment): Promise<VisitPart[]> {
+    try {
+      const parts = await firstValueFrom(this.appointmentsApi.visitGroup(appointment.id));
+      return parts.filter((part) => part.status === 'scheduled' || part.status === 'awaiting_deposit');
+    } catch {
+      return [];
+    }
+  }
+
+  /** Al cobrar una parte, recuerda la otra: se cobra por separado. */
+  private async remindOtherPart(appointment: Appointment): Promise<void> {
+    const parts = await this.pendingVisitParts(appointment);
+    if (parts.length > 0) {
+      const names = parts.map((part) => `${part.service_name} a las ${hora12(part.starts_at.slice(11, 16))}`).join(' y ');
+      this.toasts.show(`Falta la otra parte de la visita: ${names}. Se cobra por separado.`);
+    }
   }
 
   /** Aviso "Cita cancelada · Deshacer" durante 5 segundos. */

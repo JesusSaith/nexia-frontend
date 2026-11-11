@@ -1,3 +1,4 @@
+import { AutocompleteFieldComponent } from '@shared/components/autocomplete/autocomplete';
 import { incomeSentence } from '@core/income-sentence';
 import { KeyValuePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -27,7 +28,7 @@ type DashView = 'income' | 'staff' | 'commission' | 'expenses' | 'cash';
 
 @Component({
   selector: 'app-dashboard-page',
-  imports: [DateFieldComponent, DateRangeFieldComponent, PickFieldComponent, RouterLink, MatIconModule, KeyValuePipe, SegmentedDirective],
+  imports: [AutocompleteFieldComponent, DateFieldComponent, DateRangeFieldComponent, PickFieldComponent, RouterLink, MatIconModule, KeyValuePipe, SegmentedDirective],
   templateUrl: './dashboard-page.component.html',
 })
 export class DashboardPageComponent {
@@ -123,6 +124,18 @@ export class DashboardPageComponent {
   protected readonly goal = signal(Number(localStorage.getItem('nexia-profit-goal') || 0));
   protected readonly goalMode = signal<'money' | 'percent'>(localStorage.getItem('nexia-profit-mode') === 'percent' ? 'percent' : 'money');
   protected readonly expenseName = signal('');
+  /** Conceptos que ya anotaste primero, y los comunes después, para escribir menos. */
+  protected readonly expenseNames = computed(() => [
+    ...(this.books()?.expenses ?? []).map((item) => item.name),
+    'Renta',
+    'Luz',
+    'Agua',
+    'Internet',
+    'Teléfono',
+    'Nómina',
+    'Insumos',
+    'Publicidad',
+  ]);
   protected readonly expenseAmount = signal('');
   protected readonly expenseKind = signal<'fixed' | 'variable'>('fixed');
   protected readonly expenseCadence = signal<'month' | 'week' | 'day'>('month');

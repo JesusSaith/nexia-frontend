@@ -20,7 +20,7 @@ export function clock12(value: string): string {
   return `${hour % 12 || 12}:${String(minute).padStart(2, '0')} ${hour >= 12 ? 'PM' : 'AM'}`;
 }
 
-function openSheet(overlay: Overlay, view: ViewContainerRef, anchor: HTMLElement, template: TemplateRef<unknown>, width: number): OverlayRef {
+export function openSheet(overlay: Overlay, view: ViewContainerRef, anchor: HTMLElement, template: TemplateRef<unknown>, width: number): OverlayRef {
   const ref = overlay.create({
     positionStrategy: overlay
       .position()
@@ -404,7 +404,12 @@ export class TimeFieldComponent implements ControlValueAccessor {
   }
 }
 
-export type PickOption = { value: string | number | null; label: string };
+/** Una opción de lista. `group` agrupa bajo un título; `disabled` la apaga y `hint` dice por qué ("No lo hace Mayra"). */
+export type PickOption = { value: string | number | null; label: string; group?: string; disabled?: boolean; hint?: string };
+
+export function plain(text: string): string {
+  return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
 
 @Component({
   selector: 'app-pick-field',
@@ -414,10 +419,31 @@ export type PickOption = { value: string | number | null; label: string };
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" class="h-4 w-4 shrink-0 text-muted" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M5 7.5 10 12.5 15 7.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
     <ng-template #panel>
-      <div class="pick-sheet max-h-64 overflow-auto rounded-2xl border border-line bg-surface p-1.5 text-ink shadow-lg" style="width:100%" (click)="$event.stopPropagation()">
-        @for (option of options(); track option.label) {
-          <button type="button" class="block w-full rounded-xl px-3 py-2 text-left text-sm" [class.bg-accent-soft]="same(option.value)" [class.font-medium]="same(option.value)" [attr.aria-current]="same(option.value) ? 'true' : null" (click)="choose(option.value)">{{ option.label }}</button>
+      <div class="pick-sheet flex flex-col overflow-hidden border border-line bg-surface text-ink shadow-lg" [class.rounded-2xl]="!mobile()" [class.rounded-t-2xl]="mobile()" [class.max-h-72]="!mobile()" [class.max-h-[75dvh]]="mobile()" style="width:100%" (click)="$event.stopPropagation()">
+        @if (mobile()) {
+          <div class="flex items-center justify-between px-4 pt-3">
+            <p class="text-sm font-semibold">{{ placeholder() }}</p>
+            <button type="button" class="h-11 rounded-lg px-3 text-sm font-medium text-ink-soft" (click)="dismiss()">Cerrar</button>
+          </div>
         }
+        @if (searchable()) {
+          <div class="p-1.5 pb-0">
+            <input type="search" class="input" placeholder="Buscar" aria-label="Buscar" autocomplete="off" [value]="query()" (input)="query.set($any($event.target).value)" />
+          </div>
+        }
+        <div class="overflow-auto p-1.5" role="listbox">
+          @for (option of shown(); track option.label; let i = $index) {
+            @if (option.group && option.group !== shown()[i - 1]?.group) {
+              <p class="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-muted">{{ option.group }}</p>
+            }
+            <button type="button" role="option" class="flex min-h-11 w-full flex-col justify-center rounded-xl px-3 py-2 text-left text-sm disabled:cursor-not-allowed" [class.bg-accent-soft]="same(option.value)" [class.font-medium]="same(option.value)" [class.text-muted]="option.disabled" [disabled]="option.disabled" [attr.aria-selected]="same(option.value)" (click)="choose(option.value)">
+              <span>{{ option.label }}</span>
+              @if (option.hint) { <span class="text-xs text-muted">{{ option.hint }}</span> }
+            </button>
+          } @empty {
+            <p class="px-3 py-3 text-sm text-muted">No encontramos nada con eso.</p>
+          }
+        </div>
       </div>
     </ng-template>
   `,
@@ -433,9 +459,19 @@ export class PickFieldComponent implements ControlValueAccessor {
   readonly options = input<PickOption[]>([]);
   readonly placeholder = input('Elegir');
   readonly bare = input(false);
+  /** Cuadro para escribir y filtrar. Sin indicarlo, sale solo cuando hay más de 8 opciones. */
+  readonly search = input<boolean | null>(null);
   readonly valueIn = input<string | number | null>(null);
   readonly picked = output<string | number | null>();
   protected readonly open = signal(false);
+  protected readonly query = signal('');
+  /** En celular la lista se abre como hoja desde abajo. */
+  protected readonly mobile = signal(false);
+  protected readonly searchable = computed(() => this.search() ?? this.options().length > 8);
+  protected readonly shown = computed(() => {
+    const text = plain(this.query().trim());
+    return text ? this.options().filter((option) => plain(`${option.label} ${option.group ?? ''}`).includes(text)) : this.options();
+  });
   private onChange: (value: string | number | null) => void = () => undefined;
   private onTouched: () => void = () => undefined;
 
@@ -478,8 +514,26 @@ export class PickFieldComponent implements ControlValueAccessor {
       return;
     }
     const anchor = event.currentTarget as HTMLElement;
-    this.sheet = openSheet(this.overlay, this.view, anchor, this.panel(), Math.max(180, anchor.offsetWidth));
+    this.query.set('');
+    const phone = typeof window !== 'undefined' && window.innerWidth < 640;
+    this.mobile.set(phone);
+    if (phone) {
+      this.sheet = this.overlay.create({
+        positionStrategy: this.overlay.position().global().bottom('0').centerHorizontally(),
+        hasBackdrop: true,
+        backdropClass: 'cdk-overlay-dark-backdrop',
+        width: '100%',
+        maxWidth: '100vw',
+        scrollStrategy: this.overlay.scrollStrategies.block(),
+      });
+      this.sheet.attach(new TemplatePortal(this.panel(), this.view));
+    } else {
+      this.sheet = openSheet(this.overlay, this.view, anchor, this.panel(), Math.max(180, anchor.offsetWidth));
+    }
     this.open.set(true);
+    if (!phone && this.searchable()) {
+      setTimeout(() => this.sheet?.overlayElement.querySelector<HTMLInputElement>('input[type=search]')?.focus());
+    }
   }
 
   protected choose(value: string | number | null): void {
@@ -490,7 +544,7 @@ export class PickFieldComponent implements ControlValueAccessor {
     this.dismiss();
   }
 
-  private dismiss(): void {
+  protected dismiss(): void {
     this.sheet?.dispose();
     this.sheet = null;
     this.open.set(false);

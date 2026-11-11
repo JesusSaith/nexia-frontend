@@ -104,6 +104,8 @@ export interface AdminAppointmentCreate {
 
 export interface AdminAppointmentUpdate {
   service_id: number;
+  /** Servicios sumados a esta parte de la visita. Sin mandarlo no se tocan; [] los quita todos. */
+  extra_service_ids?: number[];
   staff_id: number;
   starts_at: string;
   client_name: string;

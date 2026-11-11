@@ -727,7 +727,7 @@
             </div>
             <div class="mt-3 grid gap-3">
               <label class="block"><span class="label req">Concepto</span>
-                <input class="input" placeholder="Renta, luz, insumos…" [value]="expenseName()" (input)="expenseName.set($any($event.target).value)" />
+                <app-autocomplete-field label="Concepto" placeholder="Renta, luz, insumos…" [suggestions]="expenseNames()" [value]="expenseName()" (valueChange)="expenseName.set($event)" />
               </label>
               <label class="block"><span class="label req">Monto</span>
                 <input class="input nums" type="number" min="0" inputmode="decimal" [value]="expenseAmount()" (input)="expenseAmount.set($any($event.target).value)" />
