@@ -197,6 +197,8 @@
       <span>Avísale al {{ copy.text().client.toLowerCase() }} de su {{ copy.text().visit.toLowerCase() }}.</span>
       <span class="flex gap-2">
         <a class="btn btn-whatsapp" [href]="href" target="_blank" rel="noopener" (click)="clientNotice.set(null)">Enviar por WhatsApp</a>
+        <button type="button" class="btn btn-secondary" (click)="copyNotice()"><mat-icon aria-hidden="true">content_copy</mat-icon>Copiar mensaje</button>
+        <button type="button" class="btn btn-secondary" (click)="bookAnother()"><mat-icon aria-hidden="true">add</mat-icon>Agendar otra</button>
         <button type="button" class="btn btn-ghost" (click)="clientNotice.set(null)">Cerrar</button>
       </span>
     </p>
@@ -1081,12 +1083,13 @@
       </button>
     </header>
     <div class="grid gap-6 overflow-y-auto p-5 lg:grid-cols-[minmax(0,1fr)_280px]">
-      <div class="flex flex-col gap-3">
+      <div class="contents lg:flex lg:flex-col lg:gap-3">
         @if (missing().length > 0) {
           <p class="form-missing" role="status"><mat-icon class="shrink-0 text-muted" aria-hidden="true">info</mat-icon><span>Para guardar falta: {{ missing().join(', ') }}. Los campos con <b class="text-(--nx-bad-fg)">*</b> son obligatorios.</span></p>
         } @else {
           <p class="form-missing" role="status"><mat-icon class="shrink-0 text-(--nx-ok-fg)" aria-hidden="true">check_circle</mat-icon><span>Todo listo para guardar.</span></p>
         }
+        <div class="order-1 flex flex-col gap-3 lg:order-none">
         <div class="relative">
           <label class="block">
             <span class="label req">Nombre del {{ copy.text().client.toLowerCase() }}</span>
@@ -1163,6 +1166,8 @@
         } @else if (freshPhone()) {
           <p class="field-hint">Primera vez con este teléfono.</p>
         }
+        </div>
+        <div class="order-3 flex flex-col gap-3 lg:order-none">
         <label class="block">
           <span class="label opt">Notas</span>
           <textarea formControlName="notes" rows="3" class="input"></textarea>
@@ -1243,9 +1248,10 @@
         @if (formError(); as message) {
           <p role="alert" class="field-error">{{ message }}</p>
         }
+        </div>
       </div>
-      <!-- En celular va primero: qué, con quién y cuándo es lo que más se decide. -->
-      <aside class="order-first flex flex-col gap-4 lg:order-none">
+      <!-- En celular va primero el cliente (nombre o teléfono; si ya vino se ofrece repetir su última visita), luego qué, con quién y cuándo. -->
+      <aside class="order-2 flex flex-col gap-4 lg:order-none">
         <div class="rounded-2xl border border-line p-4">
           <label class="block">
             <span class="label req">Servicio</span>

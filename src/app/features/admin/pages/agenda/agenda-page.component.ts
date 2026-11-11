@@ -3088,7 +3088,37 @@ export class AgendaPageComponent {
     if (!phone) {
       return null;
     }
-    return whatsappLink(phone, this.copy.message('booked', { ...this.visitVars(appointment), enlace: this.manageLink(appointment) }));
+    const text = this.copy.message('booked', { ...this.visitVars(appointment), enlace: this.manageLink(appointment) });
+    this.lastNotice = { text, phone: appointment.client_phone ?? '' };
+    return whatsappLink(phone, text);
+  }
+
+  private lastNotice: { text: string; phone: string } | null = null;
+
+  /** "Copiar mensaje": el mismo aviso del WhatsApp, para pegarlo donde el cliente escribió (WhatsApp Web, Instagram…). */
+  protected copyNotice(): void {
+    const text = this.lastNotice?.text;
+    if (!text) {
+      return;
+    }
+    navigator.clipboard.writeText(text).then(
+      () => this.toasts.show('Mensaje copiado.'),
+      () => this.toasts.show('No pudimos copiarlo. Usa "Enviar por WhatsApp".'),
+    );
+  }
+
+  /** "Agendar otra": abre Nueva cita con el mismo cliente. */
+  protected bookAnother(): void {
+    const phone = this.lastNotice?.phone ?? '';
+    this.clientNotice.set(null);
+    this.openCreate();
+    if (phone) {
+      this.form.controls.client_phone.setValue(phone);
+      this.pendingTel = phone;
+      if (this.guests().length) {
+        this.applyTel(phone);
+      }
+    }
   }
 
   /** Aprobar a mano: el horario ya estaba apartado; queda confirmada y sale el WhatsApp para avisarle. */
