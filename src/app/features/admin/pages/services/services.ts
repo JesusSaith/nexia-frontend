@@ -20,6 +20,7 @@ import { ShopService } from '@core/services/shop.service';
 import { SettingsService } from '@core/services/settings.service';
 import { kindOf } from '@core/business-kinds';
 import { StaffService } from '@core/services/staff.service';
+import { SegmentedDirective } from '@shared/directives/segmented.directive';
 import { Confirm } from '@shared/components/confirm/confirm';
 import { Toasts } from '@core/toasts';
 import { ServicesService } from '@core/services/services.service';
@@ -28,6 +29,7 @@ import { PickFieldComponent } from '@shared/components/when-field/when-field';
 @Component({
   selector: 'app-services-page',
   imports: [
+    SegmentedDirective,
     FormStatusComponent,
     FormsModule,
     ReactiveFormsModule,

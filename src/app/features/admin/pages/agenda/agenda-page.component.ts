@@ -4,6 +4,7 @@ import { pesos } from '@core/money';
 import { hora12 } from '../../../../core/hours';
 import { HoraPipe } from '../../../../shared/pipes/hora.pipe';
 import { NgTemplateOutlet } from '@angular/common';
+import { SegmentedDirective } from '@shared/directives/segmented.directive';
 import { Confirm } from '@shared/components/confirm/confirm';
 import { Component, DestroyRef, TemplateRef, computed, effect, inject, signal, viewChild, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -75,7 +76,7 @@ const SLOT_HEIGHT = 28;
 const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 @Component({
   selector: 'app-agenda-page',
-  imports: [FormStatusComponent, 
+  imports: [SegmentedDirective, FormStatusComponent, 
     HoraPipe,
     NgTemplateOutlet,
     Skeleton,

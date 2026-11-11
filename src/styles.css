@@ -337,6 +337,13 @@ textarea.input { height: auto; padding: 0.625rem 0.875rem; line-height: 1.5; }
 .seg > button { flex-shrink: 0; min-height: 2.75rem; padding: 0 1.25rem; border-radius: 999px; font-size: 0.9375rem; font-weight: 500; white-space: nowrap; color: var(--color-ink-soft); transition: background-color .2s, color .2s, box-shadow .2s; }
 .seg > button:hover:not(.is-on) { color: var(--color-ink); }
 .seg > button.is-on { background: var(--color-surface); color: var(--color-ink); font-weight: 600; box-shadow: 0 1px 3px rgb(0 0 0 / 0.14), 0 0 0 1px color-mix(in srgb, var(--color-ink) 6%, transparent); }
+/* Con la directiva SegmentedDirective, la píldora activa es .seg-thumb y se desliza; el botón activo solo cambia de color. */
+.seg { position: relative; align-self: flex-start; width: fit-content; }
+.seg > button { position: relative; z-index: 1; }
+.seg-thumb { position: absolute; top: 0; left: 0; z-index: 0; border-radius: 999px; background: var(--color-surface); box-shadow: 0 1px 3px rgb(0 0 0 / 0.14), 0 0 0 1px color-mix(in srgb, var(--color-ink) 6%, transparent); transition: transform .3s cubic-bezier(0.2, 0, 0, 1), width .3s cubic-bezier(0.2, 0, 0, 1); pointer-events: none; }
+.seg:not(.seg-js) > .seg-thumb { display: none; }
+.seg.seg-js > button.is-on { background: transparent; box-shadow: none; }
+@media (prefers-reduced-motion: reduce) { .seg-thumb { transition: none; } }
 .seg-label { font-size: 0.8125rem; color: var(--color-muted); }
 .chip { display: inline-flex; align-items: center; height: 2.75rem; padding: 0 0.875rem; border: 1px solid var(--color-line-strong); border-radius: 999px; background: var(--color-surface); font-size: 0.875rem; color: var(--color-ink-soft); transition: background-color .15s, border-color .15s, color .15s; }
 .chip:hover { border-color: var(--color-accent); color: var(--color-ink); }
