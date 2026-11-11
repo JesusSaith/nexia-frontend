@@ -2,10 +2,10 @@
   @if (loadError(); as message) {
     <p role="alert" class="field-error">{{ message }}</p>
   } @else if (isLoading()) {
-    <div class="animate-pulse space-y-4" aria-label="Cargando">
-      <div class="h-8 w-48 rounded-lg bg-line"></div>
-      <div class="h-10 w-72 max-w-full rounded-lg bg-line"></div>
-      <div class="h-72 rounded-2xl bg-line"></div>
+    <div class="space-y-4" role="status" aria-label="Cargando">
+      <div class="skeleton h-8 w-48"></div>
+      <div class="skeleton h-10 w-72 max-w-full"></div>
+      <div class="skeleton h-72"></div>
     </div>
   } @else if (summary(); as summary) {
     <header class="page-head">
@@ -73,13 +73,9 @@
     </div>
 
     @if (period() === 'range' && view() !== 'cash') {
-      <div class="mb-4 grid grid-cols-2 gap-2 sm:flex">
-        <label class="text-sm text-ink-soft">Desde
-          <input class="input mt-1" type="date" [value]="customStart()" (change)="customStart.set($any($event.target).value)" aria-label="Desde" />
-        </label>
-        <label class="text-sm text-ink-soft">Hasta
-          <input class="input mt-1" type="date" [value]="customEnd()" (change)="customEnd.set($any($event.target).value)" aria-label="Hasta" />
-        </label>
+      <div class="mb-4 max-w-sm">
+        <span class="label">Fechas del reporte</span>
+        <app-date-range-field [start]="customStart()" [end]="customEnd()" (rangePicked)="customStart.set($event.start); customEnd.set($event.end)" />
       </div>
     }
 
@@ -264,7 +260,7 @@
               <span class="sec-icon"><mat-icon>point_of_sale</mat-icon></span>
               <h2 class="card-title">Corte de caja</h2>
             </div>
-            <input class="input nums w-44!" type="date" [value]="cashDay()" (change)="loadCash($any($event.target).value)" aria-label="Día del corte" />
+            <app-date-field class="block w-48" [valueIn]="cashDay()" (picked)="loadCash($event)" />
           </div>
           @if (cash(); as data) {
             <ul class="mt-3 divide-y divide-line text-sm">
@@ -375,7 +371,7 @@
               }
             </div>
           } @else {
-            <div class="mt-3 h-40 animate-pulse rounded-xl bg-line"></div>
+            <div class="skeleton mt-3 h-40"></div>
           }
         </article>
         <article class="card">
@@ -429,10 +425,17 @@
             </p>
           } @else if (view() === 'expenses') {
             <div class="mt-4 flex flex-1 flex-wrap items-center gap-6">
-              <div class="relative mx-auto h-36 w-36 shrink-0 sm:mx-0" role="img" aria-label="Reparto de gastos">
-                <div class="h-full w-full rounded-full" [style.background]="pieGradient()"></div>
-                <div class="absolute inset-[28%] rounded-full bg-surface"></div>
-              </div>
+              <svg class="mx-auto h-auto w-full max-w-80 shrink-0 sm:mx-0" viewBox="0 0 320 236" role="img" aria-label="Reparto de gastos">
+                @for (arc of donut(); track arc.label) {
+                  <path [attr.d]="arc.path" fill="none" [attr.stroke]="arc.color" stroke-width="14"><title>{{ arc.label }}: {{ money(arc.amount) }} ({{ arc.text }})</title></path>
+                  @if (arc.showLabel) {
+                    <polyline [attr.points]="arc.line" fill="none" stroke="var(--color-line-strong)" stroke-width="1" />
+                    <text [attr.x]="arc.textX" [attr.y]="arc.textY" [attr.text-anchor]="arc.anchor" class="nums" font-size="13" fill="var(--color-ink-soft)">{{ arc.text }}</text>
+                  }
+                }
+                <text x="160" y="118" text-anchor="middle" class="nums" font-size="19" font-weight="600" fill="var(--color-ink)">{{ headline() }}</text>
+                <text x="160" y="140" text-anchor="middle" font-size="13" fill="var(--color-muted)">Total de gastos</text>
+              </svg>
               <ul class="min-w-[14rem] flex-1 divide-y divide-line text-sm">
                 @for (slice of pieSlices(); track slice.label) {
                   <li class="flex items-center gap-2 py-2">
@@ -724,7 +727,7 @@
             </div>
             <div class="mt-3 grid gap-3">
               <label class="block"><span class="label req">Concepto</span>
-                <input class="input" placeholder="Renta, luz, insumos…" [value]="expenseName()" (input)="expenseName.set($any($event.target).value)" />
+                <app-autocomplete-field label="Concepto" placeholder="Renta, luz, insumos…" [suggestions]="expenseNames()" [value]="expenseName()" (valueChange)="expenseName.set($event)" />
               </label>
               <label class="block"><span class="label req">Monto</span>
                 <input class="input nums" type="number" min="0" inputmode="decimal" [value]="expenseAmount()" (input)="expenseAmount.set($any($event.target).value)" />

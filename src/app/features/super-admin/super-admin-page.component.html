@@ -108,7 +108,7 @@
                 <a class="btn btn-whatsapp" [href]="whatsappLink(item)" target="_blank" rel="noopener"><mat-icon aria-hidden="true">chat</mat-icon> WhatsApp</a>
                 <a class="btn btn-secondary" [href]="'mailto:' + item.email"><mat-icon aria-hidden="true">mail</mat-icon> Correo</a>
                 @if (betaPendingId() === item.id) {
-                  <mat-spinner diameter="20" />
+                  <app-loader type="spinner" size="sm" />
                 } @else if (item.status === 'nueva' || item.status === 'descartada') {
                   <button class="btn btn-primary" type="button" (click)="invite(item)">Aprobar y enviar invitación</button>
                 } @else if (item.status === 'aprobada') {
@@ -211,7 +211,7 @@
         <div class="card flex flex-wrap items-center justify-between gap-3">
           <p class="max-w-xl text-sm text-ink-soft">Es el negocio de ejemplo que abre el botón "Prueba cómo reserva tu cliente". Se limpia solo: las reservas de visitantes se borran al día siguiente. Créalo una vez al publicar, o vuelve a crearlo para dejarlo como nuevo.</p>
           <div class="flex flex-wrap items-center gap-2">
-            @if (demoPending()) { <mat-spinner diameter="20" /> }
+            @if (demoPending()) { <app-loader type="spinner" size="sm" /> }
             <button class="btn btn-secondary" type="button" [disabled]="demoPending()" (click)="createDemo()">Crear o reiniciar demo</button>
             @if (demo(); as d) {
               <a class="btn btn-primary" [href]="d.path" target="_blank" rel="noopener">Abrir demo</a>
@@ -240,7 +240,7 @@
               <div class="flex shrink-0 flex-col items-end gap-1">
                 <span class="badge" [class.badge-ok]="business.is_active" [class.badge-neutral]="!business.is_active">{{ business.is_active ? 'Activo' : 'Inactivo' }}</span>
                 @if (pendingId() === business.id) {
-                  <mat-spinner diameter="20" />
+                  <app-loader type="spinner" size="sm" />
                 } @else {
                   <button class="btn btn-ghost" type="button" (click)="toggle(business)">{{ business.is_active ? 'Desactivar' : 'Activar' }}</button>
                 }
@@ -274,7 +274,7 @@
             <th mat-header-cell *matHeaderCellDef></th>
             <td mat-cell *matCellDef="let business">
               @if (pendingId() === business.id) {
-                <mat-spinner diameter="20" />
+                <app-loader type="spinner" size="sm" />
               } @else {
                 <button class="btn btn-ghost" type="button" (click)="toggle(business)">
                   {{ business.is_active ? 'Desactivar' : 'Activar' }}

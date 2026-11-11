@@ -21,6 +21,8 @@ export interface AppointmentCreate {
   client_email?: string | null;
   notes?: string | null;
   extra_service_ids?: number[];
+  /** Segunda parte de la visita: otro horario del mismo día con la misma persona. */
+  later_part?: { starts_at: string; service_ids: number[] };
   resource_name?: string | null;
   answers?: string | null;
   use_package?: boolean;
@@ -64,6 +66,8 @@ export interface Appointment {
   needs_approval?: boolean;
   /** El cliente dijo "Ya pagué" con el enlace de pago; falta revisar y aceptar. */
   paid_claim?: boolean;
+  /** Citas que son partes de una misma visita (varios servicios en dos horarios del mismo día) comparten este valor. */
+  visit_group?: string | null;
 }
 
 export interface AppointmentQuery {
@@ -100,6 +104,8 @@ export interface AdminAppointmentCreate {
 
 export interface AdminAppointmentUpdate {
   service_id: number;
+  /** Servicios sumados a esta parte de la visita. Sin mandarlo no se tocan; [] los quita todos. */
+  extra_service_ids?: number[];
   staff_id: number;
   starts_at: string;
   client_name: string;
@@ -147,4 +153,15 @@ export interface PastHour {
 
 export interface AppointmentStatusUpdate {
   status: AppointmentStatus;
+}
+
+/** Otra parte de la misma visita (`GET /appointments/{id}/group`). */
+export interface VisitPart {
+  id: number;
+  service_name: string;
+  extra_label: string | null;
+  starts_at: string;
+  ends_at: string;
+  status: string;
+  staff_name: string;
 }

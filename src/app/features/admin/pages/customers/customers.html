@@ -386,7 +386,7 @@
           </span>
         }
         <form class="flex gap-2" (submit)="$event.preventDefault(); addTag()">
-          <input class="input h-11! w-36!" name="newTag" maxlength="30" placeholder="VIP, alergia…" [(ngModel)]="newTag" />
+          <app-autocomplete-field class="block w-40" label="Etiqueta nueva" [maxlength]="30" placeholder="VIP, alergia…" [suggestions]="tagSuggestions()" [(value)]="newTag" />
           <button type="submit" class="btn btn-secondary px-3!" aria-label="Agregar etiqueta"><mat-icon>add</mat-icon></button>
         </form>
       </div>
@@ -436,7 +436,7 @@
     <section class="card flex flex-col gap-3">
     <label class="block">
       <span class="label opt">Cumpleaños</span>
-      <input class="input" type="date" [value]="person.birthday ?? ''" (change)="saveBirthday($any($event.target).value)" />
+      <app-date-field [valueIn]="person.birthday ?? ''" (picked)="saveBirthday($event)" />
       @if (birthdayState() === 'error') {
         <span class="field-error" role="alert">No pudimos guardar el cumpleaños.</span>
       } @else if (birthdayState() === 'saved') {

@@ -4,6 +4,7 @@ import { pesos } from '@core/money';
 import { hora12 } from '../../../../core/hours';
 import { HoraPipe } from '../../../../shared/pipes/hora.pipe';
 import { NgTemplateOutlet } from '@angular/common';
+import { SegmentedDirective } from '@shared/directives/segmented.directive';
 import { Confirm } from '@shared/components/confirm/confirm';
 import { Component, DestroyRef, TemplateRef, computed, effect, inject, signal, viewChild, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -15,9 +16,9 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatMenuModule } from '@angular/material/menu';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { Loader } from '@shared/components/loader/loader';
 import { MatSelectModule } from '@angular/material/select';
-import { forkJoin, interval, of } from 'rxjs';
+import { firstValueFrom, forkJoin, interval, of } from 'rxjs';
 import { catchError, distinctUntilChanged, map, switchMap } from 'rxjs/operators';
 
 import { BusinessCopy } from '@core/business-copy';
@@ -34,11 +35,12 @@ import { Skeleton } from '@shared/components/skeleton/skeleton';
 import { buildDaySheet, daySheetHtml, daySheetText } from '@core/day-sheet';
 import { MessageVars, firstName, isPhone, longDay, whatsappLink } from '@core/message-templates';
 import { Toasts } from '@core/toasts';
-import { AdminAppointmentCreate, AdminAppointmentUpdate, Appointment, AppointmentCorrection, AppointmentStatus, FreeTimes, PastHour } from '@core/models/appointment.model';
+import { AdminAppointmentCreate, AdminAppointmentUpdate, Appointment, AppointmentCorrection, AppointmentStatus, FreeTimes, PastHour, VisitPart } from '@core/models/appointment.model';
 import { ScheduleItem } from '@core/models/schedule.model';
 import { Service } from '@core/models/service.model';
 import { Staff } from '@core/models/staff.model';
-import { DateFieldComponent, PickFieldComponent, TimeFieldComponent } from '@shared/components/when-field/when-field';
+import { MultiSelectFieldComponent } from '@shared/components/multi-select/multi-select';
+import { DateFieldComponent, PickFieldComponent, PickOption, TimeFieldComponent } from '@shared/components/when-field/when-field';
 import { AgendaService } from '@core/services/agenda.service';
 import { AppointmentsService, StatusCharge, TimeBlock } from '@core/services/appointments.service';
 import { ShopProduct, ShopService } from '@core/services/shop.service';
@@ -75,7 +77,7 @@ const SLOT_HEIGHT = 28;
 const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 @Component({
   selector: 'app-agenda-page',
-  imports: [FormStatusComponent, 
+  imports: [MultiSelectFieldComponent, SegmentedDirective, FormStatusComponent, 
     HoraPipe,
     NgTemplateOutlet,
     Skeleton,
@@ -87,7 +89,7 @@ const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
-    MatProgressSpinnerModule,
+    Loader,
     MatSelectModule,
     DateFieldComponent,
     TimeFieldComponent,
@@ -357,10 +359,41 @@ export class AgendaPageComponent {
   });
 
   protected readonly activeServices = computed(() => this.services().filter((item) => item.is_active && !item.is_hold));
-  protected readonly servicePicks = computed(() => [
-    { value: null, label: 'Elegir' },
-    ...this.activeServices().map((item) => ({ value: item.id, label: item.name })),
-  ]);
+  /** Servicios agrupados por categoría; los que la persona elegida no hace salen apagados con el motivo en vez de desaparecer. */
+  protected readonly servicePicks = computed(() => {
+    this.formTick();
+    const member = this.staff().find((item) => item.id === this.form.getRawValue().staff_id);
+    return [{ value: null, label: 'Elegir' }, ...this.serviceOptions(member)];
+  });
+  private serviceOptions(member: { full_name: string; service_ids?: number[] } | undefined, skip: Set<number | null> = new Set()): PickOption[] {
+    return this.activeServices()
+      .filter((item) => !skip.has(item.id))
+      .map((item) => {
+        const blocked = !!member?.service_ids && !member.service_ids.includes(item.id);
+        return { value: item.id, label: item.name, group: item.category?.trim() || 'Otros', disabled: blocked, hint: blocked ? `No lo hace ${firstName(member!.full_name)}` : undefined };
+      })
+      .sort((a, b) => (a.group === 'Otros' ? 1 : 0) - (b.group === 'Otros' ? 1 : 0) || a.group.localeCompare(b.group));
+  }
+  // Varios servicios en una misma visita (solo al crear): los extras siguen al principal; los "después" van en un segundo horario del mismo día.
+  protected readonly extraIds = signal<number[]>([]);
+  protected readonly laterIds = signal<number[]>([]);
+  protected readonly laterTime = signal('');
+  protected readonly laterSlots = signal<string[]>([]);
+  protected readonly visitParts = signal<VisitPart[]>([]);
+  private readonly maxVisitServices = 5;
+  protected readonly extraServices = computed(() => this.byIds(this.extraIds()));
+  protected readonly laterServices = computed(() => this.byIds(this.laterIds()));
+  protected readonly visitCount = computed(() => 1 + this.extraIds().length + this.laterIds().length);
+  /** Servicios que lleva la otra parte de la visita (al editar una cita partida en dos horarios): cuentan para el tope de 5. */
+  protected readonly partnerServices = signal(0);
+  protected readonly canAddService = computed(() => this.visitCount() + this.partnerServices() < this.maxVisitServices);
+  protected readonly laterMinutes = computed(() => this.laterServices().reduce((sum, item) => sum + item.duration_minutes, 0));
+  /** Servicios que se pueden sumar: los de la lista que no están ya y que la persona elegida hace. */
+  protected readonly extraPicks = computed(() => {
+    this.formTick();
+    const { service_id, staff_id } = this.form.getRawValue();
+    return this.serviceOptions(this.staff().find((member) => member.id === staff_id), new Set([service_id]));
+  });
   protected readonly staffPicks = computed(() => [
     { value: null, label: 'Elegir' },
     ...this.staff()
@@ -630,19 +663,19 @@ export class AgendaPageComponent {
     });
     this.form.valueChanges
       .pipe(
-        map((value) => `${value.service_id ?? ''}|${value.staff_id ?? ''}|${value.date}|${this.editingId() ?? ''}`),
+        map((value) => `${value.service_id ?? ''}|${value.staff_id ?? ''}|${value.date}|${this.editingId() ?? ''}|${this.firstPartMinutes(value.service_id ?? null) ?? ''}`),
         distinctUntilChanged(),
         switchMap((key) => {
-          const [serviceId, staffId, date, editing] = key.split('|');
+          const [serviceId, staffId, date, editing, visitMinutes] = key.split('|');
           const slug = this.auth.currentUser()?.slug;
           if (!slug || !serviceId || !staffId || !date) {
             return of(null);
           }
           // Para la dueña salen todas las horas libres cada 15 min (sin las reglas de la página pública); al editar no cuenta la propia cita.
           const none: FreeTimes = { times: [], busy: [], reason: null, note: null, next_day: null };
-          const day$ = this.appointmentsApi.freeTimes(Number(staffId), Number(serviceId), date, editing ? Number(editing) : null).pipe(catchError(() => of(none)));
+          const day$ = this.appointmentsApi.freeTimes(Number(staffId), Number(serviceId), date, editing ? Number(editing) : null, visitMinutes ? Number(visitMinutes) : null).pipe(catchError(() => of(none)));
           const today = toInputDate(this.clock.now());
-          if (editing || date > today) {
+          if ((editing && !this.editingClosed()) || date > today) {
             return day$.pipe(map((day) => this.dayTimes(day, day.times, [])));
           }
           // Hoy o antes: se muestran las horas que la persona trabaja (las ocupadas, marcadas), no solo los huecos de adelante.
@@ -677,6 +710,43 @@ export class AgendaPageComponent {
           }
         }
       });
+    // Horas libres del segundo horario de la visita: mismo día y misma persona, sin encimarse con el primero.
+    effect((onCleanup) => {
+      this.formTick();
+      const minutes = this.laterMinutes();
+      const { service_id, staff_id, date, time } = this.form.getRawValue();
+      // En una cita que ya pasó no hay "horas libres": el segundo horario se escribe libre.
+      if (!minutes || service_id == null || staff_id == null || !date || this.pastVisit()) {
+        this.laterSlots.set([]);
+        return;
+      }
+      const sub = this.appointmentsApi
+        .freeTimes(staff_id, service_id, date, null, minutes)
+        .pipe(catchError(() => of(null)))
+        .subscribe((day) => {
+          const first = this.firstPartMinutes(service_id) ?? this.services().find((item) => item.id === service_id)?.duration_minutes ?? 0;
+          const start = time ? minutesOf(time) : null;
+          const list = (day?.times ?? []).filter((slot) => start === null || minutesOf(slot) >= start + first || minutesOf(slot) + minutes <= start);
+          this.laterSlots.set(list);
+          if (this.laterTime() && !list.includes(this.laterTime())) {
+            this.laterTime.set('');
+          }
+        });
+      onCleanup(() => sub.unsubscribe());
+    });
+    // Ficha: si la cita es una parte de una visita en dos horarios, se cargan las otras partes.
+    effect((onCleanup) => {
+      const pop = this.selected();
+      if (!pop?.appointment.visit_group) {
+        this.visitParts.set([]);
+        return;
+      }
+      const sub = this.appointmentsApi
+        .visitGroup(pop.appointment.id)
+        .pipe(catchError(() => of([] as VisitPart[])))
+        .subscribe((parts) => this.visitParts.set(parts));
+      onCleanup(() => sub.unsubscribe());
+    });
     interval(20000)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
@@ -1765,14 +1835,21 @@ export class AgendaPageComponent {
     }
     const editing = this.editingAppointment();
     const real = editing?.ends_at && editing.service_id === service.id ? Math.round((new Date(editing.ends_at).getTime() - new Date(editing.starts_at).getTime()) / 60000) : 0;
-    const minutes = real > 0 ? real : service.duration_minutes;
+    const minutes = real > 0 ? real : (this.firstPartMinutes(service.id) ?? service.duration_minutes);
     const [hour, minute] = value.time.split(':').map(Number);
     const end = clockFromMinutes((hour * 60 + minute + minutes) % 1440);
     const day = this.dayShort(value.date);
     const quoted = String(value.quoted_price ?? '').trim() ? Number(value.quoted_price) : null;
     const open = quoted == null && !!(service.price_at_visit || service.is_hold || !service.price);
-    const parts = [`${day.charAt(0).toUpperCase()}${day.slice(1)}`, `${hora12(value.time)} a ${hora12(end)}`, firstName(member.full_name), service.name];
-    parts.push(open ? 'Precio por definir' : pesos(quoted ?? service.price));
+    const everyone = [service, ...this.extraServices(), ...this.laterServices()];
+    const names = [service, ...this.extraServices()].map((item) => item.name).join(' + ');
+    const parts = [`${day.charAt(0).toUpperCase()}${day.slice(1)}`, `${hora12(value.time)} a ${hora12(end)}`, firstName(member.full_name), names];
+    if (this.laterIds().length > 0) {
+      parts.push(this.laterTime() ? `Luego ${hora12(this.laterTime())}: ${this.laterServices().map((item) => item.name).join(' + ')}` : 'Falta la hora del segundo horario');
+    }
+    const sum = everyone.reduce((total, item) => total + item.price, 0);
+    const anyOpen = everyone.some((item) => item.price_at_visit || item.variable_price || !item.price);
+    parts.push(open || (quoted == null && everyone.length > 1 && anyOpen) ? 'Precio por definir' : pesos(quoted ?? (everyone.length > 1 ? sum : service.price)));
     if (!this.pastVisit()) {
       const suggested = this.suggestedDeposit();
       const got = Number(value.deposit_received);
@@ -1848,8 +1925,81 @@ export class AgendaPageComponent {
     this.openForm(day, minutes, staffId);
   }
 
+  private byIds(ids: number[]): Service[] {
+    return ids.map((id) => this.services().find((item) => item.id === id)).filter((item): item is Service => !!item);
+  }
+
+  /** Minutos de la primera parte: el servicio principal más los que siguen. Sin extras, lo de siempre (null). */
+  private firstPartMinutes(serviceId: number | null): number | null {
+    const main = this.services().find((item) => item.id === serviceId);
+    if (!main || this.extraIds().length === 0) {
+      return null;
+    }
+    return main.duration_minutes + this.extraServices().reduce((sum, item) => sum + item.duration_minutes, 0);
+  }
+
+  /** Servicios de la visita ya elegidos (sin el principal), para el selector múltiple. */
+  protected readonly visitValues = computed(() => [...this.extraIds(), ...this.laterIds()]);
+
+  /** El selector múltiple manda la lista completa: lo nuevo se suma al primer horario y lo quitado se va de ambos. */
+  protected setVisitServices(values: (string | number)[]): void {
+    const wanted = values.map(Number).slice(0, this.maxVisitServices - 1 - this.partnerServices());
+    const keep = (list: number[]) => list.filter((id) => wanted.includes(id));
+    const known = new Set([...this.extraIds(), ...this.laterIds()]);
+    this.extraIds.set([...keep(this.extraIds()), ...wanted.filter((id) => !known.has(id))]);
+    this.laterIds.set(keep(this.laterIds()));
+    if (this.laterIds().length === 0) {
+      this.laterTime.set('');
+    }
+    this.form.updateValueAndValidity();
+  }
+
+  protected removeVisitService(id: number): void {
+    this.extraIds.update((list) => list.filter((item) => item !== id));
+    this.laterIds.update((list) => list.filter((item) => item !== id));
+    if (this.laterIds().length === 0) {
+      this.laterTime.set('');
+    }
+    this.form.updateValueAndValidity();
+  }
+
+  /** Pasa un servicio sumado al segundo horario (o lo regresa al primero). */
+  protected toggleLater(id: number): void {
+    if (this.laterIds().includes(id)) {
+      this.laterIds.update((list) => list.filter((item) => item !== id));
+      this.extraIds.update((list) => [...list, id]);
+    } else {
+      this.extraIds.update((list) => list.filter((item) => item !== id));
+      this.laterIds.update((list) => [...list, id]);
+    }
+    if (this.laterIds().length === 0) {
+      this.laterTime.set('');
+    }
+    this.form.updateValueAndValidity();
+  }
+
+  private resetVisit(): void {
+    this.extraIds.set([]);
+    this.laterIds.set([]);
+    this.laterTime.set('');
+    this.laterSlots.set([]);
+  }
+
+  /** Abre otra parte de la misma visita desde la ficha. */
+  protected openVisitPart(part: VisitPart): void {
+    this.appointmentsApi.getAppointment(part.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (found) => this.showAppointment({ appointment: found, x: 24, y: 88, maxHeight: 560, history: [] }),
+      error: () => undefined,
+    });
+  }
+
   /** Editar una cita pendiente: el mismo formulario de "Nueva cita", ya con los datos de la cita. */
   protected readonly editingId = signal<number | null>(null);
+  /** Cita de un día pasado (atendida o "No llegó"): se edita lo que no mueve dinero; el cobro se corrige con "Corregir". */
+  protected readonly editingClosed = computed(() => {
+    const status = this.editingAppointment()?.status;
+    return status === 'completed' || status === 'no_show';
+  });
 
   protected openEdit(appointment: Appointment): void {
     this.openForm(new Date(`${appointment.starts_at.slice(0, 10)}T00:00:00`), 0, undefined, appointment);
@@ -1858,6 +2008,7 @@ export class AgendaPageComponent {
   private openForm(day: Date, minutes: number, staffId?: number, editing?: Appointment): void {
     this.selected.set(null);
     this.formError.set(null);
+    this.resetVisit();
     this.petName.set('');
     this.editingId.set(editing?.id ?? null);
     this.editingAppointment.set(editing ?? null);
@@ -1883,8 +2034,10 @@ export class AgendaPageComponent {
     this.noPhone.set(false);
     this.contactChannel.set('instagram');
     this.contactHandle.set('');
+    this.partnerServices.set(0);
     if (editing) {
       this.fillFrom(editing);
+      this.loadVisitForEdit(editing);
     }
     this.pastOutcome.set('done');
     this.pastMethod.set(this.pastMethods()[0]?.value ?? 'efectivo');
@@ -1922,6 +2075,21 @@ export class AgendaPageComponent {
         void this.requestClose();
       }
     });
+  }
+
+  /** Al editar: los servicios sumados de la cita y cuántos lleva la otra parte de la visita (si está partida en dos horarios). */
+  private loadVisitForEdit(appointment: Appointment): void {
+    const names = (appointment.extra_label ?? '').split(', ').filter(Boolean);
+    const ids = names.map((name) => this.services().find((item) => item.name === name)?.id).filter((id): id is number => id != null);
+    this.extraIds.set(ids);
+    this.baseline = this.snapshot();
+    if (!appointment.visit_group) {
+      return;
+    }
+    this.appointmentsApi
+      .visitGroup(appointment.id)
+      .pipe(catchError(() => of([] as VisitPart[])), takeUntilDestroyed(this.destroyRef))
+      .subscribe((parts) => this.partnerServices.set(parts.reduce((sum, part) => sum + 1 + (part.extra_label ? part.extra_label.split(', ').length : 0), 0)));
   }
 
   private readonly editingAppointment = signal<Appointment | null>(null);
@@ -2499,6 +2667,10 @@ export class AgendaPageComponent {
       this.formError.set('Escribe cuánto se cobró.');
       return;
     }
+    if (this.laterIds().length > 0 && !this.laterTime()) {
+      this.formError.set('Elige la hora del segundo horario.');
+      return;
+    }
     if (await this.confirmOutOfShift(value.time)) {
       return;
     }
@@ -2511,6 +2683,8 @@ export class AgendaPageComponent {
         service_id: value.service_id,
         staff_id: value.staff_id,
         starts_at: `${value.date}T${value.time}:00`,
+        ...(this.extraIds().length ? { extra_service_ids: this.extraIds() } : {}),
+        ...(this.laterIds().length ? { later_part: { starts_at: `${value.date}T${this.laterTime()}:00`, service_ids: this.laterIds() } } : {}),
         client_name: value.client_name.trim(),
         client_phone: this.noPhone() ? '' : value.client_phone.trim(),
         ...(this.noPhone() ? { contact_channel: this.contactChannel(), contact_handle: this.contactHandle().trim() } : {}),
@@ -2585,11 +2759,13 @@ export class AgendaPageComponent {
     if (value.service_id == null || value.staff_id == null) {
       return;
     }
-    const tell = this.changesToTell();
+    const closed = this.editingClosed();
+    const tell = !closed && this.changesToTell();
     void this.submitEdit(
       id,
       {
         service_id: value.service_id,
+        ...(closed ? {} : { extra_service_ids: this.extraIds() }),
         staff_id: value.staff_id,
         starts_at: `${value.date}T${value.time}:00`,
         client_name: value.client_name.trim(),
@@ -3038,6 +3214,24 @@ export class AgendaPageComponent {
     ) {
       return;
     }
+    // Visita partida en dos horarios: cancelar o marcar "No llegó" una parte pregunta si va igual para la otra.
+    let others: VisitPart[] = [];
+    if ((status === 'cancelled' || status === 'no_show') && appointment.visit_group && !after) {
+      others = await this.pendingVisitParts(appointment);
+      if (others.length > 0) {
+        const names = others.map((part) => `${part.service_name} a las ${hora12(part.starts_at.slice(11, 16))}`).join(' y ');
+        const both = await this.confirm.ask({
+          title: 'Esta visita tiene otro horario',
+          message: `También está agendado ${names}. ¿${status === 'cancelled' ? 'Lo cancelas' : 'Lo marcas como "No llegó"'} también?`,
+          confirm: status === 'cancelled' ? 'Sí, cancelar los dos' : 'Sí, los dos',
+          cancel: 'Solo este',
+          danger: true,
+        });
+        if (!both) {
+          others = [];
+        }
+      }
+    }
     const previous = appointment.status;
     // Cambio al instante en la agenda; si el servidor falla, se regresa.
     this.patchLocal({ ...appointment, status });
@@ -3056,6 +3250,12 @@ export class AgendaPageComponent {
           if (status === 'cancelled' || status === 'no_show') {
             this.offerFreed(appointment);
           }
+          for (const part of others) {
+            this.appointmentsApi.updateStatus(part.id, status).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ next: () => this.refreshQuietly(), error: () => this.toasts.show('No pudimos cambiar el otro horario. Hazlo desde su cita.') });
+          }
+          if (status === 'completed' && appointment.visit_group) {
+            void this.remindOtherPart(appointment);
+          }
           if (status === 'no_show') {
             this.offerStepUndo(`Marcada como "No llegó" · ${appointment.client_name}`, () => this.undoNoShow(appointment, previous));
           }
@@ -3071,6 +3271,25 @@ export class AgendaPageComponent {
           this.loadError.set(readError(error, 'No pudimos actualizar la cita.'));
         },
       });
+  }
+
+  /** Las otras partes de la visita que siguen pendientes (agendadas o esperando anticipo). */
+  private async pendingVisitParts(appointment: Appointment): Promise<VisitPart[]> {
+    try {
+      const parts = await firstValueFrom(this.appointmentsApi.visitGroup(appointment.id));
+      return parts.filter((part) => part.status === 'scheduled' || part.status === 'awaiting_deposit');
+    } catch {
+      return [];
+    }
+  }
+
+  /** Al cobrar una parte, recuerda la otra: se cobra por separado. */
+  private async remindOtherPart(appointment: Appointment): Promise<void> {
+    const parts = await this.pendingVisitParts(appointment);
+    if (parts.length > 0) {
+      const names = parts.map((part) => `${part.service_name} a las ${hora12(part.starts_at.slice(11, 16))}`).join(' y ');
+      this.toasts.show(`Falta la otra parte de la visita: ${names}. Se cobra por separado.`);
+    }
   }
 
   /** Aviso "Cita cancelada · Deshacer" durante 5 segundos. */

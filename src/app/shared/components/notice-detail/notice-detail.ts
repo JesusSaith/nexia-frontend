@@ -1,3 +1,4 @@
+import { Loader } from '@shared/components/loader/loader';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -34,7 +35,7 @@ const STATUS_LABELS: Record<AppointmentStatus, string> = {
 /** Detalle de un aviso de Inicio: lo que pasó, cuándo y la cita a la que se refiere (si la hay). */
 @Component({
   selector: 'app-notice-detail',
-  imports: [MatIconModule],
+  imports: [Loader, MatIconModule],
   templateUrl: './notice-detail.html',
 })
 export class NoticeDetailComponent {

@@ -1,3 +1,4 @@
+import { Loader } from '@shared/components/loader/loader';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -17,7 +18,7 @@ import { FormStatusComponent } from '@shared/components/form-status/form-status'
 
 @Component({
   selector: 'app-packages-page',
-  imports: [FormsModule, MatIconModule, FormStatusComponent],
+  imports: [Loader, FormsModule, MatIconModule, FormStatusComponent],
   templateUrl: './packages-page.component.html',
 })
 export class PackagesPageComponent {

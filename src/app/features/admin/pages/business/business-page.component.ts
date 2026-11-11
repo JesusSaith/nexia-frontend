@@ -63,6 +63,8 @@ export class BusinessPageComponent {
   protected googleUrl = '';
   protected readonly googleSaved = signal(false);
 
+  /** El enlace sin https://, para mostrarlo bajo el QR. */
+  protected readonly bookingHost = computed(() => this.bookingUrl().replace(/^https?:\/\//, ''));
   protected readonly bookingUrl = computed(() => {
     const slug = this.brand()?.slug;
     return slug ? `${window.location.origin}/${slug}/book` : '';
@@ -128,12 +130,21 @@ export class BusinessPageComponent {
       });
   }
 
-  /** QR generado aquí mismo (sin servicios externos), en alta resolución. */
+  /** QR generado aquí mismo (sin servicios externos), en alta resolución y con el logo del negocio al centro si se puede. */
   private makeQr(): void {
     const url = this.bookingUrl();
-    if (url) {
-      void QRCode.toDataURL(url, { width: 1024, margin: 2, errorCorrectionLevel: 'M' }).then((data) => this.qr.set(data));
+    if (!url) {
+      return;
     }
+    // Nivel H (30 % de tolerancia): aguanta el logo encima sin dejar de leerse.
+    void QRCode.toDataURL(url, { width: 1024, margin: 2, errorCorrectionLevel: 'H' }).then(async (data) => {
+      this.qr.set(data);
+      const logo = this.brand()?.logo_url;
+      const marked = logo ? await putLogoOnQr(data, logo) : null;
+      if (marked) {
+        this.qr.set(marked);
+      }
+    });
   }
 
   protected downloadQr(): void {
@@ -259,4 +270,49 @@ export class BusinessPageComponent {
 
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[char] ?? char);
+}
+
+function loadImage(src: string, cors = false): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    if (cors) {
+      img.crossOrigin = 'anonymous';
+    }
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('imagen'));
+    img.src = src;
+  });
+}
+
+/** Pone el logo en un círculo blanco al centro del QR. Si el logo no se puede leer (otro dominio sin permiso), devuelve null y se queda el QR liso. */
+async function putLogoOnQr(qrData: string, logoUrl: string): Promise<string | null> {
+  try {
+    const [qr, logo] = await Promise.all([loadImage(qrData), loadImage(logoUrl, true)]);
+    const canvas = document.createElement('canvas');
+    canvas.width = qr.width;
+    canvas.height = qr.height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      return null;
+    }
+    ctx.drawImage(qr, 0, 0);
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    const radius = canvas.width * 0.11;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius + canvas.width * 0.025, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.clip();
+    // Recorte tipo "cover": el logo llena el círculo sin deformarse.
+    const side = Math.min(logo.width, logo.height);
+    ctx.drawImage(logo, (logo.width - side) / 2, (logo.height - side) / 2, side, side, cx - radius, cy - radius, radius * 2, radius * 2);
+    ctx.restore();
+    return canvas.toDataURL('image/png');
+  } catch {
+    return null;
+  }
 }

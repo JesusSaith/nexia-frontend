@@ -12,7 +12,7 @@ import { catchError, map } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { Loader } from '@shared/components/loader/loader';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 
 import { BusinessCopy } from '@core/business-copy';
@@ -41,7 +41,7 @@ const DAY_LABELS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sába
     FormsModule,
     MatButtonModule,
     MatIconModule,
-    MatProgressSpinnerModule,
+    Loader,
     MatSlideToggleModule,
     PickFieldComponent,
     TimeFieldComponent,

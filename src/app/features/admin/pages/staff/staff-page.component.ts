@@ -1,3 +1,4 @@
+import { DateRangeFieldComponent } from '@shared/components/when-field/when-field';
 import { HttpErrorResponse } from '@angular/common/http';
 import { horario12 } from '../../../../core/hours';
 import { Component, DestroyRef, TemplateRef, computed, inject, signal, viewChild } from '@angular/core';
@@ -9,7 +10,7 @@ import { MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dial
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { Loader } from '@shared/components/loader/loader';
 import { RouterLink } from '@angular/router';
 import { Observable, forkJoin, of, switchMap, tap } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
@@ -35,6 +36,7 @@ type StaffSection = 'info' | 'services';
 @Component({
   selector: 'app-staff-page',
   imports: [
+    DateRangeFieldComponent,
     FormStatusComponent,
     RouterLink,
     FormsModule,
@@ -45,7 +47,7 @@ type StaffSection = 'info' | 'services';
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
-    MatProgressSpinnerModule,
+    Loader,
   ],
   templateUrl: './staff-page.component.html',
 })

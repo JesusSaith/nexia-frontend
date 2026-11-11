@@ -1,6 +1,6 @@
 <main class="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-4 px-4 py-8 text-ink">
   @if (loading()) {
-    <p class="text-center text-sm text-muted">Cargando…</p>
+    <div class="flex flex-col items-center gap-2"><app-loader type="pulsing" /><p class="text-center text-sm text-muted">Cargando…</p></div>
   } @else if (loadError(); as message) {
     <p class="card text-center text-sm" role="alert">{{ message }}</p>
   } @else {

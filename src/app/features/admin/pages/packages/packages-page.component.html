@@ -114,7 +114,7 @@
       <h2 class="card-title" id="offers-title">Lo que vendes</h2>
     </div>
     @if (loading()) {
-      <p class="mt-2 text-sm text-muted">Cargando…</p>
+      <app-loader type="pulsing" class="mt-2" /><p class="mt-1 text-sm text-muted">Cargando…</p>
     } @else if (!offers().length) {
       <p class="mt-2 text-sm text-ink-soft">Todavía no tienes paquetes. Un paquete de varias visitas, como "5 manicuras", hace que tu cliente pague por adelantado y regrese.</p>
       <button type="button" class="btn btn-secondary mt-3" (click)="openForm()">Crear mi primer paquete</button>
