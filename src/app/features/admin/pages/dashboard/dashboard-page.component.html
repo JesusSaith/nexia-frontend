@@ -822,9 +822,9 @@
         <mat-icon>{{ moreDetail() ? 'expand_less' : 'expand_more' }}</mat-icon>{{ moreDetail() ? 'Ocultar el análisis' : 'Ver análisis a fondo' }}
       </button>
       @if (moreDetail()) {
-      <!-- Ocupación, clientas, servicios que más dejan y horas fuertes. -->
-      <div class="mt-4 grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-2">
-        <article class="card">
+      <!-- Análisis a fondo como tablero de tiles: cifras chicas arriba, gráficas medianas y tablas a todo lo ancho. -->
+      <div class="tiles mt-4">
+        <article class="card tile-2">
           <div class="card-head">
             <span class="sec-icon"><mat-icon>event_seat</mat-icon></span>
             <h2 class="card-title">Ocupación</h2>
@@ -846,7 +846,7 @@
           }
         </article>
 
-        <article class="card">
+        <article class="card tile-2">
           <div class="card-head">
             <span class="sec-icon"><mat-icon>group_add</mat-icon></span>
             <h2 class="card-title">{{ copy.text().clients }}</h2>
@@ -873,7 +873,25 @@
           }
         </article>
 
-        <article class="card">
+        @if (misses(); as lost) {
+          <article class="card tile-2">
+            <div class="card-head">
+              <span class="sec-icon"><mat-icon>event_busy</mat-icon></span>
+              <h2 class="card-title">Faltas y cancelaciones</h2>
+            </div>
+            <p class="nums mt-3 text-3xl font-semibold tracking-tight" [style.color]="lost.rate >= 15 ? 'var(--nx-bad-fg)' : 'var(--color-ink)'">{{ lost.rate }}%</p>
+            <p class="text-sm text-muted">de las citas no se hicieron · <span class="nums">{{ money(lost.money) }}</span> que no entró</p>
+            <div class="mt-3 grid grid-cols-2 gap-3 text-sm">
+              <div><p class="nums text-lg font-semibold text-ink">{{ lost.cancelled }}</p><p class="text-muted">Cancelaron</p></div>
+              <div><p class="nums text-lg font-semibold text-ink">{{ lost.noShow }}</p><p class="text-muted">No llegaron</p></div>
+            </div>
+            @if (lost.rate >= 15) {
+              <p class="mt-3 text-sm text-ink-soft">Es alto. Pide anticipo a quien cancela seguido ({{ copy.text().clients }} → Cancelan seguido).</p>
+            }
+          </article>
+        }
+
+        <article class="card tile-3">
           <div class="card-head">
             <span class="sec-icon"><mat-icon>leaderboard</mat-icon></span>
             <h2 class="card-title">Servicios que más dejan</h2>
@@ -895,7 +913,7 @@
           }
         </article>
 
-        <article class="card">
+        <article class="card tile-3">
           <div class="card-head">
             <span class="sec-icon"><mat-icon>grid_on</mat-icon></span>
             <h2 class="card-title">Días y horas más fuertes</h2>
@@ -930,11 +948,7 @@
             }
           }
         </article>
-      </div>
-
-      <!-- Para decidir: qué servicio deja más por hora, cuánto se pierde en faltas, si regresan y cómo va el año. -->
-      <div class="mt-4 grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-2">
-        <article class="card lg:col-span-2">
+        <article class="card tile-6">
           <div class="card-head">
             <span class="sec-icon"><mat-icon>price_check</mat-icon></span>
             <div>
@@ -981,26 +995,8 @@
           }
         </article>
 
-        @if (misses(); as lost) {
-          <article class="card">
-            <div class="card-head">
-              <span class="sec-icon"><mat-icon>event_busy</mat-icon></span>
-              <h2 class="card-title">Faltas y cancelaciones</h2>
-            </div>
-            <p class="nums mt-3 text-3xl font-semibold tracking-tight" [style.color]="lost.rate >= 15 ? 'var(--nx-bad-fg)' : 'var(--color-ink)'">{{ lost.rate }}%</p>
-            <p class="text-sm text-muted">de las citas no se hicieron · <span class="nums">{{ money(lost.money) }}</span> que no entró</p>
-            <div class="mt-3 grid grid-cols-2 gap-3 text-sm">
-              <div><p class="nums text-lg font-semibold text-ink">{{ lost.cancelled }}</p><p class="text-muted">Cancelaron</p></div>
-              <div><p class="nums text-lg font-semibold text-ink">{{ lost.noShow }}</p><p class="text-muted">No llegaron</p></div>
-            </div>
-            @if (lost.rate >= 15) {
-              <p class="mt-3 text-sm text-ink-soft">Es alto. Pide anticipo a quien cancela seguido ({{ copy.text().clients }} → Cancelan seguido).</p>
-            }
-          </article>
-        }
-
         @if (loyalty(); as info) {
-          <article class="card">
+          <article class="card tile-2">
             <div class="card-head">
               <span class="sec-icon"><mat-icon>favorite</mat-icon></span>
               <h2 class="card-title">Que regresen</h2>
@@ -1034,7 +1030,7 @@
         }
 
         @if (yearBars().length) {
-          <article class="card lg:col-span-2">
+          <article class="card tile-4">
             <div class="flex flex-wrap items-center justify-between gap-3">
               <div class="card-head">
                 <span class="sec-icon"><mat-icon>calendar_month</mat-icon></span>
