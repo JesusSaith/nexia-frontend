@@ -9,6 +9,7 @@ import { usefulDescription } from '@core/service-card';
 import { scrollBehavior } from '@core/motion';
 import { FAVORITES_KEY, clearFavorites, favoritesFirst, favoritesFor, toggleFavorite } from '@core/favorites';
 import { LAST_BOOKING_KEY, LastBooking, lastBookingFor, repeatable, withLastBooking } from '@core/last-booking';
+import { Stepper } from '@shared/components/stepper/stepper';
 import { NgTemplateOutlet } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ButtonShape, FONT_STACKS, FontStyle, SHAPE_RADIUS, readableOn, textOn } from '@core/theme';
@@ -83,6 +84,7 @@ function phoneDigits(control: AbstractControl): ValidationErrors | null {
     PickFieldComponent,
     PlaceMap,
     RouterLink,
+    Stepper,
   ],
   templateUrl: './booking.html',
   styleUrl: './booking.css',
