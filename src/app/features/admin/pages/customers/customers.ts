@@ -799,6 +799,11 @@ export class Customers {
     void this.router.navigate(['/admin/agenda'], { queryParams });
   }
 
+  /** Atajo de la fila: abre la agenda con una cita nueva para este teléfono. */
+  protected schedule(client: ClientRow): void {
+    void this.router.navigate(['/admin/agenda'], { queryParams: { nueva: 1, tel: client.phone } });
+  }
+
   /** Lista que se está viendo, en CSV (abre en Excel y Google Sheets). */
   protected exportCsv(): void {
     const head = ['Nombre', 'Teléfono', 'Correo', 'Visitas', 'Gastado', 'Cancelaciones', 'Faltas', 'Última visita', 'Próxima cita', 'Cumpleaños'];

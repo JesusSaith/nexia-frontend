@@ -103,6 +103,13 @@
           <mat-icon class="pointer-events-none absolute left-3 top-1/2 h-5! w-5! -translate-y-1/2 text-[20px]! text-muted">search</mat-icon>
           <input class="input pl-10!" type="search" placeholder="Buscar por nombre o teléfono" [ngModel]="query()" (ngModelChange)="query.set($event)" />
         </label>
+        @if (filter() !== 'best' && filter() !== 'missing' && filter() !== 'birthday') {
+          <select class="input w-auto! max-sm:min-w-0 max-sm:flex-1" aria-label="Ordenar la lista" name="sort" [ngModel]="sort()" (ngModelChange)="sort.set($event)">
+            @for (option of sorts; track option.key) {
+              <option [value]="option.key">Ordenar: {{ option.label }}</option>
+            }
+          </select>
+        }
         @if (canBulk() && visible().length > 1) {
           <button type="button" class="btn btn-secondary" [attr.aria-pressed]="selecting()" (click)="toggleSelecting()">
             <mat-icon>{{ selecting() ? 'close' : 'checklist' }}</mat-icon>
@@ -126,22 +133,6 @@
         </div>
       }
 
-      @if (filter() !== 'best' && filter() !== 'missing' && filter() !== 'birthday') {
-        <label class="mt-3 flex items-center gap-2 text-sm text-muted sm:hidden">
-          <span>Ordenar por</span>
-          <select class="input min-w-0 flex-1" [ngModel]="sort()" (ngModelChange)="sort.set($event)" name="sort-mobile">
-            @for (option of sorts; track option.key) {
-              <option [value]="option.key">{{ option.label }}</option>
-            }
-          </select>
-        </label>
-        <div class="mt-3 hidden items-center gap-2 text-sm text-muted sm:flex">
-          <span>Ordenar:</span>
-          @for (option of sorts; track option.key) {
-            <button type="button" class="min-h-11 rounded-md px-2" [class.font-semibold]="sort() === option.key" [class.text-ink]="sort() === option.key" (click)="sort.set(option.key)">{{ option.label }}</button>
-          }
-        </div>
-      }
       @if (filter() === 'cancel') {
         <p class="card-tint mt-2 flex items-start gap-2 rounded-xl border px-3 py-2.5 text-sm text-ink-soft">
           <mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-accent" aria-hidden="true">lightbulb</mat-icon>
@@ -218,6 +209,12 @@
                   </span>
                 }
               </button>
+              @if (client.visit_count === 0 && hasPhone(client) && !selecting() && filter() !== 'missing' && filter() !== 'birthday') {
+                <button type="button" class="btn btn-secondary hidden shrink-0 sm:inline-flex" [attr.aria-label]="'Agendar cita a ' + client.full_name" (click)="schedule(client)">
+                  <mat-icon>event</mat-icon>
+                  Agendar
+                </button>
+              }
               @if (filter() !== 'missing' && filter() !== 'birthday') {
                 <!-- Atajos de la fila: llamar (pantalla grande) y WhatsApp. Siempre ocupan su lugar para que la tabla no se mueva. -->
                 <span class="flex w-11 shrink-0 justify-end gap-1 md:w-23">
