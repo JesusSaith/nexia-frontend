@@ -138,3 +138,10 @@
     max-width: 64rem;
   }
 }
+
+/* Computadora, paso de datos: el botón de confirmar vive en la columna "Tu cita". */
+@media (min-width: 1024px) {
+  .booking-bar.booking-bar-hide {
+    display: none;
+  }
+}

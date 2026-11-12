@@ -393,6 +393,8 @@ export class Booking {
       detail: `${this.formatMinutes(minutes)} · ${variable ? (price ? `desde ${this.formatPrice(price)}` : atVisitOnly ? 'precio en la cita' : 'precio por cotizar') : this.formatPrice(price)}`,
       who,
       when: slot ? `${this.formatDate(slot)} · ${this.formatTime(slot)}` : null,
+      whenDay: slot ? this.formatDate(slot) : null,
+      whenTime: slot ? this.formatTime(slot) : null,
     };
   });
 
