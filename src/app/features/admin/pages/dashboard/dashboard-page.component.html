@@ -47,7 +47,7 @@
 
     <!-- Controles en una sola barra: qué reporte (arriba, a todo lo ancho) y de qué periodo y contra qué se compara (abajo). -->
     <div class="card mb-6 flex flex-col gap-3 p-3!">
-      <div class="seg w-full! *:flex-1" role="tablist" aria-label="Reporte">
+      <div class="seg w-full! *:flex-1 max-sm:grid! max-sm:grid-cols-2 max-sm:rounded-2xl! max-sm:*:px-2!" role="tablist" aria-label="Reporte">
         @for (tab of shownTabs(); track tab.id) {
           <button type="button" role="tab" [class.is-on]="view() === tab.id" [attr.aria-selected]="view() === tab.id" (click)="view.set(tab.id)">{{ tab.label }}</button>
         }
@@ -60,9 +60,9 @@
             }
           </div>
           @if (!(view() === 'income' && isEmpty())) {
-          <div class="flex flex-wrap items-center gap-2 max-sm:w-full">
+          <div class="flex flex-wrap items-center gap-2 max-sm:w-full max-sm:flex-col max-sm:items-start max-sm:gap-1.5">
             <span id="compare-label" class="seg-label">Comparar con</span>
-            <div class="seg max-sm:flex-1 max-sm:*:flex-1" role="group" aria-labelledby="compare-label">
+            <div class="seg max-sm:w-full! max-sm:self-stretch! max-sm:*:flex-1" role="group" aria-labelledby="compare-label">
               <button type="button" [class.is-on]="compareTo() === 'prev'" [attr.aria-pressed]="compareTo() === 'prev'" (click)="compareTo.set('prev')">{{ compareLabels().prev }}</button>
               <button type="button" [class.is-on]="compareTo() === 'year'" [attr.aria-pressed]="compareTo() === 'year'" (click)="compareTo.set('year')">Hace un año</button>
             </div>
