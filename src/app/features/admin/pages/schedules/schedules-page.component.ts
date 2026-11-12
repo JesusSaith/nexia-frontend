@@ -13,7 +13,6 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { Loader } from '@shared/components/loader/loader';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 
 import { BusinessCopy } from '@core/business-copy';
 import { Toasts } from '@core/toasts';
@@ -42,7 +41,6 @@ const DAY_LABELS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sába
     MatButtonModule,
     MatIconModule,
     Loader,
-    MatSlideToggleModule,
     PickFieldComponent,
     TimeFieldComponent,
     WeekdayPickerComponent,
@@ -65,6 +63,10 @@ export class SchedulesPageComponent {
   protected readonly specials = signal<SpecialHours[]>([]);
   /** Por defecto la lista solo trae los horarios especiales que aún no terminan; con esto también los de fechas pasadas. */
   protected readonly showPastSpecials = signal(false);
+  /** Día abierto para editar (0 = lunes); los demás quedan en una línea. */
+  protected readonly openDay = signal<number | null>(null);
+  /** El formulario de horario especial solo aparece al tocar "Agregar". */
+  protected readonly addingSpecial = signal(false);
   /** Tras guardar: citas que quedaron fuera del horario nuevo. */
   protected readonly outside = signal<{ count: number; day: string } | null>(null);
   private requestId = 0;
@@ -146,9 +148,87 @@ export class SchedulesPageComponent {
     })),
   );
 
+  /** Línea de tiempo: la persona que se edita usa lo que hay en pantalla (aunque no se haya guardado); las demás, lo guardado. */
+  private readonly weekPeople = computed(() => {
+    const mine = this.staffId();
+    const minutes = (time: string | null | undefined): number | null => {
+      if (!time) {
+        return null;
+      }
+      const [hour, minute] = time.split(':');
+      return Number(hour) * 60 + Number(minute ?? 0);
+    };
+    return DAY_LABELS.map((label, dayOfWeek) => ({
+      label,
+      people: this.staff()
+        .filter((member) => member.is_active)
+        .map((member) => {
+          const rows = member.id === mine ? this.days() : (this.team().get(member.id) ?? []);
+          const row = rows.find((item) => item.day_of_week === dayOfWeek && item.is_active);
+          const start = minutes(row?.start_time);
+          const end = minutes(row?.end_time);
+          if (!row || start === null || end === null || end <= start) {
+            return null;
+          }
+          return { id: member.id, name: member.full_name.split(' ')[0], hours: horario12(row.start_time, row.end_time), start, end, breakStart: minutes(row.break_start), breakEnd: minutes(row.break_end) };
+        })
+        .filter((item): item is NonNullable<typeof item> => item !== null),
+    }));
+  });
+
+  /** Horas que cubre el dibujo: de la primera apertura a la última hora de cierre (mínimo 6 horas). */
+  protected readonly weekAxis = computed(() => {
+    const all = this.weekPeople().flatMap((day) => day.people);
+    let from = all.length ? Math.floor(Math.min(...all.map((item) => item.start)) / 60) : 8;
+    let to = all.length ? Math.ceil(Math.max(...all.map((item) => item.end)) / 60) : 20;
+    if (to - from < 6) {
+      to = Math.min(24, from + 6);
+      from = Math.max(0, to - 6);
+    }
+    const step = to - from > 12 ? 3 : 2;
+    const ticks: { label: string; left: number }[] = [];
+    for (let hour = from; hour <= to; hour += step) {
+      ticks.push({ label: hour === 24 ? '12 a.m.' : `${hour % 12 || 12} ${hour < 12 ? 'a.m.' : 'p.m.'}`, left: ((hour - from) / (to - from)) * 100 });
+    }
+    return { from, to, hours: to - from, ticks };
+  });
+
+  protected readonly weekBars = computed(() => {
+    const { from, to } = this.weekAxis();
+    const span = (to - from) * 60;
+    const pct = (minute: number): number => Math.min(100, Math.max(0, ((minute - from * 60) / span) * 100));
+    return this.weekPeople().map((day) => ({
+      label: day.label,
+      bars: day.people.map((item) => {
+        const left = pct(item.start);
+        const hasBreak = item.breakStart !== null && item.breakEnd !== null && item.breakEnd > item.breakStart;
+        return {
+          id: item.id,
+          name: item.name,
+          hours: item.hours,
+          left,
+          width: pct(item.end) - left,
+          breakLeft: hasBreak ? pct(item.breakStart ?? 0) : 0,
+          breakWidth: hasBreak ? pct(item.breakEnd ?? 0) - pct(item.breakStart ?? 0) : 0,
+        };
+      }),
+    }));
+  });
+
   protected applyPreset(preset: { days: number[]; start: string; end: string }): void {
     this.days.update((items) => items.map((day) => ({ ...day, is_active: preset.days.includes(day.day_of_week), start_time: preset.start, end_time: preset.end })));
     this.savedMessage.set(null);
+  }
+
+  protected toggleDay(dayOfWeek: number): void {
+    this.openDay.set(this.openDay() === dayOfWeek ? null : dayOfWeek);
+  }
+
+  /** Mismo turno, descanso y horas fijas que el día anterior (para mostrarlo en la fila). */
+  protected sameAsBefore(day: ScheduleItem): boolean {
+    const before = this.days().find((item) => item.day_of_week === day.day_of_week - 1);
+    const key = (item: ScheduleItem): string => [item.start_time, item.end_time, item.break_start ?? '', item.break_end ?? '', item.slot_times ?? ''].join('|');
+    return !!before && before.is_active && day.is_active && key(before) === key(day);
   }
 
   /** Igual que el día anterior: horas, descanso y horas fijas. */
@@ -246,6 +326,7 @@ export class SchedulesPageComponent {
           this.specialClocks.set([]);
           this.specialDays.set([]);
           this.toasts.show('Horario especial guardado.');
+          this.addingSpecial.set(false);
         },
         error: (error: unknown) => this.specialError.set(readError(error, 'No pudimos guardar el horario especial.')),
       });
@@ -376,6 +457,7 @@ export class SchedulesPageComponent {
     if (staffId !== this.staffId()) {
       await this.pickStaff(staffId);
     }
+    this.openDay.set(dayOfWeek);
     setTimeout(() => document.getElementById(`day-${dayOfWeek}`)?.scrollIntoView({ behavior: scrollBehavior(), block: 'center' }), 300);
   }
 

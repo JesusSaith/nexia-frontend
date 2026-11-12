@@ -438,6 +438,21 @@
 
 <!-- Una cita en la cuadrícula. Las que coinciden en hora van lado a lado. -->
 <ng-template #slab let-item let-view="view">
+  @if (drag(); as live) {
+    @if (live.id === item.id) {
+      <div
+        class="pointer-events-none absolute z-20 rounded-md border-2 border-dashed border-accent bg-accent-soft/70"
+        [style.top]="blockStyle(item).top"
+        [style.height]="blockStyle(item).height"
+        [style.left]="laneStyle(item, view).left"
+        [style.width]="laneStyle(item, view).width"
+        [style.transform]="'translate(' + live.snapDx + 'px, ' + live.snapDy + 'px)'"
+        aria-hidden="true"
+      >
+        <span class="nums absolute left-1 top-1 max-w-[calc(100%-0.5rem)] truncate rounded bg-surface px-1.5 text-xs font-semibold text-ink shadow-sm">{{ live.label }}</span>
+      </div>
+    }
+  }
   <button
     type="button"
     class="absolute z-10 overflow-hidden rounded-md border-l-[3px] px-1.5 py-0.5 text-left text-xs text-ink shadow-sm select-none md:cursor-grab"
@@ -1129,7 +1144,7 @@
           @if (noPhone()) {
             <div class="block">
               <span class="label req">Su usuario o nombre</span>
-              <input class="input" autocomplete="off" maxlength="22" aria-required="true" placeholder="Ej. @lupita.mx" [value]="contactHandle()" (input)="contactHandle.set($any($event.target).value)" />
+              <input class="input" autocomplete="off" maxlength="22" aria-required="true" placeholder="Ej. @minegocio" [value]="contactHandle()" (input)="contactHandle.set($any($event.target).value)" />
             </div>
           } @else {
             <label class="block">

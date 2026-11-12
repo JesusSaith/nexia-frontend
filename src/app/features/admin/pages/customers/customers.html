@@ -2,7 +2,7 @@
   <header class="page-head">
     <div>
       <h1>{{ copy.text().clients }}</h1>
-      <p>Quien reserva con el mismo teléfono queda en una sola ficha.</p>
+      <p>@if (loaded() && clients().length) {<span class="nums">{{ clients().length }}</span> {{ clients().length === 1 ? copy.text().client.toLowerCase() : copy.text().clients.toLowerCase() }} · }Quien reserva con el mismo teléfono queda en una sola ficha.</p>
     </div>
     <!-- Celular: descargar e importar van en un menú con texto; agregar queda a la vista. -->
     <input #csvPhone type="file" accept=".csv,text/csv" class="sr-only" tabindex="-1" aria-hidden="true" [disabled]="importing()" (change)="importCsv($event)" />
@@ -80,49 +80,41 @@
       <mat-icon>person_search</mat-icon>
       <p class="font-medium text-ink">Aún no tienes {{ copy.text().clients.toLowerCase() }}</p>
       <p>Se agregan solos cuando alguien reserva o cuando creas una cita. También puedes agregarlos a mano.</p>
-      <a routerLink="/admin/negocio" class="btn btn-secondary">Compartir mi enlace de reservas</a>
+      <div class="mt-1 flex flex-wrap justify-center gap-2">
+        <button type="button" class="btn btn-primary" (click)="adding.set(true)"><mat-icon>person_add</mat-icon>Agregar {{ copy.text().client.toLowerCase() }}</button>
+        <a routerLink="/admin/negocio" class="btn btn-secondary"><mat-icon>share</mat-icon>Compartir mi enlace de reservas</a>
+      </div>
+      <p class="field-hint">¿Ya tienes una lista en Excel? Usa "Importar" (arriba) con un archivo CSV de nombre y teléfono.</p>
     </div>
   } @else if (loaded()) {
-    <!-- Filtros como tarjetas: cada una dice cuántas hay y, al tocarla, filtra la lista. -->
-    <!-- Celular: una fila de chips que se desliza de lado, con el número dentro. -->
-    <div class="-mx-3 mb-4 flex gap-2 overflow-x-auto px-3 pb-1 sm:hidden" role="tablist" aria-label="Filtrar clientes">
+    <!-- Filtros: una fila de chips con el número dentro. En celular se desliza de lado; en pantalla grande se acomoda en varias líneas. -->
+    <div class="-mx-3 mb-4 flex gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0" role="tablist" aria-label="Filtrar clientes">
       @for (chip of chips; track chip.key) {
         <button type="button" role="tab" class="chip h-11! shrink-0 gap-2 px-4!" [class.chip-on]="filter() === chip.key" [attr.aria-selected]="filter() === chip.key" (click)="filter.set(chip.key)">
+          <mat-icon class="hidden h-[18px]! w-[18px]! text-[18px]! sm:block" aria-hidden="true">{{ chip.icon }}</mat-icon>
           {{ chip.label }}
           <span class="nums rounded-full bg-canvas px-1.5 text-xs" [class.text-muted]="!counts()[chip.key]" [class.text-ink]="counts()[chip.key]">{{ counts()[chip.key] }}</span>
         </button>
       }
     </div>
-    <div class="mb-4 hidden grid-cols-3 gap-3 sm:grid xl:grid-cols-6" role="tablist" aria-label="Filtrar clientes">
-      @for (chip of chips; track chip.key) {
-        @let on = filter() === chip.key;
-        <button
-          type="button"
-          role="tab"
-          class="stat text-left"
-          [style.border-color]="on ? 'var(--color-accent)' : null"
-          [style.background]="on ? 'var(--color-accent-soft)' : null"
-          [attr.aria-selected]="on"
-          (click)="filter.set(chip.key)"
-        >
-          <span class="stat-icon" [class]="counts()[chip.key] ? chip.tone : 'stat-zero'"><mat-icon>{{ chip.icon }}</mat-icon></span>
-          <span class="min-w-0">
-            <span class="stat-value block">{{ counts()[chip.key] }}</span>
-            <span class="stat-label block truncate">{{ chip.label }}</span>
-          </span>
-        </button>
-      }
-    </div>
 
+    <!-- Pantalla grande: la lista y, al tocar a alguien, su ficha a un lado. Abajo de ese ancho la ficha se abre encima. -->
+    <div [class]="card() ? 'xl:grid xl:grid-cols-[minmax(0,1fr)_26rem] xl:items-start xl:gap-4' : ''">
     <section class="card">
-      <label class="relative block">
-        <span class="sr-only">Buscar {{ copy.text().client.toLowerCase() }}</span>
-        <mat-icon class="pointer-events-none absolute left-3 top-1/2 h-5! w-5! -translate-y-1/2 text-[20px]! text-muted">search</mat-icon>
-        <input class="input pl-10!" type="search" placeholder="Buscar por nombre o teléfono" [ngModel]="query()" (ngModelChange)="query.set($event)" />
-      </label>
-
-      @if (canBulk() && visible().length > 1) {
-        <div class="mt-3 flex flex-wrap items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2">
+        <label class="relative block min-w-0 flex-1 basis-56">
+          <span class="sr-only">Buscar {{ copy.text().client.toLowerCase() }}</span>
+          <mat-icon class="pointer-events-none absolute left-3 top-1/2 h-5! w-5! -translate-y-1/2 text-[20px]! text-muted">search</mat-icon>
+          <input class="input pl-10!" type="search" placeholder="Buscar por nombre o teléfono" [ngModel]="query()" (ngModelChange)="query.set($event)" />
+        </label>
+        @if (filter() !== 'best' && filter() !== 'missing' && filter() !== 'birthday') {
+          <select class="input w-auto! max-sm:min-w-0 max-sm:flex-1" aria-label="Ordenar la lista" name="sort" [ngModel]="sort()" (ngModelChange)="sort.set($event)">
+            @for (option of sorts; track option.key) {
+              <option [value]="option.key">Ordenar: {{ option.label }}</option>
+            }
+          </select>
+        }
+        @if (canBulk() && visible().length > 1) {
           <button type="button" class="btn btn-secondary" [attr.aria-pressed]="selecting()" (click)="toggleSelecting()">
             <mat-icon>{{ selecting() ? 'close' : 'checklist' }}</mat-icon>
             {{ selecting() ? 'Salir de seleccionar' : 'Seleccionar varios' }}
@@ -132,8 +124,8 @@
               {{ selectedRows().length === visible().length ? 'Quitar todos' : 'Seleccionar los ' + visible().length + ' de la lista' }}
             </button>
           }
-        </div>
-      }
+        }
+      </div>
 
       @if (allTags().length) {
         <div class="mt-3 flex flex-wrap gap-2" aria-label="Filtrar por etiqueta">
@@ -145,22 +137,6 @@
         </div>
       }
 
-      @if (filter() !== 'best' && filter() !== 'missing' && filter() !== 'birthday') {
-        <label class="mt-3 flex items-center gap-2 text-sm text-muted sm:hidden">
-          <span>Ordenar por</span>
-          <select class="input min-w-0 flex-1" [ngModel]="sort()" (ngModelChange)="sort.set($event)" name="sort-mobile">
-            @for (option of sorts; track option.key) {
-              <option [value]="option.key">{{ option.label }}</option>
-            }
-          </select>
-        </label>
-        <div class="mt-2 hidden items-center gap-2 text-sm text-muted sm:flex">
-          <span>Ordenar:</span>
-          @for (option of sorts; track option.key) {
-            <button type="button" class="min-h-11 rounded-md px-2" [class.font-semibold]="sort() === option.key" [class.text-ink]="sort() === option.key" (click)="sort.set(option.key)">{{ option.label }}</button>
-          }
-        </div>
-      }
       @if (filter() === 'cancel') {
         <p class="card-tint mt-2 flex items-start gap-2 rounded-xl border px-3 py-2.5 text-sm text-ink-soft">
           <mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-accent" aria-hidden="true">lightbulb</mat-icon>
@@ -184,7 +160,7 @@
               <button
                 type="button"
                 class="row-hover -mx-2 flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-3 text-left"
-                [class.bg-accent-soft]="selecting() && isSelected(client.id)"
+                [class.bg-accent-soft]="selecting() ? isSelected(client.id) : card()?.id === client.id"
                 [attr.role]="selecting() ? 'checkbox' : null"
                 [attr.aria-checked]="selecting() ? isSelected(client.id) : null"
                 (click)="selecting() ? toggleOne(client.id) : open(client.id)"
@@ -192,47 +168,72 @@
                 @if (selecting()) {
                   <mat-icon class="shrink-0" [class.text-accent]="isSelected(client.id)" [class.text-muted]="!isSelected(client.id)" aria-hidden="true">{{ isSelected(client.id) ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
                 }
-                <span class="avatar">{{ initials(client.full_name) }}</span>
+                <span class="avatar shrink-0">{{ initials(client.full_name) }}</span>
                 <span class="min-w-0 flex-1">
-                  <span class="block truncate text-sm font-medium text-ink">{{ client.full_name }}</span>
-                  <span class="block truncate text-sm text-muted">
+                  <!-- Línea 1: nombre y etiquetas de estado. -->
+                  <span class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span class="max-w-full truncate text-sm font-medium text-ink">{{ client.full_name }}</span>
+                    @if (client.visit_count === 0) {
+                      <span class="badge badge-info">Primera vez</span>
+                    }
+                    @if (!hasPhone(client)) {
+                      <span class="badge badge-neutral">Sin celular</span>
+                    }
+                    @if (isRepeated(client)) {
+                      <span class="badge badge-warn">Posible repetido</span>
+                    }
+                    @if (isCanceller(client)) {
+                      <span class="badge badge-warn"><span class="nums">{{ client.cancel_count + (client.no_show_count ?? 0) }}</span> cancel./faltas</span>
+                    }
+                    @if (packLeft(client); as left) {
+                      <span class="badge badge-ok">Paquete: {{ left }}</span>
+                    }
+                    @for (tag of (client.tags ?? []).slice(0, 2); track tag) {
+                      <span class="badge badge-neutral">{{ tag }}</span>
+                    }
+                  </span>
+                  <!-- Línea 2: teléfono (desde pantalla chica-mediana) y cuándo vino o vendrá. Sin columnas vacías. -->
+                  <span class="mt-0.5 block truncate text-sm text-muted">
+                    <span class="nums hidden sm:inline">{{ client.phone }} · </span>
                     @if (filter() === 'birthday') {
                       <span class="text-(--nx-info-fg)">{{ birthdayLabel(client) }}</span>
                     } @else if (client.next_visit) {
                       <span class="text-(--nx-info-fg)">Próxima: {{ nextLabel(client.next_visit) }}</span>
                     } @else if (client.last_visit) {
                       Última visita: {{ ago(client.last_visit).toLowerCase() }}
+                    } @else if (contactNote(client); as note) {
+                      {{ note }}
                     } @else {
-                      <span class="nums">{{ client.phone }}</span>
+                      Aún sin visitas
                     }
                   </span>
                 </span>
-                <span class="flex shrink-0 flex-col items-end gap-1">
-                  @if (client.visit_count > 0) {
+                <!-- Derecha: lo gastado y las visitas, solo si ya vino. -->
+                @if (client.visit_count > 0) {
+                  <span class="flex shrink-0 flex-col items-end">
                     <span class="nums text-sm font-semibold text-ink">{{ spent(client.total_spent) }}</span>
                     <span class="nums text-sm text-muted">{{ client.visit_count }} {{ client.visit_count === 1 ? 'visita' : 'visitas' }}</span>
-                  } @else {
-                    <span class="badge badge-info">Primera vez</span>
-                  }
-                  @if (contactNote(client); as note) {
-                    <span class="text-sm text-muted">{{ note }}</span>
-                  }
-                  @if (isCanceller(client)) {
-                    <span class="badge badge-warn"><span class="nums">{{ client.cancel_count + (client.no_show_count ?? 0) }}</span> cancel./faltas</span>
-                  }
-                  @if (packLeft(client); as left) {
-                    <span class="badge badge-ok">Paquete: {{ left }}</span>
-                  }
-                  @for (tag of (client.tags ?? []).slice(0, 2); track tag) {
-                    <span class="badge badge-neutral">{{ tag }}</span>
+                  </span>
+                }
+              </button>
+              @if (client.visit_count === 0 && hasPhone(client) && !selecting() && filter() !== 'missing' && filter() !== 'birthday') {
+                <button type="button" class="btn btn-secondary hidden shrink-0 sm:inline-flex" [attr.aria-label]="'Agendar cita a ' + client.full_name" (click)="schedule(client)">
+                  <mat-icon>event</mat-icon>
+                  Agendar
+                </button>
+              }
+              @if (filter() !== 'missing' && filter() !== 'birthday') {
+                <!-- Atajos de la fila: llamar (pantalla grande) y WhatsApp. Siempre ocupan su lugar para que la tabla no se mueva. -->
+                <span class="flex w-11 shrink-0 justify-end gap-1 md:w-23">
+                  @if (!selecting() && hasPhone(client)) {
+                    <a class="btn btn-ghost hidden w-11! px-0! md:inline-flex" [href]="tel(client.phone)" [attr.aria-label]="'Llamar a ' + client.full_name"><mat-icon>call</mat-icon></a>
+                    <a class="btn btn-whatsapp w-11! px-0!" [href]="chat(client.phone)" target="_blank" rel="noopener" [attr.aria-label]="'WhatsApp a ' + client.full_name"><mat-icon>chat</mat-icon></a>
                   }
                 </span>
-              </button>
-              @if (!hasPhone(client)) {
-                <span class="badge badge-neutral shrink-0">Sin celular</span>
-              } @else if (filter() === 'missing') {
+              }
+              @if (hasPhone(client) && filter() === 'missing') {
                 <a class="btn btn-whatsapp shrink-0 px-3!" [href]="missYou(client)" target="_blank" rel="noopener" (click)="logContact(client, 'invitar')">{{ client.last_contact_at ? 'Invitar otra vez' : 'Invitar' }}</a>
-              } @else if (filter() === 'birthday') {
+              } @else if (hasPhone(client) && filter() === 'birthday') {
                 <a class="btn btn-whatsapp shrink-0 px-3!" [href]="birthdayWish(client)" target="_blank" rel="noopener" (click)="logContact(client, 'felicitar')">Felicitar</a>
               }
             </li>
@@ -240,58 +241,11 @@
         </ul>
       }
     </section>
-  }
-</section>
-
-<!-- Barra de acciones en bloque: aparece cuando hay alguien seleccionado. bottom-20 en celular para no tapar la navegación inferior. -->
-@if (selecting() && selectedRows().length > 0) {
-  <div class="fixed inset-x-3 bottom-20 z-30 md:bottom-6 md:left-[calc(15rem+1.5rem)] md:right-6" role="region" aria-label="Acciones para los seleccionados">
-    <div class="mx-auto max-w-3xl rounded-2xl border border-line bg-surface p-3 shadow-[0_18px_50px_rgba(30,27,30,0.25)]">
-      @if (bulkPanel() === 'tag') {
-        <p class="text-sm font-semibold text-ink">Etiqueta para {{ selectedRows().length }} {{ selectedRows().length === 1 ? copy.text().client.toLowerCase() : copy.text().clients.toLowerCase() }}</p>
-        @if (allTags().length) {
-          <div class="mt-2 flex flex-wrap gap-2">
-            @for (tag of allTags(); track tag) {
-              <button type="button" class="chip" [disabled]="bulkBusy()" (click)="applyBulkTag(tag)">{{ tag }}</button>
-            }
-          </div>
-        }
-        <form class="mt-2 flex gap-2" (submit)="$event.preventDefault(); applyBulkTag(bulkTag)">
-          <input class="input min-w-0 flex-1" name="bulkTag" maxlength="30" placeholder="Etiqueta nueva, por ejemplo VIP" autocomplete="off" [(ngModel)]="bulkTag" />
-          <button type="submit" class="btn btn-primary" [disabled]="bulkBusy() || !bulkTag.trim()">{{ bulkBusy() ? 'Guardando…' : 'Poner' }}</button>
-        </form>
-        @if (bulkError(); as message) {
-          <p class="field-error mt-2" role="alert">{{ message }}</p>
-        }
-        <button type="button" class="btn btn-ghost mt-2" (click)="bulkPanel.set(null)">Volver</button>
-      } @else if (bulkPanel() === 'chat' && chatCurrent(); as person) {
-        <p class="text-sm font-semibold text-ink"><span class="nums">{{ chatIndex() + 1 }}</span> de <span class="nums">{{ chatTotal() }}</span>: {{ person.full_name }}</p>
-        <p class="field-hint">WhatsApp no deja mandar a varios a la vez. Abre cada chat, envía y regresa aquí para el siguiente.</p>
-        <div class="mt-2 flex flex-wrap gap-2" role="group" aria-label="Mensaje">
-          @for (kind of chatKinds; track kind.key) {
-            <button type="button" class="chip" [class.chip-on]="chatKind() === kind.key" [attr.aria-pressed]="chatKind() === kind.key" (click)="chatKind.set(kind.key)">{{ kind.label }}</button>
-          }
-        </div>
-        <div class="mt-3 flex flex-wrap gap-2">
-          <a class="btn btn-whatsapp" [href]="chatHref(person)" target="_blank" rel="noopener" (click)="chatSent()">Abrir WhatsApp</a>
-          <button type="button" class="btn btn-secondary" (click)="chatNext()">Saltar</button>
-          <button type="button" class="btn btn-ghost" (click)="bulkPanel.set(null)">Terminar</button>
-        </div>
-      } @else {
-        <div class="flex flex-wrap items-center gap-2">
-          <p class="min-w-0 flex-1 text-sm"><span class="nums font-semibold text-ink">{{ selectedRows().length }}</span> seleccionado{{ selectedRows().length === 1 ? '' : 's' }}</p>
-          <button type="button" class="btn btn-secondary" (click)="openBulkTag()"><mat-icon>sell</mat-icon>Etiquetar</button>
-          <button type="button" class="btn btn-whatsapp" (click)="startChat()">WhatsApp</button>
-          <button type="button" class="btn btn-ghost" (click)="clearSelection()">Quitar</button>
-        </div>
-      }
-    </div>
-  </div>
-}
 
 @if (card(); as person) {
-  <div class="fixed inset-0 z-30 bg-ink/20" (click)="close()" aria-hidden="true"></div>
-  <aside class="fixed inset-y-0 right-0 z-40 flex w-full max-w-md flex-col gap-4 overflow-auto border-l border-line bg-surface p-5 shadow-xl" role="dialog" aria-modal="true" [attr.aria-label]="'Ficha de ' + person.full_name">
+  <div class="fixed inset-0 z-30 bg-ink/20 xl:hidden" (click)="close()" aria-hidden="true"></div>
+  <!-- Celular: hoja desde abajo. Tableta: panel a la derecha. Pantalla grande (xl): queda fijo junto a la lista, sin tapar nada. -->
+  <aside class="fixed inset-y-0 right-0 z-40 flex w-full max-w-md flex-col gap-4 overflow-auto border-l border-line bg-surface p-5 shadow-xl max-md:inset-y-auto max-md:bottom-0 max-md:max-h-[92dvh] max-md:max-w-none max-md:rounded-t-2xl max-md:border-t max-md:border-l-0 xl:sticky xl:inset-auto xl:top-4 xl:z-auto xl:max-h-[calc(100dvh-2rem)] xl:max-w-none xl:rounded-xl xl:border xl:shadow-none" role="dialog" aria-modal="true" [attr.aria-label]="'Ficha de ' + person.full_name">
     @if (editing()) {
       <form class="flex flex-col gap-3" (submit)="$event.preventDefault(); saveEdit()">
         <label class="block">
@@ -518,6 +472,26 @@
       }
     </section>
 
+    @if (canBulk() && mergePicks().length) {
+      <section class="card">
+        <div class="card-head">
+          <span class="sec-icon"><mat-icon>merge</mat-icon></span>
+          <div>
+            <h3 class="card-title">¿Está repetido?</h3>
+            <p class="text-sm text-muted">Si esta persona tiene otra ficha (por ejemplo, con otro teléfono), únelas para ver todo su historial junto.</p>
+          </div>
+        </div>
+        @if (merging()) {
+          <div class="mt-3">
+            <app-pick-field [options]="mergePicks()" placeholder="Elige la ficha repetida" (picked)="mergeWith($event)" />
+            <button type="button" class="btn btn-ghost mt-2" (click)="merging.set(false)">Cancelar</button>
+          </div>
+        } @else {
+          <button type="button" class="btn btn-secondary mt-3" (click)="merging.set(true)"><mat-icon>merge</mat-icon>Unir con otra ficha</button>
+        }
+      </section>
+    }
+
     <div class="border-t border-line pt-4">
       <button type="button" class="btn btn-ghost w-full text-(--nx-bad-fg)" (click)="deleteClient()">
         <mat-icon>delete</mat-icon>
@@ -529,4 +503,53 @@
       }
     </div>
   </aside>
+}
+    </div>
+  }
+</section>
+
+<!-- Barra de acciones en bloque: aparece cuando hay alguien seleccionado. bottom-20 en celular para no tapar la navegación inferior. -->
+@if (selecting() && selectedRows().length > 0) {
+  <div class="fixed inset-x-3 bottom-20 z-30 md:bottom-6 md:left-[calc(15rem+1.5rem)] md:right-6" role="region" aria-label="Acciones para los seleccionados">
+    <div class="mx-auto max-w-3xl rounded-2xl border border-line bg-surface p-3 shadow-[0_18px_50px_rgba(30,27,30,0.25)]">
+      @if (bulkPanel() === 'tag') {
+        <p class="text-sm font-semibold text-ink">Etiqueta para {{ selectedRows().length }} {{ selectedRows().length === 1 ? copy.text().client.toLowerCase() : copy.text().clients.toLowerCase() }}</p>
+        @if (allTags().length) {
+          <div class="mt-2 flex flex-wrap gap-2">
+            @for (tag of allTags(); track tag) {
+              <button type="button" class="chip" [disabled]="bulkBusy()" (click)="applyBulkTag(tag)">{{ tag }}</button>
+            }
+          </div>
+        }
+        <form class="mt-2 flex gap-2" (submit)="$event.preventDefault(); applyBulkTag(bulkTag)">
+          <input class="input min-w-0 flex-1" name="bulkTag" maxlength="30" placeholder="Etiqueta nueva, por ejemplo VIP" autocomplete="off" [(ngModel)]="bulkTag" />
+          <button type="submit" class="btn btn-primary" [disabled]="bulkBusy() || !bulkTag.trim()">{{ bulkBusy() ? 'Guardando…' : 'Poner' }}</button>
+        </form>
+        @if (bulkError(); as message) {
+          <p class="field-error mt-2" role="alert">{{ message }}</p>
+        }
+        <button type="button" class="btn btn-ghost mt-2" (click)="bulkPanel.set(null)">Volver</button>
+      } @else if (bulkPanel() === 'chat' && chatCurrent(); as person) {
+        <p class="text-sm font-semibold text-ink"><span class="nums">{{ chatIndex() + 1 }}</span> de <span class="nums">{{ chatTotal() }}</span>: {{ person.full_name }}</p>
+        <p class="field-hint">WhatsApp no deja mandar a varios a la vez. Abre cada chat, envía y regresa aquí para el siguiente.</p>
+        <div class="mt-2 flex flex-wrap gap-2" role="group" aria-label="Mensaje">
+          @for (kind of chatKinds; track kind.key) {
+            <button type="button" class="chip" [class.chip-on]="chatKind() === kind.key" [attr.aria-pressed]="chatKind() === kind.key" (click)="chatKind.set(kind.key)">{{ kind.label }}</button>
+          }
+        </div>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <a class="btn btn-whatsapp" [href]="chatHref(person)" target="_blank" rel="noopener" (click)="chatSent()">Abrir WhatsApp</a>
+          <button type="button" class="btn btn-secondary" (click)="chatNext()">Saltar</button>
+          <button type="button" class="btn btn-ghost" (click)="bulkPanel.set(null)">Terminar</button>
+        </div>
+      } @else {
+        <div class="flex flex-wrap items-center gap-2">
+          <p class="min-w-0 flex-1 text-sm"><span class="nums font-semibold text-ink">{{ selectedRows().length }}</span> seleccionado{{ selectedRows().length === 1 ? '' : 's' }}</p>
+          <button type="button" class="btn btn-secondary" (click)="openBulkTag()"><mat-icon>sell</mat-icon>Etiquetar</button>
+          <button type="button" class="btn btn-whatsapp" (click)="startChat()">WhatsApp</button>
+          <button type="button" class="btn btn-ghost" (click)="clearSelection()">Quitar</button>
+        </div>
+      }
+    </div>
+  </div>
 }

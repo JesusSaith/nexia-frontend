@@ -1,5 +1,4 @@
 import { AutocompleteFieldComponent } from '@shared/components/autocomplete/autocomplete';
-import { incomeSentence } from '@core/income-sentence';
 import { KeyValuePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { METHOD_LABELS } from '@core/payment-methods';
@@ -19,6 +18,7 @@ import { Toasts } from '@core/toasts';
 import { DashboardService } from '@core/services/dashboard.service';
 import { ServicesService } from '@core/services/services.service';
 import { SegmentedDirective } from '@shared/directives/segmented.directive';
+import { FormStatusComponent } from '@shared/components/form-status/form-status';
 import { Confirm } from '@shared/components/confirm/confirm';
 import { BookingFunnel, CashDay, CashRow, SalesReport, ShopExpense, ShopService } from '@core/services/shop.service';
 import { DateFieldComponent, DateRangeFieldComponent, PickFieldComponent } from '@shared/components/when-field/when-field';
@@ -28,7 +28,7 @@ type DashView = 'income' | 'staff' | 'commission' | 'expenses' | 'cash';
 
 @Component({
   selector: 'app-dashboard-page',
-  imports: [AutocompleteFieldComponent, DateFieldComponent, DateRangeFieldComponent, PickFieldComponent, RouterLink, MatIconModule, KeyValuePipe, SegmentedDirective],
+  imports: [AutocompleteFieldComponent, FormStatusComponent, DateFieldComponent, DateRangeFieldComponent, PickFieldComponent, RouterLink, MatIconModule, KeyValuePipe, SegmentedDirective],
   templateUrl: './dashboard-page.component.html',
 })
 export class DashboardPageComponent {
@@ -228,6 +228,11 @@ export class DashboardPageComponent {
       { label: 'Citas completadas', icon: 'event_available', value: String(now.completed_count), delta: change(now.completed_count, before?.completed_count) },
       { label: 'Ticket promedio', icon: 'receipt_long', value: this.money(now.average_ticket), delta: change(now.average_ticket, before?.average_ticket) },
     ];
+  });
+  /** Periodo sin un solo cobro: los porcentajes contra el periodo anterior serían puro ruido ("↓100%"). */
+  protected readonly noSales = computed(() => {
+    const row = this.books();
+    return Boolean(row) && !row!.total && !row!.completed_count;
   });
   /** El botón dice contra qué se compara de verdad: ayer, la semana pasada, el mes pasado. */
   protected readonly compareLabels = computed(() => ({
@@ -533,13 +538,6 @@ export class DashboardPageComponent {
       winBooked: row.winback_booked ?? 0,
       winRevenue: row.winback_revenue ?? 0,
     };
-  });
-  /** La frase de arriba: cuánto cobró y cómo va contra el periodo elegido. */
-  protected readonly incomeLine = computed(() => {
-    const now = this.books();
-    return now
-      ? incomeSentence({ period: this.period(), compare: this.compareTo(), total: now.total, before: this.previous()?.total, money: (value) => this.money(value) })
-      : '';
   });
   /** Cómo se llama el periodo en las frases del resumen. */
   protected readonly periodWord = computed(() =>
