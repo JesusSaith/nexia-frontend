@@ -18,6 +18,7 @@ import { Toasts } from '@core/toasts';
 import { DashboardService } from '@core/services/dashboard.service';
 import { ServicesService } from '@core/services/services.service';
 import { SegmentedDirective } from '@shared/directives/segmented.directive';
+import { FormStatusComponent } from '@shared/components/form-status/form-status';
 import { Confirm } from '@shared/components/confirm/confirm';
 import { BookingFunnel, CashDay, CashRow, SalesReport, ShopExpense, ShopService } from '@core/services/shop.service';
 import { DateFieldComponent, DateRangeFieldComponent, PickFieldComponent } from '@shared/components/when-field/when-field';
@@ -27,7 +28,7 @@ type DashView = 'income' | 'staff' | 'commission' | 'expenses' | 'cash';
 
 @Component({
   selector: 'app-dashboard-page',
-  imports: [AutocompleteFieldComponent, DateFieldComponent, DateRangeFieldComponent, PickFieldComponent, RouterLink, MatIconModule, KeyValuePipe, SegmentedDirective],
+  imports: [AutocompleteFieldComponent, FormStatusComponent, DateFieldComponent, DateRangeFieldComponent, PickFieldComponent, RouterLink, MatIconModule, KeyValuePipe, SegmentedDirective],
   templateUrl: './dashboard-page.component.html',
 })
 export class DashboardPageComponent {
