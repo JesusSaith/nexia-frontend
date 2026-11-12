@@ -1414,6 +1414,10 @@ export class Booking {
 
   protected readonly proofSent = signal(false);
   protected readonly accountCopied = signal(false);
+  /** El bloque "Agregar otro servicio" empieza cerrado para no repetir todo el catálogo. */
+  protected readonly extrasOpen = signal(false);
+  protected readonly quotedLater = (service: PublicService): boolean => !(service.variants ?? []).length && !service.price_at_visit && !!service.variable_price;
+  protected readonly atVisit = (service: PublicService): boolean => !(service.variants ?? []).length && !!service.price_at_visit;
 
   /** "Copiar CLABE" si la cuenta es una CLABE (18 dígitos); si no, "Copiar cuenta". */
   protected accountLabel(): string {
