@@ -148,6 +148,73 @@ export class SchedulesPageComponent {
     })),
   );
 
+  /** Línea de tiempo: la persona que se edita usa lo que hay en pantalla (aunque no se haya guardado); las demás, lo guardado. */
+  private readonly weekPeople = computed(() => {
+    const mine = this.staffId();
+    const minutes = (time: string | null | undefined): number | null => {
+      if (!time) {
+        return null;
+      }
+      const [hour, minute] = time.split(':');
+      return Number(hour) * 60 + Number(minute ?? 0);
+    };
+    return DAY_LABELS.map((label, dayOfWeek) => ({
+      label,
+      people: this.staff()
+        .filter((member) => member.is_active)
+        .map((member) => {
+          const rows = member.id === mine ? this.days() : (this.team().get(member.id) ?? []);
+          const row = rows.find((item) => item.day_of_week === dayOfWeek && item.is_active);
+          const start = minutes(row?.start_time);
+          const end = minutes(row?.end_time);
+          if (!row || start === null || end === null || end <= start) {
+            return null;
+          }
+          return { id: member.id, name: member.full_name.split(' ')[0], hours: horario12(row.start_time, row.end_time), start, end, breakStart: minutes(row.break_start), breakEnd: minutes(row.break_end) };
+        })
+        .filter((item): item is NonNullable<typeof item> => item !== null),
+    }));
+  });
+
+  /** Horas que cubre el dibujo: de la primera apertura a la última hora de cierre (mínimo 6 horas). */
+  protected readonly weekAxis = computed(() => {
+    const all = this.weekPeople().flatMap((day) => day.people);
+    let from = all.length ? Math.floor(Math.min(...all.map((item) => item.start)) / 60) : 8;
+    let to = all.length ? Math.ceil(Math.max(...all.map((item) => item.end)) / 60) : 20;
+    if (to - from < 6) {
+      to = Math.min(24, from + 6);
+      from = Math.max(0, to - 6);
+    }
+    const step = to - from > 12 ? 3 : 2;
+    const ticks: { label: string; left: number }[] = [];
+    for (let hour = from; hour <= to; hour += step) {
+      ticks.push({ label: hour === 24 ? '12 a.m.' : `${hour % 12 || 12} ${hour < 12 ? 'a.m.' : 'p.m.'}`, left: ((hour - from) / (to - from)) * 100 });
+    }
+    return { from, to, hours: to - from, ticks };
+  });
+
+  protected readonly weekBars = computed(() => {
+    const { from, to } = this.weekAxis();
+    const span = (to - from) * 60;
+    const pct = (minute: number): number => Math.min(100, Math.max(0, ((minute - from * 60) / span) * 100));
+    return this.weekPeople().map((day) => ({
+      label: day.label,
+      bars: day.people.map((item) => {
+        const left = pct(item.start);
+        const hasBreak = item.breakStart !== null && item.breakEnd !== null && item.breakEnd > item.breakStart;
+        return {
+          id: item.id,
+          name: item.name,
+          hours: item.hours,
+          left,
+          width: pct(item.end) - left,
+          breakLeft: hasBreak ? pct(item.breakStart ?? 0) : 0,
+          breakWidth: hasBreak ? pct(item.breakEnd ?? 0) - pct(item.breakStart ?? 0) : 0,
+        };
+      }),
+    }));
+  });
+
   protected applyPreset(preset: { days: number[]; start: string; end: string }): void {
     this.days.update((items) => items.map((day) => ({ ...day, is_active: preset.days.includes(day.day_of_week), start_time: preset.start, end_time: preset.end })));
     this.savedMessage.set(null);

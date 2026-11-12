@@ -42,6 +42,81 @@
       </p>
     }
 
+    <!-- Semana de un vistazo: una barra por día con las horas de trabajo (el descanso se ve como hueco). Tocar una barra abre ese día. -->
+    <section class="card mb-4">
+      <div class="card-head">
+        <span class="sec-icon"><mat-icon>{{ staff().length > 1 ? 'groups' : 'view_timeline' }}</mat-icon></span>
+        <div>
+          <h2 class="card-title">{{ staff().length > 1 ? 'La semana de tu equipo' : 'Tu semana' }}</h2>
+          <p class="text-sm text-muted">Se actualiza mientras cambias los turnos. Toca una barra para editar ese día.</p>
+        </div>
+      </div>
+      @if (staff().length > 1) {
+        <ul class="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink-soft" aria-label="Quién es quién">
+          @for (member of staff(); track member.id) {
+            @if (member.is_active) {
+              <li class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full" [style.background]="colorOf(member.id)"></span>{{ member.full_name.split(' ')[0] }}</li>
+            }
+          }
+        </ul>
+      }
+      @let axis = weekAxis();
+      <div class="mt-3">
+        <div class="relative ml-[5.75rem] h-5 text-xs text-muted" aria-hidden="true">
+          @for (tick of axis.ticks; track tick.left) {
+            <span class="absolute -translate-x-1/2 whitespace-nowrap" [style.left.%]="tick.left">{{ tick.label }}</span>
+          }
+        </div>
+        <ul>
+          @for (row of weekBars(); track row.label; let dayIndex = $index) {
+            <li class="flex items-start gap-3 border-t border-line py-1.5">
+              <span class="w-20 shrink-0 pt-2 text-sm font-medium text-ink">{{ row.label }}</span>
+              <div class="flex min-w-0 flex-1 flex-col gap-1">
+                @for (bar of row.bars; track bar.id) {
+                  <button
+                    type="button"
+                    class="relative block w-full overflow-hidden rounded-md bg-canvas"
+                    [class.h-11]="staff().length < 2"
+                    [class.h-8]="staff().length > 1"
+                    [style.background-image]="'repeating-linear-gradient(to right, var(--color-line) 0 1px, transparent 1px calc(100% / ' + axis.hours + '))'"
+                    [attr.aria-label]="bar.name + ', ' + row.label + ', ' + bar.hours + '. Editar este día'"
+                    (click)="editFromTeam(bar.id, dayIndex)"
+                  >
+                    <span class="absolute inset-y-1 flex items-center overflow-hidden whitespace-nowrap rounded px-2 text-xs font-medium text-ink" [style.left.%]="bar.left" [style.width.%]="bar.width" [style.background]="'color-mix(in srgb, ' + colorOf(bar.id) + ' 30%, var(--color-surface))'" [style.box-shadow]="'inset 3px 0 0 ' + colorOf(bar.id)">
+                      <span class="nums max-sm:hidden">{{ bar.hours }}</span>
+                    </span>
+                    @if (bar.breakWidth) {
+                      <span class="absolute inset-y-1 bg-canvas" [style.left.%]="bar.breakLeft" [style.width.%]="bar.breakWidth" aria-hidden="true"></span>
+                    }
+                  </button>
+                } @empty {
+                  <span class="block pt-2 text-sm text-muted" [style.color]="staff().length > 1 ? 'var(--nx-warn-fg)' : null">{{ staff().length > 1 ? 'Nadie trabaja' : 'Cerrado' }}</span>
+                }
+              </div>
+            </li>
+          }
+        </ul>
+      </div>
+      <div class="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-line pt-3 text-sm text-muted">
+        <span>Horas a la semana:</span>
+        @for (row of teamHours(); track row.id) {
+          <span class="nums">{{ row.name }} <span class="font-medium text-ink">{{ row.own ? row.hours + ' h' : 'sin horario' }}</span></span>
+        }
+        @if (staff().length > 1) {
+          <span class="nums">Total <span class="font-medium text-ink">{{ teamHoursTotal() }} h</span></span>
+        }
+      </div>
+        @if (coverage().length) {
+          <ul class="mt-3 flex flex-col gap-2">
+            @for (tip of coverage(); track tip.text) {
+              <li class="flex items-start gap-2 rounded-xl px-3 py-2 text-sm" [class]="tip.tone === 'warn' ? 'badge-warn' : 'badge-info'">
+                <mat-icon class="h-5! w-5! shrink-0 text-[20px]!">{{ tip.tone === 'warn' ? 'groups' : 'lightbulb' }}</mat-icon>{{ tip.text }}
+              </li>
+            }
+          </ul>
+        }
+    </section>
+
     <!-- Atajos: plantillas, copiar de otra persona o aplicar a todos. -->
     <section class="card mb-4">
       <div class="flex flex-wrap items-center gap-2">
@@ -262,44 +337,6 @@
       </form>
       }
     </details>
-
-    <!-- Semana del equipo de un vistazo. -->
-    @if (staff().length > 1) {
-      <section class="card mb-4">
-        <div class="card-head">
-          <span class="sec-icon"><mat-icon>groups</mat-icon></span>
-          <h2 class="card-title">La semana de tu equipo</h2>
-        </div>
-        <ul class="mt-2 divide-y divide-line">
-          @for (row of teamWeek(); track row.label; let dayIndex = $index) {
-            <li class="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5 text-sm">
-              <span class="w-24 font-medium text-ink">{{ row.label }}</span>
-              @for (person of row.people; track person.id) {
-                <button type="button" class="row-hover inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-ink-soft" [attr.aria-label]="'Editar el horario de ' + person.name" (click)="editFromTeam(person.id, dayIndex)"><span class="h-2.5 w-2.5 rounded-full" [style.background]="colorOf(person.id)"></span>{{ person.name }} <span class="nums text-muted">{{ person.hours }}</span></button>
-              } @empty {
-                <span class="text-(--nx-warn-fg)">Nadie trabaja</span>
-              }
-            </li>
-          }
-        </ul>
-        <div class="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-line pt-3 text-sm text-muted">
-          <span>Horas a la semana:</span>
-          @for (row of teamHours(); track row.id) {
-            <span class="nums">{{ row.name }} <span class="font-medium text-ink">{{ row.own ? row.hours + ' h' : 'sin horario' }}</span></span>
-          }
-          <span class="nums">Total <span class="font-medium text-ink">{{ teamHoursTotal() }} h</span></span>
-        </div>
-        @if (coverage().length) {
-          <ul class="mt-3 flex flex-col gap-2">
-            @for (tip of coverage(); track tip.text) {
-              <li class="flex items-start gap-2 rounded-xl px-3 py-2 text-sm" [class]="tip.tone === 'warn' ? 'badge-warn' : 'badge-info'">
-                <mat-icon class="h-5! w-5! shrink-0 text-[20px]!">{{ tip.tone === 'warn' ? 'groups' : 'lightbulb' }}</mat-icon>{{ tip.text }}
-              </li>
-            }
-          </ul>
-        }
-      </section>
-    }
 
     @if (formError(); as message) {
       <p role="alert" class="field-error mb-3">{{ message }}</p>
