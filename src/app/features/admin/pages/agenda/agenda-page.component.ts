@@ -29,7 +29,7 @@ import { staffColorOf } from '@core/staff-colors';
 import { ALL_METHODS, METHOD_LABELS, PAYMENT_METHODS } from '@core/payment-methods';
 import { agendaTourSteps } from '@core/tour';
 import { TourComponent } from '@shared/components/tour/tour';
-import { dragTarget } from '@core/drag-move';
+import { DragTarget, dragTarget } from '@core/drag-move';
 import { updatedAgo } from '@core/updated-ago';
 import { Skeleton } from '@shared/components/skeleton/skeleton';
 import { buildDaySheet, daySheetHtml, daySheetText } from '@core/day-sheet';
@@ -2914,7 +2914,7 @@ export class AgendaPageComponent {
   }
 
   // Arrastrar citas (solo con ratón, en Semana y Día): la hora se ajusta a la cuadrícula y el servidor valida el cambio.
-  protected readonly drag = signal<{ id: number; dx: number; dy: number } | null>(null);
+  protected readonly drag = signal<{ id: number; dx: number; dy: number; snapDx: number; snapDy: number; label: string } | null>(null);
   private dragStart: { appointment: Appointment; view: 'day' | 'week'; x: number; y: number; width: number; active: boolean } | null = null;
   private justDragged = false;
 
@@ -2942,7 +2942,38 @@ export class AgendaPageComponent {
       return;
     }
     start.active = true;
-    this.drag.set({ id: start.appointment.id, dx, dy });
+    // Mientras se arrastra, un recuadro punteado muestra dónde caería (la hora se ajusta a la cuadrícula).
+    const target = this.targetFor(start, { dx, dy });
+    const was = start.appointment.starts_at;
+    const minutes = (value: string): number => Number(value.slice(11, 13)) * 60 + Number(value.slice(14, 16));
+    const snapDy = ((minutes(target.startsAt) - minutes(was)) / SLOT_MINUTES) * SLOT_HEIGHT;
+    const move = (list: (string | number)[], from: string | number, to: string | number): number => list.indexOf(to) - list.indexOf(from);
+    const columns = start.view === 'day'
+      ? move(this.visibleStaff().map((member) => member.id), start.appointment.staff_id, target.staffId)
+      : move(this.weekDays().map((day) => toInputDate(day)), was.slice(0, 10), target.startsAt.slice(0, 10));
+    const person = target.staffId !== start.appointment.staff_id ? ` · ${(this.staff().find((member) => member.id === target.staffId)?.full_name ?? '').split(' ')[0]}` : '';
+    this.drag.set({ id: start.appointment.id, dx, dy, snapDx: columns * start.width, snapDy, label: `${target.startsAt.slice(0, 10) !== was.slice(0, 10) ? `${longDay(target.startsAt)} · ` : ''}${this.formatTime(target.startsAt)}${person}` });
+  }
+
+  /** A dónde caería la cita según lo arrastrado (lo usa el recuadro de vista previa y al soltar). */
+  private targetFor(start: NonNullable<typeof this.dragStart>, shift: { dx: number; dy: number }): DragTarget {
+    const { appointment } = start;
+    const bounds = this.dayBounds();
+    return dragTarget({
+      startsAt: appointment.starts_at,
+      dx: shift.dx,
+      dy: shift.dy,
+      slotHeight: SLOT_HEIGHT,
+      slotMinutes: SLOT_MINUTES,
+      columnWidth: start.width,
+      dayStart: bounds.start,
+      dayEnd: bounds.end,
+      duration: this.durationMinutes(appointment),
+      view: start.view,
+      staffId: appointment.staff_id,
+      staffIds: this.visibleStaff().map((member) => member.id),
+      days: this.weekDays().map((day) => toInputDate(day)),
+    });
   }
 
   protected dragCancel(): void {
@@ -2967,22 +2998,7 @@ export class AgendaPageComponent {
     this.justDragged = true;
     setTimeout(() => (this.justDragged = false), 60);
     const { appointment } = start;
-    const bounds = this.dayBounds();
-    const target = dragTarget({
-      startsAt: appointment.starts_at,
-      dx: shift.dx,
-      dy: shift.dy,
-      slotHeight: SLOT_HEIGHT,
-      slotMinutes: SLOT_MINUTES,
-      columnWidth: start.width,
-      dayStart: bounds.start,
-      dayEnd: bounds.end,
-      duration: this.durationMinutes(appointment),
-      view: start.view,
-      staffId: appointment.staff_id,
-      staffIds: this.visibleStaff().map((member) => member.id),
-      days: this.weekDays().map((day) => toInputDate(day)),
-    });
+    const target = this.targetFor(start, shift);
     if (!target.changed) {
       return;
     }
