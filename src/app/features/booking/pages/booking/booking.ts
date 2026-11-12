@@ -393,6 +393,8 @@ export class Booking {
       detail: `${this.formatMinutes(minutes)} · ${variable ? (price ? `desde ${this.formatPrice(price)}` : atVisitOnly ? 'precio en la cita' : 'precio por cotizar') : this.formatPrice(price)}`,
       who,
       when: slot ? `${this.formatDate(slot)} · ${this.formatTime(slot)}` : null,
+      whenDay: slot ? this.formatDate(slot) : null,
+      whenTime: slot ? this.formatTime(slot) : null,
     };
   });
 
@@ -848,6 +850,13 @@ export class Booking {
       return;
     }
     this.onDate(iso);
+    // En celular las horas quedan debajo del calendario: si no se ven, se lleva la vista hasta ellas.
+    setTimeout(() => {
+      const anchor = document.getElementById('horas-dia');
+      if (anchor && anchor.getBoundingClientRect().top > window.innerHeight * 0.6) {
+        anchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
   }
 
   protected shiftMonth(direction: -1 | 1): void {
@@ -1057,6 +1066,8 @@ export class Booking {
     this.validationTick.update((tick) => tick + 1);
     this.clientForm.markAllAsTouched();
     if (this.clientForm.invalid) {
+      // El botón no se apaga: al tocarlo se marcan en rojo los campos que faltan y se lleva la vista al primero.
+      setTimeout(() => document.querySelector<HTMLElement>('#booking-form [aria-invalid="true"]')?.focus());
       return;
     }
 
@@ -1414,6 +1425,10 @@ export class Booking {
 
   protected readonly proofSent = signal(false);
   protected readonly accountCopied = signal(false);
+  /** El bloque "Agregar otro servicio" empieza cerrado para no repetir todo el catálogo. */
+  protected readonly extrasOpen = signal(false);
+  protected readonly quotedLater = (service: PublicService): boolean => !(service.variants ?? []).length && !service.price_at_visit && !!service.variable_price;
+  protected readonly atVisit = (service: PublicService): boolean => !(service.variants ?? []).length && !!service.price_at_visit;
 
   /** "Copiar CLABE" si la cuenta es una CLABE (18 dígitos); si no, "Copiar cuenta". */
   protected accountLabel(): string {

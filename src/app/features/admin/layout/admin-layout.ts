@@ -1,4 +1,5 @@
 import { BreakpointObserver } from '@angular/cdk/layout';
+import { textOn } from '@core/theme';
 import { Component, DestroyRef, HostListener, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
@@ -496,6 +497,7 @@ function applyTheme(primary: string, canvas: string | null, remember = true): vo
     }
   }
   root.style.setProperty('--business-primary', primary);
+  root.style.setProperty('--color-on-primary', textOn(primary));
   root.style.setProperty('--primary', primary);
   root.style.setProperty('--mat-sys-primary', primary);
   if (canvas) {

@@ -131,3 +131,17 @@
   height: 1px;
   overflow: hidden;
 }
+
+/* Computadora: con el resumen "Tu cita" a un lado, la página se ensancha. */
+@media (min-width: 1024px) {
+  main.booking-wide {
+    max-width: 64rem;
+  }
+}
+
+/* Computadora, paso de datos: el botón de confirmar vive en la columna "Tu cita". */
+@media (min-width: 1024px) {
+  .booking-bar.booking-bar-hide {
+    display: none;
+  }
+}

@@ -52,6 +52,10 @@ export class BusinessPageComponent {
     return rows.length ? Math.round((rows.reduce((sum, row) => sum + row.rating, 0) / rows.length) * 10) / 10 : null;
   });
   protected readonly replyDraft = signal<Record<number, string>>({});
+  protected readonly ratingText = computed(() => {
+    const value = this.rating();
+    return value === null ? '—' : value.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  });
 
   protected readonly qr = signal('');
   protected readonly showPreview = signal(false);
@@ -76,6 +80,14 @@ export class BusinessPageComponent {
   });
 
   /** Textos listos para copiar en cada red. */
+  /** Pestaña de "Comparte tu enlace": al principio la primera. */
+  protected readonly kitTab = signal<string | null>(null);
+  protected readonly kitKey = computed(() => {
+    const items = this.kit();
+    const wanted = this.kitTab();
+    return items.some((item) => item.key === wanted) ? wanted : (items[0]?.key ?? null);
+  });
+  protected readonly kitItem = computed(() => this.kit().find((item) => item.key === this.kitKey()) ?? null);
   protected readonly kit = computed(() => {
     const name = this.brand()?.name ?? '';
     const url = this.shareUrl();
