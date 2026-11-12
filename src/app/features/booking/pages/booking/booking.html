@@ -252,20 +252,15 @@
           }
           <div class="grid gap-3 sm:grid-cols-2">
             @for (service of visibleServices(); track service.id) {
-              <div class="relative">
-              <button
-                type="button"
-                class="choice-card service-card flex h-full w-full gap-3 p-4 pr-12 text-left"
-                [class.choice-selected]="selectedService()?.id === service.id"
-                (click)="selectService(service)"
-              >
+              <article class="choice-card service-card flex flex-col overflow-hidden" [class.choice-selected]="selectedService()?.id === service.id">
+              <button type="button" class="flex flex-1 flex-col text-left" (click)="selectService(service)">
                 @if (service.image_url) {
-                  <img loading="lazy" decoding="async" class="h-16 w-16 shrink-0 rounded-xl object-cover" [src]="service.image_url" alt="" />
+                  <img loading="lazy" decoding="async" class="aspect-video w-full object-cover" [src]="service.image_url" alt="" />
                 }
-                <span class="min-w-0">
+                <span class="flex min-w-0 flex-1 flex-col p-4">
                   <span class="block font-medium">{{ service.name }}</span>
                   @if (service.featured) {
-                    <span class="mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium text-white" style="background: var(--booking-primary, var(--primary))">El más pedido</span>
+                    <span class="mt-1 self-start rounded-full px-2 py-0.5 text-xs font-medium text-white" style="background: var(--booking-primary, var(--primary))">El más pedido</span>
                   }
                   <span class="mt-1 block text-sm text-ink-soft">
                     @if ((service.variants ?? []).length) {
@@ -282,8 +277,14 @@
                   }
                 </span>
               </button>
-              <button type="button" class="absolute right-1 top-1 flex h-11 w-11 items-center justify-center rounded-full text-ink-soft" [style.color]="isFavorite('services', service.id) ? 'var(--booking-ink, var(--booking-primary))' : null" [attr.aria-pressed]="isFavorite('services', service.id)" [attr.aria-label]="(isFavorite('services', service.id) ? 'Quitar de favoritos: ' : 'Guardar en favoritos: ') + service.name" (click)="toggleFavorite('services', service.id)"><mat-icon [style.font-variation-settings]="isFavorite('services', service.id) ? '\'FILL\' 1' : null" aria-hidden="true">favorite</mat-icon></button>
+              <div class="flex divide-x divide-line border-t border-line text-sm">
+                <button type="button" class="flex min-h-11 flex-1 items-center justify-center gap-1.5 px-2 text-ink-soft" [style.color]="isFavorite('services', service.id) ? 'var(--booking-ink, var(--booking-primary))' : null" [attr.aria-pressed]="isFavorite('services', service.id)" [attr.aria-label]="(isFavorite('services', service.id) ? 'Quitar de favoritos: ' : 'Guardar en favoritos: ') + service.name" (click)="toggleFavorite('services', service.id)">
+                  <mat-icon [style.font-variation-settings]="isFavorite('services', service.id) ? '\'FILL\' 1' : null" aria-hidden="true">favorite</mat-icon>
+                  {{ isFavorite('services', service.id) ? 'Favorito' : 'Guardar' }}
+                </button>
+                <button type="button" class="flex min-h-11 flex-1 items-center justify-center px-2 font-medium" style="color: var(--booking-ink, var(--booking-primary))" [attr.aria-label]="'Elegir ' + service.name" (click)="selectService(service)">Elegir</button>
               </div>
+              </article>
             }
           </div>
           @if (holdService(); as hold) {
@@ -397,32 +398,33 @@
               </button>
             }
             @for (member of staffList(); track member.id) {
-              <div class="relative">
-              <button
-                type="button"
-                class="choice-card flex h-full w-full items-start gap-4 p-4 pr-12 text-left"
-                [class.choice-selected]="selectedStaff()?.id === member.id"
-                (click)="selectStaff(member)"
-              >
-                @if (member.avatar_url) {
-                  <img loading="lazy" decoding="async" [src]="member.avatar_url" [alt]="member.full_name" class="h-20 w-20 shrink-0 rounded-2xl object-cover" />
-                } @else {
-                  <span class="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-canvas text-lg font-medium text-ink-soft">
-                    {{ initials(member.full_name) }}
+              <article class="choice-card flex flex-col overflow-hidden" [class.choice-selected]="selectedStaff()?.id === member.id">
+              <button type="button" class="flex flex-1 flex-col gap-3 p-4 text-left" (click)="selectStaff(member)">
+                <span class="flex items-center gap-3">
+                  @if (member.avatar_url) {
+                    <img loading="lazy" decoding="async" [src]="member.avatar_url" [alt]="member.full_name" class="h-14 w-14 shrink-0 rounded-full object-cover" />
+                  } @else {
+                    <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-canvas text-lg font-medium text-ink-soft">{{ initials(member.full_name) }}</span>
+                  }
+                  <span class="min-w-0">
+                    <span class="block font-medium">{{ member.full_name }}</span>
+                    @if (member.role_title) {
+                      <span class="block text-sm text-ink-soft">{{ member.role_title }}</span>
+                    }
                   </span>
-                }
-                <span class="min-w-0">
-                  <span class="block font-medium">{{ member.full_name }}</span>
-                  @if (member.role_title) {
-                    <span class="mt-0.5 block text-sm text-ink-soft">{{ member.role_title }}</span>
-                  }
-                  @if (member.bio) {
-                    <span class="mt-1 line-clamp-3 block text-sm text-muted">{{ member.bio }}</span>
-                  }
                 </span>
+                @if (member.bio) {
+                  <span class="line-clamp-3 block text-sm text-muted">{{ member.bio }}</span>
+                }
               </button>
-              <button type="button" class="absolute right-1 top-1 flex h-11 w-11 items-center justify-center rounded-full text-ink-soft" [style.color]="isFavorite('staff', member.id) ? 'var(--booking-ink, var(--booking-primary))' : null" [attr.aria-pressed]="isFavorite('staff', member.id)" [attr.aria-label]="(isFavorite('staff', member.id) ? 'Quitar de favoritos: ' : 'Guardar en favoritos: ') + member.full_name" (click)="toggleFavorite('staff', member.id)"><mat-icon [style.font-variation-settings]="isFavorite('staff', member.id) ? '\'FILL\' 1' : null" aria-hidden="true">favorite</mat-icon></button>
+              <div class="flex divide-x divide-line border-t border-line text-sm">
+                <button type="button" class="flex min-h-11 flex-1 items-center justify-center gap-1.5 px-2 text-ink-soft" [style.color]="isFavorite('staff', member.id) ? 'var(--booking-ink, var(--booking-primary))' : null" [attr.aria-pressed]="isFavorite('staff', member.id)" [attr.aria-label]="(isFavorite('staff', member.id) ? 'Quitar de favoritos: ' : 'Guardar en favoritos: ') + member.full_name" (click)="toggleFavorite('staff', member.id)">
+                  <mat-icon [style.font-variation-settings]="isFavorite('staff', member.id) ? '\'FILL\' 1' : null" aria-hidden="true">favorite</mat-icon>
+                  {{ isFavorite('staff', member.id) ? 'Favorito' : 'Guardar' }}
+                </button>
+                <button type="button" class="flex min-h-11 flex-1 items-center justify-center px-2 font-medium" style="color: var(--booking-ink, var(--booking-primary))" [attr.aria-label]="'Elegir ' + member.full_name" (click)="selectStaff(member)">Elegir</button>
               </div>
+              </article>
             }
           </div>
           }
