@@ -848,6 +848,13 @@ export class Booking {
       return;
     }
     this.onDate(iso);
+    // En celular las horas quedan debajo del calendario: si no se ven, se lleva la vista hasta ellas.
+    setTimeout(() => {
+      const anchor = document.getElementById('horas-dia');
+      if (anchor && anchor.getBoundingClientRect().top > window.innerHeight * 0.6) {
+        anchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
   }
 
   protected shiftMonth(direction: -1 | 1): void {
@@ -1057,6 +1064,8 @@ export class Booking {
     this.validationTick.update((tick) => tick + 1);
     this.clientForm.markAllAsTouched();
     if (this.clientForm.invalid) {
+      // El botón no se apaga: al tocarlo se marcan en rojo los campos que faltan y se lleva la vista al primero.
+      setTimeout(() => document.querySelector<HTMLElement>('#booking-form [aria-invalid="true"]')?.focus());
       return;
     }
 

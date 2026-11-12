@@ -17,7 +17,7 @@ import { Holiday, upcomingHolidays } from '@core/holidays';
 import { PAYMENT_METHODS, methodsSentence } from '@core/payment-methods';
 import { BusinessSettings, ProfileUpdate, SettingsService } from '@core/services/settings.service';
 import { Toasts } from '@core/toasts';
-import { ButtonFill, ButtonShape, FONT_STACKS, FontStyle, HeaderStyle, SHAPE_RADIUS, ThemePreset, contrast, presets, textOn, tint } from '@core/theme';
+import { ButtonFill, ButtonShape, FONT_STACKS, FontStyle, HeaderStyle, SHAPE_RADIUS, ThemePreset, contrast, presets, readableOn, textOn, tint } from '@core/theme';
 import { Confirm } from '@shared/components/confirm/confirm';
 import { MapPicker } from '@shared/components/map-picker/map-picker';
 import { GoogleMapPicker } from '@shared/components/google-map-picker/google-map-picker';
@@ -199,6 +199,11 @@ export class SettingsPageComponent {
   protected readonly buttonText = computed(() => {
     this.values();
     return textOn(this.form.controls.primaryColor.value);
+  });
+  /** Color de marca como texto sobre el tinte claro del encabezado: se oscurece para pasar 4.5:1. */
+  protected readonly inkColor = computed(() => {
+    this.values();
+    return readableOn(this.form.controls.primaryColor.value, tint(this.form.controls.primaryColor.value, 0.88));
   });
   protected readonly lowContrast = computed(() => {
     this.values();

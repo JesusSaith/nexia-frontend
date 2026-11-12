@@ -1,4 +1,5 @@
-<main class="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8" [class.pb-40]="summary() && !confirmation()">
+@let aside = step() >= 2 && !confirmation() && !isLoading() && !loadError() ? summary() : null;
+<main class="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8" [class.pb-40]="summary() && !confirmation()" [class.booking-wide]="aside">
   <!-- Del paso 2 en adelante el encabezado se compacta para que las horas y los datos queden a la vista. -->
   @let compact = step() > 1;
   <header class="flex flex-col gap-3 overflow-hidden rounded-2xl border bg-surface" style="border-color: color-mix(in srgb, var(--booking-primary, var(--primary)) 28%, white)">
@@ -21,7 +22,8 @@
       }
       <div>
         @if (!compact) {
-          <p class="text-xs font-medium uppercase tracking-wide" style="color: var(--booking-ink, var(--primary))">Reservas</p>
+          <!-- Con encabezado de color va el texto "sobre el color de marca"; con fondo claro, el tono de marca oscurecido para pasar 4.5:1 aun sobre el tinte. -->
+          <p class="text-xs font-medium uppercase tracking-wide" [style.color]="headerStyle() === 'color' ? 'var(--booking-on)' : 'color-mix(in srgb, var(--booking-ink, var(--primary)) 80%, black)'">Reservas</p>
         }
         <h1 class="font-semibold" [class.text-2xl]="!compact" [class.text-xl]="compact">{{ brand()?.name || 'Reservar ' + copy().visit.toLowerCase() }}</h1>
         @if (!compact && brand()?.description) {
@@ -147,6 +149,8 @@
     <app-stepper class="mb-2 mt-1" [steps]="steps" [current]="step()" [reached]="reached()" label="Pasos de la reserva" (pick)="openStep($event)" />
   }
 
+  <!-- En computadora, del paso 2 en adelante: segunda columna fija con el resumen de la cita. -->
+  <div [class]="aside ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start lg:gap-8' : ''">
   @if (loadError(); as message) {
     <section role="alert" class="card flex flex-col items-start gap-3">
       <h2 class="text-lg font-semibold">{{ message.title }}</h2>
@@ -504,6 +508,7 @@
         }
       </div>
 
+      <div id="horas-dia" class="scroll-mt-4"></div>
       @if (resourceList().length) {
         <label class="mb-3 block text-sm">
           Recurso
@@ -538,7 +543,7 @@
           </div>
         }
       } @else {
-        <p class="text-sm font-medium first-letter:uppercase">{{ formatDate(date() + 'T12:00:00') }}</p>
+        <p class="text-base font-semibold first-letter:uppercase">{{ formatDate(date() + 'T12:00:00') }}</p>
         @for (group of slotGroups(); track group.label) {
           <div>
             <p class="mb-2 text-xs font-medium uppercase tracking-wide text-muted">{{ group.label }}</p>
@@ -589,10 +594,11 @@
           <button type="button" class="shrink-0 text-xs underline" (click)="forgetClient()">No soy yo</button>
         </p>
       }
-      <label class="rounded-xl border border-line bg-surface px-3 py-2">
+      <label class="rounded-xl border border-line bg-surface px-3 py-2" [style.border-color]="phoneError() ? 'var(--nx-bad-fg)' : null">
         <span class="block text-xs text-muted">Teléfono (WhatsApp)</span>
         <input
           class="w-full bg-transparent text-base outline-none"
+          [attr.aria-invalid]="phoneError() ? 'true' : null"
           type="tel"
           inputmode="tel"
           placeholder="10 dígitos"
@@ -610,9 +616,9 @@
           Esta {{ copy().visit.toLowerCase() }} tiene <span class="nums font-medium" style="color: var(--booking-ink, var(--booking-primary))">{{ loyaltyPercent() }}%</span> de descuento por ser cliente frecuente.
         </p>
       }
-      <label class="rounded-xl border border-line bg-surface px-3 py-2">
+      <label class="rounded-xl border border-line bg-surface px-3 py-2" [style.border-color]="nameError() ? 'var(--nx-bad-fg)' : null">
         <span class="block text-xs text-muted">Tu nombre</span>
-        <input class="w-full bg-transparent text-base outline-none" formControlName="client_name" aria-required="true" autocomplete="name" />
+        <input class="w-full bg-transparent text-base outline-none" formControlName="client_name" aria-required="true" [attr.aria-invalid]="nameError() ? 'true' : null" autocomplete="name" />
       </label>
       @if (nameError(); as message) {
         <p class="text-sm text-[var(--nx-bad-fg)]">{{ message }}</p>
@@ -669,9 +675,9 @@
         </div>
       }
       @if (showOptional()) {
-        <label class="rounded-xl border border-line bg-surface px-3 py-2">
+        <label class="rounded-xl border border-line bg-surface px-3 py-2" [style.border-color]="emailError() ? 'var(--nx-bad-fg)' : null">
           <span class="block text-xs text-muted">Correo (opcional)</span>
-          <input class="w-full bg-transparent text-base outline-none" type="email" formControlName="client_email" autocomplete="email" />
+          <input class="w-full bg-transparent text-base outline-none" type="email" formControlName="client_email" [attr.aria-invalid]="emailError() ? 'true' : null" autocomplete="email" />
         </label>
         @if (emailError(); as message) {
           <p class="text-sm text-[var(--nx-bad-fg)]">{{ message }}</p>
@@ -985,6 +991,24 @@
       </button>
     </section>
   }
+  @if (aside; as info) {
+    <aside class="card hidden self-start lg:sticky lg:top-6 lg:block" aria-label="Tu cita">
+      <p class="card-title">Tu cita</p>
+      <p class="mt-2 text-base font-semibold">{{ info.title }}</p>
+      <p class="text-sm text-ink-soft">{{ info.detail }}</p>
+      @if (info.who) {
+        <p class="mt-3 text-xs text-muted">Te atiende</p>
+        <p class="text-sm font-medium">{{ info.who }}</p>
+      }
+      <p class="mt-3 text-xs text-muted">Día y hora</p>
+      @if (info.when) {
+        <p class="text-sm font-medium first-letter:uppercase">{{ info.when }}</p>
+      } @else {
+        <p class="text-sm text-ink-soft">Aún no eliges</p>
+      }
+    </aside>
+  }
+  </div>
 <ng-template #visitSummary let-appointment>
         <dl class="w-full divide-y divide-line rounded-2xl border border-line text-left text-sm">
           <div class="flex items-baseline justify-between gap-4 px-4 py-2.5">
@@ -1060,7 +1084,7 @@
             {{ selectedSlot() ? 'Continuar' : 'Elige una hora' }}
           </button>
         } @else {
-          <button type="submit" form="booking-form" class="brand-fill h-11 shrink-0 rounded-full px-5 text-sm font-medium disabled:opacity-50" [disabled]="isSaving() || detailsMissing().length > 0">
+          <button type="submit" form="booking-form" class="brand-fill h-11 shrink-0 rounded-full px-5 text-sm font-medium disabled:opacity-50" [disabled]="isSaving()">
             {{ isSaving() ? 'Reservando…' : (holdsDeposit() ? 'Apartar horario' : 'Confirmar ' + copy().visit.toLowerCase()) }}
           </button>
         }
