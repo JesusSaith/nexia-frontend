@@ -210,7 +210,7 @@
         @if (searchable()) {
           <label class="mb-3 block rounded-xl border border-line bg-surface px-3 py-2">
             <span class="block text-xs text-muted">Buscar servicio</span>
-            <input class="w-full bg-transparent text-base outline-none" type="search" enterkeyhint="search" autocomplete="off" placeholder="Ej. corte, uñas, masaje" [value]="serviceQuery()" (input)="serviceQuery.set($any($event.target).value)" />
+            <input class="w-full bg-transparent text-base outline-none" type="search" enterkeyhint="search" autocomplete="off" placeholder="Escribe el nombre del servicio" [value]="serviceQuery()" (input)="serviceQuery.set($any($event.target).value)" />
           </label>
         }
         @if (categories().length) {

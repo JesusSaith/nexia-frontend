@@ -570,7 +570,7 @@
                   <p class="truncate font-medium text-ink">{{ item.name }}</p>
                   <p class="text-sm text-muted">{{ payText(item) }}{{ item.kind !== 'fixed' && item.day ? ' · ' + dueText(item.day) : '' }}</p>
                   @for (mark of item.paid_marks ?? []; track mark.due) {
-                    <p class="text-sm text-muted">Pagado el {{ dueText(mark.paid_on) }} (tocaba el {{ dueText(mark.due) }}) · <button type="button" class="font-medium text-accent hover:underline" (click)="undoPaid(item.id, mark.due)">Deshacer</button></p>
+                    <p class="text-sm text-muted">Pago del {{ dueText(mark.due) }}: ya lo pagaste el {{ dueText(mark.paid_on) }} · <button type="button" class="font-medium text-accent hover:underline" (click)="undoPaid(item.id, mark.due)">Deshacer</button></p>
                   }
                   @if (item.kind === 'fixed' && !item.times && item.next_due) {
                     <p class="text-xs text-muted">No cae en este periodo · próximo pago {{ dueText(item.next_due) }}</p>

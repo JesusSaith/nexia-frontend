@@ -495,9 +495,9 @@ export class HomePageComponent {
 
   protected dueLabel(row: DueClient): string {
     if (row.days_late > 0) {
-      return `Le tocaba hace ${row.days_late} d · viene cada ${row.every_days} d`;
+      return `Le tocaba volver hace ${row.days_late} d · viene cada ${row.every_days} d`;
     }
-    return row.due_on === inputDate(this.clock.now()) ? `Le toca hoy · viene cada ${row.every_days} d` : `Le toca pronto · viene cada ${row.every_days} d`;
+    return row.due_on === inputDate(this.clock.now()) ? `Le toca volver hoy · viene cada ${row.every_days} d` : `Le toca volver pronto · viene cada ${row.every_days} d`;
   }
 
   /** Al abrir el WhatsApp queda marcada como invitada (deja de estar arriba de la lista). */

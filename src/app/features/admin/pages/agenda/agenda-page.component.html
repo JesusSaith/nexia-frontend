@@ -1129,7 +1129,7 @@
           @if (noPhone()) {
             <div class="block">
               <span class="label req">Su usuario o nombre</span>
-              <input class="input" autocomplete="off" maxlength="22" aria-required="true" placeholder="Ej. @lupita.mx" [value]="contactHandle()" (input)="contactHandle.set($any($event.target).value)" />
+              <input class="input" autocomplete="off" maxlength="22" aria-required="true" placeholder="Ej. @minegocio" [value]="contactHandle()" (input)="contactHandle.set($any($event.target).value)" />
             </div>
           } @else {
             <label class="block">

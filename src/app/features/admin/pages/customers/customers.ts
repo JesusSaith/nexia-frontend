@@ -255,9 +255,9 @@ export class Customers {
   protected dueLabel(date: Date): string {
     const days = Math.round((date.getTime() - Date.now()) / 86_400_000);
     if (days < 0) {
-      return `Le tocaba hace ${-days} días`;
+      return `Le tocaba volver hace ${-days} días`;
     }
-    return days === 0 ? 'Le toca hoy' : `Le toca el ${this.shortDay.format(date)}`;
+    return days === 0 ? 'Le toca volver hoy' : `Le toca volver el ${this.shortDay.format(date)}`;
   }
 
   // Etiquetas de la ficha
