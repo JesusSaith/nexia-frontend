@@ -438,6 +438,25 @@ export class SettingsPageComponent {
       : '';
   });
 
+  /** Lo que le falta a una sección para quedar completa (aviso "Falta" en el menú y en su encabezado). */
+  protected sectionMissing(id: SectionId): string | null {
+    if (id === 'anticipo' && this.depositWarning()) {
+      return 'Falta un dato';
+    }
+    if (id === 'apariencia') {
+      if (!this.logoUrl() && this.photos().length === 0) {
+        return 'Falta logo y fotos';
+      }
+      if (!this.logoUrl()) {
+        return 'Falta el logo';
+      }
+      if (this.photos().length === 0) {
+        return 'Faltan fotos';
+      }
+    }
+    return null;
+  }
+
   protected readonly status = computed(() => {
     if (this.pauseBookings()) {
       return { tone: 'warn' as const, icon: 'pause_circle', title: 'Tu página no está tomando citas', detail: 'Tus clientes ven que por ahora no hay reservas en línea.' };
