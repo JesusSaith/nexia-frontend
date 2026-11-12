@@ -528,6 +528,7 @@ export class Customers {
   }
 
   protected open(id: number): void {
+    this.saveNotes();
     this.birthdayState.set('idle');
     this.notesState.set('idle');
     this.editing.set(false);
