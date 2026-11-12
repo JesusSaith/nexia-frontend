@@ -554,6 +554,38 @@
               </ul>
             </article>
           }
+          @if ((row.expenses ?? []).length) {
+            <article class="card">
+              <div class="card-head">
+                <span class="sec-icon"><mat-icon>receipt_long</mat-icon></span>
+                <div>
+                  <h2 class="card-title">Gastos del periodo</h2>
+                  <p class="text-sm text-muted">Toca el lápiz para corregir uno o el bote para quitarlo.</p>
+                </div>
+              </div>
+          <ul class="mt-2 divide-y divide-line text-sm">
+            @for (item of row.expenses ?? []; track item.id) {
+              <li class="flex items-center gap-3 py-2.5">
+                <div class="min-w-0 flex-1">
+                  <p class="truncate font-medium text-ink">{{ item.name }}</p>
+                  <p class="text-sm text-muted">{{ payText(item) }}{{ item.kind !== 'fixed' && item.day ? ' · ' + dueText(item.day) : '' }}</p>
+                  @for (mark of item.paid_marks ?? []; track mark.due) {
+                    <p class="text-sm text-muted">Pagado el {{ dueText(mark.paid_on) }} (tocaba el {{ dueText(mark.due) }}) · <button type="button" class="font-medium text-accent hover:underline" (click)="undoPaid(item.id, mark.due)">Deshacer</button></p>
+                  }
+                  @if (item.kind === 'fixed' && !item.times && item.next_due) {
+                    <p class="text-xs text-muted">No cae en este periodo · próximo pago {{ dueText(item.next_due) }}</p>
+                  }
+                </div>
+                <span class="nums shrink-0 text-right text-base font-semibold text-ink">{{ money(item.amount) }}</span>
+                <span class="flex shrink-0">
+                  <button type="button" class="btn btn-ghost w-11! px-0!" aria-label="Editar" (click)="editExpense(item)"><mat-icon>edit</mat-icon></button>
+                  <button type="button" class="btn btn-ghost w-11! px-0!" aria-label="Quitar" (click)="removeExpense(item.id)"><mat-icon>delete</mat-icon></button>
+                </span>
+              </li>
+            }
+          </ul>
+            </article>
+          }
         }
       </div>
 
@@ -773,29 +805,6 @@
               <app-form-status [missing]="expenseMissing()" />
               <button type="button" class="btn btn-primary" [disabled]="expenseMissing().length > 0" (click)="addExpense()">{{ editingExpense() ? 'Guardar' : 'Agregar gasto' }}</button>
             </div>
-            @if ((books()?.expenses ?? []).length) {
-              <ul class="mt-4 divide-y divide-line text-sm">
-                @for (item of books()?.expenses ?? []; track item.id) {
-                  <li class="flex items-center gap-3 py-2.5">
-                    <div class="min-w-0 flex-1">
-                      <p class="truncate font-medium text-ink">{{ item.name }}</p>
-                      <p class="text-sm text-muted">{{ payText(item) }}{{ item.kind !== 'fixed' && item.day ? ' · ' + item.day : '' }}</p>
-                      @for (mark of item.paid_marks ?? []; track mark.due) {
-                        <p class="text-sm text-muted">Pagado el {{ dueText(mark.paid_on) }} (tocaba el {{ dueText(mark.due) }}) · <button type="button" class="font-medium text-accent hover:underline" (click)="undoPaid(item.id, mark.due)">Deshacer</button></p>
-                      }
-                      @if (item.kind === 'fixed' && !item.times && item.next_due) {
-                        <p class="text-xs text-muted">No cae en este periodo · próximo pago {{ dueText(item.next_due) }}</p>
-                      }
-                    </div>
-                    <span class="nums shrink-0 text-right text-base font-semibold text-ink">{{ money(item.amount) }}</span>
-                    <span class="flex shrink-0">
-                      <button type="button" class="btn btn-ghost w-11! px-0!" aria-label="Editar" (click)="editExpense(item)"><mat-icon>edit</mat-icon></button>
-                      <button type="button" class="btn btn-ghost w-11! px-0!" aria-label="Quitar" (click)="removeExpense(item.id)"><mat-icon>delete</mat-icon></button>
-                    </span>
-                  </li>
-                }
-              </ul>
-            }
           </article>
         }
       </div>
