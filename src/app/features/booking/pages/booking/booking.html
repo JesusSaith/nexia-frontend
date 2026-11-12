@@ -144,25 +144,7 @@
   </header>
 
   @if (!confirmation() && !loadError()) {
-    <nav class="step-tabs" aria-label="Pasos de la reserva">
-      @for (item of steps; track item.id) {
-        <button
-          type="button"
-          class="step-tab"
-          [class.is-current]="step() === item.id"
-          [class.is-done]="step() > item.id"
-          [disabled]="item.id > reached()"
-          (click)="openStep(item.id)"
-        >
-          @if (step() > item.id) {
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" class="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
-              <path fill-rule="evenodd" d="M16.7 5.3a1 1 0 0 1 0 1.4l-7.2 7.2a1 1 0 0 1-1.4 0L3.3 9.1a1 1 0 1 1 1.4-1.4l4.1 4.1 6.5-6.5a1 1 0 0 1 1.4 0z" clip-rule="evenodd"/>
-            </svg>
-          }
-          {{ item.label }}
-        </button>
-      }
-    </nav>
+    <app-stepper class="mb-2 mt-1" [steps]="steps" [current]="step()" [reached]="reached()" label="Pasos de la reserva" (pick)="openStep($event)" />
   }
 
   @if (loadError(); as message) {
@@ -210,12 +192,25 @@
           <button type="button" class="btn btn-secondary shrink-0" (click)="repeatLast()">Elegir horario</button>
         </section>
       }
+      @if (favoriteServices().length && !shopNote().pause) {
+        <section aria-label="Tus favoritos">
+          <h2 class="mb-2 text-base font-medium">Tus favoritos</h2>
+          <div class="flex flex-wrap gap-2">
+            @for (service of favoriteServices(); track service.id) {
+              <button type="button" class="choice-card flex min-h-11 items-center gap-2 px-4 py-2 text-left text-sm" [class.choice-selected]="selectedService()?.id === service.id" (click)="selectService(service)">
+                <mat-icon class="shrink-0" style="font-variation-settings: 'FILL' 1; color: var(--booking-ink, var(--booking-primary))" aria-hidden="true">favorite</mat-icon>
+                <span class="font-medium">{{ service.name }}</span>
+              </button>
+            }
+          </div>
+        </section>
+      }
       <div>
         <h2 class="mb-3 text-base font-medium">Servicio</h2>
         @if (searchable()) {
           <label class="mb-3 block rounded-xl border border-line bg-surface px-3 py-2">
             <span class="block text-xs text-muted">Buscar servicio</span>
-            <input class="w-full bg-transparent text-base outline-none" type="search" enterkeyhint="search" autocomplete="off" placeholder="Ej. corte, uñas, masaje" [value]="serviceQuery()" (input)="serviceQuery.set($any($event.target).value)" />
+            <input class="w-full bg-transparent text-base outline-none" type="search" enterkeyhint="search" autocomplete="off" placeholder="Escribe el nombre del servicio" [value]="serviceQuery()" (input)="serviceQuery.set($any($event.target).value)" />
           </label>
         }
         @if (categories().length) {
@@ -239,19 +234,15 @@
           }
           <div class="grid gap-3 sm:grid-cols-2">
             @for (service of visibleServices(); track service.id) {
-              <button
-                type="button"
-                class="choice-card service-card flex gap-3 p-4 text-left"
-                [class.choice-selected]="selectedService()?.id === service.id"
-                (click)="selectService(service)"
-              >
+              <article class="choice-card service-card flex flex-col overflow-hidden" [class.choice-selected]="selectedService()?.id === service.id">
+              <button type="button" class="flex flex-1 flex-col text-left" (click)="selectService(service)">
                 @if (service.image_url) {
-                  <img loading="lazy" decoding="async" class="h-16 w-16 shrink-0 rounded-xl object-cover" [src]="service.image_url" alt="" />
+                  <img loading="lazy" decoding="async" class="aspect-video w-full object-cover" [src]="service.image_url" alt="" />
                 }
-                <span class="min-w-0">
+                <span class="flex min-w-0 flex-1 flex-col p-4">
                   <span class="block font-medium">{{ service.name }}</span>
                   @if (service.featured) {
-                    <span class="mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium text-white" style="background: var(--booking-primary, var(--primary))">El más pedido</span>
+                    <span class="mt-1 self-start rounded-full px-2 py-0.5 text-xs font-medium text-white" style="background: var(--booking-primary, var(--primary))">El más pedido</span>
                   }
                   <span class="mt-1 block text-sm text-ink-soft">
                     @if ((service.variants ?? []).length) {
@@ -268,6 +259,14 @@
                   }
                 </span>
               </button>
+              <div class="flex divide-x divide-line border-t border-line text-sm">
+                <button type="button" class="flex min-h-11 flex-1 items-center justify-center gap-1.5 px-2 text-ink-soft" [style.color]="isFavorite('services', service.id) ? 'var(--booking-ink, var(--booking-primary))' : null" [attr.aria-pressed]="isFavorite('services', service.id)" [attr.aria-label]="(isFavorite('services', service.id) ? 'Quitar de favoritos: ' : 'Guardar en favoritos: ') + service.name" (click)="toggleFavorite('services', service.id)">
+                  <mat-icon [style.font-variation-settings]="isFavorite('services', service.id) ? '\'FILL\' 1' : null" aria-hidden="true">favorite</mat-icon>
+                  {{ isFavorite('services', service.id) ? 'Favorito' : 'Guardar' }}
+                </button>
+                <button type="button" class="flex min-h-11 flex-1 items-center justify-center px-2 font-medium" style="color: var(--booking-ink, var(--booking-primary))" [attr.aria-label]="'Elegir ' + service.name" (click)="selectService(service)">Elegir</button>
+              </div>
+              </article>
             }
           </div>
           @if (holdService(); as hold) {
@@ -380,30 +379,34 @@
                 </span>
               </button>
             }
-            @for (member of eligibleStaff(); track member.id) {
-              <button
-                type="button"
-                class="choice-card flex items-start gap-4 p-4 text-left"
-                [class.choice-selected]="selectedStaff()?.id === member.id"
-                (click)="selectStaff(member)"
-              >
-                @if (member.avatar_url) {
-                  <img loading="lazy" decoding="async" [src]="member.avatar_url" [alt]="member.full_name" class="h-20 w-20 shrink-0 rounded-2xl object-cover" />
-                } @else {
-                  <span class="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-canvas text-lg font-medium text-ink-soft">
-                    {{ initials(member.full_name) }}
+            @for (member of staffList(); track member.id) {
+              <article class="choice-card flex flex-col overflow-hidden" [class.choice-selected]="selectedStaff()?.id === member.id">
+              <button type="button" class="flex flex-1 flex-col gap-3 p-4 text-left" (click)="selectStaff(member)">
+                <span class="flex items-center gap-3">
+                  @if (member.avatar_url) {
+                    <img loading="lazy" decoding="async" [src]="member.avatar_url" [alt]="member.full_name" class="h-14 w-14 shrink-0 rounded-full object-cover" />
+                  } @else {
+                    <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-canvas text-lg font-medium text-ink-soft">{{ initials(member.full_name) }}</span>
+                  }
+                  <span class="min-w-0">
+                    <span class="block font-medium">{{ member.full_name }}</span>
+                    @if (member.role_title) {
+                      <span class="block text-sm text-ink-soft">{{ member.role_title }}</span>
+                    }
                   </span>
-                }
-                <span class="min-w-0">
-                  <span class="block font-medium">{{ member.full_name }}</span>
-                  @if (member.role_title) {
-                    <span class="mt-0.5 block text-sm text-ink-soft">{{ member.role_title }}</span>
-                  }
-                  @if (member.bio) {
-                    <span class="mt-1 line-clamp-3 block text-sm text-muted">{{ member.bio }}</span>
-                  }
                 </span>
+                @if (member.bio) {
+                  <span class="line-clamp-3 block text-sm text-muted">{{ member.bio }}</span>
+                }
               </button>
+              <div class="flex divide-x divide-line border-t border-line text-sm">
+                <button type="button" class="flex min-h-11 flex-1 items-center justify-center gap-1.5 px-2 text-ink-soft" [style.color]="isFavorite('staff', member.id) ? 'var(--booking-ink, var(--booking-primary))' : null" [attr.aria-pressed]="isFavorite('staff', member.id)" [attr.aria-label]="(isFavorite('staff', member.id) ? 'Quitar de favoritos: ' : 'Guardar en favoritos: ') + member.full_name" (click)="toggleFavorite('staff', member.id)">
+                  <mat-icon [style.font-variation-settings]="isFavorite('staff', member.id) ? '\'FILL\' 1' : null" aria-hidden="true">favorite</mat-icon>
+                  {{ isFavorite('staff', member.id) ? 'Favorito' : 'Guardar' }}
+                </button>
+                <button type="button" class="flex min-h-11 flex-1 items-center justify-center px-2 font-medium" style="color: var(--booking-ink, var(--booking-primary))" [attr.aria-label]="'Elegir ' + member.full_name" (click)="selectStaff(member)">Elegir</button>
+              </div>
+              </article>
             }
           </div>
           }
@@ -600,9 +603,9 @@
         </label>
       }
       @if (packageLeft(); as pack) {
-        <label class="flex items-center gap-2 text-sm">
-          <input type="checkbox" [checked]="usePackage()" (change)="usePackage.set($any($event.target).checked)" />
-          Usar paquete {{ pack.label }}. Quedan {{ pack.remaining }}{{ pack.expires_at ? ' · vence el ' + shortDate(pack.expires_at) : '' }}.
+        <label class="flex min-h-11 items-center justify-between gap-4 text-sm">
+          <span>Usar paquete {{ pack.label }}. Quedan {{ pack.remaining }}{{ pack.expires_at ? ' · vence el ' + shortDate(pack.expires_at) : '' }}.</span>
+          <button type="button" role="switch" class="switch" [attr.aria-checked]="usePackage()" (click)="usePackage.set(!usePackage())" aria-label="Usar mi paquete"><span></span></button>
         </label>
       }
       @if (selectedService()?.questions) {

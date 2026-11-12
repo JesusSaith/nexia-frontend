@@ -45,24 +45,24 @@
       }
     }
 
-    <!-- Controles: qué reporte (arriba) y de qué periodo (abajo), con el mismo estilo de barra. -->
-    <div class="mb-6 flex flex-col gap-3">
-      <div class="seg" role="tablist" aria-label="Reporte">
+    <!-- Controles en una sola barra: qué reporte (arriba, a todo lo ancho) y de qué periodo y contra qué se compara (abajo). -->
+    <div class="card mb-6 flex flex-col gap-3 p-3!">
+      <div class="seg w-full! *:flex-1 max-sm:grid! max-sm:grid-cols-2 max-sm:rounded-2xl! max-sm:*:px-2!" role="tablist" aria-label="Reporte">
         @for (tab of shownTabs(); track tab.id) {
           <button type="button" role="tab" [class.is-on]="view() === tab.id" [attr.aria-selected]="view() === tab.id" (click)="view.set(tab.id)">{{ tab.label }}</button>
         }
       </div>
       @if (view() !== 'cash') {
-        <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
-          <div class="seg" role="tablist" aria-label="Periodo">
+        <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+          <div class="seg max-sm:w-full! max-sm:*:flex-1" role="tablist" aria-label="Periodo">
             @for (item of periods; track item.id) {
               <button type="button" role="tab" [class.is-on]="period() === item.id" [attr.aria-selected]="period() === item.id" (click)="period.set(item.id)">{{ item.label }}</button>
             }
           </div>
           @if (!(view() === 'income' && isEmpty())) {
-          <div class="flex flex-wrap items-center gap-2">
+          <div class="flex flex-wrap items-center gap-2 max-sm:w-full max-sm:flex-col max-sm:items-start max-sm:gap-1.5">
             <span id="compare-label" class="seg-label">Comparar con</span>
-            <div class="seg" role="group" aria-labelledby="compare-label">
+            <div class="seg max-sm:w-full! max-sm:self-stretch! max-sm:*:flex-1" role="group" aria-labelledby="compare-label">
               <button type="button" [class.is-on]="compareTo() === 'prev'" [attr.aria-pressed]="compareTo() === 'prev'" (click)="compareTo.set('prev')">{{ compareLabels().prev }}</button>
               <button type="button" [class.is-on]="compareTo() === 'year'" [attr.aria-pressed]="compareTo() === 'year'" (click)="compareTo.set('year')">Hace un año</button>
             </div>
@@ -87,7 +87,6 @@
           <a routerLink="/admin/agenda" class="btn btn-secondary mt-1">Ir a la agenda</a>
         </div>
       } @else {
-        <p class="mb-3 text-base font-medium text-ink" role="status">{{ incomeLine() }}</p>
         <!-- Las tres preguntas de la dueña, con su respuesta y a dónde ir. -->
         @if (glance(); as g) {
           <section class="card mb-6 p-4!" aria-label="Resumen de tu negocio">
@@ -97,31 +96,37 @@
                 <p class="nums mt-1 text-2xl font-semibold tracking-tight" [class.text-[var(--nx-ok-fg)]]="g.profit >= 0" [class.text-[var(--nx-bad-fg)]]="g.profit < 0">
                   {{ g.profit >= 0 ? 'Ganas ' : 'Pierdes ' }}{{ money(g.profit < 0 ? -g.profit : g.profit) }}
                 </p>
-                <p class="text-sm text-ink-soft">
-                  {{ periodWord() }}.
-                  {{ g.covered ? 'Ya cubriste tus gastos.' : g.gap > 0 ? 'Te faltan ' + money(g.gap) + ' de ingresos para cubrir tus gastos.' : '' }}
-                </p>
+                <p class="text-sm text-ink-soft">{{ periodWord() }}.</p>
               </div>
               <div class="lg:px-5">
                 <p class="flex items-center gap-1.5 text-sm text-muted"><mat-icon class="h-4! w-4! text-[16px]!">hourglass_top</mat-icon>¿Qué me falta cobrar o pagar?</p>
-                <ul class="mt-1 text-sm text-ink-soft">
-                  <li><span class="nums font-semibold text-ink">{{ money(g.collect) }}</span> por cobrar{{ g.collectCount ? ' (' + g.collectCount + (g.collectCount === 1 ? ' cita ya pasó)' : ' citas ya pasaron)') : '' }}</li>
-                  <li><span class="nums font-semibold text-ink">{{ money(g.toPay) }}</span> de gastos fijos por pagar este mes</li>
-                  @if (g.owedCommission > 0) {
-                    <li><span class="nums font-semibold text-ink">{{ money(g.owedCommission) }}</span> de comisiones por pagar</li>
-                  }
-                </ul>
-                <p class="mt-1 flex flex-wrap gap-x-3 text-sm font-medium">
-                  @if (g.collect > 0) {
-                    <a routerLink="/admin/agenda" class="inline-flex min-h-11 items-center text-accent hover:underline">Ir a la agenda</a>
-                  }
-                  @if (g.toPay > 0) {
-                    <button type="button" class="inline-flex min-h-11 items-center text-accent hover:underline" (click)="view.set('expenses')">Ver próximos pagos</button>
-                  }
-                  @if (g.owedCommission > 0) {
-                    <button type="button" class="inline-flex min-h-11 items-center text-accent hover:underline" (click)="view.set('commission')">Pagar comisiones</button>
-                  }
-                </p>
+                @let showCollect = (books()?.uncollected_count ?? 0) === 0 && g.collect > 0;
+                @if (showCollect || g.toPay > 0 || g.owedCommission > 0) {
+                  <ul class="mt-1 text-sm text-ink-soft">
+                    @if (showCollect) {
+                      <li><span class="nums font-semibold text-ink">{{ money(g.collect) }}</span> por cobrar{{ g.collectCount ? ' (' + g.collectCount + (g.collectCount === 1 ? ' cita ya pasó)' : ' citas ya pasaron)') : '' }}</li>
+                    }
+                    @if (g.toPay > 0) {
+                      <li><span class="nums font-semibold text-ink">{{ money(g.toPay) }}</span> de gastos fijos por pagar este mes</li>
+                    }
+                    @if (g.owedCommission > 0) {
+                      <li><span class="nums font-semibold text-ink">{{ money(g.owedCommission) }}</span> de comisiones por pagar</li>
+                    }
+                  </ul>
+                  <p class="mt-1 flex flex-wrap gap-x-3 text-sm font-medium">
+                    @if (showCollect) {
+                      <a routerLink="/admin/agenda" class="inline-flex min-h-11 items-center text-accent hover:underline">Ir a la agenda</a>
+                    }
+                    @if (g.toPay > 0) {
+                      <button type="button" class="inline-flex min-h-11 items-center text-accent hover:underline" (click)="view.set('expenses')">Ver próximos pagos</button>
+                    }
+                    @if (g.owedCommission > 0) {
+                      <button type="button" class="inline-flex min-h-11 items-center text-accent hover:underline" (click)="view.set('commission')">Pagar comisiones</button>
+                    }
+                  </p>
+                } @else {
+                  <p class="mt-1 text-sm text-ink-soft">{{ (books()?.uncollected_count ?? 0) > 0 ? 'Lo que falta cobrar está más abajo.' : 'Nada pendiente por ahora.' }}</p>
+                }
               </div>
               <div class="lg:pl-5">
                 <p class="flex items-center gap-1.5 text-sm text-muted"><mat-icon class="h-4! w-4! text-[16px]!">favorite</mat-icon>¿A quién tengo que cuidar?</p>
@@ -157,7 +162,11 @@
             <div class="p-4">
               <p class="flex items-center gap-1.5 text-sm text-muted"><mat-icon class="h-4! w-4! text-[16px]!">{{ item.icon }}</mat-icon>{{ item.label }}</p>
               <p class="nums mt-1 text-2xl font-semibold tracking-tight text-ink">{{ item.value }}</p>
-              <p class="nums mt-0.5 text-sm" [class]="kpiTone(item.delta)">@if (item.delta.up !== null && item.delta.text.endsWith('%')) { <mat-icon class="h-4! w-4! align-middle text-[16px]!" aria-hidden="true">{{ item.delta.up ? 'arrow_upward' : 'arrow_downward' }}</mat-icon> }{{ item.delta.text }} <span class="text-muted">{{ item.delta.up === null ? '' : versus() }}</span></p>
+              @if (noSales()) {
+                <p class="mt-0.5 text-sm text-muted">Sin cobros todavía</p>
+              } @else {
+                <p class="nums mt-0.5 text-sm" [class]="kpiTone(item.delta)">@if (item.delta.up !== null && item.delta.text.endsWith('%')) { <mat-icon class="h-4! w-4! align-middle text-[16px]!" aria-hidden="true">{{ item.delta.up ? 'arrow_upward' : 'arrow_downward' }}</mat-icon> }{{ item.delta.text }} <span class="text-muted">{{ item.delta.up === null ? '' : versus() }}</span></p>
+              }
             </div>
           }
         </div>
@@ -203,6 +212,8 @@
               <p class="text-sm text-muted">Ingresos del periodo, menos gastos{{ copy.commissions() ? ' y comisiones' : '' }}.</p>
             </div>
           </div>
+          <div class="mt-2 grid gap-x-10 gap-y-2 lg:grid-cols-2 lg:items-start">
+          <div>
           <ul class="mt-2 divide-y divide-line text-sm">
             <li class="flex items-center justify-between gap-3 py-2.5">
               <div><p class="text-ink">Ingresos</p><p class="text-xs text-muted">Citas completadas</p></div>
@@ -229,9 +240,12 @@
               <span class="nums text-right text-lg font-semibold text-accent">{{ money(row.profit) }}</span>
             </li>
           </ul>
+          @if (row.total > 0) {
           <p class="mt-2 text-sm text-muted">Te quedas con <span class="nums font-medium text-ink">{{ margin() }}%</span> de lo que entra.</p>
+          }
+          </div>
           @if (breakEven(); as point) {
-            <div class="mt-4 rounded-xl border border-line bg-surface p-4">
+            <div class="mt-4 rounded-xl border border-line bg-surface p-4 lg:mt-2">
               <p class="text-sm text-ink">
                 <strong>Punto de equilibrio:</strong> para cubrir gastos{{ copy.commissions() ? ' y comisiones' : '' }} necesitas <strong class="nums">{{ money(point.need) }}</strong>
                 @if (point.visits) {
@@ -245,6 +259,7 @@
               <p class="nums mt-1 text-sm" [style.color]="point.covered ? 'var(--nx-ok-fg)' : 'var(--color-muted)'">{{ point.covered ? 'Ya cubriste tus gastos: lo que entre de aquí en adelante es ganancia.' : 'Te faltan ' + money(point.left) + ' para no perder.' }}</p>
             </div>
           }
+          </div>
         </article>
       </div>
         }
@@ -359,9 +374,9 @@
                   </label>
                 </div>
                 @if (cashMoveKind() === 'out') {
-                  <label class="mt-2 flex min-h-11 items-center gap-3 text-sm text-ink-soft">
-                    <input type="checkbox" class="h-5 w-5" [checked]="cashMoveExpense()" (change)="cashMoveExpense.set($any($event.target).checked)" />
+                  <label class="mt-2 flex min-h-11 items-center justify-between gap-4 text-sm text-ink-soft">
                     Anotarlo también como gasto del día
+                    <button type="button" role="switch" class="switch" [attr.aria-checked]="cashMoveExpense()" (click)="cashMoveExpense.set(!cashMoveExpense())" aria-label="Anotarlo también como gasto del día"><span></span></button>
                   </label>
                 }
                 @if (cashMoveMissing().length > 0) {
@@ -400,8 +415,8 @@
       </div>
     } @else if (!(view() === 'income' && isEmpty())) {
     <div class="grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)]">
-      <div class="flex h-full min-w-0 flex-col gap-4">
-        <article class="card flex flex-1 flex-col">
+      <div class="flex min-w-0 flex-col gap-4" [class.h-full]="view() !== 'expenses'" [style.display]="view() === 'expenses' ? 'contents' : null">
+        <article class="card flex flex-col lg:col-start-1 lg:row-start-1" [class.flex-1]="view() !== 'expenses'">
           <div class="card-head">
             <span class="sec-icon"><mat-icon>{{ view() === 'expenses' ? 'pie_chart' : view() === 'staff' ? 'groups' : view() === 'commission' ? 'payments' : 'show_chart' }}</mat-icon></span>
             @if (view() === 'income') {
@@ -500,7 +515,7 @@
           }
         </article>
         @if (view() === 'expenses' && books(); as row) {
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-2 gap-3 lg:col-start-1 lg:row-start-2">
             <div class="stat">
               <span class="stat-icon stat-accent"><mat-icon>home_work</mat-icon></span>
               <span class="min-w-0">
@@ -519,7 +534,7 @@
             </div>
           </div>
           @if (categoryRows().length) {
-            <article class="card">
+            <article class="card lg:col-start-1 lg:row-start-3 lg:self-stretch">
               <div class="card-head">
                 <span class="sec-icon"><mat-icon>percent</mat-icon></span>
                 <div>
@@ -539,13 +554,45 @@
               </ul>
             </article>
           }
+          @if ((row.expenses ?? []).length) {
+            <article class="card lg:col-start-1 lg:row-start-4 lg:self-stretch">
+              <div class="card-head">
+                <span class="sec-icon"><mat-icon>receipt_long</mat-icon></span>
+                <div>
+                  <h2 class="card-title">Gastos del periodo</h2>
+                  <p class="text-sm text-muted">Toca el lápiz para corregir uno o el bote para quitarlo.</p>
+                </div>
+              </div>
+          <ul class="mt-2 divide-y divide-line text-sm">
+            @for (item of row.expenses ?? []; track item.id) {
+              <li class="flex items-center gap-3 py-2.5">
+                <div class="min-w-0 flex-1">
+                  <p class="truncate font-medium text-ink">{{ item.name }}</p>
+                  <p class="text-sm text-muted">{{ payText(item) }}{{ item.kind !== 'fixed' && item.day ? ' · ' + dueText(item.day) : '' }}</p>
+                  @for (mark of item.paid_marks ?? []; track mark.due) {
+                    <p class="text-sm text-muted">Pago del {{ dueText(mark.due) }}: ya lo pagaste el {{ dueText(mark.paid_on) }} · <button type="button" class="font-medium text-accent hover:underline" (click)="undoPaid(item.id, mark.due)">Deshacer</button></p>
+                  }
+                  @if (item.kind === 'fixed' && !item.times && item.next_due) {
+                    <p class="text-xs text-muted">No cae en este periodo · próximo pago {{ dueText(item.next_due) }}</p>
+                  }
+                </div>
+                <span class="nums shrink-0 text-right text-base font-semibold text-ink">{{ money(item.amount) }}</span>
+                <span class="flex shrink-0">
+                  <button type="button" class="btn btn-ghost w-11! px-0!" aria-label="Editar" (click)="editExpense(item)"><mat-icon>edit</mat-icon></button>
+                  <button type="button" class="btn btn-ghost w-11! px-0!" aria-label="Quitar" (click)="removeExpense(item.id)"><mat-icon>delete</mat-icon></button>
+                </span>
+              </li>
+            }
+          </ul>
+            </article>
+          }
         }
       </div>
 
-      <div class="flex h-full flex-col gap-4">
+      <div class="flex flex-col gap-4" [class.h-full]="view() !== 'expenses'" [style.display]="view() === 'expenses' ? 'contents' : null">
         @if (view() === 'income') {
           @if (books(); as row) {
-            <article class="card flex-1">
+            <article class="card">
               <div class="card-head">
                 <span class="sec-icon"><mat-icon>payments</mat-icon></span>
                 <h2 class="card-title">Cómo te pagaron</h2>
@@ -702,7 +749,7 @@
           </article>
         }
         @if (view() === 'expenses') {
-          <article class="card" aria-label="Próximos pagos">
+          <article class="card lg:col-start-2 lg:row-start-1 lg:row-span-2" aria-label="Próximos pagos">
           <div class="flex items-center gap-2"><h2 class="card-title">Próximos pagos</h2></div>
           @if ((books()?.upcoming_fixed ?? []).length) {
             <ul class="mt-2 divide-y divide-line text-sm">
@@ -720,7 +767,7 @@
             <p class="mt-2 text-sm text-muted">No hay gastos fijos por pagar en los próximos 30 días.</p>
           }
         </article>
-        <article class="card flex-1">
+        <article class="card lg:col-start-2 lg:row-start-3 lg:row-span-2">
             <div class="card-head">
               <span class="sec-icon"><mat-icon>add_card</mat-icon></span>
               <h2 class="card-title">Agregar gasto</h2>
@@ -732,51 +779,32 @@
               <label class="block"><span class="label req">Monto</span>
                 <input class="input nums" type="number" min="0" inputmode="decimal" [value]="expenseAmount()" (input)="expenseAmount.set($any($event.target).value)" />
               </label>
-              <label class="block"><span class="label">Categoría</span>
-                <app-pick-field class="block" [options]="categoryPicks" [valueIn]="expenseCategory()" (picked)="expenseCategory.set($any($event))" />
-              </label>
-              <label class="block"><span class="label">Tipo</span>
-                <app-pick-field class="block" [options]="kindPicks" [valueIn]="expenseKind()" (picked)="expenseKind.set($any($event))" />
-              </label>
-              @if (expenseKind() === 'fixed') {
-                <label class="block"><span class="label">Cada cuándo</span>
-                  <app-pick-field class="block" [options]="cadencePicks" [valueIn]="expenseCadence()" (picked)="setCadence($any($event))" />
+              <div class="grid grid-cols-2 gap-3">
+                <label class="block min-w-0"><span class="label">Categoría</span>
+                  <app-pick-field class="block" [options]="categoryPicks" [valueIn]="expenseCategory()" (picked)="expenseCategory.set($any($event))" />
                 </label>
-                @if (expenseCadence() !== 'day') {
-                  <label class="block"><span class="label">Día de pago</span>
-                    <app-pick-field class="block" [options]="expenseCadence() === 'week' ? weekDayPicks : monthDayPicks" [valueIn]="expensePayDay()" (picked)="expensePayDay.set($any($event))" />
-                    <span class="mt-1 block text-xs text-muted">Se cuenta completo en el periodo donde cae ese día, no repartido por día.</span>
+                <label class="block min-w-0"><span class="label">Tipo</span>
+                  <app-pick-field class="block" [options]="kindPicks" [valueIn]="expenseKind()" (picked)="expenseKind.set($any($event))" />
+                </label>
+              </div>
+              @if (expenseKind() === 'fixed') {
+                <div class="grid grid-cols-2 gap-3">
+                  <label class="block min-w-0"><span class="label">Cada cuándo</span>
+                    <app-pick-field class="block" [options]="cadencePicks" [valueIn]="expenseCadence()" (picked)="setCadence($any($event))" />
                   </label>
+                  @if (expenseCadence() !== 'day') {
+                    <label class="block min-w-0"><span class="label">Día de pago</span>
+                      <app-pick-field class="block" [options]="expenseCadence() === 'week' ? weekDayPicks : monthDayPicks" [valueIn]="expensePayDay()" (picked)="expensePayDay.set($any($event))" />
+                    </label>
+                  }
+                </div>
+                @if (expenseCadence() !== 'day') {
+                  <p class="-mt-1 text-xs text-muted">Se cuenta completo en el periodo donde cae ese día, no repartido por día.</p>
                 }
               }
-              @if (expenseMissing().length > 0) {
-                <p class="form-missing" role="status">Para guardar falta: {{ expenseMissing().join(' y ') }}. Los campos con <b class="text-(--nx-bad-fg)">*</b> son obligatorios.</p>
-              }
+              <app-form-status [missing]="expenseMissing()" />
               <button type="button" class="btn btn-primary" [disabled]="expenseMissing().length > 0" (click)="addExpense()">{{ editingExpense() ? 'Guardar' : 'Agregar gasto' }}</button>
             </div>
-            @if ((books()?.expenses ?? []).length) {
-              <ul class="mt-4 divide-y divide-line text-sm">
-                @for (item of books()?.expenses ?? []; track item.id) {
-                  <li class="flex items-center gap-3 py-2.5">
-                    <div class="min-w-0 flex-1">
-                      <p class="truncate font-medium text-ink">{{ item.name }}</p>
-                      <p class="text-sm text-muted">{{ payText(item) }}{{ item.kind !== 'fixed' && item.day ? ' · ' + item.day : '' }}</p>
-                      @for (mark of item.paid_marks ?? []; track mark.due) {
-                        <p class="text-sm text-muted">Pagado el {{ dueText(mark.paid_on) }} (tocaba el {{ dueText(mark.due) }}) · <button type="button" class="font-medium text-accent hover:underline" (click)="undoPaid(item.id, mark.due)">Deshacer</button></p>
-                      }
-                      @if (item.kind === 'fixed' && !item.times && item.next_due) {
-                        <p class="text-xs text-muted">No cae en este periodo · próximo pago {{ dueText(item.next_due) }}</p>
-                      }
-                    </div>
-                    <span class="nums shrink-0 text-right text-base font-semibold text-ink">{{ money(item.amount) }}</span>
-                    <span class="flex shrink-0">
-                      <button type="button" class="btn btn-ghost w-11! px-0!" aria-label="Editar" (click)="editExpense(item)"><mat-icon>edit</mat-icon></button>
-                      <button type="button" class="btn btn-ghost w-11! px-0!" aria-label="Quitar" (click)="removeExpense(item.id)"><mat-icon>delete</mat-icon></button>
-                    </span>
-                  </li>
-                }
-              </ul>
-            }
           </article>
         }
       </div>
@@ -785,46 +813,39 @@
     }
 
     @if (view() === 'income' && !isEmpty() && books(); as row) {
-      <div class="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-3">
-        <div class="stat">
-          <span class="stat-icon" [class.stat-bad]="row.missed_count > 0" [class.stat-ok]="!(row.missed_count > 0)"><mat-icon>event_busy</mat-icon></span>
-          <span class="min-w-0">
-            <span class="stat-value block">{{ row.missed_count }}</span>
-            <span class="stat-label block">No se hicieron</span>
-            <span class="mt-0.5 block text-sm text-muted"><span class="nums">{{ money(row.missed_amount) }}</span> que no entró</span>
-            <a class="mt-1 inline-flex min-h-11 items-center gap-0.5 text-xs font-medium text-accent hover:text-ink" [routerLink]="['/admin/agenda']" [queryParams]="agendaQuery('missed')">Ver en la agenda <mat-icon class="h-4! w-4! text-[16px]!">chevron_right</mat-icon></a>
-          </span>
-        </div>
-        <div class="stat">
-          <span class="stat-icon" [class.stat-warn]="row.deposit_due > 0" [class.stat-ok]="!(row.deposit_due > 0)"><mat-icon>payments</mat-icon></span>
-          <span class="min-w-0">
-            <span class="stat-value block">{{ money(row.deposit_due) }}</span>
-            <span class="stat-label block">Anticipos pendientes</span>
-            <span class="mt-0.5 block text-sm text-muted"><span class="nums">{{ row.deposit_count }}</span> por cobrar · <span class="nums">{{ row.proofs_pending }}</span> por revisar</span>
-            @if (row.deposit_held_count > 0) {
-              <span class="block text-sm text-muted">Ya recibiste <span class="nums">{{ money(row.deposit_held) }}</span> de <span class="nums">{{ row.deposit_held_count }}</span> {{ row.deposit_held_count === 1 ? 'cita por venir' : 'citas por venir' }}</span>
+      <div class="mt-4 grid gap-3 sm:grid-cols-3">
+        <article class="card flex flex-col p-4!">
+          <p class="flex items-center gap-1.5 text-sm text-muted"><mat-icon class="h-4! w-4! text-[16px]!" [class.text-(--nx-bad-fg)]="row.missed_count > 0">event_busy</mat-icon>No se hicieron</p>
+          <p class="nums mt-1 text-2xl font-semibold tracking-tight text-ink">{{ row.missed_count }}</p>
+          <p class="nums mt-0.5 text-sm text-muted">{{ row.missed_count ? money(row.missed_amount) + ' que no entró' : 'Ninguna cita perdida' }}</p>
+          <a class="mt-auto inline-flex min-h-11 items-center gap-0.5 pt-1 text-sm font-medium text-accent hover:underline" [routerLink]="['/admin/agenda']" [queryParams]="agendaQuery('missed')">Ver en la agenda <mat-icon class="h-4! w-4! text-[16px]!" aria-hidden="true">chevron_right</mat-icon></a>
+        </article>
+        <article class="card flex flex-col p-4!">
+          <p class="flex items-center gap-1.5 text-sm text-muted"><mat-icon class="h-4! w-4! text-[16px]!" [class.text-(--nx-warn-fg)]="row.deposit_due > 0">payments</mat-icon>Anticipos pendientes</p>
+          <p class="nums mt-1 text-2xl font-semibold tracking-tight text-ink">{{ money(row.deposit_due) }}</p>
+          <p class="nums mt-0.5 text-sm text-muted">{{ row.deposit_count }} por cobrar · {{ row.proofs_pending }} por revisar</p>
+                @if (row.deposit_held_count > 0) {
+              <span class="mt-0.5 block text-sm text-muted">Ya recibiste <span class="nums">{{ money(row.deposit_held) }}</span> de <span class="nums">{{ row.deposit_held_count }}</span> {{ row.deposit_held_count === 1 ? 'cita por venir' : 'citas por venir' }}</span>
             }
-            <a class="mt-1 inline-flex min-h-11 items-center gap-0.5 text-xs font-medium text-accent hover:text-ink" [routerLink]="['/admin/agenda']" [queryParams]="agendaQuery('deposit')">Ver en la agenda <mat-icon class="h-4! w-4! text-[16px]!">chevron_right</mat-icon></a>
-          </span>
-        </div>
-        <div class="stat col-span-2 min-w-0 lg:col-span-1">
-          <span class="stat-icon stat-info"><mat-icon>star</mat-icon></span>
-          <span class="min-w-0 max-w-full flex-1">
-            <span class="block truncate text-base font-semibold text-ink">{{ row.top_count ? topService() : '—' }}</span>
-            <span class="stat-label block">Servicio más pedido</span>
-            @if (row.top_count) {
-              <span class="mt-0.5 block text-sm text-muted nums">{{ row.top_count }} {{ row.top_count === 1 ? "cita" : "citas" }} · {{ money(row.top_income) }}</span>
-            }
-          </span>
-        </div>
+          <a class="mt-auto inline-flex min-h-11 items-center gap-0.5 pt-1 text-sm font-medium text-accent hover:underline" [routerLink]="['/admin/agenda']" [queryParams]="agendaQuery('deposit')">Ver en la agenda <mat-icon class="h-4! w-4! text-[16px]!" aria-hidden="true">chevron_right</mat-icon></a>
+        </article>
+        <article class="card flex min-w-0 flex-col p-4!">
+          <p class="flex items-center gap-1.5 text-sm text-muted"><mat-icon class="h-4! w-4! text-[16px]!">star</mat-icon>Servicio más pedido</p>
+          <p class="mt-1 truncate text-2xl font-semibold tracking-tight" [class.text-ink]="row.top_count" [class.text-muted]="!row.top_count">{{ row.top_count ? topService() : 'Aún no hay datos' }}</p>
+          @if (row.top_count) {
+            <p class="nums mt-0.5 text-sm text-muted">{{ row.top_count }} {{ row.top_count === 1 ? 'cita' : 'citas' }} · {{ money(row.top_income) }}</p>
+          } @else {
+            <p class="mt-0.5 text-sm text-muted">Se llena con tus primeras citas completadas.</p>
+          }
+        </article>
       </div>
       <button type="button" class="btn btn-secondary mt-4 w-full sm:w-auto" [attr.aria-expanded]="moreDetail()" (click)="moreDetail.set(!moreDetail())">
         <mat-icon>{{ moreDetail() ? 'expand_less' : 'expand_more' }}</mat-icon>{{ moreDetail() ? 'Ocultar el análisis' : 'Ver análisis a fondo' }}
       </button>
       @if (moreDetail()) {
-      <!-- Ocupación, clientas, servicios que más dejan y horas fuertes. -->
-      <div class="mt-4 grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-2">
-        <article class="card">
+      <!-- Análisis a fondo como tablero de tiles: cifras chicas arriba, gráficas medianas y tablas a todo lo ancho. -->
+      <div class="tiles mt-4">
+        <article class="card tile-2">
           <div class="card-head">
             <span class="sec-icon"><mat-icon>event_seat</mat-icon></span>
             <h2 class="card-title">Ocupación</h2>
@@ -846,7 +867,7 @@
           }
         </article>
 
-        <article class="card">
+        <article class="card tile-2">
           <div class="card-head">
             <span class="sec-icon"><mat-icon>group_add</mat-icon></span>
             <h2 class="card-title">{{ copy.text().clients }}</h2>
@@ -873,7 +894,25 @@
           }
         </article>
 
-        <article class="card">
+        @if (misses(); as lost) {
+          <article class="card tile-2">
+            <div class="card-head">
+              <span class="sec-icon"><mat-icon>event_busy</mat-icon></span>
+              <h2 class="card-title">Faltas y cancelaciones</h2>
+            </div>
+            <p class="nums mt-3 text-3xl font-semibold tracking-tight" [style.color]="lost.rate >= 15 ? 'var(--nx-bad-fg)' : 'var(--color-ink)'">{{ lost.rate }}%</p>
+            <p class="text-sm text-muted">de las citas no se hicieron · <span class="nums">{{ money(lost.money) }}</span> que no entró</p>
+            <div class="mt-3 grid grid-cols-2 gap-3 text-sm">
+              <div><p class="nums text-lg font-semibold text-ink">{{ lost.cancelled }}</p><p class="text-muted">Cancelaron</p></div>
+              <div><p class="nums text-lg font-semibold text-ink">{{ lost.noShow }}</p><p class="text-muted">No llegaron</p></div>
+            </div>
+            @if (lost.rate >= 15) {
+              <p class="mt-3 text-sm text-ink-soft">Es alto. Pide anticipo a quien cancela seguido ({{ copy.text().clients }} → Cancelan seguido).</p>
+            }
+          </article>
+        }
+
+        <article class="card tile-3">
           <div class="card-head">
             <span class="sec-icon"><mat-icon>leaderboard</mat-icon></span>
             <h2 class="card-title">Servicios que más dejan</h2>
@@ -895,7 +934,7 @@
           }
         </article>
 
-        <article class="card">
+        <article class="card tile-3">
           <div class="card-head">
             <span class="sec-icon"><mat-icon>grid_on</mat-icon></span>
             <h2 class="card-title">Días y horas más fuertes</h2>
@@ -930,11 +969,7 @@
             }
           }
         </article>
-      </div>
-
-      <!-- Para decidir: qué servicio deja más por hora, cuánto se pierde en faltas, si regresan y cómo va el año. -->
-      <div class="mt-4 grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-2">
-        <article class="card lg:col-span-2">
+        <article class="card tile-6">
           <div class="card-head">
             <span class="sec-icon"><mat-icon>price_check</mat-icon></span>
             <div>
@@ -944,7 +979,7 @@
           </div>
           @if ((row.service_stats ?? []).length) {
             <div class="mt-3 overflow-x-auto">
-              <table class="w-full min-w-[34rem] text-sm">
+              <table class="w-full min-w-[34rem] text-sm [&_th]:px-4 [&_td]:px-4 [&_th]:whitespace-nowrap [&_td]:whitespace-nowrap">
                 <thead>
                   <tr class="text-left text-muted">
                     <th class="py-2 font-normal">Servicio</th>
@@ -981,26 +1016,8 @@
           }
         </article>
 
-        @if (misses(); as lost) {
-          <article class="card">
-            <div class="card-head">
-              <span class="sec-icon"><mat-icon>event_busy</mat-icon></span>
-              <h2 class="card-title">Faltas y cancelaciones</h2>
-            </div>
-            <p class="nums mt-3 text-3xl font-semibold tracking-tight" [style.color]="lost.rate >= 15 ? 'var(--nx-bad-fg)' : 'var(--color-ink)'">{{ lost.rate }}%</p>
-            <p class="text-sm text-muted">de las citas no se hicieron · <span class="nums">{{ money(lost.money) }}</span> que no entró</p>
-            <div class="mt-3 grid grid-cols-2 gap-3 text-sm">
-              <div><p class="nums text-lg font-semibold text-ink">{{ lost.cancelled }}</p><p class="text-muted">Cancelaron</p></div>
-              <div><p class="nums text-lg font-semibold text-ink">{{ lost.noShow }}</p><p class="text-muted">No llegaron</p></div>
-            </div>
-            @if (lost.rate >= 15) {
-              <p class="mt-3 text-sm text-ink-soft">Es alto. Pide anticipo a quien cancela seguido ({{ copy.text().clients }} → Cancelan seguido).</p>
-            }
-          </article>
-        }
-
         @if (loyalty(); as info) {
-          <article class="card">
+          <article class="card tile-2">
             <div class="card-head">
               <span class="sec-icon"><mat-icon>favorite</mat-icon></span>
               <h2 class="card-title">Que regresen</h2>
@@ -1034,7 +1051,7 @@
         }
 
         @if (yearBars().length) {
-          <article class="card lg:col-span-2">
+          <article class="card tile-4">
             <div class="flex flex-wrap items-center justify-between gap-3">
               <div class="card-head">
                 <span class="sec-icon"><mat-icon>calendar_month</mat-icon></span>
@@ -1169,7 +1186,7 @@
             </div>
           </div>
           <div class="mt-3 overflow-x-auto">
-            <table class="w-full min-w-[44rem] text-sm">
+            <table class="w-full min-w-[56rem] text-sm [&_th]:px-4 [&_td]:px-4 [&_th]:whitespace-nowrap [&_td]:whitespace-nowrap">
               <thead>
                 <tr class="text-left text-muted">
                   <th class="py-2 font-normal">{{ copy.text().person }}</th>
@@ -1196,7 +1213,7 @@
                     <td class="nums py-2.5 text-right text-ink-soft">{{ money(person.tips ?? 0) }}</td>
                     <td class="nums py-2.5 text-right" [style.color]="(person.no_shows ?? 0) + (person.cancels ?? 0) > 2 ? 'var(--nx-bad-fg)' : 'var(--color-ink-soft)'">{{ person.no_shows ?? 0 }} / {{ person.cancels ?? 0 }}</td>
                     <td class="nums py-2.5 text-right text-ink-soft">{{ person.returnShare === null ? '—' : person.returnShare + '%' }}</td>
-                    <td class="min-w-36 py-2.5 pl-3">
+                    <td class="min-w-44 py-2.5">
                       @if (person.goal) {
                         <div class="h-1.5 overflow-hidden rounded-full bg-canvas"><div class="h-full rounded-full bg-accent" [style.width.%]="percentOf(person.income, person.goal) > 100 ? 100 : percentOf(person.income, person.goal)"></div></div>
                         <span class="nums text-sm text-muted">{{ percentOf(person.income, person.goal) }}% de {{ money(person.goal) }}</span>

@@ -49,7 +49,7 @@
     </div>
 
     <!-- Índice en celular: chips que se deslizan de lado, con punto si algo falta. -->
-    <nav class="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1 lg:hidden" aria-label="Secciones de configuración">
+    <nav class="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:hidden" aria-label="Secciones de configuración">
       @for (section of sections; track section.id) {
         <button type="button" class="chip shrink-0 gap-1.5" [class.chip-on]="isOpen(section.id)" (click)="goTo(section.id)">
           {{ section.short ?? section.label }}
@@ -624,8 +624,8 @@
                       <span class="label req">%</span>
                       <input class="input nums" type="number" min="1" max="100" [value]="coupon.percent" (input)="editCoupon($index, { percent: toNumber($any($event.target).value) ?? 0 })" />
                     </label>
-                    <label class="flex min-h-11 items-center gap-2 text-sm text-ink-soft">
-                      <input type="checkbox" [checked]="coupon.first_visit" (change)="editCoupon($index, { first_visit: $any($event.target).checked })" />
+                    <label class="flex min-h-11 items-center gap-3 text-sm text-ink-soft">
+                      <button type="button" role="switch" class="switch" [attr.aria-checked]="coupon.first_visit" (click)="editCoupon($index, { first_visit: !coupon.first_visit })" aria-label="Solo primera visita"><span></span></button>
                       Solo primera visita
                     </label>
                     <button type="button" class="btn btn-ghost" [attr.aria-label]="'Quitar cupón ' + (coupon.code || $index + 1)" (click)="removeCoupon($index)">

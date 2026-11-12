@@ -2,6 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TimeFieldComponent } from '@shared/components/when-field/when-field';
+import { Stepper } from '@shared/components/stepper/stepper';
 import { FormStatusComponent } from '@shared/components/form-status/form-status';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
@@ -31,7 +32,7 @@ const DAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
  */
 @Component({
   selector: 'app-welcome-page',
-  imports: [MatIconModule, RouterLink, TimeFieldComponent, FormStatusComponent],
+  imports: [MatIconModule, RouterLink, TimeFieldComponent, FormStatusComponent, Stepper],
   templateUrl: './welcome-page.html',
 })
 export class WelcomePageComponent {
@@ -49,6 +50,7 @@ export class WelcomePageComponent {
   /** 1 a 4 son los pasos; 5 es la pantalla final ("Tu página está lista"). */
   protected readonly step = signal(1);
   protected readonly labels = ['Quién atiende', 'Horario', 'Servicios', 'Anticipo'];
+  protected readonly stepItems = this.labels.map((label, index) => ({ id: index + 1, label }));
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
   protected readonly error = signal<string | null>(null);

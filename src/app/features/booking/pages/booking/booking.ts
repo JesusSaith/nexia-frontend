@@ -7,7 +7,9 @@ import { LoadFailure, loadFailure, missing } from '@core/load-failure';
 import { phoneLabel, telLink } from '@core/phone-label';
 import { usefulDescription } from '@core/service-card';
 import { scrollBehavior } from '@core/motion';
+import { FAVORITES_KEY, clearFavorites, favoritesFirst, favoritesFor, toggleFavorite } from '@core/favorites';
 import { LAST_BOOKING_KEY, LastBooking, lastBookingFor, repeatable, withLastBooking } from '@core/last-booking';
+import { Stepper } from '@shared/components/stepper/stepper';
 import { NgTemplateOutlet } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ButtonShape, FONT_STACKS, FontStyle, SHAPE_RADIUS, readableOn, textOn } from '@core/theme';
@@ -82,6 +84,7 @@ function phoneDigits(control: AbstractControl): ValidationErrors | null {
     PickFieldComponent,
     PlaceMap,
     RouterLink,
+    Stepper,
   ],
   templateUrl: './booking.html',
   styleUrl: './booking.css',
@@ -147,6 +150,11 @@ export class Booking {
     this.route.parent?.snapshot.paramMap.get('businessSlug') ??
     '';
   protected readonly minDate = todayInputValue();
+
+  /** Servicios y personas que marcó como favoritos en este negocio (solo en su navegador). */
+  protected readonly favorites = signal(favoritesFor(Booking.readFavorites(), this.slug));
+  /** Los favoritos que siguen disponibles, para el atajo de arriba del Paso 1. */
+  protected readonly favoriteServices = computed(() => this.services().filter((service) => !service.is_hold && this.favorites().services.includes(service.id)));
 
   protected readonly step = signal(1);
   protected readonly reached = signal(1);
@@ -301,6 +309,8 @@ export class Booking {
     const value = this.brand()?.canvas_color;
     return value && /^#[0-9a-f]{6}$/i.test(value) ? value : null;
   });
+  /** Quien atiende, con los favoritos primero. */
+  protected readonly staffList = computed(() => favoritesFirst(this.eligibleStaff(), this.favorites().staff));
   protected readonly eligibleStaff = computed(() => {
     const service = this.selectedService();
     const members = this.staff();
@@ -502,6 +512,28 @@ export class Booking {
 
   protected minVariant(service: PublicService): number {
     return Math.min(...(service.variants ?? []).map((item) => item.price));
+  }
+
+  private static readFavorites(): string | null {
+    try {
+      return localStorage.getItem(FAVORITES_KEY);
+    } catch {
+      return null;
+    }
+  }
+
+  protected isFavorite(kind: 'services' | 'staff', id: number): boolean {
+    return this.favorites()[kind].includes(id);
+  }
+
+  /** Corazón de un servicio o de una persona: queda guardado en el navegador. */
+  protected toggleFavorite(kind: 'services' | 'staff', id: number): void {
+    try {
+      localStorage.setItem(FAVORITES_KEY, toggleFavorite(localStorage.getItem(FAVORITES_KEY), this.slug, kind, id));
+    } catch {
+      // Sin almacenamiento el corazón funciona esta visita, pero no se recuerda.
+    }
+    this.favorites.update((current) => ({ ...current, [kind]: current[kind].includes(id) ? current[kind].filter((item) => item !== id) : [...current[kind], id] }));
   }
 
   protected selectService(service: PublicService): void {
@@ -1280,9 +1312,11 @@ export class Booking {
   protected forgetClient(): void {
     try {
       localStorage.removeItem(CLIENT_KEY);
+      localStorage.setItem(FAVORITES_KEY, clearFavorites(localStorage.getItem(FAVORITES_KEY), this.slug));
     } catch {
       // Nada que borrar.
     }
+    this.favorites.set({ services: [], staff: [] });
     this.clientForm.patchValue({ client_name: '', client_phone: '', client_email: '' });
     this.clientForm.markAsUntouched();
     this.waitName.set('');

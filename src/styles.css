@@ -210,6 +210,13 @@ body {
 }
 
 .card { background: var(--color-surface); border: 1px solid var(--color-line); border-radius: var(--radius-2xl); padding: 1.25rem; box-shadow: var(--nx-card-shadow); }
+/* Tablero de tiles (Reportes): 1 columna en celular, 2 en tableta y 6 en pantalla grande; cada tile pide 2, 3, 4 o 6 de las 6. */
+.tiles { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+@media (min-width: 40rem) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .tile-4, .tile-6 { grid-column: span 2; } }
+@media (min-width: 64rem) {
+  .tiles { grid-template-columns: repeat(6, minmax(0, 1fr)); grid-auto-flow: dense; }
+  .tile-2 { grid-column: span 2; } .tile-3 { grid-column: span 3; } .tile-4 { grid-column: span 4; } .tile-6 { grid-column: span 6; }
+}
 .card-title { font-size: 0.9375rem; font-weight: 600; color: var(--color-ink); }
 /* Rayita del color de la marca antes de cada título de tarjeta: guía la vista entre tantas tarjetas. */
 .card-title::before { content: ''; display: inline-block; width: 3px; height: 0.85em; margin-right: 0.5rem; border-radius: 2px; background: var(--primary); vertical-align: -0.05em; }
@@ -883,3 +890,9 @@ mat-icon {
   :root:where(:not([data-theme='light'])) { --viz-1: #3987e5; --viz-2: #d95926; --viz-3: #199e70; --viz-4: #c98500; --viz-5: #d55181; --viz-6: #008300; }
 }
 :root[data-theme='dark'] { --viz-1: #3987e5; --viz-2: #d95926; --viz-3: #199e70; --viz-4: #c98500; --viz-5: #d55181; --viz-6: #008300; }
+
+/* Arrastrar y soltar (Angular CDK): la tarjeta que se lleva, el hueco que deja y el movimiento al soltar. */
+.cdk-drag-preview { box-sizing: border-box; border-radius: var(--radius-2xl); box-shadow: 0 18px 40px rgb(0 0 0 / 0.3); background: var(--color-canvas); }
+.cdk-drag-placeholder { opacity: 0.35; }
+.cdk-drag-animating, .cdk-drop-list-dragging .cdk-drag { transition: transform 220ms cubic-bezier(0, 0, 0.2, 1); }
+@media (prefers-reduced-motion: reduce) { .cdk-drag-animating, .cdk-drop-list-dragging .cdk-drag { transition: none; } }
