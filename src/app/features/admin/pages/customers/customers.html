@@ -2,7 +2,7 @@
   <header class="page-head">
     <div>
       <h1>{{ copy.text().clients }}</h1>
-      <p>Quien reserva con el mismo teléfono queda en una sola ficha.</p>
+      <p>@if (loaded() && clients().length) {<span class="nums">{{ clients().length }}</span> {{ clients().length === 1 ? copy.text().client.toLowerCase() : copy.text().clients.toLowerCase() }} · }Quien reserva con el mismo teléfono queda en una sola ficha.</p>
     </div>
     <!-- Celular: descargar e importar van en un menú con texto; agregar queda a la vista. -->
     <input #csvPhone type="file" accept=".csv,text/csv" class="sr-only" tabindex="-1" aria-hidden="true" [disabled]="importing()" (change)="importCsv($event)" />
@@ -154,7 +154,7 @@
             }
           </select>
         </label>
-        <div class="mt-2 hidden items-center gap-2 text-sm text-muted sm:flex">
+        <div class="mt-2 hidden items-center gap-2 text-sm text-muted sm:flex md:hidden">
           <span>Ordenar:</span>
           @for (option of sorts; track option.key) {
             <button type="button" class="min-h-11 rounded-md px-2" [class.font-semibold]="sort() === option.key" [class.text-ink]="sort() === option.key" (click)="sort.set(option.key)">{{ option.label }}</button>
@@ -178,24 +178,39 @@
           }
         </div>
       } @else {
-        <ul class="mt-2 divide-y divide-line">
+        @let sortable = filter() !== 'best' && filter() !== 'missing' && filter() !== 'birthday';
+        <!-- Pantalla grande: encabezados de tabla; los que se pueden ordenar son botones. -->
+        @if (sortable) {
+        <div class="mt-3 hidden grid-cols-[2.25rem_minmax(0,2.2fr)_minmax(0,1.3fr)_5rem_7rem_minmax(0,1.6fr)] items-center gap-x-3 border-b border-line pb-2 text-sm text-muted md:grid" role="group" aria-label="Ordenar la lista">
+          <span></span>
+          <span class=""><button type="button" class="inline-flex min-h-11 items-center gap-0.5 rounded-md" [class.font-semibold]="sort() === 'name'" [class.text-ink]="sort() === 'name'" [attr.aria-pressed]="sort() === 'name'" (click)="sort.set('name')">{{ copy.text().client }}@if (sort() === 'name') { <mat-icon class="h-4! w-4! text-[16px]!" aria-hidden="true">arrow_upward</mat-icon> }</button></span>
+          <span class=""><button type="button" class="inline-flex min-h-11 items-center gap-0.5 rounded-md" [class.font-semibold]="sort() === 'recent'" [class.text-ink]="sort() === 'recent'" [attr.aria-pressed]="sort() === 'recent'" (click)="sort.set('recent')">Visita@if (sort() === 'recent') { <mat-icon class="h-4! w-4! text-[16px]!" aria-hidden="true">arrow_downward</mat-icon> }</button></span>
+          <span class="text-right"><button type="button" class="inline-flex min-h-11 items-center gap-0.5 rounded-md" [class.font-semibold]="sort() === 'visits'" [class.text-ink]="sort() === 'visits'" [attr.aria-pressed]="sort() === 'visits'" (click)="sort.set('visits')">@if (sort() === 'visits') { <mat-icon class="h-4! w-4! text-[16px]!" aria-hidden="true">arrow_downward</mat-icon> }Visitas</button></span>
+          <span class="text-right"><button type="button" class="inline-flex min-h-11 items-center gap-0.5 rounded-md" [class.font-semibold]="sort() === 'spent'" [class.text-ink]="sort() === 'spent'" [attr.aria-pressed]="sort() === 'spent'" (click)="sort.set('spent')">@if (sort() === 'spent') { <mat-icon class="h-4! w-4! text-[16px]!" aria-hidden="true">arrow_downward</mat-icon> }Gastado</button></span>
+          <span>Estado</span>
+        </div>
+        }
+        <ul class="divide-y divide-line md:mt-0 mt-2">
           @for (client of visible(); track client.id) {
             <li class="flex items-center gap-2">
               <button
                 type="button"
-                class="row-hover -mx-2 flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-3 text-left"
+                class="row-hover -mx-2 grid min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-lg px-2 py-3 text-left md:grid-cols-[2.25rem_minmax(0,2.2fr)_minmax(0,1.3fr)_5rem_7rem_minmax(0,1.6fr)]"
                 [class.bg-accent-soft]="selecting() && isSelected(client.id)"
                 [attr.role]="selecting() ? 'checkbox' : null"
                 [attr.aria-checked]="selecting() ? isSelected(client.id) : null"
                 (click)="selecting() ? toggleOne(client.id) : open(client.id)"
               >
-                @if (selecting()) {
-                  <mat-icon class="shrink-0" [class.text-accent]="isSelected(client.id)" [class.text-muted]="!isSelected(client.id)" aria-hidden="true">{{ isSelected(client.id) ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
-                }
-                <span class="avatar">{{ initials(client.full_name) }}</span>
-                <span class="min-w-0 flex-1">
+                <span class="flex items-center gap-2">
+                  @if (selecting()) {
+                    <mat-icon class="shrink-0" [class.text-accent]="isSelected(client.id)" [class.text-muted]="!isSelected(client.id)" aria-hidden="true">{{ isSelected(client.id) ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+                  }
+                  <span class="avatar">{{ initials(client.full_name) }}</span>
+                </span>
+                <span class="min-w-0">
                   <span class="block truncate text-sm font-medium text-ink">{{ client.full_name }}</span>
-                  <span class="block truncate text-sm text-muted">
+                  <!-- Celular: debajo del nombre va el estado de la última o próxima visita. -->
+                  <span class="block truncate text-sm text-muted md:hidden">
                     @if (filter() === 'birthday') {
                       <span class="text-(--nx-info-fg)">{{ birthdayLabel(client) }}</span>
                     } @else if (client.next_visit) {
@@ -206,16 +221,36 @@
                       <span class="nums">{{ client.phone }}</span>
                     }
                   </span>
+                  <span class="nums hidden truncate text-sm text-muted md:block">{{ client.phone }}</span>
                 </span>
-                <span class="flex shrink-0 flex-col items-end gap-1">
+                <!-- Pantalla grande: la visita tiene su columna. -->
+                <span class="hidden min-w-0 truncate text-sm text-muted md:block">
+                  @if (filter() === 'birthday') {
+                    <span class="text-(--nx-info-fg)">{{ birthdayLabel(client) }}</span>
+                  } @else if (client.next_visit) {
+                    <span class="text-(--nx-info-fg)">Próxima: {{ nextLabel(client.next_visit) }}</span>
+                  } @else if (client.last_visit) {
+                    {{ ago(client.last_visit) }}
+                  } @else {
+                    —
+                  }
+                </span>
+                <span class="nums hidden text-right text-sm text-ink md:block">{{ client.visit_count || '—' }}</span>
+                <span class="nums hidden text-right text-sm font-semibold text-ink md:block">{{ client.visit_count > 0 ? spent(client.total_spent) : '—' }}</span>
+                <!-- Celular: gasto y visitas a la derecha. -->
+                <span class="flex shrink-0 flex-col items-end md:hidden">
                   @if (client.visit_count > 0) {
                     <span class="nums text-sm font-semibold text-ink">{{ spent(client.total_spent) }}</span>
                     <span class="nums text-sm text-muted">{{ client.visit_count }} {{ client.visit_count === 1 ? 'visita' : 'visitas' }}</span>
-                  } @else {
+                  }
+                </span>
+                <!-- Etiquetas de estado: en celular van en una línea debajo, en pantalla grande en su columna. -->
+                <span class="col-span-2 col-start-2 flex flex-wrap items-center gap-1 empty:hidden md:col-span-1 md:col-start-auto">
+                  @if (client.visit_count === 0) {
                     <span class="badge badge-info">Primera vez</span>
                   }
-                  @if (contactNote(client); as note) {
-                    <span class="text-sm text-muted">{{ note }}</span>
+                  @if (!hasPhone(client)) {
+                    <span class="badge badge-neutral">Sin celular</span>
                   }
                   @if (isCanceller(client)) {
                     <span class="badge badge-warn"><span class="nums">{{ client.cancel_count + (client.no_show_count ?? 0) }}</span> cancel./faltas</span>
@@ -226,13 +261,14 @@
                   @for (tag of (client.tags ?? []).slice(0, 2); track tag) {
                     <span class="badge badge-neutral">{{ tag }}</span>
                   }
+                  @if (contactNote(client); as note) {
+                    <span class="text-sm text-muted">{{ note }}</span>
+                  }
                 </span>
               </button>
-              @if (!hasPhone(client)) {
-                <span class="badge badge-neutral shrink-0">Sin celular</span>
-              } @else if (filter() === 'missing') {
+              @if (hasPhone(client) && filter() === 'missing') {
                 <a class="btn btn-whatsapp shrink-0 px-3!" [href]="missYou(client)" target="_blank" rel="noopener" (click)="logContact(client, 'invitar')">{{ client.last_contact_at ? 'Invitar otra vez' : 'Invitar' }}</a>
-              } @else if (filter() === 'birthday') {
+              } @else if (hasPhone(client) && filter() === 'birthday') {
                 <a class="btn btn-whatsapp shrink-0 px-3!" [href]="birthdayWish(client)" target="_blank" rel="noopener" (click)="logContact(client, 'felicitar')">Felicitar</a>
               }
             </li>
