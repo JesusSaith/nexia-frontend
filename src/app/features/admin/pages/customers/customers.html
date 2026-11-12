@@ -84,7 +84,7 @@
     </div>
   } @else if (loaded()) {
     <!-- Filtros: una fila de chips con el número dentro. En celular se desliza de lado; en pantalla grande se acomoda en varias líneas. -->
-    <div class="-mx-3 mb-4 flex gap-2 overflow-x-auto px-3 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0" role="tablist" aria-label="Filtrar clientes">
+    <div class="-mx-3 mb-4 flex gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0" role="tablist" aria-label="Filtrar clientes">
       @for (chip of chips; track chip.key) {
         <button type="button" role="tab" class="chip h-11! shrink-0 gap-2 px-4!" [class.chip-on]="filter() === chip.key" [attr.aria-selected]="filter() === chip.key" (click)="filter.set(chip.key)">
           <mat-icon class="hidden h-[18px]! w-[18px]! text-[18px]! sm:block" aria-hidden="true">{{ chip.icon }}</mat-icon>
