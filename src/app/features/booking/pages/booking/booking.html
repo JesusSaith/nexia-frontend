@@ -210,6 +210,19 @@
           <button type="button" class="btn btn-secondary shrink-0" (click)="repeatLast()">Elegir horario</button>
         </section>
       }
+      @if (favoriteServices().length && !shopNote().pause) {
+        <section aria-label="Tus favoritos">
+          <h2 class="mb-2 text-base font-medium">Tus favoritos</h2>
+          <div class="flex flex-wrap gap-2">
+            @for (service of favoriteServices(); track service.id) {
+              <button type="button" class="choice-card flex min-h-11 items-center gap-2 px-4 py-2 text-left text-sm" [class.choice-selected]="selectedService()?.id === service.id" (click)="selectService(service)">
+                <mat-icon class="shrink-0" style="font-variation-settings: 'FILL' 1; color: var(--booking-ink, var(--booking-primary))" aria-hidden="true">favorite</mat-icon>
+                <span class="font-medium">{{ service.name }}</span>
+              </button>
+            }
+          </div>
+        </section>
+      }
       <div>
         <h2 class="mb-3 text-base font-medium">Servicio</h2>
         @if (searchable()) {
@@ -239,9 +252,10 @@
           }
           <div class="grid gap-3 sm:grid-cols-2">
             @for (service of visibleServices(); track service.id) {
+              <div class="relative">
               <button
                 type="button"
-                class="choice-card service-card flex gap-3 p-4 text-left"
+                class="choice-card service-card flex h-full w-full gap-3 p-4 pr-12 text-left"
                 [class.choice-selected]="selectedService()?.id === service.id"
                 (click)="selectService(service)"
               >
@@ -268,6 +282,8 @@
                   }
                 </span>
               </button>
+              <button type="button" class="absolute right-1 top-1 flex h-11 w-11 items-center justify-center rounded-full text-ink-soft" [style.color]="isFavorite('services', service.id) ? 'var(--booking-ink, var(--booking-primary))' : null" [attr.aria-pressed]="isFavorite('services', service.id)" [attr.aria-label]="(isFavorite('services', service.id) ? 'Quitar de favoritos: ' : 'Guardar en favoritos: ') + service.name" (click)="toggleFavorite('services', service.id)"><mat-icon [style.font-variation-settings]="isFavorite('services', service.id) ? '\'FILL\' 1' : null" aria-hidden="true">favorite</mat-icon></button>
+              </div>
             }
           </div>
           @if (holdService(); as hold) {
@@ -380,10 +396,11 @@
                 </span>
               </button>
             }
-            @for (member of eligibleStaff(); track member.id) {
+            @for (member of staffList(); track member.id) {
+              <div class="relative">
               <button
                 type="button"
-                class="choice-card flex items-start gap-4 p-4 text-left"
+                class="choice-card flex h-full w-full items-start gap-4 p-4 pr-12 text-left"
                 [class.choice-selected]="selectedStaff()?.id === member.id"
                 (click)="selectStaff(member)"
               >
@@ -404,6 +421,8 @@
                   }
                 </span>
               </button>
+              <button type="button" class="absolute right-1 top-1 flex h-11 w-11 items-center justify-center rounded-full text-ink-soft" [style.color]="isFavorite('staff', member.id) ? 'var(--booking-ink, var(--booking-primary))' : null" [attr.aria-pressed]="isFavorite('staff', member.id)" [attr.aria-label]="(isFavorite('staff', member.id) ? 'Quitar de favoritos: ' : 'Guardar en favoritos: ') + member.full_name" (click)="toggleFavorite('staff', member.id)"><mat-icon [style.font-variation-settings]="isFavorite('staff', member.id) ? '\'FILL\' 1' : null" aria-hidden="true">favorite</mat-icon></button>
+              </div>
             }
           </div>
           }
