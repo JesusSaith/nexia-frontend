@@ -347,9 +347,9 @@
             <button type="button" [class.is-on]="form.controls.is_active.value" [attr.aria-pressed]="form.controls.is_active.value" (click)="form.controls.is_active.setValue(true)">Activo</button>
             <button type="button" [class.is-on]="!form.controls.is_active.value" [attr.aria-pressed]="!form.controls.is_active.value" (click)="form.controls.is_active.setValue(false)">Pausado</button>
           </div>
-          <label class="mt-2 flex min-h-11 items-center gap-2 text-sm text-ink">
-            <input class="h-5 w-5" type="checkbox" formControlName="featured" />
+          <label class="mt-2 flex min-h-11 items-center justify-between gap-4 text-sm text-ink">
             Destacarlo ("El más pedido")
+            <button type="button" role="switch" class="switch" [attr.aria-checked]="form.controls.featured.value" (click)="form.controls.featured.setValue(!form.controls.featured.value)" aria-label="Destacarlo"><span></span></button>
           </label>
         </div>
 

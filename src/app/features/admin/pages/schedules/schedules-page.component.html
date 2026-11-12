@@ -83,7 +83,7 @@
                 } @else if (day.day_of_week > 0) {
                   <button type="button" class="btn btn-ghost hidden px-3! sm:inline-flex" (click)="sameAsPrevious(day.day_of_week)">Igual que el {{ dayLabels[day.day_of_week - 1].toLowerCase() }}</button>
                 }
-                <mat-slide-toggle [checked]="day.is_active" [attr.aria-label]="(day.is_active ? 'Cerrar ' : 'Abrir ') + dayLabels[day.day_of_week]" (change)="setActive(day.day_of_week, $event.checked)" />
+                <button type="button" role="switch" class="switch" [attr.aria-checked]="day.is_active" [attr.aria-label]="(day.is_active ? 'Cerrar ' : 'Abrir ') + dayLabels[day.day_of_week]" (click)="setActive(day.day_of_week, !day.is_active)"><span></span></button>
               </span>
             </div>
 
@@ -224,8 +224,8 @@
           <input class="input" name="specialNote" maxlength="80" placeholder="Nochebuena, temporada de diciembre…" [(ngModel)]="special.note" />
         </label>
         <div class="flex flex-col gap-1 sm:col-span-2">
-          <label class="flex min-h-11 items-center gap-2 text-sm text-ink"><input type="checkbox" class="h-5 w-5" name="specialClosed" [(ngModel)]="special.closed" />Cerrado esos días</label>
-          <label class="flex min-h-11 items-center gap-2 text-sm text-ink"><input type="checkbox" class="h-5 w-5" name="specialAll" [(ngModel)]="special.all" />Para todo el equipo (si no, solo esta persona)</label>
+          <label class="flex min-h-11 items-center justify-between gap-4 text-sm text-ink">Cerrado esos días<button type="button" role="switch" class="switch" [attr.aria-checked]="special.closed" (click)="special.closed = !special.closed" aria-label="Cerrado esos días"><span></span></button></label>
+          <label class="flex min-h-11 items-center justify-between gap-4 text-sm text-ink">Para todo el equipo (si no, solo esta persona)<button type="button" role="switch" class="switch" [attr.aria-checked]="special.all" (click)="special.all = !special.all" aria-label="Para todo el equipo"><span></span></button></label>
         </div>
         <button type="submit" class="btn btn-secondary sm:col-span-4 sm:justify-self-start" [disabled]="specialMissing().length > 0">Guardar horario especial</button>
         @if (specialError(); as message) {

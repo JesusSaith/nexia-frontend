@@ -359,9 +359,9 @@
                   </label>
                 </div>
                 @if (cashMoveKind() === 'out') {
-                  <label class="mt-2 flex min-h-11 items-center gap-3 text-sm text-ink-soft">
-                    <input type="checkbox" class="h-5 w-5" [checked]="cashMoveExpense()" (change)="cashMoveExpense.set($any($event.target).checked)" />
+                  <label class="mt-2 flex min-h-11 items-center justify-between gap-4 text-sm text-ink-soft">
                     Anotarlo también como gasto del día
+                    <button type="button" role="switch" class="switch" [attr.aria-checked]="cashMoveExpense()" (click)="cashMoveExpense.set(!cashMoveExpense())" aria-label="Anotarlo también como gasto del día"><span></span></button>
                   </label>
                 }
                 @if (cashMoveMissing().length > 0) {

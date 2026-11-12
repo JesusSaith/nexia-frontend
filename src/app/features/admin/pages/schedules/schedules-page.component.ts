@@ -13,7 +13,6 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { Loader } from '@shared/components/loader/loader';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 
 import { BusinessCopy } from '@core/business-copy';
 import { Toasts } from '@core/toasts';
@@ -42,7 +41,6 @@ const DAY_LABELS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sába
     MatButtonModule,
     MatIconModule,
     Loader,
-    MatSlideToggleModule,
     PickFieldComponent,
     TimeFieldComponent,
     WeekdayPickerComponent,

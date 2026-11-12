@@ -600,9 +600,9 @@
         </label>
       }
       @if (packageLeft(); as pack) {
-        <label class="flex items-center gap-2 text-sm">
-          <input type="checkbox" [checked]="usePackage()" (change)="usePackage.set($any($event.target).checked)" />
-          Usar paquete {{ pack.label }}. Quedan {{ pack.remaining }}{{ pack.expires_at ? ' · vence el ' + shortDate(pack.expires_at) : '' }}.
+        <label class="flex min-h-11 items-center justify-between gap-4 text-sm">
+          <span>Usar paquete {{ pack.label }}. Quedan {{ pack.remaining }}{{ pack.expires_at ? ' · vence el ' + shortDate(pack.expires_at) : '' }}.</span>
+          <button type="button" role="switch" class="switch" [attr.aria-checked]="usePackage()" (click)="usePackage.set(!usePackage())" aria-label="Usar mi paquete"><span></span></button>
         </label>
       }
       @if (selectedService()?.questions) {
