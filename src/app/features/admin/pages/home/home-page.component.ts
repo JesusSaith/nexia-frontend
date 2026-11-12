@@ -223,17 +223,21 @@ export class HomePageComponent {
     return [...groups.values()];
   });
   protected readonly unseenCount = computed(() => this.groupedNotices().filter((notice) => notice.unseen).length);
+  /** Primero lo nuevo: si hay avisos sin ver, solo salen esos hasta que se pidan los anteriores. */
+  protected readonly showOld = signal(false);
+  protected readonly hasOlder = computed(() => !this.showOld() && this.unseenCount() > 0 && this.groupedNotices().length > this.unseenCount());
+  private readonly baseNotices = computed(() => (this.hasOlder() ? this.groupedNotices().filter((notice) => notice.unseen) : this.groupedNotices()));
 
   /** Filtro por tipo: solo salen los tipos que sí hay, y solo si hay más de uno. */
   protected readonly noticeFilter = signal<NoticeGroup | null>(null);
   protected readonly noticeChips = computed(() => {
-    const rows = this.groupedNotices();
+    const rows = this.baseNotices();
     const chips = NOTICE_GROUPS.map((group) => ({ ...group, count: rows.filter((row) => noticeGroup(row.kind) === group.key).length })).filter((chip) => chip.count > 0);
     return chips.length > 1 ? chips : [];
   });
   protected readonly filteredNotices = computed(() => {
     const only = this.noticeFilter();
-    const rows = this.groupedNotices();
+    const rows = this.baseNotices();
     return only && this.noticeChips().some((chip) => chip.key === only) ? rows.filter((row) => noticeGroup(row.kind) === only) : rows;
   });
   protected readonly shownNotices = computed(() => (this.allNotices() ? this.filteredNotices() : this.filteredNotices().slice(0, NOTICES_SHORT)));
@@ -250,6 +254,8 @@ export class HomePageComponent {
     const slug = this.auth.currentUser()?.slug ?? '';
     return slug ? this.bookingApi.shareUrl(slug).replace(/^https?:\/\//, '') : '';
   });
+  /** El enlace sin "https://" ni parámetros, para que quepa en una línea. */
+  protected readonly shortLink = computed(() => this.bookingLink().replace(/\?.*$/, ''));
   protected readonly isPhoneValue = isPhone;
   protected readonly linkCopied = signal(false);
   protected copyLink(): void {
