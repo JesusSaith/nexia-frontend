@@ -415,8 +415,8 @@
       </div>
     } @else if (!(view() === 'income' && isEmpty())) {
     <div class="grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)]">
-      <div class="flex min-w-0 flex-col gap-4" [class.h-full]="view() !== 'expenses'">
-        <article class="card flex flex-col" [class.flex-1]="view() !== 'expenses'">
+      <div class="flex min-w-0 flex-col gap-4" [class.h-full]="view() !== 'expenses'" [style.display]="view() === 'expenses' ? 'contents' : null">
+        <article class="card flex flex-col lg:col-start-1 lg:row-start-1" [class.flex-1]="view() !== 'expenses'">
           <div class="card-head">
             <span class="sec-icon"><mat-icon>{{ view() === 'expenses' ? 'pie_chart' : view() === 'staff' ? 'groups' : view() === 'commission' ? 'payments' : 'show_chart' }}</mat-icon></span>
             @if (view() === 'income') {
@@ -515,7 +515,7 @@
           }
         </article>
         @if (view() === 'expenses' && books(); as row) {
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-2 gap-3 lg:col-start-1 lg:row-start-2">
             <div class="stat">
               <span class="stat-icon stat-accent"><mat-icon>home_work</mat-icon></span>
               <span class="min-w-0">
@@ -534,7 +534,7 @@
             </div>
           </div>
           @if (categoryRows().length) {
-            <article class="card">
+            <article class="card lg:col-start-1 lg:row-start-3 lg:self-stretch">
               <div class="card-head">
                 <span class="sec-icon"><mat-icon>percent</mat-icon></span>
                 <div>
@@ -555,7 +555,7 @@
             </article>
           }
           @if ((row.expenses ?? []).length) {
-            <article class="card">
+            <article class="card lg:col-start-1 lg:row-start-4 lg:self-stretch">
               <div class="card-head">
                 <span class="sec-icon"><mat-icon>receipt_long</mat-icon></span>
                 <div>
@@ -589,7 +589,7 @@
         }
       </div>
 
-      <div class="flex flex-col gap-4" [class.h-full]="view() !== 'expenses'">
+      <div class="flex flex-col gap-4" [class.h-full]="view() !== 'expenses'" [style.display]="view() === 'expenses' ? 'contents' : null">
         @if (view() === 'income') {
           @if (books(); as row) {
             <article class="card">
@@ -749,7 +749,7 @@
           </article>
         }
         @if (view() === 'expenses') {
-          <article class="card" aria-label="Próximos pagos">
+          <article class="card lg:col-start-2 lg:row-start-1 lg:row-span-2" aria-label="Próximos pagos">
           <div class="flex items-center gap-2"><h2 class="card-title">Próximos pagos</h2></div>
           @if ((books()?.upcoming_fixed ?? []).length) {
             <ul class="mt-2 divide-y divide-line text-sm">
@@ -767,7 +767,7 @@
             <p class="mt-2 text-sm text-muted">No hay gastos fijos por pagar en los próximos 30 días.</p>
           }
         </article>
-        <article class="card">
+        <article class="card lg:col-start-2 lg:row-start-3 lg:row-span-2">
             <div class="card-head">
               <span class="sec-icon"><mat-icon>add_card</mat-icon></span>
               <h2 class="card-title">Agregar gasto</h2>
