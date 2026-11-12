@@ -1,5 +1,5 @@
 import { AutocompleteFieldComponent } from '@shared/components/autocomplete/autocomplete';
-import { DateFieldComponent } from '@shared/components/when-field/when-field';
+import { DateFieldComponent, PickFieldComponent, plain } from '@shared/components/when-field/when-field';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormStatusComponent } from '@shared/components/form-status/form-status';
 import { Component, DestroyRef, HostListener, computed, inject, signal } from '@angular/core';
@@ -28,7 +28,7 @@ const AWAY_DAYS = 45;
 
 @Component({
   selector: 'app-customers',
-  imports: [AutocompleteFieldComponent, DateFieldComponent, MatIconModule, MatMenuModule, FormsModule, RouterLink, Skeleton, FormStatusComponent],
+  imports: [AutocompleteFieldComponent, DateFieldComponent, PickFieldComponent, MatIconModule, MatMenuModule, FormsModule, RouterLink, Skeleton, FormStatusComponent],
   templateUrl: './customers.html',
 })
 export class Customers {
@@ -302,6 +302,41 @@ export class Customers {
   // Acciones en bloque: seleccionar varios para etiquetarlos o escribirles uno tras otro.
   /** Solo propietario y administración (la API también lo exige). */
   protected readonly canBulk = computed(() => !this.auth.isStaff());
+
+  /** Nombres que aparecen en más de una ficha (sin importar mayúsculas ni acentos): posibles repetidos. */
+  private readonly repeatedNames = computed(() => {
+    const seen = new Map<string, number>();
+    for (const row of this.clients()) {
+      const key = plain(row.full_name).replace(/\s+/g, ' ').trim();
+      seen.set(key, (seen.get(key) ?? 0) + 1);
+    }
+    return new Set([...seen].filter(([, count]) => count > 1).map(([key]) => key));
+  });
+
+  protected isRepeated(client: ClientRow): boolean {
+    return this.canBulk() && this.repeatedNames().has(plain(client.full_name).replace(/\s+/g, ' ').trim());
+  }
+
+  /** Unir a mano: la ficha abierta se queda y absorbe a la que se elige. */
+  protected readonly merging = signal(false);
+  protected readonly mergePicks = computed(() => {
+    const open = this.card();
+    const key = open ? plain(open.full_name).replace(/\s+/g, ' ').trim() : '';
+    return this.clients()
+      .filter((row) => row.id !== open?.id)
+      .map((row) => ({ value: row.id, label: `${row.full_name} · ${row.phone}`, hint: plain(row.full_name).replace(/\s+/g, ' ').trim() === key ? 'Mismo nombre' : undefined }))
+      .sort((a, b) => (b.hint ? 1 : 0) - (a.hint ? 1 : 0) || a.label.localeCompare(b.label, 'es'));
+  });
+
+  protected mergeWith(value: string | number | null): void {
+    const open = this.card();
+    const twin = typeof value === 'number' ? this.clients().find((row) => row.id === value) : null;
+    if (!open || !twin) {
+      return;
+    }
+    this.merging.set(false);
+    void this.offerMerge(open.id, open.full_name, twin, true);
+  }
   protected readonly selecting = signal(false);
   protected readonly selected = signal<ReadonlySet<number>>(new Set());
   protected readonly selectedRows = computed(() => this.visible().filter((row) => this.selected().has(row.id)));
@@ -530,6 +565,7 @@ export class Customers {
   protected open(id: number): void {
     this.saveNotes();
     this.birthdayState.set('idle');
+    this.merging.set(false);
     this.notesState.set('idle');
     this.editing.set(false);
     this.historyShown.set(8);
@@ -548,6 +584,7 @@ export class Customers {
   /** Al cerrar se guardan las notas que quedaron sin guardar. */
   protected close(): void {
     this.saveNotes();
+    this.merging.set(false);
     this.card.set(null);
     if (this.route.snapshot.queryParamMap.has('ficha')) {
       // Se quita de la dirección para poder abrir la misma ficha otra vez desde el buscador.
@@ -653,10 +690,10 @@ export class Customers {
   }
 
   /** Ese teléfono ya es de otra ficha: en vez de un error, se ofrece juntarlas (típico: primero escribió por Instagram y luego dio su celular). */
-  private async offerMerge(keepId: number, keepName: string, twin: ClientRow): Promise<void> {
+  private async offerMerge(keepId: number, keepName: string, twin: ClientRow, manual = false): Promise<void> {
     const ok = await this.confirm.ask({
-      title: `Ese teléfono ya es de ${twin.full_name}`,
-      message: `¿Son la misma persona? Se unen en una sola ficha: las citas, paquetes y notas de ${twin.full_name} pasan a la de ${keepName}, y la ficha repetida se borra. No se puede deshacer.`,
+      title: manual ? `¿Unir con ${twin.full_name}?` : `Ese teléfono ya es de ${twin.full_name}`,
+      message: `${manual ? '' : '¿Son la misma persona? '}Se unen en una sola ficha: las citas, paquetes y notas de ${twin.full_name} pasan a la de ${keepName}, y la ficha repetida se borra.${manual ? ` Se queda el teléfono de ${keepName}.` : ''} No se puede deshacer.`,
       confirm: 'Unir las fichas',
     });
     if (!ok) {

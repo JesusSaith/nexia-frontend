@@ -80,7 +80,11 @@
       <mat-icon>person_search</mat-icon>
       <p class="font-medium text-ink">Aún no tienes {{ copy.text().clients.toLowerCase() }}</p>
       <p>Se agregan solos cuando alguien reserva o cuando creas una cita. También puedes agregarlos a mano.</p>
-      <a routerLink="/admin/negocio" class="btn btn-secondary">Compartir mi enlace de reservas</a>
+      <div class="mt-1 flex flex-wrap justify-center gap-2">
+        <button type="button" class="btn btn-primary" (click)="adding.set(true)"><mat-icon>person_add</mat-icon>Agregar {{ copy.text().client.toLowerCase() }}</button>
+        <a routerLink="/admin/negocio" class="btn btn-secondary"><mat-icon>share</mat-icon>Compartir mi enlace de reservas</a>
+      </div>
+      <p class="field-hint">¿Ya tienes una lista en Excel? Usa "Importar" (arriba) con un archivo CSV de nombre y teléfono.</p>
     </div>
   } @else if (loaded()) {
     <!-- Filtros: una fila de chips con el número dentro. En celular se desliza de lado; en pantalla grande se acomoda en varias líneas. -->
@@ -174,6 +178,9 @@
                     }
                     @if (!hasPhone(client)) {
                       <span class="badge badge-neutral">Sin celular</span>
+                    }
+                    @if (isRepeated(client)) {
+                      <span class="badge badge-warn">Posible repetido</span>
                     }
                     @if (isCanceller(client)) {
                       <span class="badge badge-warn"><span class="nums">{{ client.cancel_count + (client.no_show_count ?? 0) }}</span> cancel./faltas</span>
@@ -464,6 +471,26 @@
         }
       }
     </section>
+
+    @if (canBulk() && mergePicks().length) {
+      <section class="card">
+        <div class="card-head">
+          <span class="sec-icon"><mat-icon>merge</mat-icon></span>
+          <div>
+            <h3 class="card-title">¿Está repetido?</h3>
+            <p class="text-sm text-muted">Si esta persona tiene otra ficha (por ejemplo, con otro teléfono), únelas para ver todo su historial junto.</p>
+          </div>
+        </div>
+        @if (merging()) {
+          <div class="mt-3">
+            <app-pick-field [options]="mergePicks()" placeholder="Elige la ficha repetida" (picked)="mergeWith($event)" />
+            <button type="button" class="btn btn-ghost mt-2" (click)="merging.set(false)">Cancelar</button>
+          </div>
+        } @else {
+          <button type="button" class="btn btn-secondary mt-3" (click)="merging.set(true)"><mat-icon>merge</mat-icon>Unir con otra ficha</button>
+        }
+      </section>
+    }
 
     <div class="border-t border-line pt-4">
       <button type="button" class="btn btn-ghost w-full text-(--nx-bad-fg)" (click)="deleteClient()">
