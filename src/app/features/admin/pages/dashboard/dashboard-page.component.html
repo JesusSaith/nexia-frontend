@@ -87,7 +87,6 @@
           <a routerLink="/admin/agenda" class="btn btn-secondary mt-1">Ir a la agenda</a>
         </div>
       } @else {
-        <p class="mb-3 text-base font-medium text-ink" role="status">{{ incomeLine() }}</p>
         <!-- Las tres preguntas de la dueña, con su respuesta y a dónde ir. -->
         @if (glance(); as g) {
           <section class="card mb-6 p-4!" aria-label="Resumen de tu negocio">
@@ -97,31 +96,37 @@
                 <p class="nums mt-1 text-2xl font-semibold tracking-tight" [class.text-[var(--nx-ok-fg)]]="g.profit >= 0" [class.text-[var(--nx-bad-fg)]]="g.profit < 0">
                   {{ g.profit >= 0 ? 'Ganas ' : 'Pierdes ' }}{{ money(g.profit < 0 ? -g.profit : g.profit) }}
                 </p>
-                <p class="text-sm text-ink-soft">
-                  {{ periodWord() }}.
-                  {{ g.covered ? 'Ya cubriste tus gastos.' : g.gap > 0 ? 'Te faltan ' + money(g.gap) + ' de ingresos para cubrir tus gastos.' : '' }}
-                </p>
+                <p class="text-sm text-ink-soft">{{ periodWord() }}.</p>
               </div>
               <div class="lg:px-5">
                 <p class="flex items-center gap-1.5 text-sm text-muted"><mat-icon class="h-4! w-4! text-[16px]!">hourglass_top</mat-icon>¿Qué me falta cobrar o pagar?</p>
-                <ul class="mt-1 text-sm text-ink-soft">
-                  <li><span class="nums font-semibold text-ink">{{ money(g.collect) }}</span> por cobrar{{ g.collectCount ? ' (' + g.collectCount + (g.collectCount === 1 ? ' cita ya pasó)' : ' citas ya pasaron)') : '' }}</li>
-                  <li><span class="nums font-semibold text-ink">{{ money(g.toPay) }}</span> de gastos fijos por pagar este mes</li>
-                  @if (g.owedCommission > 0) {
-                    <li><span class="nums font-semibold text-ink">{{ money(g.owedCommission) }}</span> de comisiones por pagar</li>
-                  }
-                </ul>
-                <p class="mt-1 flex flex-wrap gap-x-3 text-sm font-medium">
-                  @if (g.collect > 0) {
-                    <a routerLink="/admin/agenda" class="inline-flex min-h-11 items-center text-accent hover:underline">Ir a la agenda</a>
-                  }
-                  @if (g.toPay > 0) {
-                    <button type="button" class="inline-flex min-h-11 items-center text-accent hover:underline" (click)="view.set('expenses')">Ver próximos pagos</button>
-                  }
-                  @if (g.owedCommission > 0) {
-                    <button type="button" class="inline-flex min-h-11 items-center text-accent hover:underline" (click)="view.set('commission')">Pagar comisiones</button>
-                  }
-                </p>
+                @let showCollect = (books()?.uncollected_count ?? 0) === 0 && g.collect > 0;
+                @if (showCollect || g.toPay > 0 || g.owedCommission > 0) {
+                  <ul class="mt-1 text-sm text-ink-soft">
+                    @if (showCollect) {
+                      <li><span class="nums font-semibold text-ink">{{ money(g.collect) }}</span> por cobrar{{ g.collectCount ? ' (' + g.collectCount + (g.collectCount === 1 ? ' cita ya pasó)' : ' citas ya pasaron)') : '' }}</li>
+                    }
+                    @if (g.toPay > 0) {
+                      <li><span class="nums font-semibold text-ink">{{ money(g.toPay) }}</span> de gastos fijos por pagar este mes</li>
+                    }
+                    @if (g.owedCommission > 0) {
+                      <li><span class="nums font-semibold text-ink">{{ money(g.owedCommission) }}</span> de comisiones por pagar</li>
+                    }
+                  </ul>
+                  <p class="mt-1 flex flex-wrap gap-x-3 text-sm font-medium">
+                    @if (showCollect) {
+                      <a routerLink="/admin/agenda" class="inline-flex min-h-11 items-center text-accent hover:underline">Ir a la agenda</a>
+                    }
+                    @if (g.toPay > 0) {
+                      <button type="button" class="inline-flex min-h-11 items-center text-accent hover:underline" (click)="view.set('expenses')">Ver próximos pagos</button>
+                    }
+                    @if (g.owedCommission > 0) {
+                      <button type="button" class="inline-flex min-h-11 items-center text-accent hover:underline" (click)="view.set('commission')">Pagar comisiones</button>
+                    }
+                  </p>
+                } @else {
+                  <p class="mt-1 text-sm text-ink-soft">{{ (books()?.uncollected_count ?? 0) > 0 ? 'Lo que falta cobrar está más abajo.' : 'Nada pendiente por ahora.' }}</p>
+                }
               </div>
               <div class="lg:pl-5">
                 <p class="flex items-center gap-1.5 text-sm text-muted"><mat-icon class="h-4! w-4! text-[16px]!">favorite</mat-icon>¿A quién tengo que cuidar?</p>
@@ -157,7 +162,11 @@
             <div class="p-4">
               <p class="flex items-center gap-1.5 text-sm text-muted"><mat-icon class="h-4! w-4! text-[16px]!">{{ item.icon }}</mat-icon>{{ item.label }}</p>
               <p class="nums mt-1 text-2xl font-semibold tracking-tight text-ink">{{ item.value }}</p>
-              <p class="nums mt-0.5 text-sm" [class]="kpiTone(item.delta)">@if (item.delta.up !== null && item.delta.text.endsWith('%')) { <mat-icon class="h-4! w-4! align-middle text-[16px]!" aria-hidden="true">{{ item.delta.up ? 'arrow_upward' : 'arrow_downward' }}</mat-icon> }{{ item.delta.text }} <span class="text-muted">{{ item.delta.up === null ? '' : versus() }}</span></p>
+              @if (noSales()) {
+                <p class="mt-0.5 text-sm text-muted">Sin cobros todavía</p>
+              } @else {
+                <p class="nums mt-0.5 text-sm" [class]="kpiTone(item.delta)">@if (item.delta.up !== null && item.delta.text.endsWith('%')) { <mat-icon class="h-4! w-4! align-middle text-[16px]!" aria-hidden="true">{{ item.delta.up ? 'arrow_upward' : 'arrow_downward' }}</mat-icon> }{{ item.delta.text }} <span class="text-muted">{{ item.delta.up === null ? '' : versus() }}</span></p>
+              }
             </div>
           }
         </div>
@@ -229,7 +238,9 @@
               <span class="nums text-right text-lg font-semibold text-accent">{{ money(row.profit) }}</span>
             </li>
           </ul>
+          @if (row.total > 0) {
           <p class="mt-2 text-sm text-muted">Te quedas con <span class="nums font-medium text-ink">{{ margin() }}%</span> de lo que entra.</p>
+          }
           @if (breakEven(); as point) {
             <div class="mt-4 rounded-xl border border-line bg-surface p-4">
               <p class="text-sm text-ink">
@@ -785,38 +796,31 @@
     }
 
     @if (view() === 'income' && !isEmpty() && books(); as row) {
-      <div class="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-3">
-        <div class="stat">
-          <span class="stat-icon" [class.stat-bad]="row.missed_count > 0" [class.stat-ok]="!(row.missed_count > 0)"><mat-icon>event_busy</mat-icon></span>
-          <span class="min-w-0">
-            <span class="stat-value block">{{ row.missed_count }}</span>
-            <span class="stat-label block">No se hicieron</span>
-            <span class="mt-0.5 block text-sm text-muted"><span class="nums">{{ money(row.missed_amount) }}</span> que no entró</span>
-            <a class="mt-1 inline-flex min-h-11 items-center gap-0.5 text-xs font-medium text-accent hover:text-ink" [routerLink]="['/admin/agenda']" [queryParams]="agendaQuery('missed')">Ver en la agenda <mat-icon class="h-4! w-4! text-[16px]!">chevron_right</mat-icon></a>
-          </span>
-        </div>
-        <div class="stat">
-          <span class="stat-icon" [class.stat-warn]="row.deposit_due > 0" [class.stat-ok]="!(row.deposit_due > 0)"><mat-icon>payments</mat-icon></span>
-          <span class="min-w-0">
-            <span class="stat-value block">{{ money(row.deposit_due) }}</span>
-            <span class="stat-label block">Anticipos pendientes</span>
-            <span class="mt-0.5 block text-sm text-muted"><span class="nums">{{ row.deposit_count }}</span> por cobrar · <span class="nums">{{ row.proofs_pending }}</span> por revisar</span>
-            @if (row.deposit_held_count > 0) {
-              <span class="block text-sm text-muted">Ya recibiste <span class="nums">{{ money(row.deposit_held) }}</span> de <span class="nums">{{ row.deposit_held_count }}</span> {{ row.deposit_held_count === 1 ? 'cita por venir' : 'citas por venir' }}</span>
+      <div class="mt-4 grid gap-3 sm:grid-cols-3">
+        <article class="card flex flex-col p-4!">
+          <p class="flex items-center gap-1.5 text-sm text-muted"><mat-icon class="h-4! w-4! text-[16px]!" [class.text-(--nx-bad-fg)]="row.missed_count > 0">event_busy</mat-icon>No se hicieron</p>
+          <p class="nums mt-1 text-2xl font-semibold tracking-tight text-ink">{{ row.missed_count }}</p>
+          <p class="nums mt-0.5 text-sm text-muted">{{ row.missed_count ? money(row.missed_amount) + ' que no entró' : 'Ninguna cita perdida' }}</p>
+          <a class="mt-auto inline-flex min-h-11 items-center gap-0.5 pt-1 text-sm font-medium text-accent hover:underline" [routerLink]="['/admin/agenda']" [queryParams]="agendaQuery('missed')">Ver en la agenda <mat-icon class="h-4! w-4! text-[16px]!" aria-hidden="true">chevron_right</mat-icon></a>
+        </article>
+        <article class="card flex flex-col p-4!">
+          <p class="flex items-center gap-1.5 text-sm text-muted"><mat-icon class="h-4! w-4! text-[16px]!" [class.text-(--nx-warn-fg)]="row.deposit_due > 0">payments</mat-icon>Anticipos pendientes</p>
+          <p class="nums mt-1 text-2xl font-semibold tracking-tight text-ink">{{ money(row.deposit_due) }}</p>
+          <p class="nums mt-0.5 text-sm text-muted">{{ row.deposit_count }} por cobrar · {{ row.proofs_pending }} por revisar</p>
+                @if (row.deposit_held_count > 0) {
+              <span class="mt-0.5 block text-sm text-muted">Ya recibiste <span class="nums">{{ money(row.deposit_held) }}</span> de <span class="nums">{{ row.deposit_held_count }}</span> {{ row.deposit_held_count === 1 ? 'cita por venir' : 'citas por venir' }}</span>
             }
-            <a class="mt-1 inline-flex min-h-11 items-center gap-0.5 text-xs font-medium text-accent hover:text-ink" [routerLink]="['/admin/agenda']" [queryParams]="agendaQuery('deposit')">Ver en la agenda <mat-icon class="h-4! w-4! text-[16px]!">chevron_right</mat-icon></a>
-          </span>
-        </div>
-        <div class="stat col-span-2 min-w-0 lg:col-span-1">
-          <span class="stat-icon stat-info"><mat-icon>star</mat-icon></span>
-          <span class="min-w-0 max-w-full flex-1">
-            <span class="block truncate text-base font-semibold text-ink">{{ row.top_count ? topService() : '—' }}</span>
-            <span class="stat-label block">Servicio más pedido</span>
-            @if (row.top_count) {
-              <span class="mt-0.5 block text-sm text-muted nums">{{ row.top_count }} {{ row.top_count === 1 ? "cita" : "citas" }} · {{ money(row.top_income) }}</span>
-            }
-          </span>
-        </div>
+          <a class="mt-auto inline-flex min-h-11 items-center gap-0.5 pt-1 text-sm font-medium text-accent hover:underline" [routerLink]="['/admin/agenda']" [queryParams]="agendaQuery('deposit')">Ver en la agenda <mat-icon class="h-4! w-4! text-[16px]!" aria-hidden="true">chevron_right</mat-icon></a>
+        </article>
+        <article class="card flex min-w-0 flex-col p-4!">
+          <p class="flex items-center gap-1.5 text-sm text-muted"><mat-icon class="h-4! w-4! text-[16px]!">star</mat-icon>Servicio más pedido</p>
+          <p class="mt-1 truncate text-2xl font-semibold tracking-tight" [class.text-ink]="row.top_count" [class.text-muted]="!row.top_count">{{ row.top_count ? topService() : 'Aún no hay datos' }}</p>
+          @if (row.top_count) {
+            <p class="nums mt-0.5 text-sm text-muted">{{ row.top_count }} {{ row.top_count === 1 ? 'cita' : 'citas' }} · {{ money(row.top_income) }}</p>
+          } @else {
+            <p class="mt-0.5 text-sm text-muted">Se llena con tus primeras citas completadas.</p>
+          }
+        </article>
       </div>
       <button type="button" class="btn btn-secondary mt-4 w-full sm:w-auto" [attr.aria-expanded]="moreDetail()" (click)="moreDetail.set(!moreDetail())">
         <mat-icon>{{ moreDetail() ? 'expand_less' : 'expand_more' }}</mat-icon>{{ moreDetail() ? 'Ocultar el análisis' : 'Ver análisis a fondo' }}
