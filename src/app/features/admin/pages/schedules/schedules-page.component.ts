@@ -63,6 +63,10 @@ export class SchedulesPageComponent {
   protected readonly specials = signal<SpecialHours[]>([]);
   /** Por defecto la lista solo trae los horarios especiales que aún no terminan; con esto también los de fechas pasadas. */
   protected readonly showPastSpecials = signal(false);
+  /** Día abierto para editar (0 = lunes); los demás quedan en una línea. */
+  protected readonly openDay = signal<number | null>(null);
+  /** El formulario de horario especial solo aparece al tocar "Agregar". */
+  protected readonly addingSpecial = signal(false);
   /** Tras guardar: citas que quedaron fuera del horario nuevo. */
   protected readonly outside = signal<{ count: number; day: string } | null>(null);
   private requestId = 0;
@@ -147,6 +151,17 @@ export class SchedulesPageComponent {
   protected applyPreset(preset: { days: number[]; start: string; end: string }): void {
     this.days.update((items) => items.map((day) => ({ ...day, is_active: preset.days.includes(day.day_of_week), start_time: preset.start, end_time: preset.end })));
     this.savedMessage.set(null);
+  }
+
+  protected toggleDay(dayOfWeek: number): void {
+    this.openDay.set(this.openDay() === dayOfWeek ? null : dayOfWeek);
+  }
+
+  /** Mismo turno, descanso y horas fijas que el día anterior (para mostrarlo en la fila). */
+  protected sameAsBefore(day: ScheduleItem): boolean {
+    const before = this.days().find((item) => item.day_of_week === day.day_of_week - 1);
+    const key = (item: ScheduleItem): string => [item.start_time, item.end_time, item.break_start ?? '', item.break_end ?? '', item.slot_times ?? ''].join('|');
+    return !!before && before.is_active && day.is_active && key(before) === key(day);
   }
 
   /** Igual que el día anterior: horas, descanso y horas fijas. */
@@ -244,6 +259,7 @@ export class SchedulesPageComponent {
           this.specialClocks.set([]);
           this.specialDays.set([]);
           this.toasts.show('Horario especial guardado.');
+          this.addingSpecial.set(false);
         },
         error: (error: unknown) => this.specialError.set(readError(error, 'No pudimos guardar el horario especial.')),
       });
@@ -374,6 +390,7 @@ export class SchedulesPageComponent {
     if (staffId !== this.staffId()) {
       await this.pickStaff(staffId);
     }
+    this.openDay.set(dayOfWeek);
     setTimeout(() => document.getElementById(`day-${dayOfWeek}`)?.scrollIntoView({ behavior: scrollBehavior(), block: 'center' }), 300);
   }
 

@@ -72,59 +72,69 @@
         <button class="btn btn-secondary" type="button" (click)="applyMondayToWorkdays()"><mat-icon>content_copy</mat-icon>Copiar el lunes a los días abiertos</button>
       </div>
 
+      <p class="field-hint border-b border-line px-4 py-3 sm:px-5">Toca un día para cambiar su horario. ¿Dos turnos (9–14 y 16–20)? Pon el descanso de 14:00 a 16:00.</p>
+
       <ul class="divide-y divide-line">
         @for (day of days(); track day.day_of_week) {
-          <li [id]="'day-' + day.day_of_week" class="scroll-mt-24 border-l-4 px-4 py-3 sm:px-5" [class.bg-canvas]="!day.is_active" [style.border-left-color]="day.is_active ? 'var(--color-accent)' : 'var(--color-line-strong)'">
-            <div class="flex items-center justify-between gap-3">
-              <span class="text-base font-semibold" [class.text-ink]="day.is_active" [class.text-muted]="!day.is_active">{{ dayLabels[day.day_of_week] }}</span>
-              <span class="flex items-center gap-2">
-                @if (!day.is_active) {
-                  <span class="text-sm text-muted">Cerrado</span>
-                } @else if (day.day_of_week > 0) {
-                  <button type="button" class="btn btn-ghost hidden px-3! sm:inline-flex" (click)="sameAsPrevious(day.day_of_week)">Igual que el {{ dayLabels[day.day_of_week - 1].toLowerCase() }}</button>
+          @let dow = day.day_of_week;
+          @let isOpen = day.is_active && openDay() === dow;
+          <li [id]="'day-' + dow" class="scroll-mt-24 border-l-4 px-4 py-1.5 sm:px-5" [class.bg-canvas]="!day.is_active" [style.border-left-color]="day.is_active ? 'var(--color-accent)' : 'var(--color-line-strong)'">
+            <!-- Una línea por día: nombre, resumen del turno y el interruptor. El detalle se abre al tocar. -->
+            <div class="flex items-center gap-3">
+              <button type="button" class="row-hover -mx-2 flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-lg px-2 text-left" [disabled]="!day.is_active" [attr.aria-expanded]="isOpen" [attr.aria-controls]="'day-body-' + dow" (click)="toggleDay(dow)">
+                <span class="w-24 shrink-0 text-base font-semibold" [class.text-ink]="day.is_active" [class.text-muted]="!day.is_active">{{ dayLabels[dow] }}</span>
+                <span class="min-w-0 flex-1 text-sm text-muted">
+                  @if (!day.is_active) {
+                    Cerrado
+                  } @else {
+                    <span class="nums text-ink-soft">{{ day.start_time | hora }}–{{ day.end_time | hora }}</span>
+                    @if (day.break_start && day.break_end) {
+                      <span class="nums"> · descanso {{ day.break_start | hora }}–{{ day.break_end | hora }}</span>
+                    }
+                    @if (dayClocks(day).length) {
+                      <span> · horas fijas</span>
+                    }
+                    @if (sameAsBefore(day)) {
+                      <span class="badge badge-neutral ml-1 max-sm:hidden">Igual que el {{ dayLabels[dow - 1].toLowerCase() }}</span>
+                    }
+                  }
+                </span>
+                @if (day.is_active) {
+                  <mat-icon class="shrink-0 text-muted" aria-hidden="true">{{ isOpen ? 'expand_less' : 'expand_more' }}</mat-icon>
                 }
-                <button type="button" role="switch" class="switch" [attr.aria-checked]="day.is_active" [attr.aria-label]="(day.is_active ? 'Cerrar ' : 'Abrir ') + dayLabels[day.day_of_week]" (click)="setActive(day.day_of_week, !day.is_active)"><span></span></button>
-              </span>
+              </button>
+              <button type="button" role="switch" class="switch" [attr.aria-checked]="day.is_active" [attr.aria-label]="(day.is_active ? 'Cerrar ' : 'Abrir ') + dayLabels[dow]" (click)="setActive(dow, !day.is_active)"><span></span></button>
             </div>
 
-            <!-- Los días cerrados quedan en una sola línea. -->
-            @if (day.is_active) {
-              <div class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <div><span class="label req">Abre</span>
-                  <app-time-field class="nums block" [valueIn]="day.start_time" (picked)="setTime(day.day_of_week, 'start_time', $event)" />
-                  <span class="mt-1 flex gap-1">
-                    <button type="button" class="btn btn-ghost h-11! flex-1 px-0! text-sm" (click)="nudge(day.day_of_week, 'start_time', -30)">−30</button>
-                    <button type="button" class="btn btn-ghost h-11! flex-1 px-0! text-sm" (click)="nudge(day.day_of_week, 'start_time', 30)">+30</button>
-                  </span>
+            @if (isOpen) {
+              <div [id]="'day-body-' + dow" class="pb-3 pt-1">
+                <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <div><span class="label req">Abre</span>
+                    <app-time-field class="nums block" [valueIn]="day.start_time" (picked)="setTime(dow, 'start_time', $event)" />
+                    <span class="mt-1 flex gap-1">
+                      <button type="button" class="btn btn-ghost h-11! flex-1 px-0! text-sm" aria-label="Abrir 30 minutos antes" (click)="nudge(dow, 'start_time', -30)">−30 min</button>
+                      <button type="button" class="btn btn-ghost h-11! flex-1 px-0! text-sm" aria-label="Abrir 30 minutos después" (click)="nudge(dow, 'start_time', 30)">+30 min</button>
+                    </span>
+                  </div>
+                  <div><span class="label req">Cierra</span>
+                    <app-time-field class="nums block" [valueIn]="day.end_time" (picked)="setTime(dow, 'end_time', $event)" />
+                    <span class="mt-1 flex gap-1">
+                      <button type="button" class="btn btn-ghost h-11! flex-1 px-0! text-sm" aria-label="Cerrar 30 minutos antes" (click)="nudge(dow, 'end_time', -30)">−30 min</button>
+                      <button type="button" class="btn btn-ghost h-11! flex-1 px-0! text-sm" aria-label="Cerrar 30 minutos después" (click)="nudge(dow, 'end_time', 30)">+30 min</button>
+                    </span>
+                  </div>
+                  <label class="block"><span class="label opt">Descanso desde</span>
+                    <app-time-field class="nums block" [valueIn]="day.break_start || ''" (picked)="patchBreak(dow, 'break_start', $event)" />
+                  </label>
+                  <label class="block"><span class="label opt">Hasta</span>
+                    <app-time-field class="nums block" [valueIn]="day.break_end || ''" (picked)="patchBreak(dow, 'break_end', $event)" />
+                  </label>
                 </div>
-                <div><span class="label req">Cierra</span>
-                  <app-time-field class="nums block" [valueIn]="day.end_time" (picked)="setTime(day.day_of_week, 'end_time', $event)" />
-                  <span class="mt-1 flex gap-1">
-                    <button type="button" class="btn btn-ghost h-11! flex-1 px-0! text-sm" (click)="nudge(day.day_of_week, 'end_time', -30)">−30</button>
-                    <button type="button" class="btn btn-ghost h-11! flex-1 px-0! text-sm" (click)="nudge(day.day_of_week, 'end_time', 30)">+30</button>
-                  </span>
-                </div>
-                <label class="block"><span class="label opt">Descanso desde</span>
-                  <app-time-field class="nums block" [valueIn]="day.break_start || ''" (picked)="patchBreak(day.day_of_week, 'break_start', $event)" />
-                </label>
-                <label class="block"><span class="label opt">Hasta</span>
-                  <app-time-field class="nums block" [valueIn]="day.break_end || ''" (picked)="patchBreak(day.day_of_week, 'break_end', $event)" />
-                </label>
+                <p class="mt-3 text-sm text-muted">Tus {{ copy.text().clients.toLowerCase() }} verán: <span class="nums text-ink-soft">{{ preview(day) }}</span></p>
+                @if (dow > 0) {
+                  <button type="button" class="btn btn-ghost mt-1 px-2!" (click)="sameAsPrevious(dow)"><mat-icon>content_copy</mat-icon>Copiar el horario del {{ dayLabels[dow - 1].toLowerCase() }}</button>
+                }
               </div>
-              @if (dayClocks(day).length) {
-                <div class="mt-3 flex flex-wrap items-center gap-2">
-                  <span class="text-sm text-muted">Solo a estas horas:</span>
-                  @for (clock of dayClocks(day); track clock) {
-                    <button type="button" class="chip chip-on h-11! gap-1" (click)="removeDayClock(day.day_of_week, clock)">
-                      <span class="nums">{{ clock | hora }}</span><mat-icon class="h-4! w-4! text-[16px]!" aria-hidden="true">close</mat-icon><span class="sr-only">Quitar {{ clock | hora }}</span>
-                    </button>
-                  }
-                </div>
-              }
-              @if (!day.break_start) {
-                <p class="mt-1 text-sm text-muted">¿Dos turnos (9–14 y 16–20)? Pon el descanso de 14:00 a 16:00.</p>
-              }
-              <p class="mt-2 text-sm text-muted">Tus {{ copy.text().clients.toLowerCase() }} verán: <span class="nums text-ink-soft">{{ preview(day) }}</span></p>
             }
           </li>
         }
@@ -151,17 +161,22 @@
       </div>
       <div class="mt-4 border-t border-line pt-3">
         <p class="text-sm text-muted">O agrega horas fijas a un solo día:</p>
-        <div class="mt-2 flex flex-wrap gap-3">
+        <ul class="mt-2 flex flex-col gap-3">
           @for (day of days(); track day.day_of_week) {
             @if (day.is_active) {
-              <span class="flex items-center gap-1">
+              <li class="flex flex-wrap items-center gap-2">
                 <span class="w-10 text-sm text-ink-soft">{{ dayLabels[day.day_of_week].slice(0, 3) }}</span>
+                @for (clock of dayClocks(day); track clock) {
+                  <button type="button" class="chip chip-on h-11! gap-1" (click)="removeDayClock(day.day_of_week, clock)">
+                    <span class="nums">{{ clock | hora }}</span><mat-icon class="h-4! w-4! text-[16px]!" aria-hidden="true">close</mat-icon><span class="sr-only">Quitar {{ clock | hora }}</span>
+                  </button>
+                }
                 <app-time-field class="w-28" [valueIn]="dayDraft()[day.day_of_week] ?? ''" (picked)="setDayDraft(day.day_of_week, $event)" />
                 <button type="button" class="btn btn-ghost w-11! px-0!" [attr.aria-label]="'Agregar hora a ' + dayLabels[day.day_of_week]" (click)="addDayClock(day.day_of_week)"><mat-icon>add</mat-icon></button>
-              </span>
+              </li>
             }
           }
-        </div>
+        </ul>
       </div>
     </details>
 
@@ -178,7 +193,16 @@
           }
         </ul>
       }
-      <button type="button" class="btn btn-ghost mt-1 px-2 text-sm" [attr.aria-pressed]="showPastSpecials()" (click)="togglePastSpecials()">{{ showPastSpecials() ? 'Ocultar los que ya pasaron' : 'Ver también los que ya pasaron' }}</button>
+      @if (!specials().length) {
+        <p class="mt-2 text-sm text-muted">Sirve para un día (24 de diciembre) o una temporada (todo diciembre de 9 a 21). Mientras dure, reemplaza el turno normal.</p>
+      }
+      <div class="mt-2 flex flex-wrap items-center gap-2">
+        @if (!addingSpecial()) {
+          <button type="button" class="btn btn-secondary" (click)="addingSpecial.set(true)"><mat-icon>add</mat-icon>Agregar horario especial</button>
+        }
+        <button type="button" class="btn btn-ghost px-2 text-sm" [attr.aria-pressed]="showPastSpecials()" (click)="togglePastSpecials()">{{ showPastSpecials() ? 'Ocultar los que ya pasaron' : 'Ver también los que ya pasaron' }}</button>
+      </div>
+      @if (addingSpecial()) {
       <form class="mt-3 grid gap-3 border-t border-line pt-3 sm:grid-cols-4 sm:items-end" (submit)="$event.preventDefault(); saveSpecial()">
         <app-form-status class="block sm:col-span-4" [missing]="specialMissing()" />
         <label class="block"><span class="label req">Desde</span>
@@ -227,12 +251,16 @@
           <label class="flex min-h-11 items-center justify-between gap-4 text-sm text-ink">Cerrado esos días<button type="button" role="switch" class="switch" [attr.aria-checked]="special.closed" (click)="special.closed = !special.closed" aria-label="Cerrado esos días"><span></span></button></label>
           <label class="flex min-h-11 items-center justify-between gap-4 text-sm text-ink">Para todo el equipo (si no, solo esta persona)<button type="button" role="switch" class="switch" [attr.aria-checked]="special.all" (click)="special.all = !special.all" aria-label="Para todo el equipo"><span></span></button></label>
         </div>
-        <button type="submit" class="btn btn-secondary sm:col-span-4 sm:justify-self-start" [disabled]="specialMissing().length > 0">Guardar horario especial</button>
+        <div class="flex flex-wrap gap-2 sm:col-span-4">
+          <button type="submit" class="btn btn-primary" [disabled]="specialMissing().length > 0">Guardar horario especial</button>
+          <button type="button" class="btn btn-ghost" (click)="addingSpecial.set(false)">Cancelar</button>
+        </div>
         @if (specialError(); as message) {
           <p class="field-error sm:col-span-4">{{ message }}</p>
         }
         <p class="field-hint sm:col-span-4">Sirve para un día (24 de diciembre) o una temporada (todo diciembre de 9 a 21). Mientras dure, reemplaza el turno normal.</p>
       </form>
+      }
     </details>
 
     <!-- Semana del equipo de un vistazo. -->
