@@ -920,7 +920,7 @@
             <p class="w-full text-sm text-[var(--nx-rail-soft)]" role="status">Para guardar falta: {{ blockers().join(', ') }}. Los campos con <b>*</b> son obligatorios.</p>
           }
           <button type="button" class="btn h-11! text-[var(--nx-rail-soft)] hover:bg-[var(--nx-rail-hover)]" [disabled]="saving()" (click)="discard()">Descartar</button>
-          <button type="submit" form="settings-form" class="btn h-11! text-white" style="background: var(--primary)" [disabled]="saving() || blockers().length > 0">
+          <button type="submit" form="settings-form" class="btn h-11! text-[var(--color-on-primary)]" style="background: var(--primary)" [disabled]="saving() || blockers().length > 0">
             {{ saving() ? 'Guardando…' : 'Guardar cambios' }}
           </button>
         </div>

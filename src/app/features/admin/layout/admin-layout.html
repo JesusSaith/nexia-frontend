@@ -14,7 +14,7 @@
         @if (headerLogo(); as logo) {
           <img [src]="logo" [alt]="brandName() || businessName()" class="h-10 w-10 shrink-0 rounded-xl bg-white object-contain" (error)="clearLogo()" />
         } @else {
-          <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-base font-semibold text-white" style="background: var(--primary)">
+          <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-base font-semibold text-[var(--color-on-primary)]" style="background: var(--primary)">
             {{ (brandName() || businessName() || 'N').slice(0, 1) }}
           </span>
         }
@@ -136,7 +136,7 @@
           @if (headerLogo(); as logo) {
             <img [src]="logo" [alt]="brandName() || businessName()" class="h-8 w-8 shrink-0 rounded-lg bg-white object-contain" (error)="clearLogo()" />
           } @else {
-            <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-sm font-semibold text-white" style="background: var(--primary)">
+            <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-sm font-semibold text-[var(--color-on-primary)]" style="background: var(--primary)">
               {{ (brandName() || businessName() || 'N').slice(0, 1) }}
             </span>
           }
@@ -199,7 +199,7 @@
     @if (toasts.message(); as saved) {
       <div class="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">
         <div class="nexia-toast pointer-events-auto flex items-center gap-3 rounded-full border bg-surface py-2 pl-2 pr-3 shadow-[0_18px_50px_rgba(30,27,30,0.16)]" style="border-color: color-mix(in srgb, var(--primary) 30%, var(--color-surface))">
-          <span class="flex h-9 w-9 items-center justify-center rounded-full text-white" style="background: var(--primary)">
+          <span class="flex h-9 w-9 items-center justify-center rounded-full text-[var(--color-on-primary)]" style="background: var(--primary)">
             <mat-icon class="!h-5 !w-5 !text-[20px]">check</mat-icon>
           </span>
           <span class="text-sm font-medium text-ink">{{ saved }}</span>
@@ -216,7 +216,7 @@
           style="border-color: color-mix(in srgb, var(--primary) 30%, var(--color-surface))"
         >
           <a class="flex min-w-0 flex-1 items-center gap-3" routerLink="/admin/home">
-            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-accent text-white sm:h-12 sm:w-12">
+            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-accent text-[var(--color-on-primary)] sm:h-12 sm:w-12">
               <mat-icon>notifications</mat-icon>
             </span>
             <span class="min-w-0 flex-1">

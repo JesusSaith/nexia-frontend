@@ -1259,6 +1259,7 @@ function paintPrimary(color: string): void {
   const root = document.documentElement;
   root.style.setProperty('--primary', color);
   root.style.setProperty('--business-primary', color);
+  root.style.setProperty('--color-on-primary', textOn(color));
   root.style.setProperty('--mat-sys-primary', color);
 }
 
