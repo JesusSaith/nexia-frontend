@@ -181,7 +181,7 @@
         @let sortable = filter() !== 'best' && filter() !== 'missing' && filter() !== 'birthday';
         <!-- Pantalla grande: encabezados de tabla; los que se pueden ordenar son botones. -->
         @if (sortable) {
-        <div class="mt-3 hidden grid-cols-[2.25rem_minmax(0,2.2fr)_minmax(0,1.3fr)_5rem_7rem_minmax(0,1.6fr)] items-center gap-x-3 border-b border-line pb-2 text-sm text-muted md:grid" role="group" aria-label="Ordenar la lista">
+        <div class="mt-3 hidden grid-cols-[2.25rem_minmax(0,2.2fr)_minmax(0,1.3fr)_5rem_7rem_minmax(0,1.6fr)] items-center gap-x-3 border-b border-line pb-2 text-sm text-muted md:grid md:pr-25" role="group" aria-label="Ordenar la lista">
           <span></span>
           <span class=""><button type="button" class="inline-flex min-h-11 items-center gap-0.5 rounded-md" [class.font-semibold]="sort() === 'name'" [class.text-ink]="sort() === 'name'" [attr.aria-pressed]="sort() === 'name'" (click)="sort.set('name')">{{ copy.text().client }}@if (sort() === 'name') { <mat-icon class="h-4! w-4! text-[16px]!" aria-hidden="true">arrow_upward</mat-icon> }</button></span>
           <span class=""><button type="button" class="inline-flex min-h-11 items-center gap-0.5 rounded-md" [class.font-semibold]="sort() === 'recent'" [class.text-ink]="sort() === 'recent'" [attr.aria-pressed]="sort() === 'recent'" (click)="sort.set('recent')">Visita@if (sort() === 'recent') { <mat-icon class="h-4! w-4! text-[16px]!" aria-hidden="true">arrow_downward</mat-icon> }</button></span>
@@ -266,6 +266,15 @@
                   }
                 </span>
               </button>
+              @if (filter() !== 'missing' && filter() !== 'birthday') {
+                <!-- Atajos de la fila: llamar (pantalla grande) y WhatsApp. Siempre ocupan su lugar para que la tabla no se mueva. -->
+                <span class="flex w-11 shrink-0 justify-end gap-1 md:w-23">
+                  @if (!selecting() && hasPhone(client)) {
+                    <a class="btn btn-ghost hidden w-11! px-0! md:inline-flex" [href]="tel(client.phone)" [attr.aria-label]="'Llamar a ' + client.full_name"><mat-icon>call</mat-icon></a>
+                    <a class="btn btn-whatsapp w-11! px-0!" [href]="chat(client.phone)" target="_blank" rel="noopener" [attr.aria-label]="'WhatsApp a ' + client.full_name"><mat-icon>chat</mat-icon></a>
+                  }
+                </span>
+              }
               @if (hasPhone(client) && filter() === 'missing') {
                 <a class="btn btn-whatsapp shrink-0 px-3!" [href]="missYou(client)" target="_blank" rel="noopener" (click)="logContact(client, 'invitar')">{{ client.last_contact_at ? 'Invitar otra vez' : 'Invitar' }}</a>
               } @else if (hasPhone(client) && filter() === 'birthday') {

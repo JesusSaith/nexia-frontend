@@ -890,3 +890,9 @@ mat-icon {
   :root:where(:not([data-theme='light'])) { --viz-1: #3987e5; --viz-2: #d95926; --viz-3: #199e70; --viz-4: #c98500; --viz-5: #d55181; --viz-6: #008300; }
 }
 :root[data-theme='dark'] { --viz-1: #3987e5; --viz-2: #d95926; --viz-3: #199e70; --viz-4: #c98500; --viz-5: #d55181; --viz-6: #008300; }
+
+/* Arrastrar y soltar (Angular CDK): la tarjeta que se lleva, el hueco que deja y el movimiento al soltar. */
+.cdk-drag-preview { box-sizing: border-box; border-radius: var(--radius-2xl); box-shadow: 0 18px 40px rgb(0 0 0 / 0.3); background: var(--color-canvas); }
+.cdk-drag-placeholder { opacity: 0.35; }
+.cdk-drag-animating, .cdk-drop-list-dragging .cdk-drag { transition: transform 220ms cubic-bezier(0, 0, 0.2, 1); }
+@media (prefers-reduced-motion: reduce) { .cdk-drag-animating, .cdk-drop-list-dragging .cdk-drag { transition: none; } }

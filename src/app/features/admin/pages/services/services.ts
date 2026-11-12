@@ -1,3 +1,4 @@
+import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import { HttpErrorResponse } from '@angular/common/http';
 import { pesos } from '@core/money';
 import { Component, DestroyRef, TemplateRef, computed, inject, signal, viewChild } from '@angular/core';
@@ -28,7 +29,7 @@ import { PickFieldComponent } from '@shared/components/when-field/when-field';
 
 @Component({
   selector: 'app-services-page',
-  imports: [
+  imports: [CdkDrag, CdkDragHandle, CdkDropList, 
     SegmentedDirective,
     FormStatusComponent,
     FormsModule,
@@ -504,6 +505,17 @@ export class ServicesPageComponent {
       return;
     }
     [rows[index], rows[target]] = [rows[target], rows[index]];
+    this.services.set(rows);
+    this.servicesApi.orderServices(rows.map((row) => row.id)).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ error: () => this.load(true) });
+  }
+
+  /** Se soltó una tarjeta en otro lugar: se guarda el nuevo orden de la página. */
+  protected drop(event: CdkDragDrop<Service[]>): void {
+    if (event.previousIndex === event.currentIndex) {
+      return;
+    }
+    const rows = [...this.services()];
+    moveItemInArray(rows, event.previousIndex, event.currentIndex);
     this.services.set(rows);
     this.servicesApi.orderServices(rows.map((row) => row.id)).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ error: () => this.load(true) });
   }
