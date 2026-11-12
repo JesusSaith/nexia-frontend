@@ -17,11 +17,33 @@
         <h1>{{ greeting() }}</h1>
         <p class="keep first-letter:uppercase">{{ todayLabel }}</p>
       </div>
-      <a routerLink="/admin/agenda" [queryParams]="{ nueva: 1 }" class="btn btn-primary">
-        <mat-icon>add</mat-icon>
-        Nueva cita
-      </a>
+      <div class="flex items-center gap-2">
+        @if (canCustomize()) {
+          <button type="button" class="btn btn-ghost w-11! px-0!" aria-label="Elegir qué ver en Inicio" [attr.aria-expanded]="customizing()" aria-controls="home-cards" (click)="customizing.set(!customizing())">
+            <mat-icon>{{ customizing() ? 'close' : 'tune' }}</mat-icon>
+          </button>
+        }
+        <a routerLink="/admin/agenda" [queryParams]="{ nueva: 1 }" class="btn btn-primary">
+          <mat-icon>add</mat-icon>
+          Nueva cita
+        </a>
+      </div>
     </header>
+
+    @if (canCustomize() && customizing()) {
+      <section id="home-cards" class="card mb-6">
+        <h2 class="card-title">Elegir qué ver en Inicio</h2>
+        <p class="mb-2 text-sm text-muted">Apaga lo que no usas. Se guarda para todo tu negocio y puedes volver a prenderlo cuando quieras.</p>
+        <ul class="divide-y divide-line">
+          @for (item of homeCards; track item.key) {
+            <li class="flex min-h-11 items-center justify-between gap-3 py-1">
+              <span class="text-sm">{{ item.label }}</span>
+              <button type="button" role="switch" class="switch" [attr.aria-checked]="shows(item.key)" [attr.aria-label]="item.label" (click)="toggleCard(item.key)"><span></span></button>
+            </li>
+          }
+        </ul>
+      </section>
+    }
 
     @if (demoLoaded()) {
       <section class="card mb-6 flex flex-wrap items-center justify-between gap-3 py-3!">
@@ -131,7 +153,7 @@
       <section class="card card-tint mb-6">
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div class="card-head">
-            <span class="sec-icon bg-accent! text-white!"><mat-icon>{{ setupHidden() ? 'warning' : 'rocket_launch' }}</mat-icon></span>
+            <span class="sec-icon bg-accent! text-[var(--color-on-primary)]!"><mat-icon>{{ setupHidden() ? 'warning' : 'rocket_launch' }}</mat-icon></span>
             <div>
               @if (setupHidden()) {
                 <h2 class="text-sm font-semibold text-ink">Revisa tu configuración</h2>
@@ -208,7 +230,7 @@
             </div>
           }
           @if (today().length === 0) {
-            <div class="flex flex-col items-center gap-2 py-8 text-center">
+            <div class="mt-2 flex flex-wrap items-center justify-between gap-2 pb-1">
               <p class="text-sm text-muted">No hay citas hoy.</p>
               <a routerLink="/admin/negocio" class="btn btn-secondary">Compartir mi enlace</a>
             </div>
@@ -226,7 +248,7 @@
                     <span
                       class="nums shrink-0 rounded-lg px-2.5 py-1 text-xs font-semibold whitespace-nowrap"
                       [class.bg-accent]="isNow"
-                      [class.text-white]="isNow"
+                      [style.color]="isNow ? 'var(--color-on-primary)' : null"
                       [class.bg-accent-soft]="!isNow"
                       [class.text-accent]="!isNow"
                     >{{ timeLabel(item.starts_at) }}</span>
@@ -286,7 +308,7 @@
             }
           </div>
           @if (groupedNotices().length === 0) {
-            <p class="py-8 text-center text-sm text-muted">Sin avisos nuevos.</p>
+            <p class="py-4 text-sm text-muted">Sin avisos nuevos.</p>
           } @else {
             @if (noticeChips().length) {
               <div class="mt-3 flex flex-wrap gap-2" role="group" aria-label="Filtrar avisos por tipo">
@@ -324,6 +346,9 @@
                 </li>
               }
             </ul>
+            @if (hasOlder()) {
+              <button type="button" class="btn btn-ghost mt-1 w-full" (click)="showOld.set(true)">Ver también los anteriores ({{ groupedNotices().length - unseenCount() }})</button>
+            }
             @if (filteredNotices().length > shownNotices().length) {
               <button type="button" class="btn btn-ghost mt-1 w-full" (click)="allNotices.set(true)">Ver todos ({{ filteredNotices().length }})</button>
             } @else if (allNotices() && filteredNotices().length > NOTICES_SHORT) {
@@ -359,7 +384,7 @@
             </button>
           }
           @if (tomorrow().length === 0) {
-            <p class="py-8 text-center text-sm text-muted">No hay citas mañana.</p>
+            <p class="mt-2 pb-1 text-sm text-muted">No hay citas mañana.</p>
           } @else {
             <ul class="mt-2 divide-y divide-line">
               @for (item of tomorrow(); track item.id) {
@@ -480,11 +505,11 @@
                 <p class="text-sm text-muted">Compártelo para que reserven solos</p>
               </div>
             </div>
-            <p class="mt-3 rounded-lg bg-canvas px-3 py-2.5 text-sm break-all text-ink-soft select-all">{{ bookingLink() }}</p>
+            <p class="mt-3 truncate rounded-lg bg-canvas px-3 py-2.5 text-sm text-ink-soft select-all" [attr.title]="bookingLink()">{{ shortLink() }}</p>
             <button type="button" class="btn btn-secondary mt-3 w-full" (click)="copyLink()">
               <mat-icon>{{ linkCopied() ? 'check' : 'content_copy' }}</mat-icon>{{ linkCopied() ? 'Enlace copiado' : 'Copiar enlace' }}
             </button>
-            <button type="button" class="btn btn-ghost mt-2 w-full" (click)="copyReply()">
+            <button type="button" class="btn btn-ghost mt-2 h-auto min-h-11 w-full py-2 text-center whitespace-normal" (click)="copyReply()">
               <mat-icon>{{ replyCopied() ? 'check' : 'chat' }}</mat-icon>{{ replyCopied() ? 'Respuesta copiada' : 'Copiar respuesta para Instagram o Messenger' }}
             </button>
           </section>
@@ -492,25 +517,5 @@
       </div>
     </div>
 
-    @if (canCustomize()) {
-      <div class="mt-6">
-        <button type="button" class="btn btn-ghost" [attr.aria-expanded]="customizing()" aria-controls="home-cards" (click)="customizing.set(!customizing())">
-          <mat-icon>tune</mat-icon>{{ customizing() ? 'Listo' : 'Elegir qué ver en Inicio' }}
-        </button>
-        @if (customizing()) {
-          <section id="home-cards" class="card mt-3">
-            <p class="mb-2 text-sm text-muted">Apaga lo que no usas. Se guarda para todo tu negocio y puedes volver a prenderlo cuando quieras.</p>
-            <ul class="divide-y divide-line">
-              @for (item of homeCards; track item.key) {
-                <li class="flex min-h-11 items-center justify-between gap-3 py-1">
-                  <span class="text-sm">{{ item.label }}</span>
-                  <button type="button" role="switch" class="switch" [attr.aria-checked]="shows(item.key)" [attr.aria-label]="item.label" (click)="toggleCard(item.key)"><span></span></button>
-                </li>
-              }
-            </ul>
-          </section>
-        }
-      </div>
-    }
   }
 </section>

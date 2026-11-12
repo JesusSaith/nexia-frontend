@@ -1221,6 +1221,14 @@ export class AgendaPageComponent {
     return [...new Set(this.activeOn(day).map((item) => item.staff_id))].slice(0, 4);
   }
 
+  /** Primeras citas del día para la celda del mes en pantalla grande ("9:30 Ana"). */
+  protected monthPreview(day: Date): { time: string; name: string }[] {
+    return [...this.activeOn(day)]
+      .sort((a, b) => a.starts_at.localeCompare(b.starts_at))
+      .slice(0, 2)
+      .map((item) => ({ time: item.starts_at.slice(11, 16), name: firstName(item.client_name) }));
+  }
+
   /** Citas que siguen en pie (sin canceladas ni faltas), para contar en el mes. */
   protected activeOn(day: Date): Appointment[] {
     return this.appointmentsOn(day).filter((item) => item.status !== 'cancelled' && item.status !== 'no_show');

@@ -1,4 +1,5 @@
-<main class="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8" [class.pb-40]="summary() && !confirmation()">
+@let aside = step() >= 2 && !confirmation() && !isLoading() && !loadError() ? summary() : null;
+<main class="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8" [class.pb-40]="summary() && !confirmation()" [class.booking-wide]="aside">
   <!-- Del paso 2 en adelante el encabezado se compacta para que las horas y los datos queden a la vista. -->
   @let compact = step() > 1;
   <header class="flex flex-col gap-3 overflow-hidden rounded-2xl border bg-surface" style="border-color: color-mix(in srgb, var(--booking-primary, var(--primary)) 28%, white)">
@@ -21,7 +22,8 @@
       }
       <div>
         @if (!compact) {
-          <p class="text-xs font-medium uppercase tracking-wide" style="color: var(--booking-ink, var(--primary))">Reservas</p>
+          <!-- Con encabezado de color va el texto "sobre el color de marca"; con fondo claro, el tono de marca oscurecido para pasar 4.5:1 aun sobre el tinte. -->
+          <p class="text-xs font-medium uppercase tracking-wide" [style.color]="headerStyle() === 'color' ? 'var(--booking-on)' : 'color-mix(in srgb, var(--booking-ink, var(--primary)) 80%, black)'">Reservas</p>
         }
         <h1 class="font-semibold" [class.text-2xl]="!compact" [class.text-xl]="compact">{{ brand()?.name || 'Reservar ' + copy().visit.toLowerCase() }}</h1>
         @if (!compact && brand()?.description) {
@@ -147,6 +149,8 @@
     <app-stepper class="mb-2 mt-1" [steps]="steps" [current]="step()" [reached]="reached()" label="Pasos de la reserva" (pick)="openStep($event)" />
   }
 
+  <!-- En computadora, del paso 2 en adelante: segunda columna fija con el resumen de la cita. -->
+  <div [class]="aside ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start lg:gap-8' : ''">
   @if (loadError(); as message) {
     <section role="alert" class="card flex flex-col items-start gap-3">
       <h2 class="text-lg font-semibold">{{ message.title }}</h2>
@@ -232,6 +236,15 @@
               <button type="button" class="min-h-11 px-1 font-medium underline" style="color: var(--booking-ink, var(--booking-primary))" (click)="serviceQuery.set(''); categoryFilter.set('')">Ver todos</button>
             </p>
           }
+          <!-- Los precios "por cotizar" se explican una sola vez, no en cada tarjeta. -->
+          @if (visibleServices().some(quotedLater) || visibleServices().some(atVisit)) {
+            <p class="mb-3 flex items-start gap-2 text-sm text-ink-soft"><mat-icon class="h-5! w-5! shrink-0 text-[20px]!" aria-hidden="true">info</mat-icon>
+              <span>
+                @if (visibleServices().some(quotedLater)) { Donde dice "Por cotizar", te damos el precio antes de tu {{ copy().visit.toLowerCase() }}. }
+                @if (visibleServices().some(atVisit)) { Donde dice "Se acuerda en la {{ copy().visit.toLowerCase() }}", lo ven juntos al llegar. }
+              </span>
+            </p>
+          }
           <div class="grid gap-3 sm:grid-cols-2">
             @for (service of visibleServices(); track service.id) {
               <article class="choice-card service-card flex flex-col overflow-hidden" [class.choice-selected]="selectedService()?.id === service.id">
@@ -248,14 +261,11 @@
                     @if ((service.variants ?? []).length) {
                       Desde {{ formatPrice(minVariant(service)) }} · {{ (service.variants ?? []).length }} opciones
                     } @else {
-                      {{ formatMinutes(service.duration_minutes) }} · {{ service.price_at_visit ? 'Precio en la cita' : service.variable_price ? 'Precio por confirmar' : formatPrice(service.price) }}
+                      {{ formatMinutes(service.duration_minutes) }} · <span class="font-semibold text-ink">{{ service.price_at_visit ? 'Se acuerda en la cita' : service.variable_price ? 'Por cotizar' : formatPrice(service.price) }}</span>
                     }
                   </span>
-                  @if (!(service.variants ?? []).length && (service.price_at_visit || service.variable_price)) {
-                    <span class="mt-0.5 block text-sm text-muted">{{ service.price_at_visit ? 'Lo acuerdas en tu cita' : 'Te lo cotizamos antes de tu cita' }}</span>
-                  }
                   @if (usefulDescription(service.name, service.description); as detail) {
-                    <span class="mt-1 block text-sm text-muted">{{ detail }}</span>
+                    <span class="mt-1 line-clamp-2 text-sm text-muted">{{ detail }}</span>
                   }
                 </span>
               </button>
@@ -264,7 +274,13 @@
                   <mat-icon [style.font-variation-settings]="isFavorite('services', service.id) ? '\'FILL\' 1' : null" aria-hidden="true">favorite</mat-icon>
                   {{ isFavorite('services', service.id) ? 'Favorito' : 'Guardar' }}
                 </button>
-                <button type="button" class="flex min-h-11 flex-1 items-center justify-center px-2 font-medium" style="color: var(--booking-ink, var(--booking-primary))" [attr.aria-label]="'Elegir ' + service.name" (click)="selectService(service)">Elegir</button>
+                <button type="button" class="flex min-h-11 flex-1 items-center justify-center px-2 font-medium" style="color: var(--booking-ink, var(--booking-primary))" [attr.aria-label]="(selectedService()?.id === service.id ? 'Elegido: ' : 'Elegir ') + service.name" (click)="selectService(service)">
+                  @if (selectedService()?.id === service.id) {
+                    <mat-icon class="mr-1 h-5! w-5! text-[20px]!" aria-hidden="true">check</mat-icon>Elegido
+                  } @else {
+                    Elegir
+                  }
+                </button>
               </div>
               </article>
             }
@@ -302,9 +318,15 @@
           }
           @if (selectedService() && !selectedService()?.is_hold && services().length > 1) {
             <div class="mt-5">
-              <p class="text-sm font-medium">¿Sumas otro servicio?</p>
-              <p class="mb-3 text-sm text-muted">Queda en la misma {{ copy().visit.toLowerCase() }}, con el mismo {{ copy().person.toLowerCase() }}.</p>
-              <div class="grid gap-2 sm:grid-cols-2">
+              <button type="button" class="choice-card flex min-h-12 w-full items-center gap-3 px-4 py-2 text-left" [attr.aria-expanded]="extrasOpen()" (click)="extrasOpen.set(!extrasOpen())">
+                <span class="min-w-0 flex-1">
+                  <span class="block text-sm font-medium">{{ extraIds().length ? 'Sumaste ' + extraIds().length + (extraIds().length === 1 ? ' servicio más' : ' servicios más') : 'Agregar otro servicio' }}</span>
+                  <span class="block text-sm text-muted">Queda en la misma {{ copy().visit.toLowerCase() }}, con quien te atiende.</span>
+                </span>
+                <mat-icon class="shrink-0 text-muted" aria-hidden="true">{{ extrasOpen() ? 'expand_less' : 'expand_more' }}</mat-icon>
+              </button>
+              @if (extrasOpen()) {
+              <div class="mt-3 grid gap-2 sm:grid-cols-2">
                 @for (service of services(); track service.id) {
                   @if (service.id !== selectedService()?.id) {
                     <button
@@ -334,6 +356,7 @@
                   }
                 }
               </div>
+              }
             </div>
           }
         }
@@ -341,9 +364,11 @@
 
       @if (selectedService()) {
       <div>
-        <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 class="text-base font-medium">{{ brand()?.staff_label || 'Colaborador' }}</h2>
-        </div>
+        @if (eligibleStaff().length !== 1) {
+          <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h2 class="text-base font-medium">{{ brand()?.staff_label || 'Colaborador' }}</h2>
+          </div>
+        }
         @if (!selectedService()) {
           <p class="text-sm text-ink-soft">Elige un servicio para ver quién lo realiza.</p>
         } @else if (eligibleStaff().length === 0) {
@@ -483,6 +508,7 @@
         }
       </div>
 
+      <div id="horas-dia" class="scroll-mt-4"></div>
       @if (resourceList().length) {
         <label class="mb-3 block text-sm">
           Recurso
@@ -517,7 +543,7 @@
           </div>
         }
       } @else {
-        <p class="text-sm font-medium first-letter:uppercase">{{ formatDate(date() + 'T12:00:00') }}</p>
+        <p class="text-base font-semibold first-letter:uppercase">{{ formatDate(date() + 'T12:00:00') }}</p>
         @for (group of slotGroups(); track group.label) {
           <div>
             <p class="mb-2 text-xs font-medium uppercase tracking-wide text-muted">{{ group.label }}</p>
@@ -548,7 +574,7 @@
     <form id="booking-form" class="flex flex-col gap-3" [formGroup]="clientForm" (ngSubmit)="confirm()">
       @if (summary(); as info) {
         <!-- Qué se va a reservar, a la vista antes de confirmar. -->
-        <section class="rounded-2xl border p-4" style="border-color: color-mix(in srgb, var(--booking-primary, var(--primary)) 40%, white); background: color-mix(in srgb, var(--booking-primary, var(--primary)) 6%, white)" aria-label="Resumen de tu cita">
+        <section class="rounded-2xl border p-4 lg:hidden" style="border-color: color-mix(in srgb, var(--booking-primary, var(--primary)) 40%, white); background: color-mix(in srgb, var(--booking-primary, var(--primary)) 6%, white)" aria-label="Resumen de tu cita">
           <p class="text-xs font-medium uppercase tracking-wide text-muted">Tu {{ copy().visit.toLowerCase() }}</p>
           @if (info.when) {
             <p class="mt-1 text-base font-semibold first-letter:uppercase">{{ info.when }}</p>
@@ -568,33 +594,40 @@
           <button type="button" class="shrink-0 text-xs underline" (click)="forgetClient()">No soy yo</button>
         </p>
       }
-      <label class="rounded-xl border border-line bg-surface px-3 py-2">
-        <span class="block text-xs text-muted">Teléfono (WhatsApp)</span>
-        <input
-          class="w-full bg-transparent text-base outline-none"
-          type="tel"
-          inputmode="tel"
-          placeholder="10 dígitos"
-          formControlName="client_phone"
-          aria-required="true"
-          autocomplete="tel"
-          (input)="lookPackage($any($event.target).value)"
-        />
-      </label>
-      @if (phoneError(); as message) {
-        <p class="text-sm text-[var(--nx-bad-fg)]">{{ message }}</p>
-      }
+      <div class="grid gap-3 lg:grid-cols-2">
+        <div class="flex flex-col gap-3">
+          <label class="rounded-xl border border-line bg-surface px-3 py-2" [style.border-color]="phoneError() ? 'var(--nx-bad-fg)' : null">
+            <span class="block text-xs text-muted">Teléfono (WhatsApp)</span>
+            <input
+              class="w-full bg-transparent text-base outline-none"
+              [attr.aria-invalid]="phoneError() ? 'true' : null"
+              type="tel"
+              inputmode="tel"
+              placeholder="10 dígitos"
+              formControlName="client_phone"
+              aria-required="true"
+              autocomplete="tel"
+              (input)="lookPackage($any($event.target).value)"
+            />
+          </label>
+          @if (phoneError(); as message) {
+            <p class="text-sm text-[var(--nx-bad-fg)]">{{ message }}</p>
+          }
+        </div>
+        <div class="flex flex-col gap-3">
+          <label class="rounded-xl border border-line bg-surface px-3 py-2" [style.border-color]="nameError() ? 'var(--nx-bad-fg)' : null">
+            <span class="block text-xs text-muted">Tu nombre</span>
+            <input class="w-full bg-transparent text-base outline-none" formControlName="client_name" aria-required="true" [attr.aria-invalid]="nameError() ? 'true' : null" autocomplete="name" />
+          </label>
+          @if (nameError(); as message) {
+            <p class="text-sm text-[var(--nx-bad-fg)]">{{ message }}</p>
+          }
+        </div>
+      </div>
       @if (loyaltyPercent() && !usePackage()) {
         <p class="text-sm text-ink-soft" role="status">
           Esta {{ copy().visit.toLowerCase() }} tiene <span class="nums font-medium" style="color: var(--booking-ink, var(--booking-primary))">{{ loyaltyPercent() }}%</span> de descuento por ser cliente frecuente.
         </p>
-      }
-      <label class="rounded-xl border border-line bg-surface px-3 py-2">
-        <span class="block text-xs text-muted">Tu nombre</span>
-        <input class="w-full bg-transparent text-base outline-none" formControlName="client_name" aria-required="true" autocomplete="name" />
-      </label>
-      @if (nameError(); as message) {
-        <p class="text-sm text-[var(--nx-bad-fg)]">{{ message }}</p>
       }
       @if (copy().pet) {
         <label class="rounded-xl border border-line bg-surface px-3 py-2">
@@ -648,9 +681,9 @@
         </div>
       }
       @if (showOptional()) {
-        <label class="rounded-xl border border-line bg-surface px-3 py-2">
+        <label class="rounded-xl border border-line bg-surface px-3 py-2" [style.border-color]="emailError() ? 'var(--nx-bad-fg)' : null">
           <span class="block text-xs text-muted">Correo (opcional)</span>
-          <input class="w-full bg-transparent text-base outline-none" type="email" formControlName="client_email" autocomplete="email" />
+          <input class="w-full bg-transparent text-base outline-none" type="email" formControlName="client_email" [attr.aria-invalid]="emailError() ? 'true' : null" autocomplete="email" />
         </label>
         @if (emailError(); as message) {
           <p class="text-sm text-[var(--nx-bad-fg)]">{{ message }}</p>
@@ -661,12 +694,18 @@
             <textarea class="w-full resize-none bg-transparent text-base outline-none" rows="2" formControlName="notes"></textarea>
           </label>
         }
-      } @else {
-        <button type="button" class="min-h-11 self-start text-sm underline underline-offset-2" style="color: var(--booking-ink, var(--booking-primary))" (click)="showOptional.set(true)">
-          + Agregar correo o nota
-        </button>
       }
 
+      @if (!showOptional() || !(couponOpen() || coupon())) {
+        <div class="flex flex-wrap gap-2">
+          @if (!showOptional()) {
+            <button type="button" class="btn btn-secondary" (click)="showOptional.set(true)"><mat-icon>add</mat-icon>Correo o nota</button>
+          }
+          @if (!(couponOpen() || coupon())) {
+            <button type="button" class="btn btn-secondary" (click)="couponOpen.set(true)"><mat-icon>sell</mat-icon>Cupón</button>
+          }
+        </div>
+      }
       @if (couponOpen() || coupon()) {
         <div class="flex items-stretch gap-2">
           <label class="min-w-0 flex-1 rounded-xl border border-line bg-surface px-3 py-2">
@@ -688,10 +727,6 @@
         } @else if (couponChecked() && couponPercent()) {
           <p class="text-sm text-ink-soft" role="status">Cupón {{ couponChecked() }}: <span class="nums">{{ couponPercent() }}%</span> de descuento.</p>
         }
-      } @else {
-        <button type="button" class="min-h-11 self-start text-sm underline underline-offset-2" style="color: var(--booking-ink, var(--booking-primary))" (click)="couponOpen.set(true)">
-          ¿Tienes un cupón?
-        </button>
       }
 
       @if (formError(); as message) {
@@ -740,10 +775,15 @@
                 {{ formatPrice(cash.final) }}
               </span>
             </div>
-            <p class="mt-2 text-xs text-muted">
-              Transfieres a {{ brand()?.deposit_account }} después de reservar. Te apartamos el horario {{ brand()?.deposit_hold_hours || 3 }} h mientras llega.
-            </p>
-            <p class="mt-1 text-sm text-ink-soft">{{ depositPolicy() }}</p>
+            <!-- El anticipo se transfiere después de reservar: la cuenta ya se puede copiar desde aquí. -->
+            <div class="mt-3 flex items-center gap-3 rounded-lg bg-canvas px-3 py-2">
+              <div class="min-w-0 flex-1">
+                <p class="text-sm text-muted">Transfieres a esta {{ accountLabel() }} después de reservar</p>
+                <p class="nums truncate font-medium text-ink">{{ brand()?.deposit_account }}</p>
+              </div>
+              <button type="button" class="btn btn-secondary shrink-0 px-3!" (click)="copyAccount()">{{ accountCopied() ? 'Copiada' : 'Copiar' }}</button>
+            </div>
+            <p class="mt-2 text-sm text-ink-soft">Te apartamos el horario {{ brand()?.deposit_hold_hours || 3 }} h mientras llega el anticipo.</p>
           } @else {
             @if (cash.discount; as off) {
               <div class="flex justify-between gap-3 text-ink-soft">
@@ -759,18 +799,27 @@
               <span>Pagas en la {{ copy().visit.toLowerCase() }}</span>
               <span class="nums font-semibold">{{ formatPrice(cash.final) }}</span>
             </div>
-            <p class="mt-1 text-xs text-muted">No pagas nada ahora.</p>
+            <p class="mt-1 text-sm text-muted">No pagas nada ahora.</p>
           }
           @if (payMethods(); as methods) {
-            <p class="mt-2 text-xs text-muted">Aceptamos {{ methods }}.</p>
+            <p class="mt-2 text-sm text-muted">Aceptamos {{ methods }}.</p>
           }
           @if (brand()?.approve_bookings) {
-            <p class="mt-2 text-xs text-muted">El negocio revisa cada solicitud y te confirma por WhatsApp.</p>
+            <p class="mt-2 text-sm text-muted">El negocio revisa cada solicitud y te confirma por WhatsApp.</p>
           }
-          @if (policy(); as text) {
-            <p class="mt-3 whitespace-pre-line border-t border-line pt-2 text-xs text-muted">
-              <span class="font-medium text-ink-soft">Cancelaciones:</span> {{ text }}
-            </p>
+          <!-- Una sola política: con anticipo, lo que pasa con el anticipo; el texto propio del negocio se suma, y el genérico de horas no se repite. -->
+          @if ((cash.deposit && !usePackage()) || policy()) {
+            <div class="mt-3 border-t border-line pt-3 text-sm text-ink-soft">
+              <p class="font-medium text-ink">Si cambias o cancelas</p>
+              @if (cash.deposit && !usePackage()) {
+                <p class="mt-1">{{ depositPolicy() }}</p>
+              }
+              @if (policy(); as text) {
+                @if (!(cash.deposit && !usePackage()) || brand()?.cancel_policy?.trim()) {
+                  <p class="mt-1 whitespace-pre-line">{{ text }}</p>
+                }
+              }
+            </div>
           }
         </section>
       }
@@ -779,9 +828,6 @@
         <a class="underline underline-offset-2" [href]="'/' + slug + '/privacidad'" target="_blank" rel="noopener">aviso de privacidad</a>
         de {{ brand()?.name || 'el negocio' }}: usamos tus datos solo para tu cita.
       </p>
-      @if (detailsMissing().length > 0) {
-        <p class="text-sm text-ink-soft" role="status">Para continuar falta: {{ detailsMissing().join(', ') }}. Los campos con <span class="font-semibold text-[var(--nx-bad-fg)]">*</span> son obligatorios.</p>
-      }
     </form>
   } @else if (confirmation(); as appointment) {
     <section class="nx-success mx-auto flex w-full max-w-md flex-col items-center card px-6 py-10 text-center shadow-sm">
@@ -953,6 +999,34 @@
       </button>
     </section>
   }
+  @if (aside; as info) {
+    <aside class="card hidden self-start lg:sticky lg:top-6 lg:block" aria-label="Tu cita">
+      <p class="card-title">Tu cita</p>
+      @if (info.whenDay) {
+        <p class="mt-2 text-lg font-semibold leading-tight first-letter:uppercase">{{ info.whenDay }}</p>
+        <p class="nums text-lg font-semibold leading-tight">{{ info.whenTime }}</p>
+      } @else {
+        <p class="mt-2 text-sm text-ink-soft">Aún no eliges día y hora</p>
+      }
+      <div class="mt-3 border-t border-line pt-3">
+        <p class="text-sm font-medium">{{ info.title }}</p>
+        <p class="text-sm text-ink-soft">{{ info.detail }}</p>
+        @if (info.who) {
+          <p class="text-sm text-ink-soft">con {{ info.who }}</p>
+        }
+      </div>
+      @if (step() === 3) {
+        <button type="button" class="btn btn-secondary mt-3 w-full" (click)="openStep(2)">Cambiar día u hora</button>
+        <button type="submit" form="booking-form" class="brand-fill mt-2 h-11 w-full rounded-full px-5 text-sm font-medium disabled:opacity-50" [disabled]="isSaving()">
+          {{ isSaving() ? 'Reservando…' : (holdsDeposit() ? 'Apartar horario' : 'Confirmar ' + copy().visit.toLowerCase()) }}
+        </button>
+        @if (detailsMissing().length > 0) {
+          <p class="mt-2 text-sm font-medium" style="color: var(--nx-bad-fg)" role="status">Falta: {{ detailsMissing().join(', ') }}</p>
+        }
+      }
+    </aside>
+  }
+  </div>
 <ng-template #visitSummary let-appointment>
         <dl class="w-full divide-y divide-line rounded-2xl border border-line text-left text-sm">
           <div class="flex items-baseline justify-between gap-4 px-4 py-2.5">
@@ -1002,13 +1076,16 @@
 @if (summary(); as info) {
   @if (!confirmation() && !isLoading() && !loadError()) {
     <!-- Resumen fijo: el cliente siempre ve qué está reservando y tiene el botón a la mano. -->
-    <div class="booking-bar" role="region" aria-label="Resumen de tu reserva">
+    <div class="booking-bar" [class.booking-bar-hide]="step() === 3" role="region" aria-label="Resumen de tu reserva">
       <div class="mx-auto flex w-full max-w-3xl items-center gap-3 px-4 py-3">
         <div class="min-w-0 flex-1 text-sm">
           <p class="truncate font-medium">{{ info.title }}</p>
           <p class="truncate text-muted">
             {{ info.detail }}@if (info.who) { · con {{ info.who }}}
           </p>
+          @if (step() === 3 && detailsMissing().length > 0) {
+            <p class="truncate font-medium" style="color: var(--nx-bad-fg)" role="status">Falta: {{ detailsMissing().join(', ') }}</p>
+          }
           @if (info.when && step() !== 3) {
             <p class="truncate font-medium first-letter:uppercase" style="color: var(--booking-ink, var(--booking-primary))">{{ info.when }}</p>
           }
@@ -1025,7 +1102,7 @@
             {{ selectedSlot() ? 'Continuar' : 'Elige una hora' }}
           </button>
         } @else {
-          <button type="submit" form="booking-form" class="brand-fill h-11 shrink-0 rounded-full px-5 text-sm font-medium disabled:opacity-50" [disabled]="isSaving() || detailsMissing().length > 0">
+          <button type="submit" form="booking-form" class="brand-fill h-11 shrink-0 rounded-full px-5 text-sm font-medium disabled:opacity-50" [disabled]="isSaving()">
             {{ isSaving() ? 'Reservando…' : (holdsDeposit() ? 'Apartar horario' : 'Confirmar ' + copy().visit.toLowerCase()) }}
           </button>
         }
