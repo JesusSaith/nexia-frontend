@@ -45,6 +45,9 @@ import { PlaceMap } from '@shared/components/place-map/place-map';
 import { CalendarEvent, downloadIcs, googleCalendarUrl } from '@core/calendar';
 import { canNavigate, googleMapsUrl } from '@core/maps';
 
+/** Desde cuántos servicios se fijan la búsqueda y las categorías arriba. */
+const STICKY_FROM = 12;
+
 const STEPS = [
   { id: 1, label: 'Servicio' },
   { id: 2, label: 'Horario' },
@@ -139,6 +142,8 @@ export class Booking {
   protected readonly spotsLabel = spotsLabel;
   protected readonly serviceQuery = signal('');
   protected readonly searchable = computed(() => this.services().length > SEARCH_FROM);
+  /** Con más de 12 servicios la lista es larga: búsqueda y categorías se quedan fijas arriba al bajar. */
+  protected readonly stickyBar = computed(() => this.services().length > STICKY_FROM);
   protected readonly visibleServices = computed(() => {
     const name = this.categoryFilter();
     const query = this.searchable() ? this.serviceQuery() : '';

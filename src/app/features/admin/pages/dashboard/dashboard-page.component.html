@@ -83,8 +83,9 @@
       @if (isEmpty()) {
         <div class="empty mb-6">
           <mat-icon>insights</mat-icon>
-          <p>Aún no hay cobros ni gastos en este periodo. Cuando completes citas en la Agenda, aquí verás cuánto entró y cuánto te quedó.</p>
-          <a routerLink="/admin/agenda" class="btn btn-secondary mt-1">Ir a la agenda</a>
+          <p class="font-medium text-ink">Aquí verás cuánto entra y cuánto te queda</p>
+          <p>Todavía no hay cobros ni gastos en este periodo. Se llena solo: al terminar una cita en la Agenda, toca "Cobrar y completar".</p>
+          <a routerLink="/admin/agenda" class="btn btn-primary mt-1">Ir a la agenda</a>
         </div>
       } @else {
         <!-- Las tres preguntas de la dueña, con su respuesta y a dónde ir. -->
