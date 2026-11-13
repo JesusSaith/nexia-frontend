@@ -25,7 +25,7 @@ const MESSAGES: Record<FieldName, Record<string, string>> = {
   usesCommissions: { required: 'Dinos si le pagas comisión a tu equipo.' },
   fullName: { required: 'Escribe tu nombre.' },
   email: { required: 'Escribe tu correo.', email: 'Revisa el correo; parece incompleto.', taken: 'Ese correo ya tiene una cuenta.' },
-  password: { required: 'Crea una contraseña.', minlength: 'Usa al menos 8 caracteres.', maxlength: 'Usa máximo 72 caracteres.' },
+  password: { required: 'Crea una contraseña.', minlength: 'Usa al menos 10 caracteres.', maxlength: 'Usa máximo 72 caracteres.' },
   acceptTerms: { required: 'Para crear tu cuenta necesitas aceptar los términos y el aviso de privacidad.' },
 };
 
@@ -85,7 +85,7 @@ export class Register {
     email: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email] }),
     password: new FormControl('', {
       nonNullable: true,
-      validators: [Validators.required, Validators.minLength(8), Validators.maxLength(72)],
+      validators: [Validators.required, Validators.minLength(10), Validators.maxLength(72)],
     }),
     acceptTerms: new FormControl(false, { nonNullable: true, validators: [Validators.requiredTrue] }),
   });
