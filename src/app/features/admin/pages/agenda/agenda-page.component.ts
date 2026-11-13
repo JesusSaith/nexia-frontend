@@ -1,6 +1,8 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormStatusComponent } from '@shared/components/form-status/form-status';
 import { pesos } from '@core/money';
+import { canSplitPay, splitCardAmount, splitProblem, tipOnCard, toAmount } from '@core/split-pay';
+import { SplitPay } from '@shared/components/split-pay/split-pay';
 import { hora12 } from '../../../../core/hours';
 import { HoraPipe } from '../../../../shared/pipes/hora.pipe';
 import { NgTemplateOutlet } from '@angular/common';
@@ -85,7 +87,7 @@ function compactTime(hhmm: string): string {
 
 @Component({
   selector: 'app-agenda-page',
-  imports: [MultiSelectFieldComponent, SegmentedDirective, FormStatusComponent, 
+  imports: [MultiSelectFieldComponent, SegmentedDirective, FormStatusComponent, SplitPay,
     HoraPipe,
     NgTemplateOutlet,
     Skeleton,
@@ -337,6 +339,9 @@ export class AgendaPageComponent {
   protected readonly pastMethod = signal('efectivo');
   protected readonly pastTip = signal('');
   protected readonly pastNote = signal('');
+  protected readonly pastSplitOn = signal(false);
+  protected readonly pastSplitCard = signal('');
+  protected readonly pastTipCard = signal(false);
   protected readonly busyTimes = signal<string[]>([]);
   protected readonly pastMethods = computed(() => this.payMethods().filter((item) => item.value !== 'paquete'));
 
@@ -2137,6 +2142,9 @@ export class AgendaPageComponent {
     this.pastMethod.set(this.pastMethods()[0]?.value ?? 'efectivo');
     this.pastTip.set('');
     this.pastNote.set('');
+    this.pastSplitOn.set(false);
+    this.pastSplitCard.set('');
+    this.pastTipCard.set(false);
     this.busyTimes.set([]);
     this.known.set(null);
     this.freshPhone.set(false);
@@ -2413,22 +2421,21 @@ export class AgendaPageComponent {
   /** Cobro dividido: una parte con tarjeta y el resto en efectivo o transferencia (solo si el negocio acepta tarjeta). */
   protected readonly splitOn = signal(false);
   protected readonly splitCard = signal('');
-  protected readonly canSplit = computed(() => ['efectivo', 'transferencia'].includes(this.chargeMethod()) && this.acceptedMethods().includes('tarjeta'));
+  /** La propina se pagó con tarjeta aunque la cita fuera en efectivo o transferencia. */
+  protected readonly tipCard = signal(false);
+  protected readonly cardAccepted = computed(() => this.acceptedMethods().includes('tarjeta'));
+  /** Lo que falta de la cita (sin anticipo): la parte con tarjeta debe ser menor. */
+  protected readonly serviceDue = computed(() => Math.max(this.serviceCharge() - this.chargeDeposit(), 0));
   /** Lo que se cobra con tarjeta de la cita (0 si no se divide). */
-  protected readonly splitCardAmount = computed(() => (this.splitOn() && this.canSplit() ? toAmount(this.splitCard()) ?? 0 : 0));
-  /** La parte con tarjeta debe ser positiva y menor a lo que falta de la cita (si no, es un cobro normal con tarjeta). */
-  protected readonly splitInvalid = computed(() => {
-    if (!this.splitOn() || !this.canSplit()) {
-      return false;
-    }
-    const card = this.splitCardAmount();
-    return card <= 0 || card >= Math.max(this.serviceCharge() - this.chargeDeposit(), 0);
-  });
-  protected readonly splitRest = computed(() => Math.max(0, Math.round((this.dueNow() - this.splitCardAmount()) * 100) / 100));
+  protected readonly splitCardAmount = computed(() => splitCardAmount(this.splitOn(), this.splitCard(), this.chargeMethod(), this.cardAccepted()));
+  protected readonly splitInvalid = computed(() => splitProblem(this.splitOn(), this.splitCard(), this.chargeMethod(), this.cardAccepted(), this.serviceDue()));
+  protected readonly chargeTipOnCard = computed(() => tipOnCard(this.tipCard(), this.tipAmount(), this.chargeMethod(), this.cardAccepted()));
+  /** Lo que queda en efectivo o transferencia: todo menos la parte con tarjeta y la propina si fue con tarjeta. */
+  protected readonly splitRest = computed(() => Math.max(0, Math.round((this.dueNow() - this.splitCardAmount() - (this.chargeTipOnCard() ? this.tipAmount() : 0)) * 100) / 100));
   /** Con tarjeta: cuánto retiene la terminal de lo que se cobra ahora y cuánto se deposita (solo informativo). */
   protected readonly cardFeeNote = computed(() => {
     const rate = this.cardFeeRate();
-    const onCard = this.chargeMethod() === 'tarjeta' ? this.dueNow() : this.splitCardAmount();
+    const onCard = this.chargeMethod() === 'tarjeta' ? this.dueNow() : this.splitCardAmount() + (this.chargeTipOnCard() ? this.tipAmount() : 0);
     if (!rate || onCard <= 0) {
       return null;
     }
@@ -2445,8 +2452,9 @@ export class AgendaPageComponent {
   }
   protected setChargeMethod(value: string): void {
     this.chargeMethod.set(value);
-    if (!['efectivo', 'transferencia'].includes(value)) {
+    if (!canSplitPay(value, true)) {
       this.splitOn.set(false);
+      this.tipCard.set(false);
     }
   }
 
@@ -2489,6 +2497,7 @@ export class AgendaPageComponent {
     this.chargeTip.set('');
     this.splitOn.set(false);
     this.splitCard.set('');
+    this.tipCard.set(false);
     this.chargeNote.set('');
     this.cart.set([]);
     this.productPick.set(null);
@@ -2583,6 +2592,7 @@ export class AgendaPageComponent {
         payment_method: this.chargeMethod(),
         tip: tip && tip > 0 ? tip : null,
         card_amount: this.splitCardAmount() || null,
+        tip_on_card: this.chargeTipOnCard(),
         visit_note: note || null,
       },
       () => this.sellCart(sold),
@@ -2631,6 +2641,9 @@ export class AgendaPageComponent {
   protected readonly fixPrice = signal('');
   protected readonly fixMethod = signal('efectivo');
   protected readonly fixTip = signal('');
+  protected readonly fixSplitOn = signal(false);
+  protected readonly fixSplitCard = signal('');
+  protected readonly fixTipCard = signal(false);
   protected readonly fixNote = signal('');
   protected readonly fixError = signal<string | null>(null);
   protected readonly fixSaving = signal(false);
@@ -2714,6 +2727,58 @@ export class AgendaPageComponent {
       });
   }
 
+  protected toNumber(value: string): number {
+    return toAmount(value) ?? 0;
+  }
+
+  /** Lo que se cobró de un servicio que ya pasó: el que se escribió o, si no, el del servicio (0 si no se sabe). */
+  protected pastDue(): number {
+    const value = this.form.getRawValue();
+    const typed = toAmount(value.quoted_price);
+    const price = typed ?? this.services().find((item) => item.id === Number(value.service_id))?.price ?? 0;
+    return price > 0 ? price : 1e9; // sin precio todavía, el servidor valida el tope
+  }
+  protected pastCardAmount(): number {
+    return splitCardAmount(this.pastSplitOn(), this.pastSplitCard(), this.pastMethod(), this.cardAccepted());
+  }
+  protected pastTipOnCard(): boolean {
+    return tipOnCard(this.pastTipCard(), toAmount(this.pastTip()) ?? 0, this.pastMethod(), this.cardAccepted());
+  }
+  protected pastSplitBad(): boolean {
+    return this.pastOutcome() === 'done' && splitProblem(this.pastSplitOn(), this.pastSplitCard(), this.pastMethod(), this.cardAccepted(), this.pastDue());
+  }
+  protected setPastMethod(value: string): void {
+    this.pastMethod.set(value);
+    if (!canSplitPay(value, true)) {
+      this.pastSplitOn.set(false);
+      this.pastTipCard.set(false);
+    }
+  }
+
+  protected fixDue(): number {
+    const typed = toAmount(this.fixPrice());
+    const item = this.fixing();
+    const price = typed ?? item?.quoted_price ?? this.services().find((row) => row.id === item?.service_id)?.price ?? 0;
+    const due = price - (item?.deposit_amount ?? 0);
+    return due > 0 ? due : 1e9;
+  }
+  protected fixCardAmount(): number {
+    return splitCardAmount(this.fixSplitOn(), this.fixSplitCard(), this.fixMethod(), this.cardAccepted());
+  }
+  protected fixTipOnCard(): boolean {
+    return tipOnCard(this.fixTipCard(), toAmount(this.fixTip()) ?? 0, this.fixMethod(), this.cardAccepted());
+  }
+  protected fixSplitBad(): boolean {
+    return this.fixStatus() === 'completed' && splitProblem(this.fixSplitOn(), this.fixSplitCard(), this.fixMethod(), this.cardAccepted(), this.fixDue());
+  }
+  protected setFixMethod(value: string): void {
+    this.fixMethod.set(value);
+    if (!canSplitPay(value, true)) {
+      this.fixSplitOn.set(false);
+      this.fixTipCard.set(false);
+    }
+  }
+
   protected startFix(appointment: Appointment): void {
     this.selected.set(null);
     this.fixing.set(appointment);
@@ -2722,6 +2787,9 @@ export class AgendaPageComponent {
     this.fixPrice.set(appointment.quoted_price != null ? String(appointment.quoted_price) : '');
     this.fixMethod.set(appointment.payment_method ?? this.pastMethods()[0]?.value ?? 'efectivo');
     this.fixTip.set(appointment.tip ? String(appointment.tip) : '');
+    this.fixSplitOn.set(!!appointment.card_amount);
+    this.fixSplitCard.set(appointment.card_amount ? String(appointment.card_amount) : '');
+    this.fixTipCard.set(!!appointment.tip_card);
     this.fixNote.set(appointment.visit_note ?? '');
     this.dialogRef = this.dialog.open(this.fixer(), { width: '460px', maxWidth: 'calc(100vw - 32px)', panelClass: 'service-sheet', autoFocus: 'first-tabbable' });
   }
@@ -2739,7 +2807,7 @@ export class AgendaPageComponent {
     const price = this.fixPrice().trim() ? Number(this.fixPrice()) : null;
     const tip = Number(this.fixTip()) > 0 ? Number(this.fixTip()) : null;
     const moneyChanged =
-      (appointment.status === 'completed') !== done || (done && (price !== (appointment.quoted_price ?? null) || tip !== (appointment.tip || null) || this.fixMethod() !== (appointment.payment_method ?? '')));
+      (appointment.status === 'completed') !== done || (done && (price !== (appointment.quoted_price ?? null) || tip !== (appointment.tip || null) || this.fixMethod() !== (appointment.payment_method ?? '') || (this.fixCardAmount() || null) !== (appointment.card_amount ?? null) || this.fixTipOnCard() !== !!appointment.tip_card));
     const old = (this.clock.now().getTime() - parseTimestamp(appointment.starts_at).getTime()) / 86_400_000 > 7;
     if (moneyChanged && old) {
       const ok = await this.confirm.ask({
@@ -2759,8 +2827,8 @@ export class AgendaPageComponent {
         final_price: done ? price : null,
         payment_method: done ? this.fixMethod() : null,
         tip: done ? tip : null,
-        // Un cobro dividido se conserva mientras no cambie el método de pago.
-        card_amount: done && this.fixMethod() === appointment.payment_method ? appointment.card_amount ?? null : null,
+        card_amount: done ? this.fixCardAmount() || null : null,
+        tip_on_card: done && this.fixTipOnCard(),
         visit_note: this.fixNote().trim() || null,
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -2849,6 +2917,8 @@ export class AgendaPageComponent {
               past_outcome: this.pastOutcome(),
               payment_method: this.pastOutcome() === 'done' ? this.pastMethod() : null,
               tip: this.pastOutcome() === 'done' && Number(this.pastTip()) > 0 ? Number(this.pastTip()) : null,
+              card_amount: this.pastOutcome() === 'done' ? this.pastCardAmount() || null : null,
+              tip_on_card: this.pastOutcome() === 'done' && this.pastTipOnCard(),
               visit_note: this.pastNote().trim() || null,
             }
           : {}),
@@ -3939,15 +4009,6 @@ function waPhone(value: string | null | undefined): string {
   }
   const digits = (value ?? '').replace(/\D/g, '');
   return digits.length === 10 ? `52${digits}` : digits;
-}
-
-function toAmount(value: string | number | null | undefined): number | null {
-  const raw = String(value ?? '').trim();
-  if (!raw) {
-    return null;
-  }
-  const amount = Number(raw);
-  return Number.isNaN(amount) || amount < 0 ? null : amount;
 }
 
 function readError(error: unknown, fallback: string): string {

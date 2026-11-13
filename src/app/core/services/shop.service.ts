@@ -29,6 +29,8 @@ export interface CommissionRow {
   tips?: number;
   /** De las propinas, las cobradas con tarjeta o transferencia: no están en el cajón y se le entregan. */
   tips_owed?: number;
+  /** De esas propinas, las que ya se marcaron como entregadas en el periodo. */
+  tips_delivered?: number;
   no_shows?: number;
   cancels?: number;
   /** Clientas distintas que atendió y cuántas ya habían venido antes del periodo. */
@@ -289,6 +291,11 @@ export class ShopService {
 
   report(start: string, end: string): Observable<SalesReport> {
     return this.http.get<SalesReport>(`${this.apiBaseUrl}/shop/report`, { params: { start, end } });
+  }
+
+  /** Marca como entregadas (o deshace) las propinas de tarjeta y transferencia de una persona en un periodo. */
+  deliverTips(staffId: number, start: string, end: string, delivered: boolean): Observable<{ changed: number }> {
+    return this.http.post<{ changed: number }>(`${this.apiBaseUrl}/shop/tips/deliver`, { staff_id: staffId, start, end, delivered });
   }
 
   markCommission(staffId: number, start: string, end: string, amount: number, paid: boolean): Observable<string> {
