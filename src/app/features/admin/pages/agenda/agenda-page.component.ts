@@ -2410,15 +2410,45 @@ export class AgendaPageComponent {
   protected readonly chargeMethod = signal('efectivo');
   /** Lo que retiene la terminal por cada peso cobrado con tarjeta (0 si no capturó la comisión en Configuración). */
   private readonly cardFeeRate = signal(0);
+  /** Cobro dividido: una parte con tarjeta y el resto en efectivo o transferencia (solo si el negocio acepta tarjeta). */
+  protected readonly splitOn = signal(false);
+  protected readonly splitCard = signal('');
+  protected readonly canSplit = computed(() => ['efectivo', 'transferencia'].includes(this.chargeMethod()) && this.acceptedMethods().includes('tarjeta'));
+  /** Lo que se cobra con tarjeta de la cita (0 si no se divide). */
+  protected readonly splitCardAmount = computed(() => (this.splitOn() && this.canSplit() ? toAmount(this.splitCard()) ?? 0 : 0));
+  /** La parte con tarjeta debe ser positiva y menor a lo que falta de la cita (si no, es un cobro normal con tarjeta). */
+  protected readonly splitInvalid = computed(() => {
+    if (!this.splitOn() || !this.canSplit()) {
+      return false;
+    }
+    const card = this.splitCardAmount();
+    return card <= 0 || card >= Math.max(this.serviceCharge() - this.chargeDeposit(), 0);
+  });
+  protected readonly splitRest = computed(() => Math.max(0, Math.round((this.dueNow() - this.splitCardAmount()) * 100) / 100));
   /** Con tarjeta: cuánto retiene la terminal de lo que se cobra ahora y cuánto se deposita (solo informativo). */
   protected readonly cardFeeNote = computed(() => {
     const rate = this.cardFeeRate();
-    if (!rate || this.chargeMethod() !== 'tarjeta' || this.dueNow() <= 0) {
+    const onCard = this.chargeMethod() === 'tarjeta' ? this.dueNow() : this.splitCardAmount();
+    if (!rate || onCard <= 0) {
       return null;
     }
-    const fee = Math.round(this.dueNow() * rate * 100) / 100;
-    return { fee, net: Math.round((this.dueNow() - fee) * 100) / 100 };
+    const fee = Math.round(onCard * rate * 100) / 100;
+    return { fee, net: Math.round((onCard - fee) * 100) / 100 };
   });
+  protected readonly tipPercents = [10, 15, 20];
+  /** Propina como porcentaje del servicio, redondeada al peso. */
+  protected tipFor(percent: number): number {
+    return Math.round((this.serviceCharge() * percent) / 100);
+  }
+  protected setTipPercent(percent: number): void {
+    this.chargeTip.set(this.tipAmount() === this.tipFor(percent) ? '' : String(this.tipFor(percent)));
+  }
+  protected setChargeMethod(value: string): void {
+    this.chargeMethod.set(value);
+    if (!['efectivo', 'transferencia'].includes(value)) {
+      this.splitOn.set(false);
+    }
+  }
 
   /** Visitas de paquete que le quedan a quien tiene esta cita (por teléfono, igual que en Clientes). */
   protected packVisitsLeft(appointment: Appointment): number {
@@ -2457,6 +2487,8 @@ export class AgendaPageComponent {
     this.chargeDeposit.set(appointment.status === 'scheduled' ? appointment.deposit_amount ?? 0 : 0);
     this.chargeMethod.set(this.payMethods()[0].value);
     this.chargeTip.set('');
+    this.splitOn.set(false);
+    this.splitCard.set('');
     this.chargeNote.set('');
     this.cart.set([]);
     this.productPick.set(null);
@@ -2550,6 +2582,7 @@ export class AgendaPageComponent {
         final_price: toAmount(this.chargeAmount()),
         payment_method: this.chargeMethod(),
         tip: tip && tip > 0 ? tip : null,
+        card_amount: this.splitCardAmount() || null,
         visit_note: note || null,
       },
       () => this.sellCart(sold),
@@ -2726,6 +2759,8 @@ export class AgendaPageComponent {
         final_price: done ? price : null,
         payment_method: done ? this.fixMethod() : null,
         tip: done ? tip : null,
+        // Un cobro dividido se conserva mientras no cambie el método de pago.
+        card_amount: done && this.fixMethod() === appointment.payment_method ? appointment.card_amount ?? null : null,
         visit_note: this.fixNote().trim() || null,
       })
       .pipe(takeUntilDestroyed(this.destroyRef))

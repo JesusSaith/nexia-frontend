@@ -60,6 +60,10 @@ export interface Appointment {
   photo_count?: number;
   payment_method?: string | null;
   tip?: number | null;
+  /** Cobro dividido: la parte de la cita que se pagó con tarjeta; el resto va en `payment_method`. */
+  card_amount?: number | null;
+  /** Lo que retuvo la terminal al cobrar (cita y propina). Vacío en cobros anteriores a este dato. */
+  card_fee?: number | null;
   visit_note?: string | null;
   discount_percent?: number | null;
   /** Llegó por la página con "aprobar citas a mano": el horario está apartado, falta el sí de la dueña. */
@@ -97,6 +101,7 @@ export interface AdminAppointmentCreate {
   contact_handle?: string;
   payment_method?: string | null;
   tip?: number | null;
+  card_amount?: number | null;
   visit_note?: string | null;
   /** La dueña confirmó que quiere agendar aunque choque con otra cita. */
   allow_overlap?: boolean;
@@ -142,6 +147,7 @@ export interface AppointmentCorrection {
   final_price?: number | null;
   payment_method?: string | null;
   tip?: number | null;
+  card_amount?: number | null;
   visit_note?: string | null;
 }
 

@@ -791,14 +791,37 @@
             </label>
             <div class="flex flex-wrap gap-2" role="group" aria-label="Método de pago">
               @for (method of payMethods(); track method.value) {
-                <button type="button" class="chip h-11!" [class.chip-on]="chargeMethod() === method.value" [attr.aria-pressed]="chargeMethod() === method.value" (click)="chargeMethod.set(method.value)">{{ method.label }}</button>
+                <button type="button" class="chip h-11!" [class.chip-on]="chargeMethod() === method.value" [attr.aria-pressed]="chargeMethod() === method.value" (click)="setChargeMethod(method.value)">{{ method.label }}</button>
               }
             </div>
+            @if (canSplit()) {
+              <div class="flex flex-col gap-2">
+                <button type="button" class="chip h-11! self-start" [class.chip-on]="splitOn()" [attr.aria-pressed]="splitOn()" (click)="splitOn.set(!splitOn())">Dividir el pago con tarjeta</button>
+                @if (splitOn()) {
+                  <label class="block">
+                    <span class="label">Cuánto pagó con tarjeta</span>
+                    <input class="input nums" type="number" min="0" inputmode="decimal" placeholder="0" [value]="splitCard()" (input)="splitCard.set($any($event.target).value)" />
+                    @if (splitInvalid() && splitCard().trim()) {
+                      <span class="field-error">Escribe una cantidad menor a lo que falta del servicio.</span>
+                    } @else if (splitCardAmount() > 0 && !splitInvalid()) {
+                      <span class="field-hint">El resto, {{ pesos(splitRest()) }}, lo cobras en {{ chargeMethod() === 'efectivo' ? 'efectivo' : 'transferencia' }}. La propina se cuenta con ese resto.</span>
+                    } @else {
+                      <span class="field-hint">Escribe cuánto pagó con tarjeta; el resto lo cobras en {{ chargeMethod() === 'efectivo' ? 'efectivo' : 'transferencia' }}.</span>
+                    }
+                  </label>
+                }
+              </div>
+            }
             @if (packVisitsLeft(pop.appointment) > 0 && chargeMethod() !== 'paquete') {
               <p class="field-hint">Tiene un paquete con visitas por usar. Elige "Paquete" para descontar una en lugar de cobrar.</p>
             }
             <label class="block">
               <span class="label opt">Propina</span>
+              <div class="mb-2 flex flex-wrap gap-2" role="group" aria-label="Propina sugerida">
+                @for (percent of tipPercents; track percent) {
+                  <button type="button" class="chip h-11!" [class.chip-on]="tipAmount() > 0 && tipAmount() === tipFor(percent)" [attr.aria-pressed]="tipAmount() > 0 && tipAmount() === tipFor(percent)" [disabled]="serviceCharge() <= 0" (click)="setTipPercent(percent)">{{ percent }} % · {{ pesos(tipFor(percent)) }}</button>
+                }
+              </div>
               <input class="input nums" type="number" min="0" inputmode="decimal" placeholder="0" [value]="chargeTip()" (input)="chargeTip.set($any($event.target).value)" />
             </label>
             @if (products().length) {
@@ -840,7 +863,7 @@
               }
               <dt class="font-semibold text-ink">Cobra ahora</dt><dd class="nums text-right text-base font-semibold text-ink">{{ pesos(dueNow()) }}</dd>
               @if (cardFeeNote(); as note) {
-                <dt class="text-xs text-muted">Tu terminal retiene</dt><dd class="nums text-right text-xs text-muted">−{{ pesos(note.fee) }} · te depositan {{ pesos(note.net) }}</dd>
+                <dt class="text-xs text-muted">Tu terminal retiene{{ splitCardAmount() ? ' de la tarjeta' : '' }}</dt><dd class="nums text-right text-xs text-muted">−{{ pesos(note.fee) }} · te depositan {{ pesos(note.net) }}</dd>
               }
             </dl>
             <button class="btn btn-ghost self-start" type="button" (click)="charging.set(null)">Cerrar cobro</button>
@@ -927,7 +950,7 @@
       } @else {
         @if (pop.appointment.status === 'scheduled') {
           @if (charging() === pop.appointment.id) {
-            <button type="button" class="btn btn-primary h-12 w-full text-base" (click)="completeWithCharge(pop.appointment)">
+            <button type="button" class="btn btn-primary h-12 w-full text-base" [disabled]="splitInvalid()" (click)="completeWithCharge(pop.appointment)">
               Cobrar {{ pesos(dueNow()) }} y completar
             </button>
           } @else if (!isHold(pop.appointment.service_id)) {
