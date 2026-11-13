@@ -75,6 +75,14 @@ const SLOT_MINUTES = 30;
 const VIEW_KEY = 'nexia-agenda-view';
 const SLOT_HEIGHT = 28;
 const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+/** "13:30" → "1:30p", "09:00" → "9a": hora corta para las celdas del mes. */
+function compactTime(hhmm: string): string {
+  const [h, m] = hhmm.split(':').map(Number);
+  const suffix = h >= 12 ? 'p' : 'a';
+  const hour = h % 12 === 0 ? 12 : h % 12;
+  return m ? `${hour}:${String(m).padStart(2, '0')}${suffix}` : `${hour}${suffix}`;
+}
+
 @Component({
   selector: 'app-agenda-page',
   imports: [MultiSelectFieldComponent, SegmentedDirective, FormStatusComponent, 
@@ -1227,7 +1235,7 @@ export class AgendaPageComponent {
     return [...this.activeOn(day)]
       .sort((a, b) => a.starts_at.localeCompare(b.starts_at))
       .slice(0, 2)
-      .map((item) => ({ time: item.starts_at.slice(11, 16), name: firstName(item.client_name) }));
+      .map((item) => ({ time: compactTime(item.starts_at.slice(11, 16)), name: firstName(item.client_name) }));
   }
 
   /** Citas que siguen en pie (sin canceladas ni faltas), para contar en el mes. */
