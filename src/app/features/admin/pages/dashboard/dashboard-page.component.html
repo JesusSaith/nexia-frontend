@@ -235,6 +235,12 @@
                 <span class="nums text-right font-medium text-ink-soft">− {{ money(row.commission_total) }}</span>
               </li>
             }
+            @if (row.terminal_fee) {
+              <li class="flex items-center justify-between gap-3 py-2.5">
+                <div><p class="text-ink">Comisión de terminal</p><p class="text-xs text-muted">Lo que retuvo tu terminal en cobros con tarjeta</p></div>
+                <span class="nums text-right font-medium text-ink-soft">− {{ money(row.terminal_fee) }}</span>
+              </li>
+            }
             <li class="flex items-center justify-between gap-3 py-2.5">
               <div><p class="font-semibold text-ink">Ganancia</p><p class="text-xs text-muted">Lo que queda</p></div>
               <span class="nums text-right text-lg font-semibold text-accent">{{ money(row.profit) }}</span>

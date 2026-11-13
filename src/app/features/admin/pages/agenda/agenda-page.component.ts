@@ -683,6 +683,7 @@ export class AgendaPageComponent {
         this.staffCanEditPrice.set(brand.staff_can_edit_price === true);
         this.depositCancelPolicy.set(brand.deposit_cancel_policy === 'keep' ? 'keep' : 'refund');
         this.acceptedMethods.set(brand.payment_methods?.length ? brand.payment_methods : ALL_METHODS);
+        this.cardFeeRate.set(brand.card_fee_percent ? (brand.card_fee_percent / 100) * (brand.card_fee_iva ? 1.16 : 1) : 0);
         this.depositRules.set({
           account: brand.deposit_account ?? null,
           amount: brand.deposit_amount ?? null,
@@ -2399,6 +2400,17 @@ export class AgendaPageComponent {
   protected readonly charging = signal<number | null>(null);
   protected readonly chargeAmount = signal('');
   protected readonly chargeMethod = signal('efectivo');
+  /** Lo que retiene la terminal por cada peso cobrado con tarjeta (0 si no capturó la comisión en Configuración). */
+  private readonly cardFeeRate = signal(0);
+  /** Con tarjeta: cuánto retiene la terminal de lo que se cobra ahora y cuánto se deposita (solo informativo). */
+  protected readonly cardFeeNote = computed(() => {
+    const rate = this.cardFeeRate();
+    if (!rate || this.chargeMethod() !== 'tarjeta' || this.dueNow() <= 0) {
+      return null;
+    }
+    const fee = Math.round(this.dueNow() * rate * 100) / 100;
+    return { fee, net: Math.round((this.dueNow() - fee) * 100) / 100 };
+  });
 
   /** Visitas de paquete que le quedan a quien tiene esta cita (por teléfono, igual que en Clientes). */
   protected packVisitsLeft(appointment: Appointment): number {

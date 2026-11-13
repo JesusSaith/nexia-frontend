@@ -162,6 +162,8 @@ export interface SalesReport {
   commission_total: number;
   product_cost: number;
   profit: number;
+  /** Lo que retuvo la terminal de tarjeta en el periodo (ya restado de la ganancia). */
+  terminal_fee?: number;
   completed_count: number;
   average_ticket: number;
   missed_count: number;
@@ -190,6 +192,7 @@ export interface AccountingMonth {
   by_category: Record<string, number>;
   expenses: number;
   commissions: number;
+  terminal_fee?: number;
   tips: number;
   product_cost: number;
   profit: number;

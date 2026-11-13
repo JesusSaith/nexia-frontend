@@ -839,6 +839,9 @@
                 <dt class="text-muted">Propina</dt><dd class="nums text-right text-ink">{{ pesos(tipAmount()) }}</dd>
               }
               <dt class="font-semibold text-ink">Cobra ahora</dt><dd class="nums text-right text-base font-semibold text-ink">{{ pesos(dueNow()) }}</dd>
+              @if (cardFeeNote(); as note) {
+                <dt class="text-xs text-muted">Tu terminal retiene</dt><dd class="nums text-right text-xs text-muted">−{{ pesos(note.fee) }} · te depositan {{ pesos(note.net) }}</dd>
+              }
             </dl>
             <button class="btn btn-ghost self-start" type="button" (click)="charging.set(null)">Cerrar cobro</button>
           </div>
