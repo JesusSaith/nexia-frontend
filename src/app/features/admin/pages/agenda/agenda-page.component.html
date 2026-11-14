@@ -1077,6 +1077,9 @@
         Cotizar y avisar por WhatsApp
       </button>
     }
+    @if (!priceOpen(appointment) && !needsQuote(appointment)) {
+      <p class="field-hint">Solo si acordaste con tu {{ copy.text().client.toLowerCase() }} un precio distinto al del servicio. Si no, déjalo vacío.</p>
+    }
     @if (priceOpen(appointment)) {
       <p class="field-hint">Precio por definir: acuérdalo con el {{ copy.text().client.toLowerCase() }} en la {{ copy.text().visit.toLowerCase() }} y escríbelo aquí antes de cobrar.</p>
     }

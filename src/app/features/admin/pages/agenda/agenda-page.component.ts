@@ -823,7 +823,8 @@ export class AgendaPageComponent {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
         this.now.set(this.clock.nowMs());
-        if (this.ownStaffReady()) {
+        // En segundo plano no se vuelve a pedir la agenda; al regresar, el siguiente ciclo la actualiza.
+        if (this.ownStaffReady() && !document.hidden) {
           this.loadAppointments(this.range(), this.staffId(), this.serviceId(), true);
         }
       });

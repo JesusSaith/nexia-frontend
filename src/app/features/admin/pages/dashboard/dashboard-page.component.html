@@ -163,12 +163,13 @@
             <div class="p-4">
               <p class="flex items-center gap-1.5 text-sm text-muted"><mat-icon class="h-4! w-4! text-[16px]!">{{ item.icon }}</mat-icon>{{ item.label }}</p>
               <p class="nums mt-1 text-2xl font-semibold tracking-tight text-ink">{{ item.value }}</p>
-              @if (noSales()) {
-                <p class="mt-0.5 text-sm text-muted">Sin cobros todavía</p>
-              } @else {
+              @if (!noSales()) {
                 <p class="nums mt-0.5 text-sm" [class]="kpiTone(item.delta)">@if (item.delta.up !== null && item.delta.text.endsWith('%')) { <mat-icon class="h-4! w-4! align-middle text-[16px]!" aria-hidden="true">{{ item.delta.up ? 'arrow_upward' : 'arrow_downward' }}</mat-icon> }{{ item.delta.text }} <span class="text-muted">{{ item.delta.up === null ? '' : versus() }}</span></p>
               }
             </div>
+          }
+          @if (noSales()) {
+            <p class="col-span-full px-4 py-3 text-sm text-muted">Sin cobros todavía en este periodo.</p>
           }
         </div>
         @if (view() === 'income' && books(); as sale) {
