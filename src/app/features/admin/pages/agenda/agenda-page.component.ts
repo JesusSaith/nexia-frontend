@@ -327,6 +327,9 @@ export class AgendaPageComponent {
     if (this.pastVisit() && this.pastOutcome() === 'done' && this.priceAtVisit(value.service_id) && !String(value.quoted_price ?? '').trim()) {
       list.push('cuánto se cobró');
     }
+    if (this.pastVisit() && this.pastOutcome() === 'done' && this.pastSplitBad()) {
+      list.push('cuánto pagó con tarjeta');
+    }
     if (!this.pastVisit() && value.deposit_mode === 'received' && !(Number(value.deposit_received) > 0)) {
       list.push('cuánto anticipo te mandó');
     }
