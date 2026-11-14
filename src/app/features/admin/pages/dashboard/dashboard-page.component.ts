@@ -668,10 +668,10 @@ export class DashboardPageComponent {
         const methods = [...new Set(months.flatMap((row) => Object.keys(row.by_method)))];
         const categories = [...new Set(months.flatMap((row) => Object.keys(row.by_category)))];
         const catLabels = Object.fromEntries(this.categoryPicks.map((item) => [item.value, item.label]));
-        const head = ['Mes', ...methods.map((key) => `Cobrado ${METHOD_LABELS[key] ?? key}`), 'Servicios', 'Productos', 'Ingresos', ...categories.map((key) => `Gasto ${catLabels[key] ?? key}`), 'Gastos', 'Compras de producto', 'Comisiones', 'Propinas (aparte)', 'Ganancia'];
+        const head = ['Mes', ...methods.map((key) => `Cobrado ${METHOD_LABELS[key] ?? key}`), 'Servicios', 'Productos', 'Ingresos', ...categories.map((key) => `Gasto ${catLabels[key] ?? key}`), 'Gastos', 'Compras de producto', 'Comisiones', 'Comisión de terminal', 'Propinas (aparte)', 'Ganancia'];
         const rows = months.map((row) => [
           row.month, ...methods.map((key) => row.by_method[key] ?? 0), row.service_income, row.product_income, row.total,
-          ...categories.map((key) => row.by_category[key] ?? 0), row.expenses, row.product_cost, row.commissions, row.tips, row.profit,
+          ...categories.map((key) => row.by_category[key] ?? 0), row.expenses, row.product_cost, row.commissions, row.terminal_fee ?? 0, row.tips, row.profit,
         ]);
         const csv = [head, ...rows].map((line) => line.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\r\n');
         const link = document.createElement('a');
@@ -961,6 +961,24 @@ export class DashboardPageComponent {
       .subscribe(() => this.reloadBooks.update((value) => value + 1));
   }
 
+  protected hasDeliveredTips(rows: { tips_delivered?: number }[]): boolean {
+    return rows.some((row) => (row.tips_delivered ?? 0) > 0);
+  }
+
+  /** Deja constancia de que las propinas de tarjeta o transferencia ya se entregaron (o lo deshace). */
+  protected deliverTips(staffId: number, delivered: boolean): void {
+    this.shop
+      .deliverTips(staffId, this.rangeStart(), this.rangeEnd(), delivered)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.reloadBooks.update((value) => value + 1);
+          this.toasts.show(delivered ? 'Propinas marcadas como entregadas.' : 'Se deshizo la entrega.');
+        },
+        error: () => this.toasts.show('No pudimos guardarlo. Intenta de nuevo.'),
+      });
+  }
+
   protected kpiTone(delta: { up: boolean | null }): string {
     return delta.up === null ? 'text-muted' : delta.up ? 'text-(--nx-ok-fg)' : 'text-(--nx-bad-fg)';
   }
@@ -1138,6 +1156,7 @@ export class DashboardPageComponent {
           ['Gastos variables', money(row?.expense_variable)],
           ['Compras de producto', money(row?.product_cost)],
           ...(this.copy.commissions() ? [['Comisiones', money(row?.commission_total)]] : []),
+          ...(row?.terminal_fee ? [['Comisión de terminal (tarjeta)', money(row.terminal_fee)]] : []),
           ['Ganancia', money(row?.profit)],
           ['Punto de equilibrio', money(row?.break_even)],
           ['Propinas (van para el equipo, no son ingreso)', money(row?.tips_total)],

@@ -37,7 +37,7 @@ import { Toasts } from '@core/toasts';
                   [type]="hidePassword() ? 'password' : 'text'"
                   formControlName="password"
                   autocomplete="new-password"
-                  placeholder="Mínimo 8 caracteres"
+                  placeholder="Mínimo 10 caracteres"
                   [attr.aria-invalid]="!!passwordError()"
                 />
                 <button
@@ -83,7 +83,7 @@ export class ResetPassword {
   protected readonly form = new FormGroup({
     password: new FormControl('', {
       nonNullable: true,
-      validators: [Validators.required, Validators.minLength(8), Validators.maxLength(72)],
+      validators: [Validators.required, Validators.minLength(10), Validators.maxLength(72)],
     }),
   });
 
@@ -99,7 +99,7 @@ export class ResetPassword {
     if (control.hasError('required')) {
       return 'Escribe tu nueva contraseña.';
     }
-    return control.hasError('minlength') ? 'Usa al menos 8 caracteres.' : 'Usa máximo 72 caracteres.';
+    return control.hasError('minlength') ? 'Usa al menos 10 caracteres.' : 'Usa máximo 72 caracteres.';
   });
 
   protected submit(): void {

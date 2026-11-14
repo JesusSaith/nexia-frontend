@@ -27,6 +27,10 @@ export interface CommissionRow {
   goal?: number | null;
   tier_reached?: boolean;
   tips?: number;
+  /** De las propinas, las cobradas con tarjeta o transferencia: no están en el cajón y se le entregan. */
+  tips_owed?: number;
+  /** De esas propinas, las que ya se marcaron como entregadas en el periodo. */
+  tips_delivered?: number;
   no_shows?: number;
   cancels?: number;
   /** Clientas distintas que atendió y cuántas ya habían venido antes del periodo. */
@@ -136,6 +140,8 @@ export interface SalesReport {
   /** Citas completadas por día de la semana (0 = lunes) y hora. */
   busy_hours?: { day: number; hour: number; count: number }[];
   tips_total?: number;
+  /** Propinas por entregar (cobradas con tarjeta o transferencia), de todo el equipo. */
+  tips_owed_total?: number;
   /** Por servicio: lo que deja después de comisión, y por hora de trabajo. */
   service_stats?: { name: string; count: number; income: number; commission: number; supplies?: number; profit: number; hours: number; per_hour: number }[];
   /** Cobrado por día del periodo. */
@@ -162,6 +168,8 @@ export interface SalesReport {
   commission_total: number;
   product_cost: number;
   profit: number;
+  /** Lo que retuvo la terminal de tarjeta en el periodo (ya restado de la ganancia). */
+  terminal_fee?: number;
   completed_count: number;
   average_ticket: number;
   missed_count: number;
@@ -190,6 +198,7 @@ export interface AccountingMonth {
   by_category: Record<string, number>;
   expenses: number;
   commissions: number;
+  terminal_fee?: number;
   tips: number;
   product_cost: number;
   profit: number;
@@ -282,6 +291,11 @@ export class ShopService {
 
   report(start: string, end: string): Observable<SalesReport> {
     return this.http.get<SalesReport>(`${this.apiBaseUrl}/shop/report`, { params: { start, end } });
+  }
+
+  /** Marca como entregadas (o deshace) las propinas de tarjeta y transferencia de una persona en un periodo. */
+  deliverTips(staffId: number, start: string, end: string, delivered: boolean): Observable<{ changed: number }> {
+    return this.http.post<{ changed: number }>(`${this.apiBaseUrl}/shop/tips/deliver`, { staff_id: staffId, start, end, delivered });
   }
 
   markCommission(staffId: number, start: string, end: string, amount: number, paid: boolean): Observable<string> {

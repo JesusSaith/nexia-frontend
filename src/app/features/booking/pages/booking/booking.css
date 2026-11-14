@@ -145,3 +145,14 @@
     display: none;
   }
 }
+
+/* Búsqueda y categorías de la lista de servicios: fijas arriba al bajar cuando hay muchos servicios. */
+.booking-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  margin: 0 -1rem 0.75rem;
+  padding: 0.5rem 1rem;
+  background: var(--page-canvas, #f3f1ee);
+  border-bottom: 1px solid var(--color-line);
+}

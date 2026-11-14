@@ -92,6 +92,10 @@ export interface BusinessSettings {
   hold_enabled?: boolean;
   uses_commissions?: boolean;
   staff_can_edit_price?: boolean;
+  /** Comisión que cobra la terminal de tarjeta (%), si lleva IVA encima y si la de las propinas sale de la propina. */
+  card_fee_percent?: number | null;
+  card_fee_iva?: boolean;
+  card_fee_tip_by_staff?: boolean;
   auto_reminders: boolean;
   reminder_hours: number;
   auto_return: boolean;
@@ -157,6 +161,10 @@ export interface ProfileUpdate {
   hold_enabled?: boolean;
   uses_commissions?: boolean;
   staff_can_edit_price?: boolean;
+  /** Comisión que cobra la terminal de tarjeta (%), si lleva IVA encima y si la de las propinas sale de la propina. */
+  card_fee_percent?: number | null;
+  card_fee_iva?: boolean;
+  card_fee_tip_by_staff?: boolean;
   auto_reminders?: boolean;
   reminder_hours?: number;
   auto_return?: boolean;

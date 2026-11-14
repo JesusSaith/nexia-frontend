@@ -83,8 +83,9 @@
       @if (isEmpty()) {
         <div class="empty mb-6">
           <mat-icon>insights</mat-icon>
-          <p>Aún no hay cobros ni gastos en este periodo. Cuando completes citas en la Agenda, aquí verás cuánto entró y cuánto te quedó.</p>
-          <a routerLink="/admin/agenda" class="btn btn-secondary mt-1">Ir a la agenda</a>
+          <p class="font-medium text-ink">Aquí verás cuánto entra y cuánto te queda</p>
+          <p>Todavía no hay cobros ni gastos en este periodo. Se llena solo: al terminar una cita en la Agenda, toca "Cobrar y completar".</p>
+          <a routerLink="/admin/agenda" class="btn btn-primary mt-1">Ir a la agenda</a>
         </div>
       } @else {
         <!-- Las tres preguntas de la dueña, con su respuesta y a dónde ir. -->
@@ -233,6 +234,12 @@
               <li class="flex items-center justify-between gap-3 py-2.5">
                 <div><p class="text-ink">Comisiones</p><p class="text-xs text-muted">Parte del equipo</p></div>
                 <span class="nums text-right font-medium text-ink-soft">− {{ money(row.commission_total) }}</span>
+              </li>
+            }
+            @if (row.terminal_fee) {
+              <li class="flex items-center justify-between gap-3 py-2.5">
+                <div><p class="text-ink">Comisión de terminal</p><p class="text-xs text-muted">Lo que retuvo tu terminal en cobros con tarjeta</p></div>
+                <span class="nums text-right font-medium text-ink-soft">− {{ money(row.terminal_fee) }}</span>
               </li>
             }
             <li class="flex items-center justify-between gap-3 py-2.5">
@@ -651,6 +658,32 @@
               <span class="sec-icon"><mat-icon>{{ view() === 'staff' ? 'badge' : 'request_quote' }}</mat-icon></span>
               <h2 class="card-title">Detalle</h2>
             </div>
+            @if ((row.tips_owed_total ?? 0) > 0 || hasDeliveredTips(row.staff)) {
+              <div class="mt-3 rounded-lg border border-line bg-canvas p-3 text-sm" role="note">
+                <p class="flex items-center gap-2 font-medium text-ink"><mat-icon class="h-5! w-5! text-[18px]!" aria-hidden="true">savings</mat-icon>{{ (row.tips_owed_total ?? 0) > 0 ? 'Propinas por entregar · ' + money(row.tips_owed_total ?? 0) : 'Propinas entregadas' }}</p>
+                <p class="mt-1 text-muted">Las dejaron con tarjeta o transferencia, así que no están en tu cajón: el dinero lo tienes tú y {{ copy.text().people.toLowerCase() }} espera que se lo entregues. Cuando lo hagas, márcalo aquí.</p>
+                <ul class="mt-2 flex flex-col gap-2">
+                  @for (person of row.staff; track person.staff_id) {
+                    @if ((person.tips_owed ?? 0) > 0 || (person.tips_delivered ?? 0) > 0) {
+                      <li class="flex flex-wrap items-center justify-between gap-2">
+                        <span class="text-ink-soft">{{ person.staff_name }}</span>
+                        @if ((person.tips_owed ?? 0) > 0) {
+                          <span class="flex items-center gap-2">
+                            <span class="nums text-ink">{{ money(person.tips_owed ?? 0) }}</span>
+                            <button type="button" class="btn btn-secondary" (click)="deliverTips(person.staff_id, true)">Ya se las entregué</button>
+                          </span>
+                        } @else {
+                          <span class="flex items-center gap-2">
+                            <span class="badge badge-ok">Entregadas · {{ money(person.tips_delivered ?? 0) }}</span>
+                            <button type="button" class="btn btn-ghost" (click)="deliverTips(person.staff_id, false)">Deshacer</button>
+                          </span>
+                        }
+                      </li>
+                    }
+                  }
+                </ul>
+              </div>
+            }
             @if (row.staff.length === 0) {
               <p class="py-8 text-center text-sm text-muted">Sin {{ copy.text().people.toLowerCase() }} en este periodo.</p>
             } @else if (view() === 'staff') {

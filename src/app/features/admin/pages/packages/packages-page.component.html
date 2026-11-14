@@ -116,8 +116,12 @@
     @if (loading()) {
       <app-loader type="pulsing" class="mt-2" /><p class="mt-1 text-sm text-muted">Cargando…</p>
     } @else if (!offers().length) {
-      <p class="mt-2 text-sm text-ink-soft">Todavía no tienes paquetes. Un paquete de varias visitas, como "5 manicuras", hace que tu cliente pague por adelantado y regrese.</p>
-      <button type="button" class="btn btn-secondary mt-3" (click)="openForm()">Crear mi primer paquete</button>
+      <div class="empty mt-2">
+        <mat-icon>sell</mat-icon>
+        <p class="font-medium text-ink">Aún no vendes paquetes</p>
+        <p>Un paquete junta varias visitas de un servicio, como "5 sesiones". Tu {{ copy.text().client }} paga por adelantado y regresa.</p>
+        <button type="button" class="btn btn-primary" (click)="openForm()">Crear mi primer paquete</button>
+      </div>
     } @else {
       <ul class="mt-2 divide-y divide-line">
         @for (offer of offers(); track offer.id) {

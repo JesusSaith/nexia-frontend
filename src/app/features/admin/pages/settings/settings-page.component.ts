@@ -243,10 +243,23 @@ export class SettingsPageComponent {
   protected readonly paymentMethods = signal<ReadonlySet<string>>(new Set(PAYMENT_METHODS.map((item) => item.value)));
   protected readonly approveBookings = signal(false);
   /** "Aún no sé qué quiero" solo existe en salones de belleza y de uñas. */
-  protected readonly holdAllowed = computed(() => ['belleza', 'unas'].includes(this.values().businessKind ?? ''));
+  protected readonly holdAllowed = computed(() => ['belleza', 'unas', 'varios'].includes(this.values().businessKind ?? ''));
   protected readonly holdEnabled = signal(true);
   protected readonly usesCommissions = signal(true);
   protected readonly staffCanEditPrice = signal(false);
+  /** Comisión de la terminal de tarjeta: porcentaje escrito (vacío = no cobra), si lleva IVA y quién absorbe la de las propinas. */
+  protected readonly cardFeePercent = signal('');
+  protected readonly cardFeeIva = signal(false);
+  protected readonly cardFeeTipByStaff = signal(false);
+  /** Lo que de verdad retiene la terminal por cada $100, con IVA si aplica (3.5 % + IVA = 4.06 %). */
+  protected readonly cardFeeReal = computed(() => {
+    const percent = this.cardFeeNumber();
+    return percent ? Math.round(percent * (this.cardFeeIva() ? 1.16 : 1) * 100) / 100 : 0;
+  });
+  protected cardFeeNumber(): number {
+    const value = Number(this.cardFeePercent().replace(',', '.'));
+    return Number.isFinite(value) && value > 0 ? Math.min(value, 15) : 0;
+  }
   /** Qué pasa con el anticipo si el cliente cancela dentro del plazo. */
   protected readonly depositCancelPolicy = signal<'refund' | 'keep'>('refund');
   protected readonly autoReminders = signal(false);
@@ -352,6 +365,9 @@ export class SettingsPageComponent {
       hold_enabled: this.holdEnabled(),
       uses_commissions: this.usesCommissions(),
       staff_can_edit_price: this.staffCanEditPrice(),
+      card_fee_percent: this.cardFeeNumber() || null,
+      card_fee_iva: this.cardFeeIva(),
+      card_fee_tip_by_staff: this.cardFeeTipByStaff(),
       auto_reminders: this.autoReminders(),
       reminder_hours: this.reminderHours(),
       auto_return: this.autoReturn(),
@@ -1090,6 +1106,9 @@ export class SettingsPageComponent {
     this.holdEnabled.set(settings.hold_enabled !== false);
     this.usesCommissions.set(settings.uses_commissions !== false);
     this.staffCanEditPrice.set(settings.staff_can_edit_price === true);
+    this.cardFeePercent.set(settings.card_fee_percent ? String(settings.card_fee_percent) : '');
+    this.cardFeeIva.set(settings.card_fee_iva === true);
+    this.cardFeeTipByStaff.set(settings.card_fee_tip_by_staff === true);
     this.depositCancelPolicy.set(settings.deposit_cancel_policy === 'keep' ? 'keep' : 'refund');
     this.autoReminders.set(Boolean(settings.auto_reminders));
     this.reminderHours.set(settings.reminder_hours || 24);
@@ -1144,7 +1163,7 @@ const FIELD_SECTION: Record<string, SectionId> = {
   min_notice_hours: 'reservas', max_days_ahead: 'reservas', buffer_minutes: 'reservas', cancel_hours: 'reservas', timezone: 'reservas', resources: 'reservas', cancel_policy: 'reservas', max_daily_appointments: 'reservas', deposit_cancel_policy: 'reservas', noshow_after: 'anticipo', noshow_deposit: 'anticipo',
   deposit_amount: 'anticipo', deposit_percent: 'anticipo', deposit_account: 'anticipo', deposit_hold_hours: 'anticipo', quote_hold_hours: 'anticipo', payment_url: 'anticipo',
   promo_text: 'promociones', promo_until: 'promociones', loyalty_every: 'promociones', loyalty_percent: 'promociones', coupons: 'promociones',
-  message_templates: 'mensajes', auto_reminders: 'mensajes', reminder_hours: 'mensajes', auto_return: 'mensajes', bookings_paused: 'pausa', closures: 'pausa', payment_methods: 'anticipo', approve_bookings: 'reservas', hold_enabled: 'reservas', uses_commissions: 'negocio', staff_can_edit_price: 'negocio', email_alerts: 'avisos', privacy_notice: 'privacidad',
+  message_templates: 'mensajes', auto_reminders: 'mensajes', reminder_hours: 'mensajes', auto_return: 'mensajes', bookings_paused: 'pausa', closures: 'pausa', payment_methods: 'anticipo', card_fee_percent: 'anticipo', card_fee_iva: 'anticipo', card_fee_tip_by_staff: 'anticipo', approve_bookings: 'reservas', hold_enabled: 'reservas', uses_commissions: 'negocio', staff_can_edit_price: 'negocio', email_alerts: 'avisos', privacy_notice: 'privacidad',
 };
 
 function sectionOfError(error: unknown): SectionId | null {

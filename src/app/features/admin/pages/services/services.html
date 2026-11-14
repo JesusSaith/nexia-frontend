@@ -83,9 +83,9 @@
   } @else if (services().length === 0 && categories().length === 0) {
     <div class="empty">
       <mat-icon>category</mat-icon>
-      <p class="font-medium text-ink">Aún no tienes servicios</p>
-      <p>Agrega lo que ofreces con su precio y duración. Las categorías son opcionales.</p>
-      <button type="button" class="btn btn-primary" (click)="openCreate(categoryFilter())">Agregar el primero</button>
+      <p class="font-medium text-ink">Empieza por tu primer servicio</p>
+      <p>Es lo que tu {{ copy.text().client }} elige al reservar. Solo necesitas nombre, precio y duración; por ejemplo, "{{ exampleService() }}". Las categorías son opcionales.</p>
+      <button type="button" class="btn btn-primary" (click)="openCreate(categoryFilter())">Agregar mi primer servicio</button>
     </div>
   } @else {
     <!-- Categorías y búsqueda: con aire entre chips y su número de servicios. -->

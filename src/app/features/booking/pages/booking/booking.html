@@ -211,20 +211,23 @@
       }
       <div>
         <h2 class="mb-3 text-base font-medium">Servicio</h2>
-        @if (searchable()) {
-          <label class="mb-3 block rounded-xl border border-line bg-surface px-3 py-2">
-            <span class="block text-xs text-muted">Buscar servicio</span>
-            <input class="w-full bg-transparent text-base outline-none" type="search" enterkeyhint="search" autocomplete="off" placeholder="Escribe el nombre del servicio" [value]="serviceQuery()" (input)="serviceQuery.set($any($event.target).value)" />
-          </label>
-        }
-        @if (categories().length) {
-          <div class="mb-3 flex flex-wrap gap-2">
-            <button type="button" class="min-h-11 rounded-full border px-4 py-1 text-sm" [class.brand-solid]="!categoryFilter()" (click)="categoryFilter.set('')">Todas</button>
-            @for (name of categories(); track name) {
-              <button type="button" class="min-h-11 rounded-full border px-4 py-1 text-sm" [class.brand-solid]="categoryFilter() === name" (click)="categoryFilter.set(name)">{{ name }}</button>
-            }
-          </div>
-        }
+        <!-- Con muchos servicios, la búsqueda y las categorías se quedan fijas arriba mientras se baja por la lista. -->
+        <div [class.booking-sticky]="stickyBar()">
+          @if (searchable()) {
+            <label class="mb-2 block rounded-xl border border-line bg-surface px-3 py-2">
+              <span class="block text-xs text-muted">Buscar servicio</span>
+              <input class="w-full bg-transparent text-base outline-none" type="search" enterkeyhint="search" autocomplete="off" placeholder="Escribe el nombre del servicio" [value]="serviceQuery()" (input)="serviceQuery.set($any($event.target).value)" />
+            </label>
+          }
+          @if (categories().length) {
+            <div class="flex gap-2" [class.flex-wrap]="!stickyBar()" [class.mb-3]="!stickyBar()" [class.overflow-x-auto]="stickyBar()" [attr.aria-label]="'Categorías'" role="group">
+              <button type="button" class="min-h-11 shrink-0 rounded-full border px-4 py-1 text-sm" [class.brand-solid]="!categoryFilter()" [attr.aria-pressed]="!categoryFilter()" (click)="categoryFilter.set('')">Todas</button>
+              @for (name of categories(); track name) {
+                <button type="button" class="min-h-11 shrink-0 rounded-full border px-4 py-1 text-sm" [class.brand-solid]="categoryFilter() === name" [attr.aria-pressed]="categoryFilter() === name" (click)="categoryFilter.set(name)">{{ name }}</button>
+              }
+            </div>
+          }
+        </div>
         @if (shopNote().pause || services().length === 0) {
           <p class="text-sm text-ink-soft">{{ shopNote().pause ? 'Por ahora no estamos tomando citas.' : 'Estamos preparando las reservas.' }}</p>
           @if (brand()?.phone; as phone) {

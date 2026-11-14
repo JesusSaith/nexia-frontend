@@ -122,7 +122,7 @@
             <div>
               <span class="label">Tipo de negocio</span>
               <app-pick-field formControlName="businessKind" [options]="kindPicks" placeholder="Elegir" />
-              <span class="field-hint mt-1 block">Cambia cómo se llama a tu equipo en la página.</span>
+              <span class="field-hint mt-1 block">{{ form.controls.businessKind.value === 'varios' ? 'Para quien mezcla barbería, belleza y uñas. Tu equipo se llama "Colaborador".' : 'Cambia cómo se llama a tu equipo en la página.' }}</span>
             </div>
             <label class="block sm:col-span-2">
               <span class="label opt">Qué hace tu negocio</span>
@@ -490,6 +490,40 @@
               </div>
               <span class="field-hint mt-1 block">Tu página dice cuáles aceptas, y al cobrar en la Agenda solo salen estos (más "Paquete").</span>
             </div>
+            @if (paymentMethods().has('tarjeta')) {
+              <!-- Lo que se queda tu terminal: se resta de la ganancia en Reportes. -->
+              <div class="rounded-xl border border-line p-4">
+                <div class="grid gap-4 sm:grid-cols-[12rem_minmax(0,1fr)] sm:items-start">
+                  <label class="block">
+                    <span class="label opt">Comisión de tu terminal</span>
+                    <span class="flex items-center gap-2">
+                      <input class="input nums w-24" type="number" inputmode="decimal" min="0" max="15" step="0.1" placeholder="Ej. 3.5" [value]="cardFeePercent()" (input)="cardFeePercent.set($any($event.target).value)" />
+                      <span class="text-sm text-muted">%</span>
+                    </span>
+                  </label>
+                  <p class="field-hint sm:pt-7">
+                    @if (cardFeeNumber()) {
+                      Cada $100 cobrados con tarjeta, tu terminal retiene <span class="nums font-medium text-ink">${{ cardFeeReal() }}</span>. Se resta de tu ganancia en Reportes.
+                    } @else {
+                      Escribe el porcentaje que te cobra tu terminal (Clip, Mercado Pago, tu banco…). Sin él, Reportes cuenta todo lo cobrado con tarjeta como tuyo.
+                    }
+                  </p>
+                </div>
+                @if (cardFeeNumber()) {
+                  <div class="mt-3 flex flex-col gap-1 border-t border-line pt-3">
+                    <label class="flex min-h-11 items-center justify-between gap-4 text-sm">
+                      <span>Mi terminal cobra IVA sobre la comisión <span class="text-muted">(16 %)</span></span>
+                      <button type="button" role="switch" class="switch" [attr.aria-checked]="cardFeeIva()" (click)="cardFeeIva.set(!cardFeeIva())" aria-label="Mi terminal cobra IVA sobre la comisión"><span></span></button>
+                    </label>
+                    <label class="flex min-h-11 items-center justify-between gap-4 text-sm">
+                      <span>La comisión de la propina se descuenta de la propina de {{ copy.text().person }}</span>
+                      <button type="button" role="switch" class="switch" [attr.aria-checked]="cardFeeTipByStaff()" (click)="cardFeeTipByStaff.set(!cardFeeTipByStaff())" aria-label="Descontar la comisión de la propina a quien la recibe"><span></span></button>
+                    </label>
+                    <span class="field-hint">Apagado, tú absorbes la comisión de las propinas y se entregan completas.</span>
+                  </div>
+                }
+              </div>
+            }
             @if (depositWarning(); as warning) {
               <p class="badge-warn flex items-start gap-2 rounded-xl px-3 py-2.5 text-sm" role="status">
                 <mat-icon class="h-5! w-5! shrink-0 text-[20px]!">warning</mat-icon>
