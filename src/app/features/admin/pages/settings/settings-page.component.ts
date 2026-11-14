@@ -1,3 +1,4 @@
+import { LoyaltyCardComponent } from '@shared/components/loyalty-card/loyalty-card';
 import { scrollBehavior } from '@core/motion';
 import { NgTemplateOutlet } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
@@ -113,7 +114,7 @@ const ALERT_OPTIONS: readonly { value: string; label: string; hint: string }[] =
 
 @Component({
   selector: 'app-settings-page',
-  imports: [ReactiveFormsModule, NgTemplateOutlet, DateFieldComponent, DateRangeFieldComponent, PickFieldComponent, WeekdayPickerComponent, MatIconModule, MapPicker, GoogleMapPicker, SaveStateComponent],
+  imports: [LoyaltyCardComponent, ReactiveFormsModule, NgTemplateOutlet, DateFieldComponent, DateRangeFieldComponent, PickFieldComponent, WeekdayPickerComponent, MatIconModule, MapPicker, GoogleMapPicker, SaveStateComponent],
   templateUrl: './settings-page.component.html',
 })
 export class SettingsPageComponent {

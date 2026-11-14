@@ -627,10 +627,8 @@
           }
         </div>
       </div>
-      @if (loyaltyPercent() && !usePackage()) {
-        <p class="text-sm text-ink-soft" role="status">
-          Esta {{ copy().visit.toLowerCase() }} tiene <span class="nums font-medium" style="color: var(--booking-ink, var(--booking-primary))">{{ loyaltyPercent() }}%</span> de descuento por ser cliente frecuente.
-        </p>
+      @if (loyaltyBooked() !== null && !usePackage()) {
+        <app-loyalty-card [every]="brand()?.loyalty_every" [percent]="brand()?.loyalty_percent" [booked]="loyaltyBooked() ?? 0" [completed]="loyaltyVisits()" />
       }
       @if (copy().pet) {
         <label class="rounded-xl border border-line bg-surface px-3 py-2">
