@@ -778,7 +778,7 @@
         </details>
       }
 
-      @if (pop.appointment.status === 'scheduled' && pendingId() !== pop.appointment.id) {
+      @if ((pop.appointment.status === 'scheduled' || pop.appointment.status === 'awaiting_deposit') && pendingId() !== pop.appointment.id) {
         @if (charging() === pop.appointment.id) {
           <div id="charge-panel" class="flex flex-col gap-3 rounded-lg border border-line p-3">
             <p class="card-title">Cobro</p>
@@ -881,22 +881,24 @@
             </div>
           </div>
         }
-        <details class="rounded-lg border border-line">
-          <summary class="flex min-h-11 cursor-pointer items-center px-3 text-sm text-ink-soft">Más opciones</summary>
-          <div class="flex flex-col gap-1 px-2 pb-2">
-            @if (canSwapService(pop.appointment) && !isHold(pop.appointment.service_id)) {
-              <button class="btn btn-ghost justify-start" type="button" (click)="startSwap(pop.appointment)">
-                <mat-icon aria-hidden="true">swap_horiz</mat-icon>
-                Cambiar servicio
-              </button>
-            }
-            <button class="btn btn-ghost justify-start" type="button" (click)="repeat(pop.appointment, 3)">Repetir cada 3 semanas</button>
-            <button class="btn btn-ghost justify-start" type="button" (click)="repeat(pop.appointment, 4)">Repetir cada 4 semanas</button>
-            <!-- En celular el pie no cabe con todo: "No llegó" y "Cancelar" pasan aquí. En pantalla grande siguen en el pie. -->
-            <button class="btn btn-ghost justify-start sm:hidden" type="button" (click)="setStatus(pop.appointment, 'no_show')">No llegó</button>
-            <button class="btn btn-ghost justify-start text-(--nx-bad-fg) sm:hidden" type="button" (click)="setStatus(pop.appointment, 'cancelled')">Cancelar cita</button>
-          </div>
-        </details>
+        @if (pop.appointment.status === 'scheduled') {
+          <details class="rounded-lg border border-line">
+            <summary class="flex min-h-11 cursor-pointer items-center px-3 text-sm text-ink-soft">Más opciones</summary>
+            <div class="flex flex-col gap-1 px-2 pb-2">
+              @if (canSwapService(pop.appointment) && !isHold(pop.appointment.service_id)) {
+                <button class="btn btn-ghost justify-start" type="button" (click)="startSwap(pop.appointment)">
+                  <mat-icon aria-hidden="true">swap_horiz</mat-icon>
+                  Cambiar servicio
+                </button>
+              }
+              <button class="btn btn-ghost justify-start" type="button" (click)="repeat(pop.appointment, 3)">Repetir cada 3 semanas</button>
+              <button class="btn btn-ghost justify-start" type="button" (click)="repeat(pop.appointment, 4)">Repetir cada 4 semanas</button>
+              <!-- En celular el pie no cabe con todo: "No llegó" y "Cancelar" pasan aquí. En pantalla grande siguen en el pie. -->
+              <button class="btn btn-ghost justify-start sm:hidden" type="button" (click)="setStatus(pop.appointment, 'no_show')">No llegó</button>
+              <button class="btn btn-ghost justify-start text-(--nx-bad-fg) sm:hidden" type="button" (click)="setStatus(pop.appointment, 'cancelled')">Cancelar cita</button>
+            </div>
+          </details>
+        }
       }
       @if (pop.appointment.status === 'awaiting_deposit' && canSwapService(pop.appointment) && !isHold(pop.appointment.service_id)) {
         <details class="rounded-lg border border-line">
@@ -1033,7 +1035,7 @@
               }
             </div>
           </div>
-          <app-split-pay [method]="fixMethod()" [due]="fixDue()" [tip]="toNumber(fixTip())" [cardAccepted]="cardAccepted()" [(on)]="fixSplitOn" [(card)]="fixSplitCard" [(tipCard)]="fixTipCard" />
+          <app-split-pay [method]="fixMethod()" [due]="fixDue()" [tip]="toNumber(fixTip())" [rest]="fixRest()" [cardAccepted]="cardAccepted()" [(on)]="fixSplitOn" [(card)]="fixSplitCard" [(tipCard)]="fixTipCard" />
           <label class="block">
             <span class="label opt">Propina</span>
             <input type="number" min="0" inputmode="decimal" class="input nums" placeholder="0" [value]="fixTip()" (input)="fixTip.set($any($event.target).value)" />
@@ -1232,7 +1234,7 @@
                   }
                 </div>
               </div>
-              <app-split-pay class="mt-3 block" [method]="pastMethod()" [due]="pastDue()" [tip]="toNumber(pastTip())" [cardAccepted]="cardAccepted()" [(on)]="pastSplitOn" [(card)]="pastSplitCard" [(tipCard)]="pastTipCard" />
+              <app-split-pay class="mt-3 block" [method]="pastMethod()" [due]="pastDue()" [tip]="toNumber(pastTip())" [rest]="pastRest()" [cardAccepted]="cardAccepted()" [(on)]="pastSplitOn" [(card)]="pastSplitCard" [(tipCard)]="pastTipCard" />
               <label class="mt-3 block">
                 <span class="label opt">Propina</span>
                 <input type="number" min="0" inputmode="decimal" class="input nums" placeholder="0" [value]="pastTip()" (input)="pastTip.set($any($event.target).value)" />
