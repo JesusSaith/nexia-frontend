@@ -475,7 +475,7 @@ export class DashboardPageComponent {
     const line = spots.map((spot, index) => `${index ? 'L' : 'M'}${spot.x.toFixed(1)},${spot.y.toFixed(1)}`).join(' ');
     const ticks = [0, 0.5, 1].map((step) => ({
       y: yOf(max * step),
-      label: this.view() === 'income' && this.metric() === 'count' ? String(Math.round(max * step)) : this.money(Math.round(max * step)),
+      label: this.view() === 'income' && this.metric() === 'count' ? String(Math.round(max * step)) : this.money(Math.round(max * step)).replace(/\.00$/, ''),
     }));
     const step = Math.max(1, Math.ceil(points.length / 6));
     const labels = points
