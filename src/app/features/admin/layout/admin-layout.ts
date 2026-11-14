@@ -251,6 +251,8 @@ export class AdminLayoutComponent {
       interval(20000)
         .pipe(
           startWith(0),
+          // Con la pestaña en segundo plano no se consulta: ahorra datos y batería en el celular.
+          filter((tick) => tick === 0 || !document.hidden),
           switchMap(() => this.noticesApi.getNotices().pipe(catchError(() => of([])))),
           takeUntilDestroyed(this.destroyRef),
         )

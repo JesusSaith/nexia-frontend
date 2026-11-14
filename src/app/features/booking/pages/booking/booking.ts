@@ -71,10 +71,16 @@ interface UpcomingVisit extends SavedVisit {
   status: string;
 }
 
-/** Teléfono con 10 a 15 dígitos, sin importar espacios, guiones o el +. */
+/** Teléfono de 10 dígitos, con espacios, guiones, paréntesis o la lada 52 / +52 / +521 (lo mismo que acepta la API: `ten_digit_phone`). */
 function phoneDigits(control: AbstractControl): ValidationErrors | null {
-  const digits = String(control.value ?? '').replace(/\D/g, '').length;
-  return !control.value || (digits >= 10 && digits <= 15) ? null : { phone: true };
+  const digits = String(control.value ?? '').replace(/\D/g, '');
+  const ok = digits.length === 10 || (digits.length === 12 && digits.startsWith('52')) || (digits.length === 13 && digits.startsWith('521'));
+  return !control.value || ok ? null : { phone: true };
+}
+
+/** Un nombre de puros espacios cuenta como vacío. */
+function notBlank(control: AbstractControl): ValidationErrors | null {
+  return String(control.value ?? '').trim() ? null : { required: true };
 }
 
 @Component({
@@ -272,7 +278,7 @@ export class Booking {
   protected readonly clientForm = new FormGroup({
     client_name: new FormControl('', {
       nonNullable: true,
-      validators: [Validators.required, Validators.maxLength(255)],
+      validators: [Validators.required, notBlank, Validators.maxLength(255)],
     }),
     client_phone: new FormControl('', {
       nonNullable: true,

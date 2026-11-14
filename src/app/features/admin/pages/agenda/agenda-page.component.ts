@@ -236,7 +236,7 @@ export class AgendaPageComponent {
     this.blockTick();
     const value = this.blockForm.getRawValue();
     const list: string[] = [];
-    if (value.staff_id == null) {
+    if (value.staff_id == null || !this.blockStaff().some((option) => option.value === value.staff_id)) {
       list.push(this.copy.text().person.toLowerCase());
     }
     if (!value.date) {
@@ -326,6 +326,9 @@ export class AgendaPageComponent {
     }
     if (this.pastVisit() && this.pastOutcome() === 'done' && this.priceAtVisit(value.service_id) && !String(value.quoted_price ?? '').trim()) {
       list.push('cuánto se cobró');
+    }
+    if (this.pastVisit() && this.pastOutcome() === 'done' && this.pastSplitBad()) {
+      list.push('cuánto pagó con tarjeta');
     }
     if (!this.pastVisit() && value.deposit_mode === 'received' && !(Number(value.deposit_received) > 0)) {
       list.push('cuánto anticipo te mandó');
@@ -745,7 +748,7 @@ export class AgendaPageComponent {
               const worked = hours.filter((row) => !isToday || row.time < nowClock);
               const view = this.dayTimes(isToday ? day : { ...none }, isToday ? day.times : [], worked.map((row) => row.time));
               const busy = worked.filter((row) => row.busy).map((row) => row.time);
-              return { ...view, busy: [...new Set([...busy, ...view.busy])].sort(), reason: isToday ? view.reason : null };
+              return { ...view, busy: [...new Set([...busy, ...view.busy])].sort(), reason: isToday ? (worked.length > 0 && view.free === 0 ? 'Ya pasaron las horas libres de hoy. Elige la hora en que se hizo el servicio para registrarlo.' : view.reason) : null };
             }),
           );
         }),
@@ -823,7 +826,8 @@ export class AgendaPageComponent {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
         this.now.set(this.clock.nowMs());
-        if (this.ownStaffReady()) {
+        // En segundo plano no se vuelve a pedir la agenda; al regresar, el siguiente ciclo la actualiza.
+        if (this.ownStaffReady() && !document.hidden) {
           this.loadAppointments(this.range(), this.staffId(), this.serviceId(), true);
         }
       });
@@ -1631,8 +1635,10 @@ export class AgendaPageComponent {
   }
 
   protected openBlock(): void {
+    const active = this.blockStaff();
     this.blockForm.patchValue({
-      staff_id: this.staffId() ?? this.staff()[0]?.id ?? null,
+      // Solo se propone a quien sigue activo: un filtro viejo o alguien dado de baja dejaba el campo vacío pero "listo para guardar".
+      staff_id: active.find((option) => option.value === this.staffId())?.value ?? active[0]?.value ?? null,
       date: this.dayKey(this.cursor()),
     });
     this.blocking.set(true);
@@ -1985,7 +1991,7 @@ export class AgendaPageComponent {
     if (same.length === 0) {
       return null;
     }
-    return `Ya tiene ${same.length === 1 ? 'otra cita' : 'otras citas'} ese día: ${same.map((item) => `${item.service_name} a las ${hora12(item.starts_at.slice(11, 16))}`).join(' y ')}.`;
+    return `Ya tiene ${same.length === 1 ? 'otra cita' : 'otras citas'} ese día: ${same.map((item) => `${item.service_name} a las ${hora12(item.starts_at.slice(11, 16))}`).join(' y ').replace(/\.$/, '')}.`;
   });
 
   /** Arma lo que muestra la lista de horas: libres y ocupadas juntas (las ocupadas atenuadas, con su cita) y el motivo si no hay ninguna libre. */
@@ -2732,6 +2738,15 @@ export class AgendaPageComponent {
   }
 
   /** Lo que se cobró de un servicio que ya pasó: el que se escribió o, si no, el del servicio (0 si no se sabe). */
+  /** Lo que se cobra en efectivo o transferencia al dividir: servicio y propina menos lo que fue con tarjeta. */
+  protected pastRest(): number {
+    return Math.max(0, Math.round((this.pastDue() + this.toNumber(this.pastTip()) - this.pastCardAmount() - (this.pastTipOnCard() ? this.toNumber(this.pastTip()) : 0)) * 100) / 100);
+  }
+
+  protected fixRest(): number {
+    return Math.max(0, Math.round((this.fixDue() + this.toNumber(this.fixTip()) - this.fixCardAmount() - (this.fixTipOnCard() ? this.toNumber(this.fixTip()) : 0)) * 100) / 100);
+  }
+
   protected pastDue(): number {
     const value = this.form.getRawValue();
     const typed = toAmount(value.quoted_price);
