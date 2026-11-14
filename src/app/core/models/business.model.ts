@@ -45,6 +45,10 @@ export interface BusinessBrand {
   uses_commissions?: boolean;
   /** Solo en /businesses/me: si el personal puede cambiar precios y quitar anticipos en cualquier servicio. */
   staff_can_edit_price?: boolean;
+  /** Solo en /businesses/me: comisión de la terminal (%), si lleva IVA y si la de las propinas sale de la propina. */
+  card_fee_percent?: number | null;
+  card_fee_iva?: boolean;
+  card_fee_tip_by_staff?: boolean;
   /** Hay CLABE válida: el cliente puede confirmar el anticipo con Banxico. */
   spei_check?: boolean;
   promo_text?: string | null;

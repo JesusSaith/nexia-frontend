@@ -39,7 +39,7 @@ import { Toasts } from '@core/toasts';
                 [type]="hide() ? 'password' : 'text'"
                 formControlName="new_password"
                 autocomplete="new-password"
-                placeholder="Mínimo 8 caracteres"
+                placeholder="Mínimo 10 caracteres"
               />
               <button
                 type="button"
@@ -52,7 +52,7 @@ import { Toasts } from '@core/toasts';
             </span>
           </label>
           @if (showError('new_password')) {
-            <p class="field-error">Usa entre 8 y 72 caracteres.</p>
+            <p class="field-error">Usa entre 10 y 72 caracteres.</p>
           }
 
           @if (errorMessage(); as message) {
@@ -81,7 +81,7 @@ export class ChangePassword {
     current_password: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     new_password: new FormControl('', {
       nonNullable: true,
-      validators: [Validators.required, Validators.minLength(8), Validators.maxLength(72)],
+      validators: [Validators.required, Validators.minLength(10), Validators.maxLength(72)],
     }),
   });
 

@@ -4,6 +4,7 @@ import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
+import { BusinessCopy } from '@core/business-copy';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 
@@ -22,6 +23,7 @@ import { FormStatusComponent } from '@shared/components/form-status/form-status'
   templateUrl: './packages-page.component.html',
 })
 export class PackagesPageComponent {
+  protected readonly copy = inject(BusinessCopy);
   private readonly api = inject(PackagesService);
   private readonly servicesApi = inject(ServicesService);
   private readonly settingsApi = inject(SettingsService);

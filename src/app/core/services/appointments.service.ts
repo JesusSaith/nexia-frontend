@@ -30,6 +30,9 @@ export interface StatusCharge {
   final_price?: number | null;
   payment_method?: string | null;
   tip?: number | null;
+  /** Cobro dividido: cuánto de la cita se pagó con tarjeta; el resto va en `payment_method` (efectivo o transferencia). */
+  card_amount?: number | null;
+  tip_on_card?: boolean;
   visit_note?: string | null;
 }
 

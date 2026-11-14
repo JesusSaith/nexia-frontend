@@ -60,6 +60,14 @@ export interface Appointment {
   photo_count?: number;
   payment_method?: string | null;
   tip?: number | null;
+  /** Cobro dividido: la parte de la cita que se pagó con tarjeta; el resto va en `payment_method`. */
+  card_amount?: number | null;
+  /** Lo que retuvo la terminal al cobrar (cita y propina). Vacío en cobros anteriores a este dato. */
+  card_fee?: number | null;
+  /** La propina se pagó con tarjeta aunque la cita fuera en efectivo o transferencia. */
+  tip_card?: boolean;
+  /** Ya se le entregó la propina a quien la recibió (solo aplica a las de tarjeta y transferencia). */
+  tip_delivered?: boolean;
   visit_note?: string | null;
   discount_percent?: number | null;
   /** Llegó por la página con "aprobar citas a mano": el horario está apartado, falta el sí de la dueña. */
@@ -97,6 +105,8 @@ export interface AdminAppointmentCreate {
   contact_handle?: string;
   payment_method?: string | null;
   tip?: number | null;
+  card_amount?: number | null;
+  tip_on_card?: boolean;
   visit_note?: string | null;
   /** La dueña confirmó que quiere agendar aunque choque con otra cita. */
   allow_overlap?: boolean;
@@ -142,6 +152,8 @@ export interface AppointmentCorrection {
   final_price?: number | null;
   payment_method?: string | null;
   tip?: number | null;
+  card_amount?: number | null;
+  tip_on_card?: boolean;
   visit_note?: string | null;
 }
 

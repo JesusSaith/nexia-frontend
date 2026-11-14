@@ -3,6 +3,7 @@ export const BUSINESS_KINDS = [
   { value: 'belleza', label: 'Salón de belleza', icon: 'content_cut' },
   { value: 'unas', label: 'Salón de uñas', icon: 'back_hand' },
   { value: 'barberia', label: 'Barbería', icon: 'face' },
+  { value: 'varios', label: 'Varios giros', icon: 'category' },
   { value: 'spa', label: 'Spa', icon: 'spa' },
   { value: 'consultorio', label: 'Consultorio', icon: 'stethoscope' },
   { value: 'dental', label: 'Clínica dental', icon: 'dentistry' },
@@ -55,6 +56,7 @@ const EXAMPLES: Record<string, KindExamples> = {
   dental: { name: 'Clínica Sonrisa', description: 'Limpieza, resinas y ortodoncia.', service: 'Limpieza dental', bio: 'Especialista en ortodoncia, 10 años de experiencia.' },
   veterinaria: { name: 'Veterinaria Patitas', description: 'Consulta, vacunas y estética para tu mascota.', service: 'Consulta veterinaria', bio: 'Médico veterinario con 8 años de experiencia.' },
   estudio: { name: 'Estudio Norte', description: 'Sesiones y clases con cita.', service: 'Sesión individual', bio: '5 años de experiencia.' },
+  varios: { name: 'Estudio Centro', description: 'Cortes, barba, color y uñas en un mismo lugar.', service: 'Corte clásico', bio: 'Cortes y color, 5 años de experiencia.' },
   otro: { name: 'Mi Negocio', description: 'Qué haces y para quién.', service: 'Servicio principal', bio: '5 años de experiencia.' },
 };
 

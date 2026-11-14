@@ -26,8 +26,8 @@
   } @else if (staff().length === 0) {
     <div class="empty">
       <mat-icon>groups</mat-icon>
-      <p class="font-medium text-ink">Aún no hay nadie en tu equipo</p>
-      <p>Agrega a quien atiende, aunque seas solo tú, para poder recibir citas.</p>
+      <p class="font-medium text-ink">Empieza por quien atiende</p>
+      <p>Tu {{ copy.text().client }} reserva con alguien de tu equipo. Si trabajas solo, agrégate tú: sin esto no se pueden recibir citas.</p>
       <button type="button" class="btn btn-primary" (click)="openCreate()">Agregar {{ copy.text().person.toLowerCase() }}</button>
     </div>
   } @else {

@@ -19,7 +19,7 @@ import { Service, ServiceVariant, ServiceWrite } from '@core/models/service.mode
 import { Staff } from '@core/models/staff.model';
 import { ShopService } from '@core/services/shop.service';
 import { SettingsService } from '@core/services/settings.service';
-import { kindOf } from '@core/business-kinds';
+import { examplesFor, kindOf } from '@core/business-kinds';
 import { StaffService } from '@core/services/staff.service';
 import { SegmentedDirective } from '@shared/directives/segmented.directive';
 import { Confirm } from '@shared/components/confirm/confirm';
@@ -53,6 +53,8 @@ export class ServicesPageComponent {
   private readonly settingsApi = inject(SettingsService);
   /** Giro del negocio: "Lo acordamos en la cita" solo se ofrece en salón de belleza y de uñas. */
   private readonly kind = signal('');
+  /** Un servicio de ejemplo según el giro, para la pantalla vacía. */
+  protected readonly exampleService = computed(() => examplesFor(this.kind()).service);
   private readonly confirm = inject(Confirm);
   private readonly destroyRef = inject(DestroyRef);
   private readonly dialog = inject(MatDialog);
