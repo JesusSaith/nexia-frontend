@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../config/api-base-url';
 import { Closure } from '../models/business.model';
+import type { LoyaltyStep } from '../loyalty';
 
 /** Un paso de "qué te falta" (ver app/core/readiness.py en el backend). */
 export interface ReadinessStep {
@@ -81,6 +82,8 @@ export interface BusinessSettings {
   privacy_notice?: string | null;
   loyalty_every?: number | null;
   loyalty_percent?: number | null;
+  loyalty_steps?: LoyaltyStep[];
+  loyalty_repeat?: boolean;
   /** JSON: [{"code":"BIENVENIDA","percent":10,"first_visit":true}] */
   coupons?: string | null;
   /** Zona IANA; "hoy" y "ahora" de la agenda se calculan con ella. */
@@ -153,6 +156,8 @@ export interface ProfileUpdate {
   privacy_notice?: string | null;
   loyalty_every?: number | null;
   loyalty_percent?: number | null;
+  loyalty_steps?: LoyaltyStep[];
+  loyalty_repeat?: boolean;
   coupons?: string | null;
   timezone?: string | null;
   email_alerts?: string[];

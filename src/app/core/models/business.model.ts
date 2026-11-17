@@ -1,3 +1,5 @@
+import type { LoyaltyStep } from '../loyalty';
+
 export interface BusinessBrand {
   /** Horario general, p. ej. ["Lun a vie · 09:00–18:00"]. */
   hours?: string[];
@@ -59,6 +61,8 @@ export interface BusinessBrand {
   /** Lealtad: cada N visitas cobradas, la siguiente lleva X% de descuento. */
   loyalty_every?: number | null;
   loyalty_percent?: number | null;
+  loyalty_steps?: LoyaltyStep[];
+  loyalty_repeat?: boolean;
 }
 
 /** Un cierre: un día (festivo) o un periodo (vacaciones), ambas fechas incluidas. */

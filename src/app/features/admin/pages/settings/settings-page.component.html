@@ -617,23 +617,74 @@
             </div>
 
             <div class="rounded-xl border border-line p-4">
-              <p class="text-sm font-semibold text-ink">Premio por visitas</p>
-              <p class="field-hint">Cada cierto número de visitas cobradas, la siguiente lleva descuento. Déjalo vacío para no usarlo.</p>
-              <div class="mt-3 flex flex-wrap items-center gap-2 text-sm text-ink-soft">
-                Cada
-                <input class="input nums w-20" type="number" min="2" max="50" placeholder="5" [value]="loyaltyEvery() ?? ''" (input)="loyaltyEvery.set(toNumber($any($event.target).value))" aria-label="Cada cuántas visitas" />
-                visitas,
-                <input class="input nums w-20" type="number" min="1" max="100" placeholder="20" [value]="loyaltyPercent() ?? ''" (input)="loyaltyPercent.set(toNumber($any($event.target).value))" aria-label="Porcentaje de descuento" />
-                % de descuento
-              </div>
-              @if (loyaltyError(); as message) {
-                <span class="field-error mt-2 block">{{ message }}</span>
-              } @else if (loyaltyEvery() && loyaltyPercent()) {
-                <p class="mt-3 text-xs text-muted">Así la verá tu {{ copy.text().client.toLowerCase() }} con 2 visitas:</p>
-                <div class="mt-1.5">
-                  <app-loyalty-card [every]="loyaltyEvery()" [percent]="loyaltyPercent()" [booked]="2" />
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <p class="text-sm font-semibold text-ink">Tarjeta de {{ copy.text().client.toLowerCase() }} frecuente</p>
+                  <p class="field-hint">Premia las visitas: en la que tú elijas, la cita lleva descuento, un servicio gratis o un regalo.</p>
                 </div>
-                <p class="mt-2 text-sm text-ink-soft nums">La visita {{ loyaltyEvery() }}, {{ (loyaltyEvery() ?? 0) * 2 }}, {{ (loyaltyEvery() ?? 0) * 3 }}… lleva {{ loyaltyPercent() }}% de descuento.</p>
+                <button type="button" role="switch" class="switch shrink-0" [attr.aria-checked]="loyaltySteps().length > 0" (click)="setLoyaltyOn(!loyaltySteps().length)" aria-label="Usar tarjeta de cliente frecuente"><span></span></button>
+              </div>
+              @if (loyaltySteps().length) {
+                <div class="mt-3 flex flex-wrap gap-2">
+                  @for (template of loyaltyTemplates; track template.name; let t = $index) {
+                    <button type="button" class="chip" (click)="applyTemplate(t)">{{ template.name }}</button>
+                  }
+                </div>
+                <ul class="mt-3 space-y-3">
+                  @for (step of loyaltySteps(); track $index; let i = $index) {
+                    <li class="rounded-xl border border-line bg-surface p-3">
+                      <div class="flex flex-wrap items-center gap-2 text-sm text-ink-soft">
+                        En la visita
+                        <input class="input nums w-20" type="number" min="2" [attr.max]="50" [value]="step.visit ?? ''" (input)="patchStep(i, { visit: toNumber($any($event.target).value) })" [attr.aria-label]="'Número de visita del premio ' + (i + 1)" />
+                        <button type="button" class="btn btn-ghost ml-auto" (click)="removeStep(i)" [attr.aria-label]="'Quitar el premio ' + (i + 1)"><mat-icon>delete</mat-icon></button>
+                      </div>
+                      <div class="mt-2 flex flex-wrap gap-2" role="group" aria-label="Tipo de premio">
+                        <button type="button" class="chip" [attr.aria-pressed]="step.kind === 'percent'" (click)="setStepKind(i, 'percent')">Descuento</button>
+                        <button type="button" class="chip" [attr.aria-pressed]="step.kind === 'free'" (click)="setStepKind(i, 'free')">Servicio gratis</button>
+                        <button type="button" class="chip" [attr.aria-pressed]="step.kind === 'gift'" (click)="setStepKind(i, 'gift')">Regalo</button>
+                      </div>
+                      @if (step.kind === 'percent') {
+                        <div class="mt-2 flex items-center gap-2 text-sm text-ink-soft">
+                          <input class="input nums w-20" type="number" min="1" max="100" [value]="step.percent ?? ''" (input)="patchStep(i, { percent: toNumber($any($event.target).value) })" [attr.aria-label]="'Porcentaje de descuento del premio ' + (i + 1)" />
+                          % de descuento
+                        </div>
+                      } @else if (step.kind === 'free') {
+                        <label class="mt-2 block">
+                          <span class="label opt">Servicio</span>
+                          <select class="input" [value]="step.service_id ?? ''" (change)="patchStep(i, { service_id: toNumber($any($event.target).value) })">
+                            <option value="">Cualquiera</option>
+                            @for (row of serviceRows(); track row.id) {
+                              <option [value]="row.id" [selected]="row.id === step.service_id">{{ row.name }}</option>
+                            }
+                          </select>
+                        </label>
+                      } @else {
+                        <label class="mt-2 block">
+                          <span class="label">Regalo</span>
+                          <input class="input" maxlength="60" placeholder="Ej. Un obsequio de la casa" [value]="step.label" (input)="patchStep(i, { label: $any($event.target).value })" />
+                        </label>
+                      }
+                    </li>
+                  }
+                </ul>
+                @if (loyaltySteps().length < maxSteps) {
+                  <button type="button" class="btn btn-ghost mt-3" (click)="addStep()"><mat-icon>add</mat-icon>Agregar otro premio</button>
+                }
+                <div class="mt-3 flex items-start justify-between gap-3">
+                  <div>
+                    <p class="text-sm text-ink">Empezar otra tarjeta al terminar</p>
+                    <p class="field-hint">Al llegar a la última visita, la cuenta vuelve a empezar.</p>
+                  </div>
+                  <button type="button" role="switch" class="switch shrink-0" [attr.aria-checked]="loyaltyRepeat()" (click)="loyaltyRepeat.set(!loyaltyRepeat())" aria-label="Empezar otra tarjeta al terminar"><span></span></button>
+                </div>
+                @if (loyaltyError(); as message) {
+                  <span class="field-error mt-2 block">{{ message }}</span>
+                } @else if (loyaltyPlan(); as plan) {
+                  <p class="mt-3 text-xs text-muted">Así la verá tu {{ copy.text().client.toLowerCase() }} con 2 visitas:</p>
+                  <div class="mt-1.5">
+                    <app-loyalty-card [plan]="plan" [names]="serviceNames()" [booked]="2" />
+                  </div>
+                }
               }
             </div>
 

@@ -1,3 +1,4 @@
+import { planOf, type LoyaltyPlan } from '@core/loyalty';
 import { LoyaltyCardComponent } from '@shared/components/loyalty-card/loyalty-card';
 import { AutocompleteFieldComponent } from '@shared/components/autocomplete/autocomplete';
 import { DateFieldComponent, PickFieldComponent, plain } from '@shared/components/when-field/when-field';
@@ -198,7 +199,7 @@ export class Customers {
   // Ficha
   protected readonly card = signal<ClientCard | null>(null);
   /** Premio por visitas del negocio (null si no lo usa). */
-  protected readonly loyalty = signal<{ every: number; percent: number } | null>(null);
+  protected readonly loyalty = signal<LoyaltyPlan | null>(null);
   /** Visitas cobradas y citas en pie de la ficha abierta: lo mismo que cuenta el premio. */
   protected readonly loyaltyCounts = computed(() => {
     const visits = this.card()?.visits ?? [];
@@ -542,7 +543,7 @@ export class Customers {
       .getMyBrand()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: (brand) => this.loyalty.set(brand.loyalty_every && brand.loyalty_percent ? { every: brand.loyalty_every, percent: brand.loyalty_percent } : null),
+        next: (brand) => this.loyalty.set(planOf(brand)),
         error: () => this.loyalty.set(null),
       });
     // ?ficha=ID (buscador del panel): abre esa ficha, también si ya se estaba en Clientes.

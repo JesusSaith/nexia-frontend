@@ -628,7 +628,7 @@
         </div>
       </div>
       @if (loyaltyBooked() !== null && !usePackage()) {
-        <app-loyalty-card [every]="brand()?.loyalty_every" [percent]="brand()?.loyalty_percent" [booked]="loyaltyBooked() ?? 0" [completed]="loyaltyVisits()" />
+        <app-loyalty-card [plan]="loyaltyPlan()" [names]="serviceNames()" [booked]="loyaltyBooked() ?? 0" [completed]="loyaltyVisits()" />
       }
       @if (copy().pet) {
         <label class="rounded-xl border border-line bg-surface px-3 py-2">

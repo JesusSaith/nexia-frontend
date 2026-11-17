@@ -70,6 +70,8 @@ export interface Appointment {
   tip_delivered?: boolean;
   visit_note?: string | null;
   discount_percent?: number | null;
+  /** Premio de regalo de la tarjeta de cliente frecuente, por entregar en esa visita. */
+  reward_note?: string | null;
   /** Llegó por la página con "aprobar citas a mano": el horario está apartado, falta el sí de la dueña. */
   needs_approval?: boolean;
   /** El cliente dijo "Ya pagué" con el enlace de pago; falta revisar y aceptar. */
