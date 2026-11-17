@@ -304,12 +304,12 @@ export class BookingService {
     slug: string,
     phone: string,
     coupon: string | null = null,
-  ): Observable<{ percent: number | null; visits: number; coupon_percent?: number | null }> {
+  ): Observable<{ percent: number | null; visits: number; booked?: number; coupon_percent?: number | null }> {
     let params = new HttpParams().set('phone', phone);
     if (coupon) {
       params = params.set('coupon', coupon);
     }
-    return this.http.get<{ percent: number | null; visits: number; coupon_percent?: number | null }>(
+    return this.http.get<{ percent: number | null; visits: number; booked?: number; coupon_percent?: number | null }>(
       `${this.apiBaseUrl}/businesses/${slug}/loyalty`,
       { params },
     );

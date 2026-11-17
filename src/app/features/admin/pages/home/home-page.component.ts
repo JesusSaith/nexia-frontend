@@ -1,4 +1,5 @@
 import { scrollBehavior } from '@core/motion';
+import { WHATS_NEW, newsText, unseenNews } from '@core/whats-new';
 import { attendanceState } from '@core/appointment-progress';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
@@ -285,6 +286,12 @@ export class HomePageComponent {
   /** Pasos para dejar el negocio listo. Oculta la lista, los avisos (p. ej. falta la CLABE) se siguen viendo. */
   protected readonly setup = signal<ReadinessStep[]>([]);
   protected readonly setupHidden = signal(false);
+  /** Última novedad vista (null si nunca) y si ya se supo; hasta entonces no se muestra nada para que no parpadee. */
+  private readonly newsSeen = signal<string | null>(null);
+  private readonly newsKnown = signal(false);
+  protected readonly news = computed(() =>
+    this.canCustomize() && this.newsKnown() ? unseenNews(this.newsSeen()).map((item) => ({ ...item, text: newsText(item, this.copy.text().clients) })) : [],
+  );
   /** La lista de arranque va cerrada (una línea con el avance) y se abre al tocar "Ver pasos". */
   protected readonly setupOpen = signal(false);
 
@@ -343,6 +350,8 @@ export class HomePageComponent {
         next: (ready) => {
           this.setup.set(ready.steps.filter((step) => step.group !== 'perfil'));
           this.setupHidden.set(ready.setup_hidden === true);
+          this.newsSeen.set(ready.news_seen ?? null);
+          this.newsKnown.set(true);
           this.hiddenCards.set(ready.home_hidden ?? []);
           // Quien la ocultó antes de que se guardara en el negocio (en este navegador): se pasa al negocio una sola vez.
           if (ready.setup_hidden !== true && readFlag('nexia-setup-hidden')) {
@@ -431,6 +440,16 @@ export class HomePageComponent {
       next: () => location.reload(),
       error: () => this.demoBusy.set(false),
     });
+  }
+
+  /** "Entendido": se marca la más nueva como vista, en el negocio. */
+  protected dismissNews(): void {
+    const newest = WHATS_NEW[0]?.id;
+    if (!newest) {
+      return;
+    }
+    this.newsSeen.set(newest);
+    this.settingsApi.markNewsSeen(newest).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ error: () => undefined });
   }
 
   protected hideSetup(): void {
