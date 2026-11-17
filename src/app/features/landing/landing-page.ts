@@ -213,7 +213,7 @@ export class LandingPage implements AfterViewInit {
   /** Qué hace Nexia por cada giro (sigue al giro elegido arriba). */
   private readonly kindPoints: Record<string, string[]> = {
     belleza: ['Varias personas y comisiones por persona.', 'Servicios con duraciones distintas.', 'Anticipo para los servicios largos.'],
-    barberia: ['Agenda por barbero, sin choques.', 'Cortes de 20 a 45 minutos.', 'Recordatorios para que no falten.'],
+    barberia: ['Agenda por barbero, sin choques.', 'Cortes de 30 minutos a 1 hora.', 'Recordatorios para que no falten.'],
     unas: ['Duraciones largas, sin empalmes.', 'Anticipo para diseños y acrílicas.', 'Tu enlace y QR para el local.'],
     spa: ['Terapeutas en una sola agenda.', 'Paquetes de sesiones.', 'Citas con anticipo.'],
     dental: ['Recordatorios para evitar faltas.', 'Historial por paciente.', 'Valoración y tratamiento por separado.'],
@@ -429,7 +429,7 @@ export class LandingPage implements AfterViewInit {
   }
   private readonly heroServices: Record<string, { name: string; time: string; price: number }[]> = {
     belleza: [{ name: 'Corte y peinado', time: '45 min', price: 350 }, { name: 'Tinte completo', time: '2 h', price: 1200 }, { name: 'Peinado de fiesta', time: '1 h', price: 600 }],
-    barberia: [{ name: 'Corte y barba', time: '45 min', price: 250 }, { name: 'Fade clásico', time: '30 min', price: 180 }, { name: 'Arreglo de barba', time: '20 min', price: 100 }],
+    barberia: [{ name: 'Corte y barba', time: '1 h', price: 260 }, { name: 'Fade o degradado', time: '40 min', price: 200 }, { name: 'Corte de niño', time: '30 min', price: 130 }],
     unas: [{ name: 'Gelish en manos', time: '1 h', price: 300 }, { name: 'Acrílicas', time: '2 h', price: 550 }, { name: 'Diseño a mano', time: '30 min', price: 120 }],
     spa: [{ name: 'Masaje relajante', time: '1 h', price: 700 }, { name: 'Facial hidratante', time: '1 h', price: 650 }, { name: 'Descontracturante', time: '1 h 30', price: 900 }],
     dental: [{ name: 'Limpieza dental', time: '45 min', price: 600 }, { name: 'Valoración', time: '30 min', price: 300 }, { name: 'Resina', time: '1 h', price: 800 }],

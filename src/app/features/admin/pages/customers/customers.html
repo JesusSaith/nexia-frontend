@@ -346,6 +346,10 @@
       </div>
     </section>
 
+    @if (loyalty(); as plan) {
+      <app-loyalty-card audience="owner" [every]="plan.every" [percent]="plan.percent" [booked]="loyaltyCounts().booked" [completed]="loyaltyCounts().completed" />
+    }
+
     <div class="grid grid-cols-3 gap-2">
       <div class="rounded-xl border border-line px-3 py-2">
         <p class="stat-label">Visitas</p>

@@ -596,6 +596,9 @@
         @if (isHold(pop.appointment.service_id)) {
           <span class="badge badge-warn">Servicio por elegir</span>
         }
+        @if (pop.appointment.discount_percent) {
+          <span class="badge badge-ok nums">{{ pop.appointment.discount_percent }}% de descuento</span>
+        }
       </div>
     </header>
 

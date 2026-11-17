@@ -9,6 +9,7 @@ import { usefulDescription } from '@core/service-card';
 import { scrollBehavior } from '@core/motion';
 import { FAVORITES_KEY, clearFavorites, favoritesFirst, favoritesFor, toggleFavorite } from '@core/favorites';
 import { LAST_BOOKING_KEY, LastBooking, lastBookingFor, repeatable, withLastBooking } from '@core/last-booking';
+import { LoyaltyCardComponent } from '@shared/components/loyalty-card/loyalty-card';
 import { Stepper } from '@shared/components/stepper/stepper';
 import { NgTemplateOutlet } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -86,6 +87,7 @@ function notBlank(control: AbstractControl): ValidationErrors | null {
 @Component({
   selector: 'app-booking',
   imports: [
+    LoyaltyCardComponent,
     // FUTURE_PHASE_SPEI: SpeiCheckComponent,
     NgTemplateOutlet,
     ReactiveFormsModule,
@@ -205,6 +207,9 @@ export class Booking {
   protected readonly couponChecked = signal('');
   protected readonly couponError = signal<string | null>(null);
   protected readonly loyaltyPercent = signal<number | null>(null);
+  /** Visitas cobradas y citas en pie del teléfono: lo que cuenta la tarjeta. */
+  protected readonly loyaltyBooked = signal<number | null>(null);
+  protected readonly loyaltyVisits = signal(0);
   private lastLoyaltyPhone = '';
   protected readonly services = signal<PublicService[]>([]);
   /** "Por elegir": para quien aún no sabe qué servicio o diseño quiere (salones de belleza y de uñas). */
@@ -762,6 +767,7 @@ export class Booking {
     if (trimmed.replace(/\D/g, '').length < 10) {
       this.lastLoyaltyPhone = '';
       this.loyaltyPercent.set(null);
+      this.loyaltyBooked.set(null);
       return;
     }
     if (trimmed === this.lastLoyaltyPhone) {
@@ -771,6 +777,7 @@ export class Booking {
     const coupon = this.couponChecked();
     if (!this.brand()?.loyalty_every || !this.brand()?.loyalty_percent) {
       this.loyaltyPercent.set(null);
+      this.loyaltyBooked.set(null);
       if (coupon) {
         this.checkCoupon();
       }
@@ -782,12 +789,17 @@ export class Booking {
       .subscribe({
         next: (row) => {
           this.loyaltyPercent.set(row.percent ?? null);
+          this.loyaltyBooked.set(row.booked ?? row.visits);
+          this.loyaltyVisits.set(row.visits);
           if (coupon) {
             this.couponPercent.set(row.coupon_percent ?? null);
             this.couponError.set(row.coupon_percent ? null : 'Ese cupón no es válido');
           }
         },
-        error: () => this.loyaltyPercent.set(null),
+        error: () => {
+          this.loyaltyPercent.set(null);
+          this.loyaltyBooked.set(null);
+        },
       });
   }
 
@@ -1162,6 +1174,7 @@ export class Booking {
     this.couponError.set(null);
     this.lastLoyaltyPhone = '';
     this.loyaltyPercent.set(null);
+    this.loyaltyBooked.set(null);
     this.confirmation.set(null);
     this.proofSent.set(false);
     this.formError.set(null);

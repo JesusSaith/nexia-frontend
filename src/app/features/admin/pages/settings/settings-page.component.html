@@ -629,7 +629,11 @@
               @if (loyaltyError(); as message) {
                 <span class="field-error mt-2 block">{{ message }}</span>
               } @else if (loyaltyEvery() && loyaltyPercent()) {
-                <p class="badge-info mt-3 rounded-lg px-3 py-2 text-sm nums">La visita {{ loyaltyEvery() }}, {{ (loyaltyEvery() ?? 0) * 2 }}, {{ (loyaltyEvery() ?? 0) * 3 }}… lleva {{ loyaltyPercent() }}% de descuento.</p>
+                <p class="mt-3 text-xs text-muted">Así la verá tu {{ copy.text().client.toLowerCase() }} con 2 visitas:</p>
+                <div class="mt-1.5">
+                  <app-loyalty-card [every]="loyaltyEvery()" [percent]="loyaltyPercent()" [booked]="2" />
+                </div>
+                <p class="mt-2 text-sm text-ink-soft nums">La visita {{ loyaltyEvery() }}, {{ (loyaltyEvery() ?? 0) * 2 }}, {{ (loyaltyEvery() ?? 0) * 3 }}… lleva {{ loyaltyPercent() }}% de descuento.</p>
               }
             </div>
 

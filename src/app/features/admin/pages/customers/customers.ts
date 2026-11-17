@@ -1,3 +1,4 @@
+import { LoyaltyCardComponent } from '@shared/components/loyalty-card/loyalty-card';
 import { AutocompleteFieldComponent } from '@shared/components/autocomplete/autocomplete';
 import { DateFieldComponent, PickFieldComponent, plain } from '@shared/components/when-field/when-field';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -28,7 +29,7 @@ const AWAY_DAYS = 45;
 
 @Component({
   selector: 'app-customers',
-  imports: [AutocompleteFieldComponent, DateFieldComponent, PickFieldComponent, MatIconModule, MatMenuModule, FormsModule, RouterLink, Skeleton, FormStatusComponent],
+  imports: [LoyaltyCardComponent, AutocompleteFieldComponent, DateFieldComponent, PickFieldComponent, MatIconModule, MatMenuModule, FormsModule, RouterLink, Skeleton, FormStatusComponent],
   templateUrl: './customers.html',
 })
 export class Customers {
@@ -196,6 +197,16 @@ export class Customers {
 
   // Ficha
   protected readonly card = signal<ClientCard | null>(null);
+  /** Premio por visitas del negocio (null si no lo usa). */
+  protected readonly loyalty = signal<{ every: number; percent: number } | null>(null);
+  /** Visitas cobradas y citas en pie de la ficha abierta: lo mismo que cuenta el premio. */
+  protected readonly loyaltyCounts = computed(() => {
+    const visits = this.card()?.visits ?? [];
+    return {
+      booked: visits.filter((visit) => visit.status !== 'cancelled' && visit.status !== 'no_show').length,
+      completed: visits.filter((visit) => visit.status === 'completed').length,
+    };
+  });
   protected readonly notes = signal('');
   private savedNotes = '';
   protected readonly notesState = signal<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -527,6 +538,13 @@ export class Customers {
 
   constructor() {
     this.load();
+    this.bookingApi
+      .getMyBrand()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (brand) => this.loyalty.set(brand.loyalty_every && brand.loyalty_percent ? { every: brand.loyalty_every, percent: brand.loyalty_percent } : null),
+        error: () => this.loyalty.set(null),
+      });
     // ?ficha=ID (buscador del panel): abre esa ficha, también si ya se estaba en Clientes.
     this.route.queryParamMap
       .pipe(

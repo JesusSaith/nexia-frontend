@@ -23,6 +23,8 @@ export interface Readiness {
   setup_hidden?: boolean;
   /** Tarjetas de Inicio que la dueña ocultó. */
   home_hidden?: string[];
+  /** Última novedad que marcó como vista. */
+  news_seen?: string | null;
   steps: ReadinessStep[];
 }
 
@@ -208,6 +210,11 @@ export class SettingsService {
   /** "Ocultar" la lista de arranque de Inicio, en el negocio y no en este navegador. */
   hideSetup(): Observable<void> {
     return this.http.post<void>(`${this.apiBaseUrl}/settings/readiness/hidden`, {});
+  }
+
+  /** "Entendido" en las novedades de Inicio: se guarda en el negocio. */
+  markNewsSeen(id: string): Observable<void> {
+    return this.http.put<void>(`${this.apiBaseUrl}/settings/news-seen`, { id });
   }
 
   /** Guarda qué tarjetas de Inicio se ocultan, en el negocio. */
