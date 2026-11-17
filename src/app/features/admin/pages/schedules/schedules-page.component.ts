@@ -20,6 +20,9 @@ import { ScheduleItem } from '@core/models/schedule.model';
 import { Staff } from '@core/models/staff.model';
 import { WeekdayPickerComponent } from '@shared/components/weekday-picker/weekday-picker';
 import { weekdaysText } from '@core/shop-note';
+import { ClockPickerComponent } from '@shared/components/clock-picker/clock-picker';
+import { clocksSentence } from '@core/clocks';
+import { hora12 } from '@core/hours';
 import { overlapsOf, sameSpecial, shortClock, specialFor, winnerOf } from '@core/special-hours';
 import { SchedulesService, SpecialHours } from '@core/services/schedules.service';
 import { ShopService } from '@core/services/shop.service';
@@ -35,6 +38,7 @@ const DAY_LABELS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sába
 @Component({
   selector: 'app-schedules-page',
   imports: [
+    ClockPickerComponent,
     FormStatusComponent,
     HoraPipe,
     RouterLink,
@@ -88,15 +92,14 @@ export class SchedulesPageComponent {
   // Horario especial de un día (se guarda como bloqueos antes y después)
   protected special = { date: '', until: '', from: '10:00', to: '14:00', all: false, closed: false, note: '' };
   protected readonly specialError = signal<string | null>(null);
-  // Horas fijas del horario especial (opcional) y la hora que se está eligiendo.
+  // Horas fijas del horario especial (opcional).
   protected readonly specialClocks = signal<string[]>([]);
-  protected readonly specialDraft = signal('09:00');
   // Días de la semana del horario especial (vacío = todos los días del periodo).
   protected readonly specialDays = signal<number[]>([]);
   /** Cómo se arma el horario especial: de tal a tal hora, solo a ciertas horas o cerrado. */
   protected readonly specialMode = signal<'range' | 'fixed' | 'closed'>('range');
   /** El formulario de horario especial en vivo, para avisar de empalmes antes de guardar. */
-  protected readonly specialForm = signal({ date: '', until: '', all: false });
+  protected readonly specialForm = signal({ date: '', until: '', all: false, from: '10:00', to: '14:00' });
   /** Mes que muestra el calendario ("qué horario manda cada día"), como primer día del mes. */
   protected readonly calMonth = signal(monthStart(new Date()));
   /** Quiere trabajar solo a ciertas horas aunque todavía no haya agregado ninguna. */
@@ -113,7 +116,6 @@ export class SchedulesPageComponent {
   protected readonly formError = signal<string | null>(null);
   protected readonly savedMessage = signal<string | null>(null);
   protected readonly slotTimes = signal('');
-  protected readonly draftClock = signal('09:00');
 
   constructor() {
     this.loadStaff();
@@ -336,24 +338,12 @@ export class SchedulesPageComponent {
           this.specialClocks.set([]);
           this.specialDays.set([]);
           this.setSpecialMode('range');
-          this.specialForm.set({ date: '', until: '', all: false });
+          this.specialForm.set({ date: '', until: '', all: false, from: '10:00', to: '14:00' });
           this.toasts.show(replaced ? 'Horario especial actualizado.' : 'Horario especial guardado.');
           this.addingSpecial.set(false);
         },
         error: (error: unknown) => this.specialError.set(readError(error, 'No pudimos guardar el horario especial.')),
       });
-  }
-
-  protected addSpecialClock(): void {
-    const clock = this.specialDraft().slice(0, 5);
-    if (!/^\d{2}:\d{2}$/.test(clock) || this.specialClocks().includes(clock)) {
-      return;
-    }
-    this.specialClocks.set([...this.specialClocks(), clock].sort());
-  }
-
-  protected removeSpecialClock(clock: string): void {
-    this.specialClocks.set(this.specialClocks().filter((item) => item !== clock));
   }
 
   /** Empieza con las horas fijas de siempre de esta persona, para que solo agregue o quite las que cambian. */
@@ -370,7 +360,7 @@ export class SchedulesPageComponent {
 
   /** Para que los avisos del formulario se actualicen al cambiar fechas o alcance. */
   protected syncSpecialForm(): void {
-    this.specialForm.set({ date: this.special.date, until: this.special.until, all: this.special.all });
+    this.specialForm.set({ date: this.special.date, until: this.special.until, all: this.special.all, from: this.special.from, to: this.special.to });
   }
 
   protected setSpecialMode(mode: 'range' | 'fixed' | 'closed'): void {
@@ -380,6 +370,47 @@ export class SchedulesPageComponent {
       this.specialClocks.set([]);
     }
   }
+
+  /** Rango de la cuadrícula de horas: del turno más temprano al más tarde de la semana (o 7 a 21 si aún no hay turnos). */
+  protected readonly clockFrom = computed(() => {
+    const starts = this.days().filter((day) => day.is_active).map((day) => day.start_time.slice(0, 5)).sort();
+    return starts[0] ?? '07:00';
+  });
+  protected readonly clockTo = computed(() => {
+    const ends = this.days().filter((day) => day.is_active).map((day) => day.end_time.slice(0, 5)).sort();
+    return ends[ends.length - 1] ?? '21:00';
+  });
+
+  protected setClocks(list: string[]): void {
+    this.slotTimes.set(list.join(', '));
+    this.savedMessage.set(null);
+  }
+
+  protected readonly clocksSummary = computed(() => clocksSentence(this.clocks(), (clock) => hora12(clock)));
+
+  /** Una frase con lo que se guardaría: fechas, para quién y a qué horas. */
+  protected readonly specialSummary = computed(() => {
+    this.specialForm();
+    this.specialDays();
+    const draft = this.draftSpecial();
+    if (!draft.date_from || draft.date_to < draft.date_from) {
+      return '';
+    }
+    const long = (value: string) => new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'long' }).format(new Date(`${value}T12:00:00`));
+    const when = draft.date_to === draft.date_from ? `El ${long(draft.date_from)}` : `Del ${long(draft.date_from)} al ${long(draft.date_to)}`;
+    const only = draft.weekdays ? `, solo ${weekdaysText(draft.weekdays)}` : '';
+    const who = draft.staff_id === null ? 'todo el equipo' : this.staff().find((member) => member.id === draft.staff_id)?.full_name.split(' ')[0] ?? '';
+    const mode = this.specialMode();
+    const what =
+      mode === 'closed'
+        ? 'cerrado'
+        : mode === 'fixed'
+          ? this.specialClocks().length
+            ? `solo a las ${clocksSentence(this.specialClocks(), (clock) => hora12(clock))}`
+            : 'falta elegir las horas'
+          : `de ${hora12(this.special.from)} a ${hora12(this.special.to)}`;
+    return `${when}${only} · ${who}: ${what}.`;
+  });
 
   /** Avisos de empalme del horario que se está armando: qué se cruza y cuál manda cada día. */
   protected readonly specialWarnings = computed(() => {
@@ -628,19 +659,6 @@ export class SchedulesPageComponent {
       .split(',')
       .map((part) => part.trim())
       .filter(Boolean);
-  }
-
-  protected addClock(): void {
-    const clock = this.draftClock().slice(0, 5);
-    if (!/^\d{2}:\d{2}$/.test(clock) || this.clocks().includes(clock)) {
-      return;
-    }
-    this.slotTimes.set([...this.clocks(), clock].sort().join(', '));
-    this.formError.set(null);
-  }
-
-  protected removeClock(clock: string): void {
-    this.slotTimes.set(this.clocks().filter((item) => item !== clock).join(', '));
   }
 
   protected dayClocks(day: ScheduleItem): string[] {

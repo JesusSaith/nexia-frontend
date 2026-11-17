@@ -18,7 +18,7 @@ export const WHATS_NEW: NewsItem[] = [
     id: '2026-11-horarios-mas-claros',
     date: '2026-11-21',
     title: 'Horarios más fáciles',
-    text: 'Ahora eliges si recibes citas "de tal a tal hora" o "solo a estas horas". Si dos horarios especiales se empalman, te avisamos cuál manda, y un calendario te muestra qué horario le toca a cada día.',
+    text: 'Ahora eliges si recibes citas "de tal a tal hora" o "solo a estas horas", y las horas se escriben de golpe ("9:30, 12:30, 4pm") o se tocan en una cuadrícula. Si dos horarios especiales se empalman, te avisamos cuál manda, y un calendario te muestra qué horario le toca a cada día.',
     icon: 'schedule',
     link: '/admin/schedules',
     linkLabel: 'Ver mis horarios',
