@@ -97,3 +97,38 @@ export function shortClock(clock: string): string {
   const [hour, minute] = clock.split(':').map(Number);
   return minute ? `${hour}:${String(minute).padStart(2, '0')}` : String(hour);
 }
+
+export interface AppointmentLike {
+  staff_id: number;
+  starts_at: string;
+  status: string;
+}
+
+/** Un horario especial por guardar, con las horas que traería. `fixed`: la última hora fija es también la última cita posible. */
+export type DraftHours = SpecialLike & { closed: boolean; start_time: string; end_time: string; fixed?: boolean };
+
+/**
+ * Citas ya agendadas (en pie) que el horario especial nuevo dejaría fuera: solo cuenta los días en que el nuevo es el que manda
+ * (si otro más específico gana ese día, la cita no cambia) y no el horario idéntico que el nuevo reemplazaría.
+ */
+export function appointmentsOutside<A extends AppointmentLike>(appointments: A[], fresh: DraftHours, rows: SpecialLike[]): A[] {
+  const draft: DraftHours = { ...fresh, id: Number.MAX_SAFE_INTEGER };
+  const others = rows.filter((row) => !sameSpecial(row, fresh));
+  return appointments.filter((item) => {
+    if (item.status !== 'scheduled' && item.status !== 'awaiting_deposit') {
+      return false;
+    }
+    if (fresh.staff_id !== null && item.staff_id !== fresh.staff_id) {
+      return false;
+    }
+    const day = item.starts_at.slice(0, 10);
+    if (!appliesOn(draft, day) || specialFor([...others, draft], item.staff_id, day) !== draft) {
+      return false;
+    }
+    if (fresh.closed) {
+      return true;
+    }
+    const clock = item.starts_at.slice(11, 16);
+    return clock < fresh.start_time || (fresh.fixed ? clock > fresh.end_time : clock >= fresh.end_time);
+  });
+}

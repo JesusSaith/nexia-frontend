@@ -254,6 +254,13 @@
       </div>
       @if (clocks().length) {
         <p class="mt-3 text-sm text-ink-soft">Tus {{ copy.text().clients.toLowerCase() }} verán: <span class="nums">{{ clocksSummary() }}</span></p>
+        @if (clocksOutOfShift().length) {
+          <ul class="mt-3 flex flex-col gap-2" aria-label="Horas que no se ofrecerán">
+            @for (warning of clocksOutOfShift(); track warning) {
+              <li class="badge-warn flex items-start gap-2 rounded-xl px-3 py-2 text-sm"><mat-icon class="h-5! w-5! shrink-0 text-[20px]!">warning</mat-icon>{{ warning }}</li>
+            }
+          </ul>
+        }
         <button type="button" class="btn btn-ghost mt-1 px-2!" (click)="copyClocksToDays()"><mat-icon>content_copy</mat-icon>Usarlas en cada día abierto</button>
       }
       <details class="mt-4 border-t border-line pt-3">
@@ -412,6 +419,55 @@
           }
         }
       </ul>
+    </section>
+
+    <!-- Lo que ve la clienta en la página de reservas, con lo que ya está guardado. -->
+    <section class="card mb-4">
+      <div class="card-head">
+        <span class="sec-icon"><mat-icon>visibility</mat-icon></span>
+        <div>
+          <h2 class="card-title">Así lo ve tu {{ copy.text().client.toLowerCase() }}</h2>
+          <p class="text-sm text-muted">Las horas que ofrece tu página de reservas ese día, con lo que ya guardaste.</p>
+        </div>
+      </div>
+      @if (dirty()) {
+        <p class="badge-warn mt-3 rounded-xl px-3 py-2 text-sm" role="status">Tienes cambios sin guardar. Guarda el horario para verlos aquí.</p>
+      }
+      <div class="mt-3 grid gap-3 sm:grid-cols-2">
+        <label class="block"><span class="label">Día</span>
+          <input class="input" type="date" [min]="today" [value]="previewDate()" (change)="setPreviewDate($any($event.target).value)" />
+        </label>
+        <label class="block"><span class="label">Servicio</span>
+          <select class="input" [value]="previewService() ?? ''" (change)="setPreviewService($any($event.target).value)">
+            @for (row of previewServices(); track row.id) {
+              <option [value]="row.id" [selected]="row.id === previewService()">{{ row.name }}</option>
+            }
+          </select>
+        </label>
+      </div>
+      @if (previewJumps().length) {
+        <div class="mt-2 flex flex-wrap gap-2" role="group" aria-label="Ir a un día con horario especial">
+          @for (jump of previewJumps(); track jump.date) {
+            <button type="button" class="chip h-11!" [class.chip-on]="previewDate() === jump.date" [attr.aria-pressed]="previewDate() === jump.date" (click)="setPreviewDate(jump.date)">{{ jump.label }}</button>
+          }
+        </div>
+      }
+      <div class="mt-3" aria-live="polite">
+        @if (previewLoading()) {
+          <div class="skeleton h-11" role="status" aria-label="Cargando horas"></div>
+        } @else if (previewSlots() === null) {
+          <p class="text-sm text-muted">Elige un día y un servicio para ver las horas.</p>
+        } @else if (!previewSlots()!.length) {
+          <p class="text-sm text-ink-soft">Ese día no hay horas libres: está cerrado, es un día sin turno o ya está lleno.</p>
+        } @else {
+          <p class="mb-2 text-sm text-ink-soft">{{ shortDay(previewDate()) }}: {{ previewSlots()!.length }} {{ previewSlots()!.length === 1 ? 'hora libre' : 'horas libres' }}</p>
+          <ul class="flex flex-wrap gap-2">
+            @for (clock of previewSlots(); track clock) {
+              <li class="chip chip-on nums h-11!">{{ clock | hora }}</li>
+            }
+          </ul>
+        }
+      </div>
     </section>
 
     @if (formError(); as message) {
