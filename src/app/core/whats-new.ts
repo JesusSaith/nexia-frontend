@@ -15,6 +15,15 @@ export interface NewsItem {
 
 export const WHATS_NEW: NewsItem[] = [
   {
+    id: '2026-11-tarjeta-por-peldanos',
+    date: '2026-11-20',
+    title: 'Premios por visita, a tu manera',
+    text: 'Ahora tu tarjeta puede premiar varias visitas: por ejemplo 5% en la 3, 20% en la 6 y un servicio gratis en la 10. También puedes regalar algo. Tus {clientes} ven su tarjeta con casillas, como las de papel.',
+    icon: 'loyalty',
+    link: '/admin/settings?sec=promociones',
+    linkLabel: 'Armar mi tarjeta',
+  },
+  {
     id: '2026-11-tarjeta-de-clientes',
     date: '2026-11-17',
     title: 'Tarjeta de cliente frecuente',
