@@ -1,3 +1,5 @@
+import { LOYALTY_TEMPLATES, MAX_STEPS, MAX_VISIT, type LoyaltyStep, type RewardKind } from '@core/loyalty';
+import { ServicesService } from '@core/services/services.service';
 import { LoyaltyCardComponent } from '@shared/components/loyalty-card/loyalty-card';
 import { scrollBehavior } from '@core/motion';
 import { NgTemplateOutlet } from '@angular/common';
@@ -119,6 +121,7 @@ const ALERT_OPTIONS: readonly { value: string; label: string; hint: string }[] =
 })
 export class SettingsPageComponent {
   private readonly settingsApi = inject(SettingsService);
+  private readonly servicesApi = inject(ServicesService);
   protected readonly copy = inject(BusinessCopy);
   private readonly toasts = inject(Toasts);
   private readonly confirm = inject(Confirm);
@@ -278,8 +281,13 @@ export class SettingsPageComponent {
     return validClabe(this.form.controls.depositAccount.value);
   });
   protected readonly methodsText = computed(() => methodsSentence([...this.paymentMethods()]));
-  protected readonly loyaltyEvery = signal<number | null>(null);
-  protected readonly loyaltyPercent = signal<number | null>(null);
+  /** Peldaños de la tarjeta tal como se editan (campos vacíos permitidos); sin peldaños no hay tarjeta. */
+  protected readonly loyaltySteps = signal<LoyaltyDraft[]>([]);
+  protected readonly loyaltyRepeat = signal(true);
+  protected readonly loyaltyTemplates = LOYALTY_TEMPLATES;
+  protected readonly maxSteps = MAX_STEPS;
+  protected readonly serviceRows = signal<{ id: number; name: string }[]>([]);
+  protected readonly serviceNames = computed(() => Object.fromEntries(this.serviceRows().map((row) => [row.id, row.name])));
   protected readonly coupons = signal<BusinessCoupon[]>([]);
   protected readonly alertOptions = ALERT_OPTIONS;
   protected readonly emailAlerts = signal<ReadonlySet<string>>(new Set());
@@ -318,7 +326,7 @@ export class SettingsPageComponent {
   protected readonly payload = computed<ProfileUpdate>(() => {
     this.values();
     const value = this.form.getRawValue();
-    const loyalty = loyaltyValues(this.loyaltyEvery(), this.loyaltyPercent());
+    const loyalty = this.loyaltyError() ? [] : cleanSteps(this.loyaltySteps());
     const saved = this.savedSettings();
     const color = value.primaryColor.toLowerCase();
     const colorChanged = color !== (saved?.primary_color ?? DEFAULT_COLOR).toLowerCase();
@@ -375,8 +383,8 @@ export class SettingsPageComponent {
       promo_text: this.promo().trim().slice(0, 80) || null,
       promo_until: this.promo().trim() ? this.promoUntil() || null : null,
       gallery: this.photos(),
-      loyalty_every: loyalty.every,
-      loyalty_percent: loyalty.percent,
+      loyalty_steps: loyalty,
+      loyalty_repeat: this.loyaltyRepeat(),
       coupons: couponsJson(this.coupons()),
       email_alerts: ALERT_OPTIONS.map((option) => option.value).filter((value) => this.emailAlerts().has(value)),
       // Solo se guardan los que difieren del texto de fábrica.
@@ -426,18 +434,31 @@ export class SettingsPageComponent {
   });
 
   protected readonly loyaltyError = computed(() => {
-    const every = this.loyaltyEvery();
-    const percent = this.loyaltyPercent();
-    if (!every && !percent) {
-      return '';
+    const steps = this.loyaltySteps();
+    let last = 0;
+    for (const step of steps) {
+      const visit = step.visit;
+      if (!visit || !Number.isInteger(visit) || visit < 2 || visit > MAX_VISIT) {
+        return `Las visitas van de 2 a ${MAX_VISIT}.`;
+      }
+      if (visit <= last) {
+        return 'Pon las visitas de menor a mayor y sin repetir.';
+      }
+      last = visit;
+      if (step.kind === 'percent' && (!step.percent || step.percent < 1 || step.percent > 100)) {
+        return 'El descuento va de 1 a 100%.';
+      }
+      if (step.kind === 'gift' && !step.label.trim()) {
+        return 'Escribe cuál es el regalo.';
+      }
     }
-    if (!every || !percent) {
-      return 'Pon las dos cosas: cada cuántas visitas y el descuento.';
-    }
-    if (every < 2 || every > 50) {
-      return 'Las visitas van de 2 a 50.';
-    }
-    return percent < 1 || percent > 100 ? 'El descuento va de 1 a 100%.' : '';
+    return '';
+  });
+
+  /** Tarjeta lista para la vista previa (solo con peldaños válidos). */
+  protected readonly loyaltyPlan = computed(() => {
+    const steps = cleanSteps(this.loyaltySteps());
+    return !this.loyaltyError() && steps.length ? { steps, repeat: this.loyaltyRepeat() } : null;
   });
 
   protected readonly promoError = computed(() =>
@@ -496,7 +517,7 @@ export class SettingsPageComponent {
     const kind = this.kindPicks.find((item) => item.value === payload.business_kind)?.label ?? 'Otro';
     const offers = [
       this.promo().trim() ? 'anuncio' : '',
-      payload.loyalty_every ? `cada ${payload.loyalty_every} visitas ${payload.loyalty_percent}%` : '',
+      payload.loyalty_steps?.length ? `tarjeta de ${payload.loyalty_steps.length} premio${payload.loyalty_steps.length === 1 ? '' : 's'}` : '',
       this.coupons().length ? `${this.coupons().length} cupón${this.coupons().length === 1 ? '' : 'es'}` : '',
     ].filter(Boolean);
     const deposit = payload.deposit_amount
@@ -526,6 +547,10 @@ export class SettingsPageComponent {
   });
 
   constructor() {
+    this.servicesApi
+      .getServices()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({ next: (rows) => this.serviceRows.set(rows.map((row) => ({ id: row.id, name: row.name }))), error: () => this.serviceRows.set([]) });
     this.settingsApi
       .getSettings()
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -970,6 +995,37 @@ export class SettingsPageComponent {
     this.mapNote.set(null);
   }
 
+  protected setLoyaltyOn(on: boolean): void {
+    this.loyaltySteps.set(on ? [{ visit: 5, kind: 'percent', percent: 10, label: '', service_id: null }] : []);
+  }
+
+  protected applyTemplate(index: number): void {
+    const template = LOYALTY_TEMPLATES[index];
+    this.loyaltySteps.set(template.steps.map(draftOf));
+    this.loyaltyRepeat.set(template.repeat);
+  }
+
+  protected addStep(): void {
+    const rows = this.loyaltySteps();
+    if (rows.length >= MAX_STEPS) {
+      return;
+    }
+    const last = rows[rows.length - 1]?.visit ?? 0;
+    this.loyaltySteps.set([...rows, { visit: Math.min(last + 3, MAX_VISIT), kind: 'percent', percent: 10, label: '', service_id: null }]);
+  }
+
+  protected removeStep(index: number): void {
+    this.loyaltySteps.update((rows) => rows.filter((_, position) => position !== index));
+  }
+
+  protected patchStep(index: number, patch: Partial<LoyaltyDraft>): void {
+    this.loyaltySteps.update((rows) => rows.map((row, position) => (position === index ? { ...row, ...patch } : row)));
+  }
+
+  protected setStepKind(index: number, kind: RewardKind): void {
+    this.patchStep(index, { kind, percent: kind === 'percent' ? this.loyaltySteps()[index].percent || 10 : kind === 'free' ? 100 : 0 });
+  }
+
   protected toNumber(value: string): number | null {
     return value.trim() === '' || Number.isNaN(Number(value)) ? null : Math.round(Number(value));
   }
@@ -1115,8 +1171,8 @@ export class SettingsPageComponent {
     this.reminderHours.set(settings.reminder_hours || 24);
     this.autoReturn.set(Boolean(settings.auto_return));
     this.whatsappReady.set(Boolean(settings.whatsapp_ready));
-    this.loyaltyEvery.set(settings.loyalty_every ?? null);
-    this.loyaltyPercent.set(settings.loyalty_percent ?? null);
+    this.loyaltySteps.set((settings.loyalty_steps ?? []).map(draftOf));
+    this.loyaltyRepeat.set(settings.loyalty_repeat !== false);
     this.coupons.set(parseCoupons(settings.coupons));
     this.emailAlerts.set(new Set(settings.email_alerts ?? []));
     this.messages.set({ ...defaultMessages(), ...(settings.message_templates ?? {}) } as Record<MessageKey, string>);
@@ -1163,7 +1219,7 @@ const FIELD_SECTION: Record<string, SectionId> = {
   logo_url: 'apariencia', primary_color: 'apariencia', gallery: 'apariencia', canvas_color: 'apariencia', accent_color: 'apariencia', button_shape: 'apariencia', button_fill: 'apariencia', font_style: 'apariencia', header_style: 'apariencia',
   min_notice_hours: 'reservas', max_days_ahead: 'reservas', buffer_minutes: 'reservas', cancel_hours: 'reservas', timezone: 'reservas', resources: 'reservas', cancel_policy: 'reservas', max_daily_appointments: 'reservas', deposit_cancel_policy: 'reservas', noshow_after: 'anticipo', noshow_deposit: 'anticipo',
   deposit_amount: 'anticipo', deposit_percent: 'anticipo', deposit_account: 'anticipo', deposit_hold_hours: 'anticipo', quote_hold_hours: 'anticipo', payment_url: 'anticipo',
-  promo_text: 'promociones', promo_until: 'promociones', loyalty_every: 'promociones', loyalty_percent: 'promociones', coupons: 'promociones',
+  promo_text: 'promociones', promo_until: 'promociones', loyalty_steps: 'promociones', loyalty_repeat: 'promociones', coupons: 'promociones',
   message_templates: 'mensajes', auto_reminders: 'mensajes', reminder_hours: 'mensajes', auto_return: 'mensajes', bookings_paused: 'pausa', closures: 'pausa', payment_methods: 'anticipo', card_fee_percent: 'anticipo', card_fee_iva: 'anticipo', card_fee_tip_by_staff: 'anticipo', approve_bookings: 'reservas', hold_enabled: 'reservas', uses_commissions: 'negocio', staff_can_edit_price: 'negocio', email_alerts: 'avisos', privacy_notice: 'privacidad',
 };
 
@@ -1199,12 +1255,30 @@ function numberOrNull(value: number | null | undefined): number | null {
   return value === null || value === undefined || String(value) === '' ? null : Number(value);
 }
 
-/** Lealtad solo cuenta con los dos datos; el backend pide al menos 2 visitas. */
-function loyaltyValues(every: number | null, percent: number | null): { every: number | null; percent: number | null } {
-  if (!every || !percent || every < 2) {
-    return { every: null, percent: null };
-  }
-  return { every: Math.min(every, 50), percent: Math.min(Math.max(percent, 1), 100) };
+/** Un peldaño mientras se edita: los números pueden estar vacíos. */
+interface LoyaltyDraft {
+  visit: number | null;
+  kind: RewardKind;
+  percent: number | null;
+  label: string;
+  service_id: number | null;
+}
+
+function draftOf(step: LoyaltyStep): LoyaltyDraft {
+  return { visit: step.visit, kind: step.kind, percent: step.percent, label: step.label ?? '', service_id: step.service_id ?? null };
+}
+
+/** Peldaños listos para guardar: lo que no aplica a su tipo no se manda. */
+function cleanSteps(rows: LoyaltyDraft[]): LoyaltyStep[] {
+  return rows
+    .filter((row) => row.visit && row.visit >= 2)
+    .map((row) => ({
+      visit: Math.min(Math.floor(row.visit as number), MAX_VISIT),
+      kind: row.kind,
+      percent: row.kind === 'percent' ? Math.min(Math.max(Math.floor(row.percent ?? 0), 1), 100) : row.kind === 'free' ? 100 : 0,
+      label: row.kind === 'gift' ? row.label.trim().slice(0, 60) : null,
+      service_id: row.kind === 'free' ? row.service_id : null,
+    }));
 }
 
 function couponsJson(coupons: BusinessCoupon[]): string | null {

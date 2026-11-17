@@ -347,7 +347,7 @@
     </section>
 
     @if (loyalty(); as plan) {
-      <app-loyalty-card audience="owner" [every]="plan.every" [percent]="plan.percent" [booked]="loyaltyCounts().booked" [completed]="loyaltyCounts().completed" />
+      <app-loyalty-card audience="owner" [plan]="plan" [booked]="loyaltyCounts().booked" [completed]="loyaltyCounts().completed" />
     }
 
     <div class="grid grid-cols-3 gap-2">

@@ -45,6 +45,7 @@ import { PickFieldComponent } from '@shared/components/when-field/when-field';
 import { PlaceMap } from '@shared/components/place-map/place-map';
 import { CalendarEvent, downloadIcs, googleCalendarUrl } from '@core/calendar';
 import { canNavigate, googleMapsUrl } from '@core/maps';
+import { planOf, rewardPercent, type LoyaltyStep } from '@core/loyalty';
 
 /** Desde cuántos servicios se fijan la búsqueda y las categorías arriba. */
 const STICKY_FROM = 12;
@@ -206,7 +207,12 @@ export class Booking {
   protected readonly couponPercent = signal<number | null>(null);
   protected readonly couponChecked = signal('');
   protected readonly couponError = signal<string | null>(null);
-  protected readonly loyaltyPercent = signal<number | null>(null);
+  /** Premio de la tarjeta que tocaría en la próxima visita (lo decide el backend). */
+  protected readonly loyaltyReward = signal<LoyaltyStep | null>(null);
+  /** Descuento del premio para el servicio elegido: el servicio gratis solo aplica a su servicio. */
+  protected readonly loyaltyPercent = computed<number | null>(() => rewardPercent(this.loyaltyReward(), this.selectedService()?.id ?? null) || null);
+  protected readonly loyaltyPlan = computed(() => planOf(this.brand()));
+  protected readonly serviceNames = computed(() => Object.fromEntries(this.services().map((service) => [service.id, service.name])));
   /** Visitas cobradas y citas en pie del teléfono: lo que cuenta la tarjeta. */
   protected readonly loyaltyBooked = signal<number | null>(null);
   protected readonly loyaltyVisits = signal(0);
@@ -766,7 +772,7 @@ export class Booking {
     const trimmed = phone.trim();
     if (trimmed.replace(/\D/g, '').length < 10) {
       this.lastLoyaltyPhone = '';
-      this.loyaltyPercent.set(null);
+      this.loyaltyReward.set(null);
       this.loyaltyBooked.set(null);
       return;
     }
@@ -775,8 +781,8 @@ export class Booking {
     }
     this.lastLoyaltyPhone = trimmed;
     const coupon = this.couponChecked();
-    if (!this.brand()?.loyalty_every || !this.brand()?.loyalty_percent) {
-      this.loyaltyPercent.set(null);
+    if (!this.loyaltyPlan()) {
+      this.loyaltyReward.set(null);
       this.loyaltyBooked.set(null);
       if (coupon) {
         this.checkCoupon();
@@ -788,7 +794,7 @@ export class Booking {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (row) => {
-          this.loyaltyPercent.set(row.percent ?? null);
+          this.loyaltyReward.set(row.reward ?? null);
           this.loyaltyBooked.set(row.booked ?? row.visits);
           this.loyaltyVisits.set(row.visits);
           if (coupon) {
@@ -797,7 +803,7 @@ export class Booking {
           }
         },
         error: () => {
-          this.loyaltyPercent.set(null);
+          this.loyaltyReward.set(null);
           this.loyaltyBooked.set(null);
         },
       });
@@ -1173,7 +1179,7 @@ export class Booking {
     this.couponPercent.set(null);
     this.couponError.set(null);
     this.lastLoyaltyPhone = '';
-    this.loyaltyPercent.set(null);
+    this.loyaltyReward.set(null);
     this.loyaltyBooked.set(null);
     this.confirmation.set(null);
     this.proofSent.set(false);
