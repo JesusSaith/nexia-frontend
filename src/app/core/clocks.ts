@@ -63,3 +63,16 @@ export function clocksSentence(clocks: string[], format: (clock: string) => stri
   const list = clocks.map(format);
   return list.length < 2 ? (list[0] ?? '') : `${list.slice(0, -1).join(', ')} y ${list[list.length - 1]}`;
 }
+
+/**
+ * Horas fijas que no se podrán ofrecer en un turno: caen antes de abrir, después de cerrar (la hora de cierre sí cuenta,
+ * igual que en el servidor) o dentro del descanso.
+ */
+export function clocksOutsideShift(clocks: string[], start: string, end: string, breakStart?: string | null, breakEnd?: string | null): string[] {
+  return clocks.filter((clock) => {
+    if (clock < start.slice(0, 5) || clock > end.slice(0, 5)) {
+      return true;
+    }
+    return Boolean(breakStart && breakEnd && clock >= breakStart.slice(0, 5) && clock < breakEnd.slice(0, 5));
+  });
+}

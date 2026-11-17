@@ -21,9 +21,11 @@ import { Staff } from '@core/models/staff.model';
 import { WeekdayPickerComponent } from '@shared/components/weekday-picker/weekday-picker';
 import { weekdaysText } from '@core/shop-note';
 import { ClockPickerComponent } from '@shared/components/clock-picker/clock-picker';
-import { clocksSentence } from '@core/clocks';
+import { clocksOutsideShift, clocksSentence } from '@core/clocks';
+import { BookingService } from '@core/services/booking.service';
+import { ServicesService } from '@core/services/services.service';
 import { hora12 } from '@core/hours';
-import { overlapsOf, sameSpecial, shortClock, specialFor, winnerOf } from '@core/special-hours';
+import { appointmentsOutside, overlapsOf, sameSpecial, shortClock, specialFor, winnerOf } from '@core/special-hours';
 import { SchedulesService, SpecialHours } from '@core/services/schedules.service';
 import { ShopService } from '@core/services/shop.service';
 import { Appointment } from '@core/models/appointment.model';
@@ -63,6 +65,8 @@ export class SchedulesPageComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly appointmentsApi = inject(AppointmentsService);
   private readonly shopApi = inject(ShopService);
+  private readonly bookingApi = inject(BookingService);
+  private readonly servicesApi = inject(ServicesService);
   /** Citas completadas por día (0 = lunes) y hora, de las últimas 8 semanas. */
   private readonly demand = signal<{ day: number; hour: number; count: number }[]>([]);
   protected readonly specials = signal<SpecialHours[]>([]);
@@ -118,6 +122,7 @@ export class SchedulesPageComponent {
   protected readonly slotTimes = signal('');
 
   constructor() {
+    this.startPreview();
     this.loadStaff();
   }
 
@@ -316,7 +321,7 @@ export class SchedulesPageComponent {
     return list;
   }
 
-  protected saveSpecial(): void {
+  protected async saveSpecial(): Promise<void> {
     const { date, until, all, closed, note } = this.special;
     const clocks = closed || this.specialMode() !== 'fixed' ? [] : this.specialClocks();
     // Con horas fijas, la apertura y el cierre salen de la primera y la última hora.
@@ -326,9 +331,25 @@ export class SchedulesPageComponent {
       this.specialError.set('Revisa las fechas y que el cierre sea después de la apertura.');
       return;
     }
-    const replaced = this.specials().some((item) => sameSpecial(item, this.draftSpecial()));
+    const draft = this.draftSpecial();
+    const body = { staff_id: draft.staff_id, date_from: draft.date_from, date_to: draft.date_to, start_time: from, end_time: to, closed, note: note.trim() || null, slot_times: clocks.join(', ') || null, weekdays: draft.weekdays };
+
+    // Avisa antes de guardar cuántas citas ya agendadas quedarían fuera (igual que al cambiar el horario normal).
+    const left = appointmentsOutside(await this.appointmentsInRange(draft.staff_id, draft.date_from, draft.date_to), { ...draft, closed, start_time: from, end_time: to, fixed: clocks.length > 0 }, this.specials());
+    if (
+      left.length &&
+      !(await this.confirm.ask({
+        title: `Quedan ${left.length} ${left.length === 1 ? 'cita' : 'citas'} fuera de ese horario`,
+        message: closed ? 'No se cancelan solas. Guarda y después muévelas en la Agenda, o regresa a cambiar las fechas.' : 'No se cancelan solas. Guarda y después muévelas en la Agenda (te dejamos el enlace), o regresa a ajustar las horas.',
+        confirm: 'Guardar de todos modos',
+        cancel: 'Revisar horario',
+      }))
+    ) {
+      return;
+    }
+    const replaced = this.specials().some((item) => sameSpecial(item, draft));
     this.schedulesApi
-      .addSpecial({ staff_id: all ? null : this.staffId(), date_from: date, date_to: until || date, start_time: from, end_time: to, closed, note: note.trim() || null, slot_times: clocks.join(', ') || null, weekdays: until && until !== date && this.specialDays().length && this.specialDays().length < 7 ? this.specialDays().join(',') : null })
+      .addSpecial(body)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (row) => {
@@ -339,11 +360,23 @@ export class SchedulesPageComponent {
           this.specialDays.set([]);
           this.setSpecialMode('range');
           this.specialForm.set({ date: '', until: '', all: false, from: '10:00', to: '14:00' });
+          this.outside.set(left.length ? { count: left.length, day: left[0].starts_at.slice(0, 10) } : null);
           this.toasts.show(replaced ? 'Horario especial actualizado.' : 'Horario especial guardado.');
           this.addingSpecial.set(false);
+          this.loadPreview();
         },
         error: (error: unknown) => this.specialError.set(readError(error, 'No pudimos guardar el horario especial.')),
       });
+  }
+
+  /** Citas del rango de fechas (de una persona o de todo el equipo si `staffId` es null). */
+  private appointmentsInRange(staffId: number | null, from: string, to: string): Promise<Appointment[]> {
+    return new Promise((resolve) =>
+      this.appointmentsApi
+        .getAppointments({ start_date: from, end_date: to, ...(staffId === null ? {} : { staff_id: staffId }) })
+        .pipe(catchError(() => of([] as Appointment[])))
+        .subscribe(resolve),
+    );
   }
 
   /** Empieza con las horas fijas de siempre de esta persona, para que solo agregue o quite las que cambian. */
@@ -411,6 +444,96 @@ export class SchedulesPageComponent {
           : `de ${hora12(this.special.from)} a ${hora12(this.special.to)}`;
     return `${when}${only} · ${who}: ${what}.`;
   });
+
+  /** Horas fijas que no se podrán ofrecer porque caen fuera del turno de un día o en su descanso (el servidor las descarta). */
+  protected readonly clocksOutOfShift = computed(() => {
+    const found = new Map<string, string[]>();
+    for (const day of this.days()) {
+      if (!day.is_active) {
+        continue;
+      }
+      const own = this.dayClocks(day);
+      for (const clock of clocksOutsideShift(own.length ? own : this.clocks(), day.start_time, day.end_time, day.break_start, day.break_end)) {
+        found.set(clock, [...(found.get(clock) ?? []), this.dayLabels[day.day_of_week].toLowerCase()]);
+      }
+    }
+    return [...found.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([clock, names]) => `${hora12(clock)} no se ofrecerá el ${clocksSentence(names, (name) => name)}: queda fuera del turno o en el descanso. Amplía el turno o quita esa hora.`);
+  });
+
+  // ---- "Así lo ve tu cliente": las horas reales que ofrece la página de reservas, según lo ya guardado.
+  protected readonly today = todayKey();
+  protected readonly previewSlug = signal<string | null>(null);
+  protected readonly previewServices = signal<{ id: number; name: string }[]>([]);
+  protected readonly previewService = signal<number | null>(null);
+  protected readonly previewDate = signal(tomorrowKey());
+  protected readonly previewSlots = signal<string[] | null>(null);
+  protected readonly previewLoading = signal(false);
+  private previewRequest = 0;
+  /** Atajos al primer día de cada horario especial que viene. */
+  protected readonly previewJumps = computed(() =>
+    this.specials()
+      .filter((row) => !row.closed && row.date_to >= todayKey())
+      .slice(0, 3)
+      .map((row) => ({ date: row.date_from < todayKey() ? todayKey() : row.date_from, label: this.shortDay(row.date_from < todayKey() ? todayKey() : row.date_from) + (row.note ? ` · ${row.note}` : ' · especial') })),
+  );
+
+  protected shortDay(value: string): string {
+    return new Intl.DateTimeFormat('es-MX', { weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(`${value}T12:00:00`));
+  }
+
+  protected setPreviewDate(value: string): void {
+    this.previewDate.set(value);
+    this.loadPreview();
+  }
+
+  protected setPreviewService(value: string): void {
+    this.previewService.set(value ? Number(value) : null);
+    this.loadPreview();
+  }
+
+  protected loadPreview(): void {
+    const slug = this.previewSlug();
+    const service = this.previewService();
+    const staffId = this.staffId();
+    const date = this.previewDate();
+    if (!slug || !service || staffId === null || !date) {
+      this.previewSlots.set(null);
+      return;
+    }
+    const current = ++this.previewRequest;
+    this.previewLoading.set(true);
+    this.bookingApi
+      .getAvailability(slug, service, staffId, date)
+      .pipe(catchError(() => of(null)), takeUntilDestroyed(this.destroyRef))
+      .subscribe((rows) => {
+        if (current !== this.previewRequest) {
+          return;
+        }
+        this.previewLoading.set(false);
+        this.previewSlots.set(rows ? rows.map((slot) => slot.starts_at.slice(11, 16)) : null);
+      });
+  }
+
+  private startPreview(): void {
+    this.bookingApi
+      .getMyBrand()
+      .pipe(catchError(() => of(null)), takeUntilDestroyed(this.destroyRef))
+      .subscribe((brand) => {
+        this.previewSlug.set(brand?.slug ?? null);
+        this.loadPreview();
+      });
+    this.servicesApi
+      .getServices()
+      .pipe(catchError(() => of([])), takeUntilDestroyed(this.destroyRef))
+      .subscribe((rows) => {
+        const usable = rows.filter((row) => row.is_active && !row.is_hold).map((row) => ({ id: row.id, name: row.name }));
+        this.previewServices.set(usable);
+        this.previewService.set(usable[0]?.id ?? null);
+        this.loadPreview();
+      });
+  }
 
   /** Avisos de empalme del horario que se está armando: qué se cruza y cuál manda cada día. */
   protected readonly specialWarnings = computed(() => {
@@ -802,6 +925,7 @@ export class SchedulesPageComponent {
           this.days.set(mergeWeek(rows));
           this.notSaved.set(false);
           this.remember();
+          this.loadPreview();
           this.team.update((teamMap) => new Map(teamMap).set(staffId, rows));
           this.staff.update((list) =>
             list.map((member) => (member.id === staffId ? { ...member, slot_times: clocks.join(', ') || null } : member)),
@@ -858,6 +982,7 @@ export class SchedulesPageComponent {
           this.notSaved.set(rows.length === 0);
           this.isLoadingSchedule.set(false);
           this.remember();
+          this.loadPreview();
         },
         error: (error: unknown) => {
           if (current !== this.requestId) {
@@ -910,6 +1035,18 @@ export class SchedulesPageComponent {
     );
     this.savedMessage.set(null);
   }
+}
+
+function dayKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function todayKey(): string {
+  return dayKey(new Date());
+}
+
+function tomorrowKey(): string {
+  return dayKey(new Date(Date.now() + 86_400_000));
 }
 
 function monthStart(date: Date): Date {

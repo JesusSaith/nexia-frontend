@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clockGrid, clocksSentence, parseClocks } from './clocks';
+import { clockGrid, clocksOutsideShift, clocksSentence, parseClocks } from './clocks';
 
 describe('parseClocks', () => {
   it('entiende horas de 24 h y con minutos', () => {
@@ -46,5 +46,15 @@ describe('clocksSentence', () => {
     expect(clocksSentence(['09:30'], f)).toBe('09:30');
     expect(clocksSentence(['09:30', '12:00', '19:00'], f)).toBe('09:30, 12:00 y 19:00');
     expect(clocksSentence([], f)).toBe('');
+  });
+});
+
+describe('clocksOutsideShift', () => {
+  it('marca las horas fuera del turno, la de cierre sí cabe', () => {
+    expect(clocksOutsideShift(['08:00', '09:30', '18:00', '19:00'], '09:00', '18:00')).toEqual(['08:00', '19:00']);
+  });
+
+  it('marca las del descanso', () => {
+    expect(clocksOutsideShift(['13:00', '14:00', '16:00'], '09:00', '18:00', '14:00', '16:00')).toEqual(['14:00']);
   });
 });
