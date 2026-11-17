@@ -135,13 +135,36 @@
       </div>
     </section>
 
+    <section class="card mb-4">
+      <div class="card-head">
+        <span class="sec-icon"><mat-icon>schedule</mat-icon></span>
+        <div>
+          <h2 class="card-title">Paso 1 · ¿Cómo recibes citas?</h2>
+          <p class="text-sm text-muted">Elige una forma. Luego pon los días que trabajas.</p>
+        </div>
+      </div>
+      <div class="mt-3 grid gap-2 sm:grid-cols-2" role="group" aria-label="Cómo recibes citas">
+        <button type="button" class="chip h-auto! min-h-11 flex-col items-start gap-0.5 py-2 text-left" [class.chip-on]="!fixedMode()" [attr.aria-pressed]="!fixedMode()" (click)="setFixedMode(false)">
+          <span class="font-medium">De tal a tal hora</span>
+          <span class="text-xs">Por ejemplo de 9 a 18. Tus {{ copy.text().clients.toLowerCase() }} ven horas repartidas según lo que dura cada servicio.</span>
+        </button>
+        <button type="button" class="chip h-auto! min-h-11 flex-col items-start gap-0.5 py-2 text-left" [class.chip-on]="fixedMode()" [attr.aria-pressed]="fixedMode()" (click)="setFixedMode(true)">
+          <span class="font-medium">Solo a estas horas</span>
+          <span class="text-xs">Por ejemplo 10:00 y 16:00. Tus {{ copy.text().clients.toLowerCase() }} ven únicamente esas horas.</span>
+        </button>
+      </div>
+      @if (fixedMode()) {
+        <p class="mt-3 text-sm text-ink-soft">Agrega tus horas abajo, en "Tus horas fijas". Cada una debe caer dentro del turno de ese día.</p>
+      }
+    </section>
+
     <section class="card mb-4 px-0! py-0!">
       <div class="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-4 sm:px-5">
         <div class="card-head">
           <span class="sec-icon"><mat-icon>calendar_view_week</mat-icon></span>
           <div>
             <h2 class="card-title">Turno de cada día</h2>
-            <p class="text-sm text-muted">Inicio, fin y descanso. Los días apagados no reciben citas.</p>
+            <p class="text-sm text-muted">{{ fixedMode() ? 'Los días que trabajas y entre qué horas. Los apagados no reciben citas.' : 'Inicio, fin y descanso. Los días apagados no reciben citas.' }}</p>
           </div>
         </div>
         <button class="btn btn-secondary" type="button" (click)="applyMondayToWorkdays()"><mat-icon>content_copy</mat-icon>Copiar el lunes a los días abiertos</button>
@@ -216,10 +239,16 @@
       </ul>
     </section>
 
-    <!-- Lo que casi nadie necesita va cerrado. -->
-    <details class="card mb-4">
-      <summary class="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-medium text-ink"><mat-icon class="text-muted">tune</mat-icon>Opciones avanzadas: solo a horas fijas</summary>
-      <p class="mt-2 text-sm text-muted">Úsalo si atiendes solo a ciertas horas, como en un consultorio ("10:00, 12:00 y 16:00"). Si no pones ninguna, el día se reparte solo según la duración de cada servicio.</p>
+    <!-- Solo se ve si eligió "Solo a estas horas". -->
+    @if (fixedMode()) {
+    <section class="card mb-4">
+      <div class="card-head">
+        <span class="sec-icon"><mat-icon>more_time</mat-icon></span>
+        <div>
+          <h2 class="card-title">Tus horas fijas</h2>
+          <p class="text-sm text-muted">Tus {{ copy.text().clients.toLowerCase() }} verán solo estas horas, como en un consultorio (10:00, 12:00 y 16:00).</p>
+        </div>
+      </div>
       <div class="mt-3 flex flex-wrap gap-2">
         @for (clock of clocks(); track clock) {
           <button type="button" class="chip chip-on h-11! gap-1" (click)="removeClock(clock)">
@@ -234,8 +263,9 @@
         <button type="button" class="btn btn-secondary" (click)="addClock()"><mat-icon>add</mat-icon>Agregar hora</button>
         <button type="button" class="btn btn-ghost" (click)="copyClocksToDays()"><mat-icon>content_copy</mat-icon>Usarlas en cada día abierto</button>
       </div>
-      <div class="mt-4 border-t border-line pt-3">
-        <p class="text-sm text-muted">O agrega horas fijas a un solo día:</p>
+      <details class="mt-4 border-t border-line pt-3">
+        <summary class="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-medium text-ink"><mat-icon class="text-muted">tune</mat-icon>Horas distintas en un solo día</summary>
+        <p class="mt-1 text-sm text-muted">Si un día lleva otras horas, agrégalas aquí; ese día usa estas y no las de arriba.</p>
         <ul class="mt-2 flex flex-col gap-3">
           @for (day of days(); track day.day_of_week) {
             @if (day.is_active) {
@@ -252,12 +282,13 @@
             }
           }
         </ul>
-      </div>
-    </details>
+      </details>
+    </section>
+    }
 
     <!-- Un día o una temporada con horario distinto: manda sobre el turno normal. -->
-    <details class="card mb-4" [open]="specials().length > 0">
-      <summary class="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-medium text-ink"><mat-icon class="text-muted">event_note</mat-icon>Horarios especiales ({{ specials().length }})</summary>
+    <details class="card mb-4" open>
+      <summary class="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-medium text-ink"><mat-icon class="text-muted">event_note</mat-icon>Paso 2 · Cambios por fechas ({{ specials().length }})</summary>
       @if (specials().length) {
         <ul class="mt-2 divide-y divide-line">
           @for (row of specials(); track row.id) {
@@ -269,7 +300,7 @@
         </ul>
       }
       @if (!specials().length) {
-        <p class="mt-2 text-sm text-muted">Sirve para un día (24 de diciembre) o una temporada (todo diciembre de 9 a 21). Mientras dure, reemplaza el turno normal.</p>
+        <p class="mt-2 text-sm text-muted">Sirve para un día (24 de diciembre) o una temporada (todo diciembre). Mientras dure, reemplaza el turno de siempre. Si se empalman dos, manda el más específico: el de una persona sobre el del equipo y el periodo más corto sobre el más largo.</p>
       }
       <div class="mt-2 flex flex-wrap items-center gap-2">
         @if (!addingSpecial()) {
@@ -281,10 +312,10 @@
       <form class="mt-3 grid gap-3 border-t border-line pt-3 sm:grid-cols-4 sm:items-end" (submit)="$event.preventDefault(); saveSpecial()">
         <app-form-status class="block sm:col-span-4" [missing]="specialMissing()" />
         <label class="block"><span class="label req">Desde</span>
-          <input class="input" type="date" name="specialDate" aria-required="true" [(ngModel)]="special.date" />
+          <input class="input" type="date" name="specialDate" aria-required="true" [ngModel]="special.date" (ngModelChange)="special.date = $event; syncSpecialForm()" />
         </label>
         <label class="block"><span class="label opt">Hasta</span>
-          <input class="input" type="date" name="specialUntil" [(ngModel)]="special.until" />
+          <input class="input" type="date" name="specialUntil" [ngModel]="special.until" (ngModelChange)="special.until = $event; syncSpecialForm()" />
         </label>
         @if (special.until && special.until !== special.date) {
           <div class="sm:col-span-4">
@@ -293,7 +324,15 @@
             <p class="field-hint">{{ specialDays().length && specialDays().length < 7 ? 'Solo esos días del periodo tienen este horario; los demás siguen con el de siempre.' : 'Sin elegir, aplica todos los días del periodo. Útil para cambiar solo sábados y domingos, o cerrar solo los domingos.' }}</p>
           </div>
         }
-        @if (!special.closed && !specialClocks().length) {
+        <div class="sm:col-span-4">
+          <span class="label req">Cómo se atiende</span>
+          <div class="mt-1 flex flex-wrap gap-2" role="group" aria-label="Cómo se atiende en esas fechas">
+            <button type="button" class="chip h-11!" [class.chip-on]="specialMode() === 'range'" [attr.aria-pressed]="specialMode() === 'range'" (click)="setSpecialMode('range')">De tal a tal hora</button>
+            <button type="button" class="chip h-11!" [class.chip-on]="specialMode() === 'fixed'" [attr.aria-pressed]="specialMode() === 'fixed'" (click)="setSpecialMode('fixed')">Solo a estas horas</button>
+            <button type="button" class="chip h-11!" [class.chip-on]="specialMode() === 'closed'" [attr.aria-pressed]="specialMode() === 'closed'" (click)="setSpecialMode('closed')">Cerrado</button>
+          </div>
+        </div>
+        @if (specialMode() === 'range') {
           <label class="block"><span class="label req">Abre</span>
             <app-time-field class="block" [valueIn]="special.from" (picked)="special.from = $event" />
           </label>
@@ -301,9 +340,9 @@
             <app-time-field class="block" [valueIn]="special.to" (picked)="special.to = $event" />
           </label>
         }
-        @if (!special.closed) {
+        @if (specialMode() === 'fixed') {
           <div class="sm:col-span-4">
-            <span class="label opt">Solo a estas horas</span>
+            <span class="label req">Horas de esas fechas</span>
             <div class="mt-1 flex flex-wrap gap-2">
               @for (clock of specialClocks(); track clock) {
                 <button type="button" class="chip chip-on h-11! gap-1" (click)="removeSpecialClock(clock)">
@@ -316,16 +355,22 @@
                 <button type="button" class="btn btn-ghost" (click)="copyClocksToSpecial()"><mat-icon>content_copy</mat-icon>Empezar con las de siempre</button>
               }
             </div>
-            <p class="field-hint">Si atiendes a horas fijas y en esas fechas cambian (por ejemplo, diciembre con una hora más), agrégalas aquí. Sin horas, se usa la apertura y el cierre.</p>
+            <p class="field-hint">Tus {{ copy.text().clients.toLowerCase() }} verán solo estas horas en esas fechas (por ejemplo, diciembre con una hora más).</p>
           </div>
         }
         <label class="block sm:col-span-2"><span class="label opt">Nota</span>
           <input class="input" name="specialNote" maxlength="80" placeholder="Nochebuena, temporada de diciembre…" [(ngModel)]="special.note" />
         </label>
         <div class="flex flex-col gap-1 sm:col-span-2">
-          <label class="flex min-h-11 items-center justify-between gap-4 text-sm text-ink">Cerrado esos días<button type="button" role="switch" class="switch" [attr.aria-checked]="special.closed" (click)="special.closed = !special.closed" aria-label="Cerrado esos días"><span></span></button></label>
-          <label class="flex min-h-11 items-center justify-between gap-4 text-sm text-ink">Para todo el equipo (si no, solo esta persona)<button type="button" role="switch" class="switch" [attr.aria-checked]="special.all" (click)="special.all = !special.all" aria-label="Para todo el equipo"><span></span></button></label>
+          <label class="flex min-h-11 items-center justify-between gap-4 text-sm text-ink">Para todo el equipo (si no, solo esta persona)<button type="button" role="switch" class="switch" [attr.aria-checked]="special.all" (click)="special.all = !special.all; syncSpecialForm()" aria-label="Para todo el equipo"><span></span></button></label>
         </div>
+        @if (specialWarnings().length) {
+          <ul class="flex flex-col gap-2 sm:col-span-4" aria-label="Empalmes con otros horarios">
+            @for (warning of specialWarnings(); track warning) {
+              <li class="badge-info flex items-start gap-2 rounded-xl px-3 py-2 text-sm"><mat-icon class="h-5! w-5! shrink-0 text-[20px]!">info</mat-icon>{{ warning }}</li>
+            }
+          </ul>
+        }
         <div class="flex flex-wrap gap-2 sm:col-span-4">
           <button type="submit" class="btn btn-primary" [disabled]="specialMissing().length > 0">Guardar horario especial</button>
           <button type="button" class="btn btn-ghost" (click)="addingSpecial.set(false)">Cancelar</button>
@@ -333,10 +378,51 @@
         @if (specialError(); as message) {
           <p class="field-error sm:col-span-4">{{ message }}</p>
         }
-        <p class="field-hint sm:col-span-4">Sirve para un día (24 de diciembre) o una temporada (todo diciembre de 9 a 21). Mientras dure, reemplaza el turno normal.</p>
       </form>
       }
     </details>
+
+    <!-- Qué horario manda cada día (el especial que gana o el turno de siempre). -->
+    <section class="card mb-4">
+      <div class="card-head">
+        <span class="sec-icon"><mat-icon>calendar_month</mat-icon></span>
+        <div>
+          <h2 class="card-title">Qué horario manda cada día</h2>
+          <p class="text-sm text-muted">Con tus horarios especiales ya aplicados. Los días con borde de color son especiales.</p>
+        </div>
+      </div>
+      @let month = calendar();
+      <div class="mt-3 flex items-center justify-between">
+        <button type="button" class="btn btn-ghost" [disabled]="!canGoBack()" (click)="moveMonth(-1)" aria-label="Mes anterior"><mat-icon>chevron_left</mat-icon></button>
+        <p class="text-base font-medium capitalize text-ink">{{ month.label }}</p>
+        <button type="button" class="btn btn-ghost" (click)="moveMonth(1)" aria-label="Mes siguiente"><mat-icon>chevron_right</mat-icon></button>
+      </div>
+      <div class="mt-2 grid grid-cols-7 gap-1 text-center text-xs text-muted" aria-hidden="true">
+        @for (name of ['L', 'M', 'M', 'J', 'V', 'S', 'D']; track $index) {
+          <span>{{ name }}</span>
+        }
+      </div>
+      <ul class="mt-1 grid grid-cols-7 gap-1">
+        @for (cell of month.cells; track $index) {
+          @if (cell) {
+            <li
+              class="flex min-h-14 flex-col items-center justify-center rounded-lg border px-0.5 py-1 text-center"
+              [class.border-accent]="cell.kind === 'special'"
+              [class.bg-accent-soft]="cell.kind === 'special'"
+              [class.border-line]="cell.kind !== 'special'"
+              [class.bg-canvas]="cell.kind === 'off'"
+              [attr.title]="cell.title"
+              [attr.aria-label]="cell.day + ': ' + cell.text + '. ' + cell.title"
+            >
+              <span class="nums text-xs text-muted">{{ cell.day }}</span>
+              <span class="nums text-xs font-medium leading-tight" [class.text-ink]="cell.kind !== 'off'" [class.text-muted]="cell.kind === 'off'">{{ cell.text }}</span>
+            </li>
+          } @else {
+            <li aria-hidden="true"></li>
+          }
+        }
+      </ul>
+    </section>
 
     @if (formError(); as message) {
       <p role="alert" class="field-error mb-3">{{ message }}</p>
