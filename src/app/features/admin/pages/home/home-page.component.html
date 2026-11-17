@@ -52,6 +52,31 @@
       </section>
     }
 
+    @if (news().length) {
+      <section class="card mb-6" aria-labelledby="news-title">
+        <div class="flex items-center justify-between gap-3">
+          <h2 id="news-title" class="card-title mb-0! flex items-center gap-2"><mat-icon class="text-accent">campaign</mat-icon>Novedades en Nexia</h2>
+          <button type="button" class="btn btn-ghost w-11! px-0!" aria-label="Cerrar novedades" (click)="dismissNews()"><mat-icon>close</mat-icon></button>
+        </div>
+        <ul class="mt-2 divide-y divide-line">
+          @for (item of news(); track item.id) {
+            <li class="flex gap-3 py-3">
+              <mat-icon class="mt-0.5 shrink-0 text-muted" aria-hidden="true">{{ item.icon }}</mat-icon>
+              <div class="min-w-0">
+                <p class="text-sm font-semibold text-ink">{{ item.title }} <span class="badge badge-info ml-1">Nuevo</span></p>
+                <p class="mt-0.5 text-sm text-ink-soft">{{ item.text }}</p>
+                @if (item.link) {
+                  @let target = linkOf(item.link);
+                  <a class="btn btn-secondary mt-2" [routerLink]="target.path" [queryParams]="target.query" (click)="dismissNews()">{{ item.linkLabel || 'Verlo' }}</a>
+                }
+              </div>
+            </li>
+          }
+        </ul>
+        <button type="button" class="btn btn-primary mt-1 w-full sm:w-auto" (click)="dismissNews()">Entendido</button>
+      </section>
+    }
+
     <!-- Indicadores del día: cada uno lleva a donde se resuelve. -->
     <div class="stat-group mb-6 grid-cols-2 lg:grid-cols-4">
       <a routerLink="/admin/agenda" [queryParams]="{ vista: 'day' }" class="stat">
