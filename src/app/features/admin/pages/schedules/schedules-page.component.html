@@ -249,20 +249,13 @@
           <p class="text-sm text-muted">Tus {{ copy.text().clients.toLowerCase() }} verán solo estas horas, como en un consultorio (10:00, 12:00 y 16:00).</p>
         </div>
       </div>
-      <div class="mt-3 flex flex-wrap gap-2">
-        @for (clock of clocks(); track clock) {
-          <button type="button" class="chip chip-on h-11! gap-1" (click)="removeClock(clock)">
-            <span class="nums">{{ clock | hora }}</span><mat-icon class="h-4! w-4! text-[16px]!" aria-hidden="true">close</mat-icon><span class="sr-only">Quitar {{ clock | hora }}</span>
-          </button>
-        } @empty {
-          <span class="text-sm text-muted">Sin horas fijas.</span>
-        }
+      <div class="mt-3">
+        <app-clock-picker [value]="clocks()" [from]="clockFrom()" [to]="clockTo()" (changed)="setClocks($event)" />
       </div>
-      <div class="mt-3 flex flex-wrap items-center gap-2">
-        <app-time-field class="w-36" [valueIn]="draftClock()" (picked)="draftClock.set($event)" />
-        <button type="button" class="btn btn-secondary" (click)="addClock()"><mat-icon>add</mat-icon>Agregar hora</button>
-        <button type="button" class="btn btn-ghost" (click)="copyClocksToDays()"><mat-icon>content_copy</mat-icon>Usarlas en cada día abierto</button>
-      </div>
+      @if (clocks().length) {
+        <p class="mt-3 text-sm text-ink-soft">Tus {{ copy.text().clients.toLowerCase() }} verán: <span class="nums">{{ clocksSummary() }}</span></p>
+        <button type="button" class="btn btn-ghost mt-1 px-2!" (click)="copyClocksToDays()"><mat-icon>content_copy</mat-icon>Usarlas en cada día abierto</button>
+      }
       <details class="mt-4 border-t border-line pt-3">
         <summary class="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-medium text-ink"><mat-icon class="text-muted">tune</mat-icon>Horas distintas en un solo día</summary>
         <p class="mt-1 text-sm text-muted">Si un día lleva otras horas, agrégalas aquí; ese día usa estas y no las de arriba.</p>
@@ -334,26 +327,20 @@
         </div>
         @if (specialMode() === 'range') {
           <label class="block"><span class="label req">Abre</span>
-            <app-time-field class="block" [valueIn]="special.from" (picked)="special.from = $event" />
+            <app-time-field class="block" [valueIn]="special.from" (picked)="special.from = $event; syncSpecialForm()" />
           </label>
           <label class="block"><span class="label req">Cierra</span>
-            <app-time-field class="block" [valueIn]="special.to" (picked)="special.to = $event" />
+            <app-time-field class="block" [valueIn]="special.to" (picked)="special.to = $event; syncSpecialForm()" />
           </label>
         }
         @if (specialMode() === 'fixed') {
           <div class="sm:col-span-4">
             <span class="label req">Horas de esas fechas</span>
-            <div class="mt-1 flex flex-wrap gap-2">
-              @for (clock of specialClocks(); track clock) {
-                <button type="button" class="chip chip-on h-11! gap-1" (click)="removeSpecialClock(clock)">
-                  <span class="nums">{{ clock | hora }}</span><mat-icon class="h-4! w-4! text-[16px]!" aria-hidden="true">close</mat-icon><span class="sr-only">Quitar {{ clock | hora }}</span>
-                </button>
-              }
-              <app-time-field class="w-36" [valueIn]="specialDraft()" (picked)="specialDraft.set($event)" />
-              <button type="button" class="btn btn-secondary" (click)="addSpecialClock()"><mat-icon>add</mat-icon>Agregar hora</button>
-              @if (clocks().length && !specialClocks().length) {
-                <button type="button" class="btn btn-ghost" (click)="copyClocksToSpecial()"><mat-icon>content_copy</mat-icon>Empezar con las de siempre</button>
-              }
+            @if (clocks().length && !specialClocks().length) {
+              <button type="button" class="btn btn-secondary mt-1" (click)="copyClocksToSpecial()"><mat-icon>content_copy</mat-icon>Empezar con las horas de siempre</button>
+            }
+            <div class="mt-2">
+              <app-clock-picker [value]="specialClocks()" [from]="clockFrom()" [to]="clockTo()" (changed)="specialClocks.set($event)" />
             </div>
             <p class="field-hint">Tus {{ copy.text().clients.toLowerCase() }} verán solo estas horas en esas fechas (por ejemplo, diciembre con una hora más).</p>
           </div>
@@ -364,6 +351,9 @@
         <div class="flex flex-col gap-1 sm:col-span-2">
           <label class="flex min-h-11 items-center justify-between gap-4 text-sm text-ink">Para todo el equipo (si no, solo esta persona)<button type="button" role="switch" class="switch" [attr.aria-checked]="special.all" (click)="special.all = !special.all; syncSpecialForm()" aria-label="Para todo el equipo"><span></span></button></label>
         </div>
+        @if (specialSummary(); as summary) {
+          <p class="card card-tint py-3! text-sm text-ink sm:col-span-4" role="status"><strong>Así quedaría:</strong> {{ summary }}</p>
+        }
         @if (specialWarnings().length) {
           <ul class="flex flex-col gap-2 sm:col-span-4" aria-label="Empalmes con otros horarios">
             @for (warning of specialWarnings(); track warning) {
