@@ -11,13 +11,13 @@ function clock(value: string): string {
   return value.slice(0, 5);
 }
 
-/** "15:30" -> "3:30 PM" (se guarda siempre en 24 h; solo se muestra en 12 h). */
+/** "15:30" -> "3:30 p.m." (se guarda siempre en 24 h; solo se muestra en 12 h). */
 export function clock12(value: string): string {
   if (!/^\d{1,2}:\d{2}/.test(value)) {
     return '';
   }
   const [hour, minute] = clock(value).split(':').map(Number);
-  return `${hour % 12 || 12}:${String(minute).padStart(2, '0')} ${hour >= 12 ? 'PM' : 'AM'}`;
+  return `${hour % 12 || 12}:${String(minute).padStart(2, '0')} ${hour >= 12 ? 'p.m.' : 'a.m.'}`;
 }
 
 export function openSheet(overlay: Overlay, view: ViewContainerRef, anchor: HTMLElement, template: TemplateRef<unknown>, width: number): OverlayRef {
@@ -33,6 +33,24 @@ export function openSheet(overlay: Overlay, view: ViewContainerRef, anchor: HTML
       .withViewportMargin(8),
     scrollStrategy: overlay.scrollStrategies.reposition(),
     width,
+  });
+  ref.attach(new TemplatePortal(template, view));
+  return ref;
+}
+
+/** En celular los selectores se abren como hoja desde abajo, a todo lo ancho y con fondo oscurecido. */
+export function isPhone(): boolean {
+  return typeof window !== 'undefined' && window.innerWidth < 640;
+}
+
+export function openPhoneSheet(overlay: Overlay, view: ViewContainerRef, template: TemplateRef<unknown>): OverlayRef {
+  const ref = overlay.create({
+    positionStrategy: overlay.position().global().bottom('0').centerHorizontally(),
+    hasBackdrop: true,
+    backdropClass: 'cdk-overlay-dark-backdrop',
+    width: '100%',
+    maxWidth: '100vw',
+    scrollStrategy: overlay.scrollStrategies.block(),
   });
   ref.attach(new TemplatePortal(template, view));
   return ref;
@@ -245,7 +263,10 @@ export class DateRangeFieldComponent {
         <mat-icon class="text-muted" aria-hidden="true">expand_more</mat-icon>
       </button>
     <ng-template #panel>
-      <div class="rounded-2xl border border-line bg-surface p-3 text-ink shadow-lg" (click)="$event.stopPropagation()">
+      <div class="border border-line bg-surface p-3 text-ink shadow-lg" [class.rounded-2xl]="!mobile()" [class.rounded-t-2xl]="mobile()" [style.padding-bottom]="mobile() ? 'max(0.75rem, env(safe-area-inset-bottom))' : null" (click)="$event.stopPropagation()">
+        @if (mobile()) {
+          <p class="px-2 pb-2 pt-1 text-sm font-semibold">Elige la hora</p>
+        }
         @if (options() !== null && choices().length === 0) {
           <p class="px-2 py-3 text-sm text-muted">Sin horarios.</p>
         } @else {
@@ -256,7 +277,7 @@ export class DateRangeFieldComponent {
               @if (options() === null) {
                 <app-wheel-column class="flex-1" label="Hora" [items]="hours" [selected]="hour12()" (changed)="setHour($event)" />
                 <app-wheel-column class="flex-1" label="Minutos" [items]="minuteItems()" [selected]="pickedMinute()" (changed)="setMinute($event)" />
-                <app-wheel-column class="flex-1" label="AM o PM" [items]="meridiem" [selected]="pickedMeridiem()" (changed)="setMeridiem($event)" />
+                <app-wheel-column class="flex-1" label="a.m. o p.m." [items]="meridiem" [selected]="pickedMeridiem()" (changed)="setMeridiem($event)" />
               } @else {
                 <app-wheel-column class="flex-1" label="Hora" [items]="choiceItems()" [selected]="shown()" (changed)="setExact($event)" />
               }
@@ -285,6 +306,8 @@ export class TimeFieldComponent implements ControlValueAccessor {
   readonly valueIn = input<string | null>(null);
   readonly picked = output<string>();
   protected readonly open = signal(false);
+  /** En celular el selector sale como hoja desde abajo. */
+  protected readonly mobile = signal(false);
   protected readonly value = signal('');
   protected readonly disabled = signal(false);
   protected readonly shown = computed(() => clock(this.value() || this.valueIn() || ''));
@@ -308,8 +331,8 @@ export class TimeFieldComponent implements ControlValueAccessor {
   // Selector libre: tres columnas (hora, minutos y AM/PM) sobre el valor en 24 h.
   protected readonly hours: WheelItem[] = Array.from({ length: 12 }, (_, index) => ({ value: String(index + 1), label: String(index + 1) }));
   protected readonly meridiem: WheelItem[] = [
-    { value: 'AM', label: 'AM' },
-    { value: 'PM', label: 'PM' },
+    { value: 'AM', label: 'a.m.' },
+    { value: 'PM', label: 'p.m.' },
   ];
   private readonly parts = computed(() => {
     const [hour, minute] = (this.shown() || '09:00').split(':').map(Number);
@@ -364,7 +387,9 @@ export class TimeFieldComponent implements ControlValueAccessor {
       return;
     }
     const anchor = event.currentTarget as HTMLElement;
-    this.sheet = openSheet(this.overlay, this.view, anchor, this.panel(), Math.max(300, anchor.offsetWidth));
+    const phone = isPhone();
+    this.mobile.set(phone);
+    this.sheet = phone ? openPhoneSheet(this.overlay, this.view, this.panel()) : openSheet(this.overlay, this.view, anchor, this.panel(), Math.max(300, anchor.offsetWidth));
     this.open.set(true);
   }
 
@@ -515,18 +540,10 @@ export class PickFieldComponent implements ControlValueAccessor {
     }
     const anchor = event.currentTarget as HTMLElement;
     this.query.set('');
-    const phone = typeof window !== 'undefined' && window.innerWidth < 640;
+    const phone = isPhone();
     this.mobile.set(phone);
     if (phone) {
-      this.sheet = this.overlay.create({
-        positionStrategy: this.overlay.position().global().bottom('0').centerHorizontally(),
-        hasBackdrop: true,
-        backdropClass: 'cdk-overlay-dark-backdrop',
-        width: '100%',
-        maxWidth: '100vw',
-        scrollStrategy: this.overlay.scrollStrategies.block(),
-      });
-      this.sheet.attach(new TemplatePortal(this.panel(), this.view));
+      this.sheet = openPhoneSheet(this.overlay, this.view, this.panel());
     } else {
       this.sheet = openSheet(this.overlay, this.view, anchor, this.panel(), Math.max(180, anchor.offsetWidth));
     }

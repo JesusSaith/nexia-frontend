@@ -1,6 +1,7 @@
 import { DateRangeFieldComponent } from '@shared/components/when-field/when-field';
 import { HttpErrorResponse } from '@angular/common/http';
-import { horario12 } from '../../../../core/hours';
+import { clocksSentence } from '../../../../core/clocks';
+import { hora12, horario12 } from '../../../../core/hours';
 import { Component, DestroyRef, TemplateRef, computed, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -417,6 +418,13 @@ export class StaffPageComponent {
     const days = rows.map((row) => row.day_of_week);
     const run = days.every((value, index) => index === 0 || value === days[index - 1] + 1);
     const label = run && days.length > 2 ? `${names[days[0]]} a ${names[days.at(-1)!].toLowerCase()}` : days.map((value) => names[value]).join(', ');
+    // Si todos sus días se atienden a horas fijas (de la persona o de cada día), se dicen esas horas en vez del rango del turno.
+    const member = this.staff().find((item) => item.id === staffId);
+    const fixedOf = (row: (typeof rows)[number]) => (row.slot_times || member?.slot_times || '').split(',').map((part) => part.trim()).filter(Boolean);
+    const fixed = new Set(rows.map((row) => fixedOf(row).join(',')));
+    if (fixed.size === 1 && [...fixed][0]) {
+      return `${label} · ${clocksSentence(fixedOf(rows[0]), (clock) => hora12(clock))}`;
+    }
     const hours = new Set(rows.map((row) => horario12(row.start_time, row.end_time)));
     return hours.size === 1 ? `${label} · ${[...hours][0]}` : `${label} · horario variable`;
   }

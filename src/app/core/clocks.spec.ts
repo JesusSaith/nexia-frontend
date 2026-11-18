@@ -17,10 +17,15 @@ describe('parseClocks', () => {
     expect(parseClocks('9 12 2 4 7pm').clocks).toEqual(['09:00', '12:00', '14:00', '16:00', '19:00']);
   });
 
-  it('el 7 y el 8 sin am ni pm se piden claros', () => {
-    const result = parseClocks('7, 8:30, 19:00');
+  it('el 7 sin am ni pm es de la tarde y "7am" sigue siendo de la mañana', () => {
+    expect(parseClocks('9, 2, 5 y 7').clocks).toEqual(['09:00', '14:00', '17:00', '19:00']);
+    expect(parseClocks('7am, 7').clocks).toEqual(['07:00', '19:00']);
+  });
+
+  it('el 8 sin am ni pm se pide claro', () => {
+    const result = parseClocks('8, 8:30, 19:00');
     expect(result.clocks).toEqual(['08:30', '19:00']);
-    expect(result.invalid).toEqual(['7 (escribe 7am o 7pm)']);
+    expect(result.invalid).toEqual(['8 (escribe 8am o 8pm)']);
   });
 
   it('acepta 930 y quita repetidas', () => {

@@ -131,6 +131,11 @@ export class AppointmentsService {
   }
 
   /** No mandó anticipo pero sí va a ir: queda confirmada sin anticipo. */
+  /** El cliente avisó por teléfono o WhatsApp que va a ir: la cita queda como confirmada. */
+  confirmAttendance(id: number): Observable<Appointment> {
+    return this.http.post<Appointment>(`${this.apiBaseUrl}/appointments/${id}/confirm`, {});
+  }
+
   waiveDeposit(id: number): Observable<Appointment> {
     return this.http.post<Appointment>(`${this.apiBaseUrl}/appointments/${id}/waive-deposit`, {});
   }

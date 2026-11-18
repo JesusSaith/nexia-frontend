@@ -183,7 +183,7 @@
     <!-- Celular: lo más usado a un toque; el resto sigue en el menú. -->
     <nav class="fixed inset-x-0 bottom-0 z-30 flex border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] md:hidden" aria-label="Accesos rápidos">
       @for (link of links().slice(0, 3); track link.path) {
-        <a class="flex flex-1 flex-col items-center gap-0.5 py-2 text-xs text-muted" [routerLink]="link.path" routerLinkActive="!text-[var(--primary)] font-semibold" [routerLinkActiveOptions]="{ exact: link.exact }">
+        <a class="flex flex-1 flex-col items-center gap-0.5 py-2 text-xs text-muted" [routerLink]="link.path" routerLinkActive="!text-[var(--primary-text)] font-semibold" [routerLinkActiveOptions]="{ exact: link.exact }">
           <mat-icon>{{ link.icon }}</mat-icon>
           {{ link.label }}
         </a>

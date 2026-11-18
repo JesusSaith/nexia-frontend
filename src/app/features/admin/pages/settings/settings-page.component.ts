@@ -1276,7 +1276,7 @@ function cleanSteps(rows: LoyaltyDraft[]): LoyaltyStep[] {
       visit: Math.min(Math.floor(row.visit as number), MAX_VISIT),
       kind: row.kind,
       percent: row.kind === 'percent' ? Math.min(Math.max(Math.floor(row.percent ?? 0), 1), 100) : row.kind === 'free' ? 100 : 0,
-      label: row.kind === 'gift' ? row.label.trim().slice(0, 60) : null,
+      label: row.kind === 'gift' ? row.label.trim().slice(0, 60) : '',
       service_id: row.kind === 'free' ? row.service_id : null,
     }));
 }

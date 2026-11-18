@@ -195,7 +195,7 @@
   @if (clientNotice(); as href) {
     <p class="card card-tint mb-3 flex flex-wrap items-center justify-between gap-2 py-2! text-sm">
       <span>Avísale al {{ copy.text().client.toLowerCase() }} de su {{ copy.text().visit.toLowerCase() }}.</span>
-      <span class="flex gap-2">
+      <span class="flex flex-wrap gap-2">
         <a class="btn btn-whatsapp" [href]="href" target="_blank" rel="noopener" (click)="clientNotice.set(null)">Enviar por WhatsApp</a>
         <button type="button" class="btn btn-secondary" (click)="copyNotice()"><mat-icon aria-hidden="true">content_copy</mat-icon>Copiar mensaje</button>
         <button type="button" class="btn btn-secondary" (click)="bookAnother()"><mat-icon aria-hidden="true">add</mat-icon>Agendar otra</button>
@@ -230,7 +230,7 @@
                 <button
                   type="button"
                   class="relative mx-auto my-1 flex h-12 w-full max-w-14 flex-col items-center justify-center rounded-lg text-sm sm:my-1.5 sm:h-14 sm:text-base lg:mx-0 lg:my-0 lg:h-24 lg:max-w-none lg:items-stretch lg:justify-start lg:rounded-none lg:border-b lg:border-l lg:border-line lg:p-1.5 lg:text-left lg:text-sm"
-                  [class.text-line-strong]="!inCurrentMonth(day)"
+                  [class.text-muted]="!inCurrentMonth(day)"
                   [class.bg-ink]="isSelected(day)"
                   [class.text-surface]="isSelected(day)"
                   [class.bg-canvas]="!isSelected(day) && (count > 0 || blocksOn(day).length > 0)"
@@ -593,6 +593,9 @@
       </div>
       <div class="mt-2 flex flex-wrap items-center gap-2">
         <span class="badge" [class]="statusBadge(pop.appointment)">{{ statusText(pop.appointment) }}</span>
+        @if (canConfirm(pop.appointment)) {
+          <button type="button" class="btn btn-secondary" [disabled]="pendingId() !== null" (click)="confirmAttendance(pop.appointment)"><mat-icon aria-hidden="true">check</mat-icon>Ya confirmó</button>
+        }
         @if (isHold(pop.appointment.service_id)) {
           <span class="badge badge-warn">Servicio por elegir</span>
         }
@@ -859,7 +862,7 @@
           </div>
         }
         @if (moving() === pop.appointment.id) {
-          <div class="flex flex-col gap-3 rounded-lg border border-line p-3">
+          <div id="move-panel" class="flex flex-col gap-3 rounded-lg border border-line p-3">
             <p class="card-title">Cambiar a</p>
             <div class="grid grid-cols-[minmax(0,1fr)_8rem] gap-2">
               <label class="block">
@@ -1061,7 +1064,7 @@
 </ng-template>
 
 <ng-template #quoteBox let-appointment>
-  @if (canPrice(appointment.service_id) && !isHold(appointment.service_id) && appointment.status !== 'cancelled' && appointment.status !== 'no_show') {
+  @if (canPrice(appointment.service_id) && !isHold(appointment.service_id) && appointment.status !== 'cancelled' && appointment.status !== 'no_show' && appointment.status !== 'completed') {
   <div class="flex flex-col gap-2">
     <label class="label mb-0!" for="quote-price">Precio acordado</label>
     <div class="flex gap-2">
@@ -1208,7 +1211,7 @@
           <button type="button" class="chip self-start" (click)="applyLast()"><mat-icon aria-hidden="true">replay</mat-icon>Repetir la última: {{ last.service.name }}@if (last.member) { con {{ last.member.full_name.split(' ')[0] }} }</button>
         }
         @if (known(); as person) {
-          <p class="rounded-xl bg-accent-soft px-3 py-2 text-sm">Ya vino · {{ person.visit_count }} {{ person.visit_count === 1 ? 'visita' : 'visitas' }} · {{ pesos(person.total_spent) }}@if (person.cancel_count) { · {{ person.cancel_count }} {{ person.cancel_count === 1 ? 'cancelación' : 'cancelaciones' }} }</p>
+          <p class="rounded-xl bg-accent-soft px-3 py-2 text-sm">@if (person.visit_count) {Ya vino · {{ person.visit_count }} {{ person.visit_count === 1 ? 'visita' : 'visitas' }} · {{ pesos(person.total_spent) }}} @else {Ya está en tus clientes · aún sin visitas}@if (person.cancel_count) { · {{ person.cancel_count }} {{ person.cancel_count === 1 ? 'cancelación' : 'cancelaciones' }} }</p>
         } @else if (freshPhone()) {
           <p class="field-hint">Primera vez con este teléfono.</p>
         }
