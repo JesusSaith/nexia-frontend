@@ -10,6 +10,7 @@ import { loyaltyCard, loyaltyText, stepBadge, stepText, type LoyaltyPlan } from 
   template: `
     @if (card(); as c) {
       <div class="rounded-xl border border-line bg-surface p-3" role="group" [attr.aria-label]="text()">
+        <p class="mb-2 text-sm font-medium text-ink">{{ title() }}</p>
         @if (c.cycle <= 15) {
           <div class="grid grid-cols-5 gap-2" aria-hidden="true">
             @for (slot of c.slots; track slot.n) {
@@ -71,6 +72,14 @@ export class LoyaltyCardComponent {
   protected readonly text = computed(() => {
     const c = this.card();
     return c ? loyaltyText(c, this.audience(), this.names()) : '';
+  });
+  /** Qué es y cuánto lleva: "Tu tarjeta · 1 de 2" (a quien reserva) o "Tarjeta de cliente frecuente · 1 de 2" (a la dueña). */
+  protected readonly title = computed(() => {
+    const c = this.card();
+    if (!c) {
+      return '';
+    }
+    return `${this.audience() === 'client' ? 'Tu tarjeta' : 'Tarjeta de cliente frecuente'} · ${c.done} de ${c.cycle}`;
   });
   protected readonly badge = stepBadge;
   /** Descuentos de un solo número se leen en la casilla; regalos y servicios gratis llevan su detalle abajo. */

@@ -1,2 +1,11 @@
 /* Va con el componente (sin encapsular) para que el mapa nunca se dibuje sin sus estilos. */
 @import 'leaflet/dist/leaflet.css';
+
+/* Botones de zoom del mapa: del tamaño mínimo para tocarlos con el dedo (44 px). */
+.leaflet-bar a,
+.leaflet-touch .leaflet-bar a {
+  width: 44px;
+  height: 44px;
+  line-height: 44px;
+  font-size: 22px;
+}

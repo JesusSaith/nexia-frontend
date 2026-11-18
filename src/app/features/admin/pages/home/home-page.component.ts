@@ -50,6 +50,8 @@ export class HomePageComponent {
   private readonly clock = inject(BusinessClock);
   protected readonly demoLoaded = signal(false);
   protected readonly demoBusy = signal(false);
+  /** Novedades: en celular arrancan cerradas para no tapar el día; la dueña las abre si quiere. */
+  protected readonly newsOpen = signal(false);
 
   private readonly timeFormat = new Intl.DateTimeFormat('es-MX', { hour: 'numeric', minute: '2-digit' });
   private readonly dayFormat = new Intl.DateTimeFormat('es-MX', { weekday: 'short', day: 'numeric', month: 'short' });

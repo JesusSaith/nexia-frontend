@@ -180,6 +180,9 @@ export interface SalesReport {
   /** Anticipos ya recibidos de citas por venir (dinero en mano que todavía no es ingreso). */
   deposit_held: number;
   deposit_held_count: number;
+  /** Anticipos ya pagados que cuentan como ingreso el día de su cita (falta, cancelación que no se devuelve, cita de hoy o pasada sin cobrar). */
+  deposit_income: number;
+  deposit_income_count: number;
   no_shows: string[];
   deposits_expired: number;
   top_name: string;

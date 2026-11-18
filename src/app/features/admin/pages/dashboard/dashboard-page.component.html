@@ -140,7 +140,7 @@
                       <li><span class="nums font-semibold text-ink">{{ g.cancelling }}</span> {{ g.cancelling === 1 ? copy.text().client.toLowerCase() + ' cancela' : copy.text().clients.toLowerCase() + ' cancelan' }} o {{ g.cancelling === 1 ? 'falta' : 'faltan' }} seguido</li>
                     }
                     @if (g.worstName) {
-                      <li>{{ g.worstName }} tuvo <span class="nums font-semibold text-ink">{{ g.worstLost }}</span> faltas o cancelaciones</li>
+                      <li>En la agenda de {{ g.worstName }} se perdieron <span class="nums font-semibold text-ink">{{ g.worstLost }}</span> citas (faltas o cancelaciones)</li>
                     }
                   </ul>
                   <a routerLink="/admin/clientes" class="inline-flex min-h-11 items-center text-sm font-medium text-accent hover:underline">Ver clientes</a>
@@ -218,7 +218,7 @@
           <div>
           <ul class="mt-2 divide-y divide-line text-sm">
             <li class="flex items-center justify-between gap-3 py-2.5">
-              <div><p class="text-ink">Ingresos</p><p class="text-xs text-muted">Citas completadas</p></div>
+              <div><p class="text-ink">Ingresos</p><p class="text-xs text-muted">{{ row.deposit_income > 0 ? 'Citas completadas y ' + money(row.deposit_income) + ' de anticipos pagados' : 'Citas completadas' }}</p></div>
               <span class="nums text-right font-medium text-ink">{{ money(row.total) }}</span>
             </li>
             <li class="flex items-center justify-between gap-3 py-2.5">

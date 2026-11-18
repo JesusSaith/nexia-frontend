@@ -33,7 +33,7 @@ import { hora12 } from '@core/hours';
       @if (problem()) {
         <p class="field-error mt-1" role="alert">{{ problem() }}</p>
       } @else {
-        <p class="field-hint">Sin "am" ni "pm", de 1 a 6 cuenta como tarde (6:00 = 6:00 p.m.) y de 9 a 11 como mañana. Con 7 y 8 escribe "am" o "pm".</p>
+        <p class="field-hint">Sin "am" ni "pm", de 1 a 7 cuenta como tarde (7:00 = 7:00 p.m.) y de 9 a 11 como mañana. Con 8 escribe "am" o "pm".</p>
       }
 
       <span class="label mt-3 block">O toca las horas</span>

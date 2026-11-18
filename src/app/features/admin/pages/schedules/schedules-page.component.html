@@ -347,7 +347,7 @@
               <button type="button" class="btn btn-secondary mt-1" (click)="copyClocksToSpecial()"><mat-icon>content_copy</mat-icon>Empezar con las horas de siempre</button>
             }
             <div class="mt-2">
-              <app-clock-picker [value]="specialClocks()" [from]="clockFrom()" [to]="clockTo()" (changed)="specialClocks.set($event)" />
+              <app-clock-picker [value]="specialClocks()" from="07:00" to="21:00" (changed)="specialClocks.set($event)" />
             </div>
             <p class="field-hint">Tus {{ copy.text().clients.toLowerCase() }} verán solo estas horas en esas fechas (por ejemplo, diciembre con una hora más).</p>
           </div>
@@ -475,7 +475,7 @@
     }
 
     <!-- Barra de guardar: siempre a la vista, dice si hay cambios pendientes. -->
-    <div class="sticky bottom-0 z-10 -mx-4 flex items-center justify-between gap-3 border-t border-line bg-surface px-4 py-3 sm:bottom-4 sm:mx-0 sm:rounded-2xl sm:border sm:shadow-lg">
+    <div class="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] z-10 -mx-4 flex items-center justify-between gap-3 border-t border-line bg-surface px-4 py-3 sm:mx-0 sm:rounded-2xl sm:border sm:shadow-lg md:bottom-4">
       @if (!dirty() && notSaved() && !isLoading()) {
         <span class="text-sm text-muted">Sin guardar todavía</span>
       } @else {
