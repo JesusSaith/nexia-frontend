@@ -442,7 +442,8 @@ export class SchedulesPageComponent {
             ? `solo a las ${clocksSentence(this.specialClocks(), (clock) => hora12(clock))}`
             : 'falta elegir las horas'
           : `de ${hora12(this.special.from)} a ${hora12(this.special.to)}`;
-    return `${when}${only} · ${who}: ${what}.`;
+    // "p.m." y "a.m." ya traen su punto: evita el doble punto al cerrar la frase.
+    return `${when}${only} · ${who}: ${what}${what.endsWith('.') ? '' : '.'}`;
   });
 
   /** Horas fijas que no se podrán ofrecer porque caen fuera del turno de un día o en su descanso (el servidor las descarta). */

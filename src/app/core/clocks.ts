@@ -8,8 +8,8 @@ export interface ParsedClocks {
 const TOKEN = /^(\d{1,2})(?::?(\d{2}))?(am|pm)?$/;
 
 /**
- * Sin "am" ni "pm": de 1 a 6 se toma como tarde (un negocio no abre a la 1 de la madrugada), de 9 a 11 como mañana,
- * el 12 como mediodía y de 13 a 23 como hora de 24 h. El 7 y el 8 pueden ser de mañana o de noche, así que se pide
+ * Sin "am" ni "pm": de 1 a 7 se toma como tarde (un negocio no abre a la 1 de la madrugada y las 7 de la noche son comunes; para abrir a las 7 de la mañana se escribe "7am"), de 9 a 11 como mañana,
+ * el 12 como mediodía y de 13 a 23 como hora de 24 h. El 8 puede ser de mañana o de noche, así que se pide
  * escribir "am" o "pm" en vez de adivinar. "0" o "00:30" son de madrugada.
  */
 export function parseClocks(text: string): ParsedClocks {
@@ -32,7 +32,7 @@ export function parseClocks(text: string): ParsedClocks {
       invalid.push(raw);
       continue;
     }
-    if (!mark && (hour === 7 || hour === 8) && !match[2]?.length && raw.length <= 2) {
+    if (!mark && hour === 8 && !match[2]?.length && raw.length <= 2) {
       invalid.push(`${raw} (escribe ${raw}am o ${raw}pm)`);
       continue;
     }
@@ -40,7 +40,7 @@ export function parseClocks(text: string): ParsedClocks {
       hour += 12;
     } else if (mark === 'am' && hour === 12) {
       hour = 0;
-    } else if (!mark && hour >= 1 && hour <= 6) {
+    } else if (!mark && hour >= 1 && hour <= 7) {
       hour += 12;
     }
     found.add(`${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`);

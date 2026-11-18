@@ -54,6 +54,7 @@ import { ReviewsService } from '@core/services/reviews.service';
 import { SchedulesService, SpecialHours } from '@core/services/schedules.service';
 import { ServicesService } from '@core/services/services.service';
 import { StaffService } from '@core/services/staff.service';
+import { dayLabels } from './month-sheet';
 
 type CalendarView = 'month' | 'week' | 'day';
 
@@ -107,6 +108,7 @@ function compactTime(hhmm: string): string {
     TourComponent,
   ],
   templateUrl: './agenda-page.component.html',
+  host: { '(document:keydown.escape)': 'onEscape($event)' },
 })
 export class AgendaPageComponent {
   private readonly auth = inject(AuthService);
@@ -207,6 +209,17 @@ export class AgendaPageComponent {
   private readonly specials = signal<SpecialHours[]>([]);
   protected readonly appointments = signal<Appointment[]>([]);
   protected readonly blocks = signal<TimeBlock[]>([]);
+  /** Cambia cuando se crea, mueve, cancela o bloquea algo del día: los horarios libres se piden de nuevo (no en cada actualización igual). */
+  private readonly dayBusyKey = computed(() => {
+    const day = this.dayKey(this.cursor());
+    const visits = this.appointments()
+      .filter((item) => item.starts_at.startsWith(day))
+      .map((item) => `${item.id}:${item.status}:${item.starts_at}:${item.ends_at ?? ''}:${item.staff_id}`);
+    const stops = this.blocks()
+      .filter((item) => item.starts_at.slice(0, 10) <= day && item.ends_at.slice(0, 10) >= day)
+      .map((item) => `${item.id}:${item.starts_at}:${item.ends_at}:${item.staff_id}`);
+    return `${visits.join('|')}#${stops.join('|')}`;
+  });
   protected readonly blocking = signal(false);
   protected readonly blockSaving = signal(false);
   protected readonly blockError = signal<string | null>(null);
@@ -418,8 +431,13 @@ export class AgendaPageComponent {
   ]);
   /** Horas como botones: la primera libre (para el botón "Primer horario libre") y quitar la rueda salvo en "Otra hora". */
   protected readonly firstFree = computed(() => {
+    this.formTick();
+    this.now();
     const busy = new Set(this.busyTimes());
-    return this.slotTimes().find((time) => !busy.has(time)) ?? null;
+    // Hoy, las horas que ya pasaron no cuentan como "primer horario libre".
+    const clock = this.clock.now();
+    const earliest = this.form.getRawValue().date === toInputDate(clock) ? clockFromMinutes(clock.getHours() * 60 + clock.getMinutes()) : '';
+    return this.slotTimes().find((time) => !busy.has(time) && time >= earliest) ?? null;
   });
   protected readonly selectedBusy = computed(() => {
     this.formTick();
@@ -836,6 +854,7 @@ export class AgendaPageComponent {
       const service = this.pickedService();
       const member = this.pickedStaff();
       const day = this.dayKey(this.cursor());
+      this.dayBusyKey();
       if (!slug || !service || !member) {
         this.openTimes.set([]);
         return;
@@ -1002,7 +1021,6 @@ export class AgendaPageComponent {
                 id: person.id,
                 name: person.full_name.split(' ')[0],
                 key: this.dayKey(day),
-                clocks: (person.slot_times ?? '').split(',').map((part) => part.trim()).filter(Boolean),
                 free: slots.map((row) => row.starts_at.slice(11, 16)),
               })),
               catchError(() =>
@@ -1010,7 +1028,6 @@ export class AgendaPageComponent {
                   id: person.id,
                   name: person.full_name.split(' ')[0],
                   key: this.dayKey(day),
-                  clocks: [] as string[],
                   free: [] as string[],
                 }),
               ),
@@ -1029,16 +1046,18 @@ export class AgendaPageComponent {
             for (const person of members) {
               const row = rows.find((item) => item.id === person.id && item.key === this.dayKey(day));
               const slots = row?.free ?? [];
-              const visits = this.appointmentsOn(day, person.id).map((item) => item.starts_at.slice(11, 16));
+              const visits = this.appointmentsOn(day, person.id)
+                .filter((item) => item.status !== 'cancelled' && item.status !== 'no_show')
+                .map((item) => item.starts_at.slice(11, 16));
               const blocked = this.blocksOn(day, person.id).length > 0;
               if (slots.length === 0 && visits.length === 0 && !blocked) {
                 continue;
               }
               open = true;
               const tag = (label: string) => (many ? `${row?.name ?? ''} ${label}` : label);
-              const busy = row?.clocks.length ? row.clocks.filter((clock) => !slots.includes(clock)) : visits;
-              slots.forEach((clock) => free.push(tag(clock)));
-              busy.forEach((clock) => taken.push(tag(clock)));
+              const labels = dayLabels(slots, visits);
+              labels.free.forEach((clock) => free.push(tag(clock)));
+              labels.taken.forEach((clock) => taken.push(tag(clock)));
             }
             return { free, taken, closed: !open };
           });
@@ -2627,7 +2646,9 @@ export class AgendaPageComponent {
 
   protected matchClient(phone: string): void {
     const key = isPhone(phone) ? phone.replace(/\D/g, '') : phone.trim().toLowerCase();
-    if (key.length < 7) {
+    // Un número a medias (solo dígitos, aún sin los 10) no es ni cliente conocido ni "primera vez": se espera a que lo termine.
+    const unfinished = !isPhone(phone) && /^[\d\s()+.-]+$/.test(phone.trim());
+    if (key.length < 7 || unfinished) {
       this.known.set(null);
       this.freshPhone.set(false);
       return;
@@ -2852,6 +2873,8 @@ export class AgendaPageComponent {
           this.fixSaving.set(false);
           this.closeEditor();
           this.fixing.set(null);
+          // El "Cobrado, ¿le mandas su recibo?" de antes ya no es cierto (cancelada o con otro monto): se quita.
+          this.reviewNotice.set(null);
           this.loadAppointments(this.range(), this.staffId(), this.serviceId());
           this.toasts.show(`Se corrigió la ${this.copy.text().visit.toLowerCase()}.`);
         },
@@ -3247,6 +3270,14 @@ export class AgendaPageComponent {
     this.selected.set(null);
   }
 
+  /** Escape cierra la hoja de la cita, salvo que haya un diálogo o menú encima (esos se cierran primero con su propio Escape). */
+  protected onEscape(event: Event): void {
+    if (!this.selected() || event.defaultPrevented || document.querySelector('.cdk-overlay-container .cdk-overlay-pane')) {
+      return;
+    }
+    this.closeAppointment();
+  }
+
   private clientWhatsapp(appointment: Appointment): string | null {
     const phone = (appointment.client_phone ?? '').replace(/\D/g, '');
     if (!phone) {
@@ -3331,6 +3362,34 @@ export class AgendaPageComponent {
     }
   }
 
+  /** Se puede marcar "Ya confirmó" mientras la cita esté por venir y el cliente no haya confirmado ni pagado anticipo. */
+  protected canConfirm(appointment: Appointment): boolean {
+    return this.progress(appointment).key === 'upcoming' && attendanceState(appointment) === 'pending';
+  }
+
+  /** El cliente le avisó a la dueña (teléfono o WhatsApp) que va a ir: la cita pasa a "Confirmó". */
+  protected confirmAttendance(appointment: Appointment): void {
+    if (this.pendingId() !== null) {
+      return;
+    }
+    this.pendingId.set(appointment.id);
+    this.appointmentsApi
+      .confirmAttendance(appointment.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (updated) => {
+          this.pendingId.set(null);
+          this.patchLocal({ ...appointment, ...updated });
+          this.refreshQuietly();
+          this.toasts.show(`Listo: la ${this.copy.text().visit.toLowerCase()} queda confirmada.`);
+        },
+        error: (error: unknown) => {
+          this.pendingId.set(null);
+          this.toasts.show(readError(error, 'No pudimos confirmar la cita.'));
+        },
+      });
+  }
+
   /** No mandó anticipo pero sí va a ir: queda confirmada sin anticipo y paga todo en la cita. */
   protected waiveDeposit(appointment: Appointment): void {
     if (this.pendingId() !== null) {
@@ -3387,6 +3446,8 @@ export class AgendaPageComponent {
     this.moveStaff.set(appointment.staff_id);
     this.moveError.set(null);
     this.loadMoveTimes(appointment);
+    // El formulario se abre debajo de la cita: en el celular quedaba tapado por los botones fijos, así que se lleva la vista hasta él.
+    setTimeout(() => document.getElementById('move-panel')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
   }
 
   protected pickMoveDate(appointment: Appointment, value: string): void {

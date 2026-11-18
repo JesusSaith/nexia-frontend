@@ -358,7 +358,8 @@ export class AdminLayoutComponent {
       return;
     }
     this.unread.set(fresh.filter((row) => !row.seen).length);
-    const newest = fresh[0];
+    // Un aviso ya visto (lo que la dueña acaba de hacer ella misma) no sale como aviso nuevo.
+    const newest = fresh.find((row) => !row.seen);
     if (newest && newest.id > this.toastedNotice) {
       this.toastedNotice = newest.id;
       saveToasted(newest.id);

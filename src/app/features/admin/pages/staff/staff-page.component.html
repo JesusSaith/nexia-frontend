@@ -89,7 +89,7 @@
                   <span class="mt-1 flex items-center gap-1 text-sm font-medium text-(--nx-warn-fg)"><mat-icon class="h-4! w-4! text-[16px]!">warning</mat-icon>{{ !scheduled ? 'Sin horario propio: recibe citas todos los días de 9:00 a 18:00' : 'No recibe citas: falta asignarle servicios' }}</span>
                 }
                 @if (stats && stats.visits) {
-                  <span class="nums mt-1 block text-sm text-muted">Este mes: {{ stats.visits }} citas · {{ money(stats.income) }}@if (stats.goal) { · {{ ((stats.income / stats.goal) * 100).toFixed(0) }}% de su meta }</span>
+                  <span class="nums mt-1 block text-sm text-muted">Este mes: {{ stats.visits }} {{ stats.visits === 1 ? 'cita' : 'citas' }} · {{ money(stats.income) }}@if (stats.goal) { · {{ ((stats.income / stats.goal) * 100).toFixed(0) }}% de su meta }</span>
                 }
               </span>
             </button>

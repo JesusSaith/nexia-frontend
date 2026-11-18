@@ -8,12 +8,12 @@
       @if (services().length) {
         <button class="btn btn-ghost" type="button" (click)="raising.set(!raising())">
           <mat-icon>trending_up</mat-icon>
-          <span class="hidden sm:inline">Subir precios</span>
+          <span>Subir precios</span>
         </button>
       }
       <button class="btn btn-secondary" type="button" (click)="managingCategories.set(!managingCategories())">
         <mat-icon>folder</mat-icon>
-        <span class="hidden sm:inline">Categorías</span>
+        <span>Categorías</span>
       </button>
       <button class="btn btn-primary" type="button" (click)="openCreate(categoryFilter())">
         <mat-icon>add</mat-icon>
@@ -142,7 +142,7 @@
               @if (row.image_url) {
                 <img class="aspect-video w-full rounded-t-2xl object-cover" [src]="row.image_url" [alt]="row.name" />
               } @else {
-                <span class="flex aspect-video w-full items-center justify-center rounded-t-2xl bg-accent-soft text-3xl font-semibold text-accent" aria-hidden="true">{{ row.name.slice(0, 1) }}</span>
+                <span class="flex h-20 w-full items-center justify-center rounded-t-2xl bg-accent-soft sm:aspect-video sm:h-auto text-3xl font-semibold text-accent" aria-hidden="true">{{ row.name.slice(0, 1) }}</span>
               }
               <span class="min-w-0 flex-1 p-4">
                 <span class="flex flex-wrap items-center gap-1.5">
@@ -303,6 +303,23 @@
           </label>
         </fieldset>
 
+        <!-- Duración: junto al precio, porque es obligatoria y en el celular el formulario va en una sola columna -->
+        <fieldset class="flex flex-col gap-3 border-t border-line pt-4">
+          <legend class="card-title mb-2">Duración</legend>
+          <div>
+            <span class="label req">Duración (min)</span>
+            <input class="input nums" type="number" min="1" step="1" formControlName="duration_minutes" aria-required="true" />
+            <div class="mt-2 flex flex-wrap gap-1.5">
+              @for (minutes of durationPicks; track minutes) {
+                <button type="button" class="chip h-11! px-3!" [class.chip-on]="+form.controls.duration_minutes.value === minutes" (click)="form.controls.duration_minutes.setValue('' + minutes)">{{ minutes }}</button>
+              }
+            </div>
+            @if (durationError()) {
+              <p class="field-error mt-2">{{ durationError() }}</p>
+            }
+        </div>
+        </fieldset>
+
         <!-- Opciones (variantes) -->
         <fieldset class="flex flex-col gap-2 border-t border-line pt-4">
           <legend class="card-title mb-1">Opciones</legend>
@@ -356,20 +373,6 @@
             Destacarlo ("El más pedido")
             <button type="button" role="switch" class="switch" [attr.aria-checked]="form.controls.featured.value" (click)="form.controls.featured.setValue(!form.controls.featured.value)" aria-label="Destacarlo"><span></span></button>
           </label>
-        </div>
-
-        <!-- Tiempo -->
-        <div>
-          <span class="label req">Duración (min)</span>
-          <input class="input nums" type="number" min="1" step="1" formControlName="duration_minutes" aria-required="true" />
-          <div class="mt-2 flex flex-wrap gap-1.5">
-            @for (minutes of durationPicks; track minutes) {
-              <button type="button" class="chip h-11! px-3!" [class.chip-on]="+form.controls.duration_minutes.value === minutes" (click)="form.controls.duration_minutes.setValue('' + minutes)">{{ minutes }}</button>
-            }
-          </div>
-          @if (durationError()) {
-            <p class="field-error mt-2">{{ durationError() }}</p>
-          }
         </div>
 
         <details class="rounded-xl border border-line">

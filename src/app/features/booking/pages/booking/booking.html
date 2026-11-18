@@ -275,7 +275,7 @@
               <div class="flex divide-x divide-line border-t border-line text-sm">
                 <button type="button" class="flex min-h-11 flex-1 items-center justify-center gap-1.5 px-2 text-ink-soft" [style.color]="isFavorite('services', service.id) ? 'var(--booking-ink, var(--booking-primary))' : null" [attr.aria-pressed]="isFavorite('services', service.id)" [attr.aria-label]="(isFavorite('services', service.id) ? 'Quitar de favoritos: ' : 'Guardar en favoritos: ') + service.name" (click)="toggleFavorite('services', service.id)">
                   <mat-icon [style.font-variation-settings]="isFavorite('services', service.id) ? '\'FILL\' 1' : null" aria-hidden="true">favorite</mat-icon>
-                  {{ isFavorite('services', service.id) ? 'Favorito' : 'Guardar' }}
+                  {{ isFavorite('services', service.id) ? 'En favoritos' : 'Favorito' }}
                 </button>
                 <button type="button" class="flex min-h-11 flex-1 items-center justify-center px-2 font-medium" style="color: var(--booking-ink, var(--booking-primary))" [attr.aria-label]="(selectedService()?.id === service.id ? 'Elegido: ' : 'Elegir ') + service.name" (click)="selectService(service)">
                   @if (selectedService()?.id === service.id) {
@@ -430,7 +430,7 @@
               <div class="flex divide-x divide-line border-t border-line text-sm">
                 <button type="button" class="flex min-h-11 flex-1 items-center justify-center gap-1.5 px-2 text-ink-soft" [style.color]="isFavorite('staff', member.id) ? 'var(--booking-ink, var(--booking-primary))' : null" [attr.aria-pressed]="isFavorite('staff', member.id)" [attr.aria-label]="(isFavorite('staff', member.id) ? 'Quitar de favoritos: ' : 'Guardar en favoritos: ') + member.full_name" (click)="toggleFavorite('staff', member.id)">
                   <mat-icon [style.font-variation-settings]="isFavorite('staff', member.id) ? '\'FILL\' 1' : null" aria-hidden="true">favorite</mat-icon>
-                  {{ isFavorite('staff', member.id) ? 'Favorito' : 'Guardar' }}
+                  {{ isFavorite('staff', member.id) ? 'En favoritos' : 'Favorito' }}
                 </button>
                 <button type="button" class="flex min-h-11 flex-1 items-center justify-center px-2 font-medium" style="color: var(--booking-ink, var(--booking-primary))" [attr.aria-label]="'Elegir ' + member.full_name" (click)="selectStaff(member)">Elegir</button>
               </div>
@@ -1085,7 +1085,7 @@
             {{ info.detail }}@if (info.who) { · con {{ info.who }}}
           </p>
           @if (step() === 3 && detailsMissing().length > 0) {
-            <p class="truncate font-medium" style="color: var(--nx-bad-fg)" role="status">Falta: {{ detailsMissing().join(', ') }}</p>
+            <p class="font-medium" style="color: var(--nx-bad-fg)" role="status">Falta: {{ detailsMissing().join(', ') }}</p>
           }
           @if (info.when && step() !== 3) {
             <p class="truncate font-medium first-letter:uppercase" style="color: var(--booking-ink, var(--booking-primary))">{{ info.when }}</p>
