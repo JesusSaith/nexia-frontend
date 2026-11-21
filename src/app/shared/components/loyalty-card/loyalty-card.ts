@@ -50,7 +50,7 @@ import { loyaltyCard, loyaltyText, stepBadge, stepText, type LoyaltyPlan } from 
         @if (c.cycle > 15 || hasExtras()) {
           <ul class="mt-2 flex flex-wrap gap-1.5">
             @for (step of plan()?.steps ?? []; track step.visit) {
-              <li class="chip text-xs"><span class="nums">Visita {{ step.visit }}:</span> {{ describe(step) }}</li>
+              <li class="chip text-xs"><span class="nums mr-1">Visita {{ step.visit }}:</span>{{ describe(step) }}</li>
             }
           </ul>
         }

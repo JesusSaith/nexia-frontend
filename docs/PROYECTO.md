@@ -548,6 +548,12 @@ npx ng test --watch=false
 
 ## 10. Historial de cambios
 
+### 20 de noviembre de 2026
+
+| Repositorio | Commit | Qué cambió |
+|---|---|---|
+| frontend | (este commit) | **Tiempo real más ligero.** `liveTick` (`core/live-tick.ts`) consulta solo con la pestaña a la vista y al instante al regresar a ella o recuperar internet. `LiveSyncService` avisa a la Agenda cuando el panel detecta un aviso nuevo (reserva o cancelación) y recarga sin esperar los 20 s. La página de reservas revisa los horarios cada 45 s sin parpadeo y, si le ganan el horario elegido, regresa a elegir hora antes de confirmar. Se reserva el lugar de "Lo más pronto" para que el calendario no salte al cargar. Confirmación: el botón queda como "Avisar al negocio por WhatsApp (opcional)". |
+
 ### 15 de octubre de 2026
 
 | Repositorio | Commit | Qué cambió |
