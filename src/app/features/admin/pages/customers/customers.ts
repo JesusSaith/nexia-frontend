@@ -1,10 +1,12 @@
 import { planOf, type LoyaltyPlan } from '@core/loyalty';
+import { liveTick } from '@core/live-tick';
+import { LiveSyncService } from '@core/services/live-sync.service';
 import { LoyaltyCardComponent } from '@shared/components/loyalty-card/loyalty-card';
 import { AutocompleteFieldComponent } from '@shared/components/autocomplete/autocomplete';
 import { DateFieldComponent, PickFieldComponent, plain } from '@shared/components/when-field/when-field';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormStatusComponent } from '@shared/components/form-status/form-status';
-import { Component, DestroyRef, HostListener, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, HostListener, computed, effect, inject, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -37,6 +39,7 @@ export class Customers {
   private readonly bookingApi = inject(BookingService);
   private readonly packagesApi = inject(PackagesService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly liveSync = inject(LiveSyncService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly auth = inject(AuthService);
@@ -539,6 +542,19 @@ export class Customers {
 
   constructor() {
     this.load();
+    // Tiempo real: clientes nuevos (por reserva en línea o desde otro dispositivo) aparecen sin refrescar.
+    liveTick(45_000)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.load(true));
+    let firstSync = true;
+    effect(() => {
+      this.liveSync.version();
+      if (firstSync) {
+        firstSync = false;
+        return;
+      }
+      untracked(() => this.load(true));
+    });
     this.bookingApi
       .getMyBrand()
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -561,7 +577,7 @@ export class Customers {
       .subscribe((rows) => this.packages.set(rows));
   }
 
-  private load(): void {
+  private load(quiet = false): void {
     this.bookingApi
       .getClients()
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -570,7 +586,11 @@ export class Customers {
           this.clients.set(rows);
           this.loaded.set(true);
         },
-        error: () => this.loadError.set('No pudimos cargar los clientes.'),
+        error: () => {
+          if (!quiet) {
+            this.loadError.set('No pudimos cargar los clientes.');
+          }
+        },
       });
   }
 

@@ -48,6 +48,7 @@
       }
       @if (item.is_cancelled) {
         <p class="mt-4 text-sm font-medium text-[var(--nx-bad-fg)]">Cita cancelada</p>
+        <a class="btn btn-primary mt-3 w-full" [href]="'/' + slug + '/book'">Reservar otra cita</a>
       }
       <dl class="mt-5 space-y-2 text-sm">
         <div>

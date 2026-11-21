@@ -1,8 +1,10 @@
 import { scrollBehavior } from '@core/motion';
+import { liveTick } from '@core/live-tick';
+import { LiveSyncService } from '@core/services/live-sync.service';
 import { WHATS_NEW, newsText, unseenNews } from '@core/whats-new';
 import { attendanceState } from '@core/appointment-progress';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatIconModule } from '@angular/material/icon';
 import { MatDialog } from '@angular/material/dialog';
@@ -46,6 +48,7 @@ export class HomePageComponent {
   private readonly confirm = inject(Confirm);
   private readonly toasts = inject(Toasts);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly liveSync = inject(LiveSyncService);
   /** "Hoy" y "ahora" son los del negocio, no los del navegador. */
   private readonly clock = inject(BusinessClock);
   protected readonly demoLoaded = signal(false);
@@ -366,12 +369,35 @@ export class HomePageComponent {
     this.loadExtras();
     const timer = setInterval(() => this.now.set(this.clock.nowMs()), 60_000);
     this.destroyRef.onDestroy(() => clearInterval(timer));
+    // Tiempo real: al llegar algo nuevo (o cada 30 s con la pestaña a la vista) se actualiza sin parpadeo.
+    liveTick(30_000)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.refreshLive());
+    let firstSync = true;
+    effect(() => {
+      this.liveSync.version();
+      if (firstSync) {
+        firstSync = false;
+        return;
+      }
+      untracked(() => this.refreshLive());
+    });
+  }
+
+  private refreshLive(): void {
+    if (this.isLoading()) {
+      return;
+    }
+    this.load(true);
+    this.loadExtras();
   }
 
   /** Solo las citas son indispensables; lo demás, si falla, se queda vacío sin tumbar la página. */
-  protected load(): void {
-    this.isLoading.set(true);
-    this.loadError.set(null);
+  protected load(quiet = false): void {
+    if (!quiet) {
+      this.isLoading.set(true);
+      this.loadError.set(null);
+    }
     forkJoin({
       appointments: this.appointmentsApi.getAppointments({ start_date: inputDate(this.clock.now()), end_date: inputDate(addDays(this.clock.now(), 21)) }),
       services: this.servicesApi.getServices().pipe(catchError(() => of([] as Service[]))),
@@ -386,6 +412,9 @@ export class HomePageComponent {
           this.isLoading.set(false);
         },
         error: (error: unknown) => {
+          if (quiet) {
+            return;
+          }
           this.isLoading.set(false);
           this.loadError.set(readError(error, 'No pudimos cargar el inicio.'));
         },

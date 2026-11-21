@@ -115,7 +115,7 @@ export class Register {
       list.push('un correo válido');
     }
     if (c.password.invalid) {
-      list.push('una contraseña de 8 o más caracteres');
+      list.push('una contraseña de 10 o más caracteres');
     }
     if (c.acceptTerms.invalid) {
       list.push('aceptar los términos');
