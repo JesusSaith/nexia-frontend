@@ -30,6 +30,8 @@ import { Closure } from '@core/models/business.model';
 import { staffColorOf } from '@core/staff-colors';
 import { ALL_METHODS, METHOD_LABELS, PAYMENT_METHODS } from '@core/payment-methods';
 import { agendaTourSteps } from '@core/tour';
+import { liveTick } from '@core/live-tick';
+import { LiveSyncService } from '@core/services/live-sync.service';
 import { TourComponent } from '@shared/components/tour/tour';
 import { DragTarget, dragTarget } from '@core/drag-move';
 import { updatedAgo } from '@core/updated-ago';
@@ -114,6 +116,7 @@ export class AgendaPageComponent {
   private readonly auth = inject(AuthService);
   /** "Hoy" y "ahora" son los del negocio, no los del navegador. */
   private readonly clock = inject(BusinessClock);
+  private readonly liveSync = inject(LiveSyncService);
   private readonly confirm = inject(Confirm);
   private readonly reviewsApi = inject(ReviewsService);
   private readonly route = inject(ActivatedRoute);
@@ -341,7 +344,7 @@ export class AgendaPageComponent {
       list.push('cuánto se cobró');
     }
     if (this.pastVisit() && this.pastOutcome() === 'done' && this.pastSplitBad()) {
-      list.push('cuánto pagó con tarjeta');
+      list.push(this.pastSplitCard().trim() ? 'un monto con tarjeta menor al total' : 'cuánto pagó con tarjeta');
     }
     if (!this.pastVisit() && value.deposit_mode === 'received' && !(Number(value.deposit_received) > 0)) {
       list.push('cuánto anticipo te mandó');
@@ -766,7 +769,7 @@ export class AgendaPageComponent {
               const worked = hours.filter((row) => !isToday || row.time < nowClock);
               const view = this.dayTimes(isToday ? day : { ...none }, isToday ? day.times : [], worked.map((row) => row.time));
               const busy = worked.filter((row) => row.busy).map((row) => row.time);
-              return { ...view, busy: [...new Set([...busy, ...view.busy])].sort(), reason: isToday ? (worked.length > 0 && view.free === 0 ? 'Ya pasaron las horas libres de hoy. Elige la hora en que se hizo el servicio para registrarlo.' : view.reason) : null };
+              return { ...view, busy: [...new Set([...busy, ...view.busy])].sort(), reason: isToday ? (worked.length > 0 && view.free === 0 ? 'Ya no quedan horas libres hoy. Para registrar un servicio que ya se hizo, toca la hora en que ocurrió.' : view.reason) : null };
             }),
           );
         }),
@@ -842,13 +845,30 @@ export class AgendaPageComponent {
     });
     interval(20000)
       .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.now.set(this.clock.nowMs()));
+    // La agenda se vuelve a pedir cada 20 s con la pestaña a la vista, y al instante al regresar a ella o al volver el internet.
+    liveTick(20000)
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
         this.now.set(this.clock.nowMs());
-        // En segundo plano no se vuelve a pedir la agenda; al regresar, el siguiente ciclo la actualiza.
-        if (this.ownStaffReady() && !document.hidden) {
+        if (this.ownStaffReady()) {
           this.loadAppointments(this.range(), this.staffId(), this.serviceId(), true);
         }
       });
+    // Si el panel detecta una reserva o cancelación nueva, se recarga sin esperar el ciclo.
+    let firstSync = true;
+    effect(() => {
+      this.liveSync.version();
+      if (firstSync) {
+        firstSync = false;
+        return;
+      }
+      untracked(() => {
+        if (this.ownStaffReady()) {
+          this.loadAppointments(this.range(), this.staffId(), this.serviceId(), true);
+        }
+      });
+    });
     effect(() => {
       const slug = this.auth.currentUser()?.slug;
       const service = this.pickedService();
@@ -2175,14 +2195,17 @@ export class AgendaPageComponent {
     this.freshPhone.set(false);
     this.guestQuery.set('');
     this.guestOpen.set(false);
-    if (this.guests().length === 0) {
-      this.booking.getClients().pipe(takeUntilDestroyed(this.destroyRef)).subscribe((rows) => {
+    // Se vuelve a pedir la lista cada vez que se abre el formulario: así un cliente recién agendado ya sale
+    // al buscarlo (por ejemplo, para darle otra cita 15 días después), sin tener que recargar la página.
+    this.booking
+      .getClients()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((rows) => {
         this.guests.set(rows);
         if (this.pendingTel) {
           this.applyTel(this.pendingTel);
         }
       });
-    }
     if (this.isStaff()) {
       this.form.controls.staff_id.disable();
     }

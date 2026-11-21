@@ -10,11 +10,13 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { Router, NavigationEnd, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { interval, of } from 'rxjs';
-import { catchError, filter, map, startWith, switchMap } from 'rxjs/operators';
+import { of } from 'rxjs';
+import { catchError, filter, map, switchMap } from 'rxjs/operators';
 
 import { UserRole } from '@core/models/user.model';
 import { AuthService } from '@core/services/auth.service';
+import { LiveSyncService } from '@core/services/live-sync.service';
+import { liveTick } from '@core/live-tick';
 import { BusinessCopy } from '@core/business-copy';
 import { BookingService } from '@core/services/booking.service';
 import { AppointmentsService } from '@core/services/appointments.service';
@@ -119,6 +121,7 @@ export class AdminLayoutComponent {
   protected readonly toasts = inject(Toasts);
   private readonly router = inject(Router);
   private readonly noticesApi = inject(DashboardService);
+  private readonly liveSync = inject(LiveSyncService);
   private readonly settingsApi = inject(SettingsService);
   private readonly dialog = inject(MatDialog);
   protected readonly push = inject(PushService);
@@ -141,6 +144,8 @@ export class AdminLayoutComponent {
   /** Cumpleaños de hoy sin felicitar (punto en Clientes). */
   protected readonly birthdaysToday = signal(0);
   private touchX = 0;
+  /** Aviso más reciente que ya se vio llegar; si sube, hay algo nuevo y la Agenda se recarga al instante. */
+  private syncedNotice: number | null = null;
   private seenNotice = Number(readSeen() || 0);
   private toastedNotice = Math.max(this.seenNotice, Number(readToasted() || 0));
   private toastTimer: ReturnType<typeof setTimeout> | null = null;
@@ -248,11 +253,10 @@ export class AdminLayoutComponent {
       if (!this.authService.isStaff()) {
         this.refreshReadiness();
       }
-      interval(20000)
+      // Cada 20 s con la pestaña a la vista (en segundo plano no se consulta: ahorra datos y batería) y, además,
+      // al instante cuando se regresa a la pestaña o vuelve el internet.
+      liveTick(20000, true)
         .pipe(
-          startWith(0),
-          // Con la pestaña en segundo plano no se consulta: ahorra datos y batería en el celular.
-          filter((tick) => tick === 0 || !document.hidden),
           switchMap(() => this.noticesApi.getNotices().pipe(catchError(() => of([])))),
           takeUntilDestroyed(this.destroyRef),
         )
@@ -340,6 +344,11 @@ export class AdminLayoutComponent {
   }
 
   private applyNotices(rows: { id: number; message: string; seen?: boolean }[]): void {
+    const topNotice = rows.reduce((top, row) => Math.max(top, row.id), 0);
+    if (this.syncedNotice !== null && topNotice > this.syncedNotice) {
+      this.liveSync.bump();
+    }
+    this.syncedNotice = topNotice;
     // Lo que el servidor aún no marca como visto (aunque haya llegado antes de abrir la app); en Inicio ya se está viendo.
     this.tabAlerts.count.set(this.router.url.startsWith('/admin/home') ? 0 : rows.filter((row) => !row.seen).length);
     // Primera vez en este navegador: lo anterior cuenta como visto (sin aviso emergente de algo viejo).

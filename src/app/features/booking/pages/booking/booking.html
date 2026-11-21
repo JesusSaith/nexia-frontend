@@ -460,7 +460,16 @@
           </div>
         </div>
       }
-      @if (soonest().length) {
+      @if (soonestLoading()) {
+        <!-- Mismo alto que los atajos reales: así el calendario no baja de golpe cuando terminan de cargar. -->
+        <div role="status" aria-label="Buscando los horarios más pronto">
+          <h2 class="mb-2 text-base font-medium">Lo más pronto</h2>
+          <div class="grid grid-cols-3 gap-2">
+            @for (n of [1, 2, 3]; track n) { <span class="skeleton h-16"></span> }
+          </div>
+          <p class="mt-4 text-sm text-muted">O elige otro día:</p>
+        </div>
+      } @else if (soonest().length) {
         <div>
           <h2 class="mb-2 text-base font-medium">Lo más pronto</h2>
           <div class="grid grid-cols-3 gap-2">
@@ -600,7 +609,7 @@
       <div class="grid gap-3 lg:grid-cols-2">
         <div class="flex flex-col gap-3">
           <label class="rounded-xl border border-line bg-surface px-3 py-2" [style.border-color]="phoneError() ? 'var(--nx-bad-fg)' : null">
-            <span class="block text-xs text-muted">Teléfono (WhatsApp)</span>
+            <span class="block text-xs text-muted">Teléfono (WhatsApp) <span class="font-semibold text-[var(--nx-bad-fg)]" aria-hidden="true">*</span></span>
             <input
               class="w-full bg-transparent text-base outline-none"
               [attr.aria-invalid]="phoneError() ? 'true' : null"
@@ -610,7 +619,7 @@
               formControlName="client_phone"
               aria-required="true"
               autocomplete="tel"
-              (input)="lookPackage($any($event.target).value)"
+              (input)="lookPackage(cleanPhone($any($event.target)))"
             />
           </label>
           @if (phoneError(); as message) {
@@ -619,7 +628,7 @@
         </div>
         <div class="flex flex-col gap-3">
           <label class="rounded-xl border border-line bg-surface px-3 py-2" [style.border-color]="nameError() ? 'var(--nx-bad-fg)' : null">
-            <span class="block text-xs text-muted">Tu nombre</span>
+            <span class="block text-xs text-muted">Tu nombre <span class="font-semibold text-[var(--nx-bad-fg)]" aria-hidden="true">*</span></span>
             <input class="w-full bg-transparent text-base outline-none" formControlName="client_name" aria-required="true" [attr.aria-invalid]="nameError() ? 'true' : null" autocomplete="name" />
           </label>
           @if (nameError(); as message) {
@@ -971,10 +980,10 @@
       @if (!needsQuote(appointment) && whatsappHref(appointment); as href) {
         <button type="button" class="btn btn-whatsapp mt-8 w-full justify-center" (click)="openWhatsapp(href)">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-5 w-5" fill="currentColor"><path d="M12 3a9 9 0 0 0-7.8 13.5L3 21l4.7-1.2A9 9 0 1 0 12 3zm4.8 12.6c-.2.6-1.2 1.1-1.7 1.1-.4 0-.9.2-3-.8-2.5-1.2-4.1-3.8-4.2-4-.1-.2-1-1.3-1-2.5s.6-1.8.9-2c.2-.2.5-.3.7-.3h.5c.2 0 .4 0 .6.5.2.6.8 2 .8 2.1.1.1 0 .3-.1.4l-.4.5c-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.4 2.4 1.5.3.1.5.1.6-.1l.5-.6c.1-.2.3-.2.5-.1.2.1 1.4.7 1.6.8.2.1.4.2.4.3.1.3 0 .9-.2 1.2z"/></svg>
-          {{ selectedService()?.variable_price && !selectedService()?.price_at_visit ? 'Pedir cotización por WhatsApp' : 'Confirmar por WhatsApp' }}
+          {{ selectedService()?.variable_price && !selectedService()?.price_at_visit ? 'Pedir cotización por WhatsApp' : 'Avisar al negocio por WhatsApp (opcional)' }}
         </button>
         <p class="mt-1 text-xs text-muted">
-          Te abrimos WhatsApp con el mensaje listo{{ refPhotos().length ? ' y el enlace a tus fotos' : '' }}; solo toca enviar.
+          Tu cita ya quedó reservada. Si quieres, avisa al negocio por WhatsApp: te abrimos el mensaje listo{{ refPhotos().length ? ' con el enlace a tus fotos' : '' }}; solo toca enviar.
         </p>
       }
       @if (!needsQuote(appointment) && refPhotos().length && canShareFiles) {
@@ -1018,11 +1027,11 @@
       </div>
       @if (step() === 3) {
         <button type="button" class="btn btn-secondary mt-3 w-full" (click)="openStep(2)">Cambiar día u hora</button>
-        <button type="submit" form="booking-form" class="brand-fill mt-2 h-11 w-full rounded-full px-5 text-sm font-medium disabled:opacity-50" [disabled]="isSaving()">
+        <button type="submit" form="booking-form" class="brand-fill mt-2 h-11 w-full rounded-full px-5 text-sm font-medium disabled:opacity-50" [class.opacity-60]="detailsMissing().length > 0" [disabled]="isSaving()">
           {{ isSaving() ? 'Reservando…' : (holdsDeposit() ? 'Apartar horario' : 'Confirmar ' + copy().visit.toLowerCase()) }}
         </button>
         @if (detailsMissing().length > 0) {
-          <p class="mt-2 text-sm font-medium" style="color: var(--nx-bad-fg)" role="status">Falta: {{ detailsMissing().join(', ') }}</p>
+          <p class="mt-2 text-sm font-medium" [style.color]="triedConfirm() ? 'var(--nx-bad-fg)' : 'var(--color-muted)'" role="status">Falta: {{ detailsMissing().join(', ') }}</p>
         }
       }
     </aside>
@@ -1078,15 +1087,12 @@
   @if (!confirmation() && !isLoading() && !loadError()) {
     <!-- Resumen fijo: el cliente siempre ve qué está reservando y tiene el botón a la mano. -->
     <div class="booking-bar" [class.booking-bar-hide]="step() === 3" role="region" aria-label="Resumen de tu reserva">
-      <div class="mx-auto flex w-full max-w-3xl items-center gap-3 px-4 py-3">
+      <div class="mx-auto flex w-full max-w-3xl flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3">
         <div class="min-w-0 flex-1 text-sm">
           <p class="truncate font-medium">{{ info.title }}</p>
           <p class="truncate text-muted">
             {{ info.detail }}@if (info.who) { · con {{ info.who }}}
           </p>
-          @if (step() === 3 && detailsMissing().length > 0) {
-            <p class="font-medium" style="color: var(--nx-bad-fg)" role="status">Falta: {{ detailsMissing().join(', ') }}</p>
-          }
           @if (info.when && step() !== 3) {
             <p class="truncate font-medium first-letter:uppercase" style="color: var(--booking-ink, var(--booking-primary))">{{ info.when }}</p>
           }
@@ -1103,9 +1109,12 @@
             {{ selectedSlot() ? 'Continuar' : 'Elige una hora' }}
           </button>
         } @else {
-          <button type="submit" form="booking-form" class="brand-fill h-11 shrink-0 rounded-full px-5 text-sm font-medium disabled:opacity-50" [disabled]="isSaving()">
+          <button type="submit" form="booking-form" class="brand-fill h-11 shrink-0 rounded-full px-5 text-sm font-medium disabled:opacity-50" [class.opacity-60]="detailsMissing().length > 0" [disabled]="isSaving()">
             {{ isSaving() ? 'Reservando…' : (holdsDeposit() ? 'Apartar horario' : 'Confirmar ' + copy().visit.toLowerCase()) }}
           </button>
+        }
+        @if (step() === 3 && detailsMissing().length > 0) {
+          <p class="basis-full text-xs font-medium" [style.color]="triedConfirm() ? 'var(--nx-bad-fg)' : 'var(--color-muted)'" role="status">Falta: {{ detailsMissing().join(', ') }}</p>
         }
       </div>
     </div>

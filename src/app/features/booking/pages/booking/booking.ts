@@ -7,6 +7,7 @@ import { LoadFailure, loadFailure, missing } from '@core/load-failure';
 import { phoneLabel, telLink } from '@core/phone-label';
 import { usefulDescription } from '@core/service-card';
 import { scrollBehavior } from '@core/motion';
+import { liveTick } from '@core/live-tick';
 import { FAVORITES_KEY, clearFavorites, favoritesFirst, favoritesFor, toggleFavorite } from '@core/favorites';
 import { LAST_BOOKING_KEY, LastBooking, lastBookingFor, repeatable, withLastBooking } from '@core/last-booking';
 import { LoyaltyCardComponent } from '@shared/components/loyalty-card/loyalty-card';
@@ -233,6 +234,8 @@ export class Booking {
   protected readonly remembered = signal(false);
   /** Primer horario libre de los próximos días con lugar, para reservar "lo antes posible" sin calendario. */
   protected readonly soonest = signal<AvailabilitySlot[]>([]);
+  /** Mientras se buscan los atajos de "Lo más pronto" se reserva su lugar, para que el calendario no salte al cargarlos. */
+  protected readonly soonestLoading = signal(false);
   /** Aviso cuando el horario se ocupó mientras el cliente llenaba sus datos. */
   protected readonly bumpNotice = signal<string | null>(null);
   /** Si les ganaron un horario: los libres más cercanos de ese mismo día. */
@@ -285,6 +288,8 @@ export class Booking {
   protected readonly slotsError = signal<string | null>(null);
   protected readonly formError = signal<string | null>(null);
   private readonly validationTick = signal(0);
+  /** Se pone en true al tocar "Confirmar" con datos faltantes: hasta entonces el aviso "Falta:" va en gris, sin asustar. */
+  protected readonly triedConfirm = signal(false);
 
   protected readonly clientForm = new FormGroup({
     client_name: new FormControl('', {
@@ -470,6 +475,39 @@ export class Booking {
     this.loadCatalog();
     this.loadMine();
     this.track('visit');
+    // Los horarios se revisan solos mientras la persona elige y llena sus datos (y al regresar a la pestaña).
+    liveTick(45000)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.refreshLive());
+  }
+
+  /** Vuelve a pedir los horarios en silencio. En Datos avisa de inmediato si ya le ganaron el horario elegido. */
+  private refreshLive(): void {
+    const service = this.selectedService();
+    if (this.confirmation() || this.isSaving() || !service || !this.canChooseSchedule()) {
+      return;
+    }
+    if (this.step() === 2) {
+      this.loadOpenDays(false);
+      this.loadSlots(true);
+      return;
+    }
+    const slot = this.selectedSlot();
+    if (this.step() !== 3 || !slot) {
+      return;
+    }
+    this.bookingApi
+      .getAvailability(this.slug, service.id, this.selectedStaff()?.id ?? null, slot.slice(0, 10), this.extraIds(), this.resource(), this.selectedVariant())
+      .pipe(
+        map((rows) => rows as AvailabilitySlot[] | null),
+        catchError(() => of(null)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((rows) => {
+        if (rows && this.step() === 3 && this.selectedSlot() === slot && !this.isSaving() && !rows.some((row) => row.starts_at === slot)) {
+          this.bounceToSchedule(null);
+        }
+      });
   }
 
   /** Identificador al azar de esta visita (no es un dato personal): cuenta los pasos del embudo una vez por visita. */
@@ -639,6 +677,7 @@ export class Booking {
     this.bumpNotice.set(null);
     this.soonest.set([]);
     this.pendingSoonest = true;
+    this.soonestLoading.set(true);
     if (this.date() < this.minDate) {
       this.date.set(this.minDate);
     }
@@ -650,6 +689,7 @@ export class Booking {
     const picks = days.slice(0, 3);
     if (!service || !picks.length) {
       this.soonest.set([]);
+      this.soonestLoading.set(false);
       return;
     }
     const staffId = this.selectedStaff()?.id ?? null;
@@ -662,7 +702,10 @@ export class Booking {
       ),
     )
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((rows) => this.soonest.set(rows.filter((row): row is AvailabilitySlot => row !== null)));
+      .subscribe((rows) => {
+        this.soonest.set(rows.filter((row): row is AvailabilitySlot => row !== null));
+        this.soonestLoading.set(false);
+      });
   }
 
   protected pickSoonest(slot: AvailabilitySlot): void {
@@ -739,6 +782,16 @@ export class Booking {
   protected shortDate(iso: string): string {
     const date = new Date(`${iso}T12:00:00`);
     return Number.isNaN(date.getTime()) ? iso : new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short' }).format(date).replace('.', '');
+  }
+
+  /** Deja en el teléfono solo lo que puede llevar: números, espacios, guiones, paréntesis y el + de la lada. */
+  protected cleanPhone(input: HTMLInputElement): string {
+    const clean = input.value.replace(/[^\d\s+()-]/g, '');
+    if (clean !== input.value) {
+      input.value = clean;
+      this.clientForm.controls.client_phone.setValue(clean);
+    }
+    return clean;
   }
 
   protected lookPackage(phone: string): void {
@@ -882,10 +935,10 @@ export class Booking {
     // En celular las horas quedan debajo del calendario: si no se ven, se lleva la vista hasta ellas.
     setTimeout(() => {
       const anchor = document.getElementById('horas-dia');
-      if (anchor && anchor.getBoundingClientRect().top > window.innerHeight * 0.6) {
-        anchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (anchor && anchor.getBoundingClientRect().top > window.innerHeight * 0.5) {
+        anchor.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
       }
-    });
+    }, 60);
   }
 
   protected shiftMonth(direction: -1 | 1): void {
@@ -950,6 +1003,10 @@ export class Booking {
               return;
             }
           }
+        }
+        if (this.pendingSoonest) {
+          this.pendingSoonest = false;
+          this.loadSoonest([]);
         }
         this.loadSlots();
       });
@@ -1019,6 +1076,7 @@ export class Booking {
     this.step.set(2);
     scrollToTop();
     this.pendingSoonest = true;
+    this.soonestLoading.set(true);
     this.dayHops = 0;
     this.loadOpenDays(true);
     if (taken) {
@@ -1095,6 +1153,7 @@ export class Booking {
     this.validationTick.update((tick) => tick + 1);
     this.clientForm.markAllAsTouched();
     if (this.clientForm.invalid) {
+      this.triedConfirm.set(true);
       // El botón no se apaga: al tocarlo se marcan en rojo los campos que faltan y se lleva la vista al primero.
       setTimeout(() => document.querySelector<HTMLElement>('#booking-form [aria-invalid="true"]')?.focus());
       return;
@@ -1360,6 +1419,7 @@ export class Booking {
     this.favorites.set({ services: [], staff: [] });
     this.clientForm.patchValue({ client_name: '', client_phone: '', client_email: '' });
     this.clientForm.markAsUntouched();
+    this.triedConfirm.set(false);
     this.waitName.set('');
     this.waitPhone.set('');
     this.remembered.set(false);
@@ -1412,7 +1472,7 @@ export class Booking {
       });
   }
 
-  private loadSlots(): void {
+  private loadSlots(quiet = false): void {
     const service = this.selectedService();
     const date = this.date();
     if (!service || !this.canChooseSchedule() || !date) {
@@ -1428,8 +1488,10 @@ export class Booking {
     }
 
     const requestId = ++this.slotsRequest;
-    this.slotsLoading.set(true);
-    this.slotsError.set(null);
+    if (!quiet) {
+      this.slotsLoading.set(true);
+      this.slotsError.set(null);
+    }
 
     this.bookingApi
       .getAvailability(this.slug, service.id, this.selectedStaff()?.id ?? null, date, this.extraIds(), this.resource(), this.selectedVariant())
@@ -1441,9 +1503,11 @@ export class Booking {
           }
           this.slots.set([...slots].sort((a, b) => a.starts_at.localeCompare(b.starts_at)));
           this.slotsLoading.set(false);
+          this.slotsError.set(null);
         },
         error: (error: unknown) => {
-          if (requestId !== this.slotsRequest) {
+          if (requestId !== this.slotsRequest || quiet) {
+            // En una revisión en silencio, un error de red no borra los horarios que ya se ven.
             return;
           }
           this.slots.set([]);
