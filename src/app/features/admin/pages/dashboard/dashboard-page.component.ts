@@ -20,7 +20,7 @@ import { ServicesService } from '@core/services/services.service';
 import { SegmentedDirective } from '@shared/directives/segmented.directive';
 import { FormStatusComponent } from '@shared/components/form-status/form-status';
 import { Confirm } from '@shared/components/confirm/confirm';
-import { BookingFunnel, CashDay, CashRow, SalesReport, ShopExpense, ShopService } from '@core/services/shop.service';
+import { BookingFunnel, CashDay, CashRow, DepositMonth, SalesReport, ShopExpense, ShopService } from '@core/services/shop.service';
 import { DateFieldComponent, DateRangeFieldComponent, PickFieldComponent } from '@shared/components/when-field/when-field';
 import { ReportSheet, downloadExcel, downloadPdf } from './dashboard-export';
 
@@ -117,6 +117,8 @@ export class DashboardPageComponent {
   protected readonly summary = signal<DashboardSummary | null>(null);
   protected readonly isLoading = signal(true);
   protected readonly books = signal<SalesReport | null>(null);
+  /** Anticipos por mes de la cita (este mes y los siguientes), para saber cuánto apartar. Vacío si no hay ninguno. */
+  protected readonly depositMonths = signal<DepositMonth[]>([]);
   /** Embudo de la página de reservas del periodo (null si no se pudo cargar). */
   protected readonly funnel = signal<BookingFunnel | null>(null);
   protected readonly funnelTop = computed(() => this.funnel()?.steps[0]?.visitors ?? 0);
@@ -686,7 +688,19 @@ export class DashboardPageComponent {
     return whole > 0 ? Math.round((part / whole) * 100) : 0;
   }
 
+  /** "Diciembre" o "Enero 2027" (con el año solo cuando no es el actual). */
+  protected depositMonthLabel(month: string): string {
+    const [year, number] = month.split('-').map(Number);
+    const name = new Intl.DateTimeFormat('es-MX', { month: 'long' }).format(new Date(year, number - 1, 1));
+    const label = name.charAt(0).toUpperCase() + name.slice(1);
+    return year === new Date().getFullYear() ? label : `${label} ${year}`;
+  }
+
   constructor() {
+    this.shop
+      .depositsByMonth(4)
+      .pipe(catchError(() => of([] as DepositMonth[])), takeUntilDestroyed(this.destroyRef))
+      .subscribe((rows) => this.depositMonths.set(rows.filter((row) => row.held_count > 0 || row.due_count > 0)));
     // El corte de caja se carga al abrir su pestaña.
     effect(() => {
       if (this.view() === 'cash' && !this.cash()) {
