@@ -879,6 +879,26 @@
           }
         </article>
       </div>
+      @if (depositMonths().length > 0) {
+        <article class="card mt-3 p-4!">
+          <p class="flex items-center gap-1.5 text-sm text-muted"><mat-icon class="h-4! w-4! text-[16px]!" aria-hidden="true">savings</mat-icon>Anticipos por mes</p>
+          <p class="mt-0.5 text-xs text-muted">Por el mes de la cita, de mañana en adelante. Lo ya recibido es lo que conviene apartar.</p>
+          <ul class="mt-2 divide-y divide-line">
+            @for (item of depositMonths(); track item.month) {
+              <li class="flex items-baseline justify-between gap-3 py-2">
+                <span class="text-sm font-medium text-ink">{{ depositMonthLabel(item.month) }}</span>
+                <span class="text-right">
+                  <span class="nums block text-base font-semibold text-ink">{{ money(item.held_amount) }}</span>
+                  <span class="nums block text-xs text-muted">{{ item.held_count }} {{ item.held_count === 1 ? 'cita con anticipo recibido' : 'citas con anticipo recibido' }}</span>
+                  @if (item.due_count > 0) {
+                    <span class="nums block text-xs text-muted">Faltan {{ money(item.due_amount) }} de {{ item.due_count }} {{ item.due_count === 1 ? 'cita' : 'citas' }}</span>
+                  }
+                </span>
+              </li>
+            }
+          </ul>
+        </article>
+      }
       <button type="button" class="btn btn-secondary mt-4 w-full sm:w-auto" [attr.aria-expanded]="moreDetail()" (click)="moreDetail.set(!moreDetail())">
         <mat-icon>{{ moreDetail() ? 'expand_less' : 'expand_more' }}</mat-icon>{{ moreDetail() ? 'Ocultar el análisis' : 'Ver análisis a fondo' }}
       </button>
