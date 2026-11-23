@@ -107,7 +107,7 @@
           <mat-icon class="pointer-events-none absolute left-3 top-1/2 h-5! w-5! -translate-y-1/2 text-[20px]! text-muted">search</mat-icon>
           <input class="input pl-10!" type="search" placeholder="Buscar por nombre o teléfono" [ngModel]="query()" (ngModelChange)="query.set($event)" />
         </label>
-        @if (filter() !== 'best' && filter() !== 'missing' && filter() !== 'birthday') {
+        @if (filter() !== 'best' && !inviteMode()) {
           <select class="input w-auto! max-sm:min-w-0 max-sm:flex-1" aria-label="Ordenar la lista" name="sort" [ngModel]="sort()" (ngModelChange)="sort.set($event)">
             @for (option of sorts; track option.key) {
               <option [value]="option.key">Ordenar: {{ option.label }}</option>
@@ -140,10 +140,32 @@
       @if (filter() === 'cancel') {
         <p class="card-tint mt-2 flex items-start gap-2 rounded-xl border px-3 py-2.5 text-sm text-ink-soft">
           <mat-icon class="h-5! w-5! shrink-0 text-[20px]! text-accent" aria-hidden="true">lightbulb</mat-icon>
-          <span>Dos o más cancelaciones o faltas. Pídeles anticipo para apartar su lugar.</span>
+          <span>Dos o más cancelaciones o faltas. Pídeles anticipo para apartar su lugar: se activa en <a routerLink="/admin/settings" class="font-medium text-accent underline">Ajustes → Anticipo</a>.</span>
         </p>
       } @else if (filter() === 'missing') {
-        <p class="field-hint mt-2">Más de 45 días sin venir y sin cita próxima. Las que llevan más tiempo van primero.</p>
+        <p class="field-hint mt-2">Más de 45 días sin venir y sin cita próxima. Los que llevan más tiempo van primero.</p>
+      } @else if (filter() === 'first') {
+        <p class="field-hint mt-2">Vinieron una sola vez en los últimos 60 días y no tienen otra cita. Un mensaje a tiempo hace que regresen.</p>
+      } @else if (filter() === 'best') {
+        @let summary = bestSummary();
+        @if (summary.top > 0) {
+          <p class="card-tint mt-2 rounded-xl border px-3 py-2.5 text-sm text-ink-soft">
+            Estos {{ visible().length }} han dejado <strong class="nums text-ink">{{ spent(summary.top) }}</strong>, el <strong class="nums text-ink">{{ summary.percent }}%</strong> de todo lo que has cobrado a tus {{ copy.text().clients.toLowerCase() }}.
+          </p>
+        }
+      }
+      @if (filter() === 'missing' || filter() === 'first') {
+        @if (hiddenContacted() > 0) {
+          <p class="field-hint mt-2">
+            Se esconden {{ hiddenContacted() }} a quienes ya les escribiste esta semana.
+            <button type="button" class="font-medium text-accent underline" (click)="showContacted.set(true)">Mostrarlos</button>
+          </p>
+        } @else if (showContacted()) {
+          <p class="field-hint mt-2">
+            Se muestran también a quienes ya les escribiste esta semana.
+            <button type="button" class="font-medium text-accent underline" (click)="showContacted.set(false)">Esconderlos</button>
+          </p>
+        }
       }
 
       @if (visible().length === 0) {
@@ -216,13 +238,13 @@
                   </span>
                 }
               </button>
-              @if (client.visit_count === 0 && hasPhone(client) && !selecting() && filter() !== 'missing' && filter() !== 'birthday') {
+              @if (client.visit_count === 0 && hasPhone(client) && !selecting() && !inviteMode()) {
                 <button type="button" class="btn btn-secondary hidden shrink-0 sm:inline-flex" [attr.aria-label]="'Agendar cita a ' + client.full_name" (click)="schedule(client)">
                   <mat-icon>event</mat-icon>
                   Agendar
                 </button>
               }
-              @if (filter() !== 'missing' && filter() !== 'birthday') {
+              @if (!inviteMode()) {
                 <!-- Atajos de la fila: llamar (pantalla grande) y WhatsApp. Siempre ocupan su lugar para que la tabla no se mueva. -->
                 <span class="flex w-11 shrink-0 justify-end gap-1 md:w-23">
                   @if (!selecting() && hasPhone(client)) {
@@ -233,6 +255,8 @@
               }
               @if (hasPhone(client) && filter() === 'missing') {
                 <a class="btn btn-whatsapp shrink-0 px-3!" [href]="missYou(client)" target="_blank" rel="noopener" (click)="logContact(client, 'invitar')">{{ client.last_contact_at ? 'Invitar otra vez' : 'Invitar' }}</a>
+              } @else if (hasPhone(client) && filter() === 'first') {
+                <a class="btn btn-whatsapp shrink-0 px-3!" [href]="firstVisit(client)" target="_blank" rel="noopener" (click)="logContact(client, 'invitar')">{{ client.last_contact_at ? 'Escribir otra vez' : 'Escribir' }}</a>
               } @else if (hasPhone(client) && filter() === 'birthday') {
                 <a class="btn btn-whatsapp shrink-0 px-3!" [href]="birthdayWish(client)" target="_blank" rel="noopener" (click)="logContact(client, 'felicitar')">Felicitar</a>
               }

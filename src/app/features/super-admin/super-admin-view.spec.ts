@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { BetaRequestItem } from '@core/models/platform-business.model';
 
-import { barPercent, countByStatus, defaultFilter, filterRequests, plural, sourceLabel } from './super-admin-view';
+import { barPercent, countByStatus, defaultFilter, filterRequests, daysAgo, plural, shortDate, sourceLabel } from './super-admin-view';
 
 const item = (id: number, status: BetaRequestItem['status'], created_at: string): BetaRequestItem => ({
   id, name: 'Ana', email: 'a@b.mx', phone: '5512345678', business_name: 'Salón', kind: 'belleza', message: null, people: null, source: null, status, created_at,
@@ -41,5 +41,20 @@ describe('super-admin-view', () => {
     expect(sourceLabel('whatsapp')).toBe('WhatsApp');
     expect(sourceLabel('instagram')).toBe('Instagram');
     expect(sourceLabel('directo')).toBe('Directo');
+  });
+
+  it('acentúa y capitaliza las fuentes conocidas', () => {
+    expect(sourceLabel('invitacion')).toBe('Invitación');
+  });
+
+  it('escribe las fechas como una persona', () => {
+    expect(shortDate('2026-11-05')).toBe('5 nov 2026');
+    expect(shortDate(null)).toBe('');
+  });
+
+  it('cuenta los días desde una fecha', () => {
+    expect(daysAgo('2026-11-23', '2026-11-23')).toBe('hoy');
+    expect(daysAgo('2026-11-22', '2026-11-23')).toBe('ayer');
+    expect(daysAgo('2026-11-20T10:00', '2026-11-23')).toBe('hace 3 días');
   });
 });

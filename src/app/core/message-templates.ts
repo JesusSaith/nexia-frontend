@@ -20,6 +20,7 @@ export type MessageKey =
   | 'receipt'
   | 'birthday'
   | 'miss_you'
+  | 'first_visit'
   | 'opening'
   | 'waitlist'
   | 'share_link'
@@ -175,6 +176,13 @@ export const MESSAGE_TEMPLATES: readonly MessageTemplate[] = [
     text: '¡Hola {nombre}! 👋 Hace tiempo que no te vemos en {negocio} y te extrañamos. ¿Te apartamos tu próxima cita? Dinos qué día te acomoda.',
   },
   {
+    key: 'first_visit',
+    label: 'Gracias por tu primera visita',
+    where: 'Clientes → primera visita',
+    vars: ['nombre', 'negocio'],
+    text: '¡Hola {nombre}! 💛 Gracias por visitarnos en {negocio}, fue un gusto atenderte. ¿Te apartamos tu próxima cita? Dinos qué día te acomoda.',
+  },
+  {
     key: 'opening',
     label: 'Ofrecer un horario libre',
     where: 'Inicio → huecos de mañana',
@@ -212,7 +220,7 @@ export type MessageMoment = 'before' | 'after' | 'attract';
 export const MESSAGE_MOMENTS: readonly { id: MessageMoment; keys: readonly MessageKey[] }[] = [
   { id: 'before', keys: ['reminder', 'hold_idea', 'booked', 'approved', 'declined', 'deposit_ok', 'proof_retry', 'quote', 'repeat', 'chat'] },
   { id: 'after', keys: ['receipt', 'review'] },
-  { id: 'attract', keys: ['due', 'birthday', 'miss_you', 'opening', 'waitlist', 'share_link', 'dm_reply'] },
+  { id: 'attract', keys: ['due', 'birthday', 'miss_you', 'first_visit', 'opening', 'waitlist', 'share_link', 'dm_reply'] },
 ];
 
 const DEFAULTS = new Map(MESSAGE_TEMPLATES.map((template) => [template.key, template.text]));

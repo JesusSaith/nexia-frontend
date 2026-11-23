@@ -24,13 +24,17 @@ import { Toasts } from '@core/toasts';
 import { Confirm } from '@shared/components/confirm/confirm';
 import { Skeleton } from '@shared/components/skeleton/skeleton';
 
-type Filter = 'all' | 'best' | 'missing' | 'cancel' | 'birthday' | 'package';
+type Filter = 'all' | 'best' | 'missing' | 'first' | 'cancel' | 'birthday' | 'package';
 type Sort = 'name' | 'recent' | 'spent' | 'visits';
 
 /** Sin venir en más de estos días (y sin cita próxima) cuenta como "dejó de venir". */
 const AWAY_DAYS = 45;
 /** Cuántos clientes muestra la pestaña "Mejores". */
 const BEST_LIMIT = 10;
+/** Cuántos días desde su primera visita se le sigue invitando a volver. */
+const FIRST_DAYS = 60;
+/** Quien ya recibió una invitación sale de la lista estos días. */
+const CONTACT_DAYS = 7;
 
 @Component({
   selector: 'app-customers',
@@ -69,6 +73,7 @@ export class Customers {
       all: 'Aún no hay nadie aquí.',
       best: 'Aquí aparecerán quienes más gastan, en cuanto haya cobros.',
       missing: 'Nadie ha dejado de venir. Buen trabajo.',
+      first: 'Nadie vino por primera vez en los últimos 60 días, o ya les escribiste a todos.',
       cancel: 'Nadie cancela ni falta seguido.',
       birthday: 'No hay cumpleaños en los próximos 7 días.',
       package: 'Nadie tiene un paquete con visitas por usar. Se agregan desde la ficha.',
@@ -94,6 +99,40 @@ export class Customers {
     }
     return map;
   });
+
+  private readonly firstCut = localDay(new Date(Date.now() - FIRST_DAYS * 86_400_000));
+  private readonly contactCut = localDay(new Date(Date.now() - CONTACT_DAYS * 86_400_000));
+  /** Ver también a quienes ya recibieron una invitación esta semana. */
+  protected readonly showContacted = signal(false);
+
+  /** Vino una sola vez, hace poco y no tiene otra cita: es el momento de invitarle a volver. */
+  protected isFirst(row: ClientRow): boolean {
+    return row.visit_count === 1 && !!row.last_visit && row.last_visit >= this.firstCut && !row.next_visit;
+  }
+
+  /** Ya se le invitó a volver en los últimos días (las felicitaciones no cuentan). */
+  protected recentlyContacted(row: ClientRow): boolean {
+    return !!row.last_contact_at && row.last_contact_kind !== 'felicitar' && row.last_contact_at.slice(0, 10) >= this.contactCut;
+  }
+
+  /** Cuántos se esconden de la lista actual por haber recibido ya su mensaje. */
+  protected readonly hiddenContacted = computed(() => {
+    const kind = this.filter();
+    if (this.showContacted() || (kind !== 'missing' && kind !== 'first')) {
+      return 0;
+    }
+    return this.clients().filter((row) => (kind === 'missing' ? this.isMissing(row) : this.isFirst(row)) && this.recentlyContacted(row)).length;
+  });
+
+  /** Lo que dejan los de "Mejores" frente a todo lo cobrado. */
+  protected readonly bestSummary = computed(() => {
+    const all = this.clients().reduce((sum, row) => sum + row.total_spent, 0);
+    const top = this.visible().reduce((sum, row) => sum + row.total_spent, 0);
+    return { top, all, percent: all > 0 ? Math.round((top / all) * 100) : 0 };
+  });
+
+  /** Las listas donde cada fila lleva su botón de mensaje armado. */
+  protected readonly inviteMode = computed(() => ['missing', 'birthday', 'first'].includes(this.filter()));
 
   protected isMissing(row: ClientRow): boolean {
     return !!row.last_visit && row.last_visit < this.awayCut && !row.next_visit;
@@ -138,7 +177,8 @@ export class Customers {
   private readonly tests: Record<Filter, (row: ClientRow) => boolean> = {
     all: () => true,
     best: (row) => row.total_spent > 0,
-    missing: (row) => this.isMissing(row),
+    missing: (row) => this.isMissing(row) && (this.showContacted() || !this.recentlyContacted(row)),
+    first: (row) => this.isFirst(row) && (this.showContacted() || !this.recentlyContacted(row)),
     cancel: (row) => this.isCanceller(row),
     birthday: (row) => this.isBirthday(row),
     package: (row) => this.packLeft(row) > 0,
@@ -148,13 +188,14 @@ export class Customers {
     const rows = this.clients();
     this.packsByPhone();
     const count = (key: Filter) => rows.filter(this.tests[key]).length;
-    return { all: rows.length, best: Math.min(count('best'), BEST_LIMIT), missing: count('missing'), cancel: count('cancel'), birthday: count('birthday'), package: count('package') };
+    return { all: rows.length, best: Math.min(count('best'), BEST_LIMIT), missing: count('missing'), first: count('first'), cancel: count('cancel'), birthday: count('birthday'), package: count('package') };
   });
 
   protected readonly chips: { key: Filter; label: string; icon: string; tone: string }[] = [
     { key: 'all', label: 'Todos', icon: 'groups', tone: 'stat-accent' },
     { key: 'best', label: 'Mejores', icon: 'workspace_premium', tone: 'stat-accent' },
     { key: 'missing', label: 'Dejaron de venir', icon: 'person_off', tone: 'stat-warn' },
+    { key: 'first', label: 'Primera visita', icon: 'waving_hand', tone: 'stat-info' },
     { key: 'cancel', label: 'Cancelan seguido', icon: 'event_busy', tone: 'stat-bad' },
     { key: 'birthday', label: 'Cumpleaños (7 días)', icon: 'cake', tone: 'stat-info' },
     { key: 'package', label: 'Con paquete', icon: 'card_membership', tone: 'stat-info' },
@@ -189,7 +230,7 @@ export class Customers {
       (row) => test(row) && (!tag || (row.tags ?? []).some((item) => item.toLowerCase() === tag)) && (!term || row.full_name.toLowerCase().includes(term) || (digits.length > 0 && row.phone.replace(/\D/g, '').includes(digits))),
     );
     // "Mejores" siempre va por gasto; "Dejaron de venir", de la que más tiempo lleva.
-    const sort = this.filter() === 'best' ? 'spent' : this.filter() === 'missing' ? 'oldest' : this.filter() === 'birthday' ? 'birthday' : this.sort();
+    const sort = this.filter() === 'best' ? 'spent' : this.filter() === 'missing' ? 'oldest' : this.filter() === 'first' ? 'recent' : this.filter() === 'birthday' ? 'birthday' : this.sort();
     const by: Record<string, (a: ClientRow, b: ClientRow) => number> = {
       name: (a, b) => a.full_name.localeCompare(b.full_name, 'es'),
       recent: (a, b) => (b.last_visit ?? '').localeCompare(a.last_visit ?? ''),
@@ -364,12 +405,13 @@ export class Customers {
   protected readonly bulkBusy = signal(false);
   protected readonly bulkError = signal<string | null>(null);
 
-  protected readonly chatKinds: { key: 'miss_you' | 'birthday' | 'share_link'; label: string }[] = [
+  protected readonly chatKinds: { key: 'miss_you' | 'first_visit' | 'birthday' | 'share_link'; label: string }[] = [
     { key: 'miss_you', label: 'Te extrañamos' },
+    { key: 'first_visit', label: 'Gracias por venir' },
     { key: 'birthday', label: 'Felicitar' },
     { key: 'share_link', label: 'Invitar a reservar' },
   ];
-  protected readonly chatKind = signal<'miss_you' | 'birthday' | 'share_link'>('miss_you');
+  protected readonly chatKind = signal<'miss_you' | 'first_visit' | 'birthday' | 'share_link'>('miss_you');
   private readonly chatRows = signal<ClientRow[]>([]);
   protected readonly chatIndex = signal(0);
   protected readonly chatCurrent = computed(() => this.chatRows()[this.chatIndex()] ?? null);
@@ -451,7 +493,7 @@ export class Customers {
   protected startChat(): void {
     this.chatRows.set(this.selectedRows().filter((row) => isPhone(row.phone)));
     this.chatIndex.set(0);
-    this.chatKind.set(this.filter() === 'birthday' ? 'birthday' : 'miss_you');
+    this.chatKind.set(this.filter() === 'birthday' ? 'birthday' : this.filter() === 'first' ? 'first_visit' : 'miss_you');
     this.bulkPanel.set('chat');
   }
 
@@ -983,6 +1025,10 @@ export class Customers {
 
   protected missYou(row: ClientRow): string {
     return whatsappLink(row.phone, this.copy.message('miss_you', { nombre: firstName(row.full_name), negocio: this.shopName() }));
+  }
+
+  protected firstVisit(row: ClientRow): string {
+    return whatsappLink(row.phone, this.copy.message('first_visit', { nombre: firstName(row.full_name), negocio: this.shopName() }));
   }
 
   private shopName(): string {
