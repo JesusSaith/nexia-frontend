@@ -6,6 +6,10 @@ export interface PlatformBusiness {
   appointment_count: number;
   is_active: boolean;
   is_demo?: boolean;
+  kind?: string | null;
+  created_at?: string | null;
+  service_count?: number;
+  last_appointment?: string | null;
 }
 
 export type BetaStatus = 'nueva' | 'aprobada' | 'registrada' | 'descartada';
