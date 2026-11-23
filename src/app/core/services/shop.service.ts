@@ -106,6 +106,15 @@ export interface StockMove {
   iva: number;
 }
 
+/** Anticipos de las citas de un mes: lo ya recibido (para apartarlo) y lo que falta por recibir. */
+export interface DepositMonth {
+  month: string;
+  held_amount: number;
+  held_count: number;
+  due_amount: number;
+  due_count: number;
+}
+
 export interface SalesReport {
   service_income: number;
   by_method?: Record<string, number>;
@@ -290,6 +299,10 @@ export class ShopService {
   /** Embudo de la página de reservas: cuántas visitas llegan a cada paso. */
   funnel(start: string, end: string): Observable<BookingFunnel> {
     return this.http.get<BookingFunnel>(`${this.apiBaseUrl}/shop/funnel`, { params: { start, end } });
+  }
+
+  depositsByMonth(months = 4): Observable<DepositMonth[]> {
+    return this.http.get<DepositMonth[]>(`${this.apiBaseUrl}/shop/deposits-by-month`, { params: { months } });
   }
 
   report(start: string, end: string): Observable<SalesReport> {
