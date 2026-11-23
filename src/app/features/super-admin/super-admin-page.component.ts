@@ -14,7 +14,7 @@ import { AuthService } from '@core/services/auth.service';
 import { SuperAdminService } from '@core/services/super-admin.service';
 
 import { weekOneMessages, whatsappUrl } from './beta-messages';
-import { RequestFilter, barPercent, countByStatus, defaultFilter, filterRequests, plural, sourceLabel } from './super-admin-view';
+import { RequestFilter, barPercent, countByStatus, defaultFilter, filterRequests, daysAgo, plural, shortDate, sourceLabel } from './super-admin-view';
 
 type SuperAdminTab = 'solicitudes' | 'landing' | 'negocios';
 const TAB_KEY = 'nexia-super-admin-tab';
@@ -31,7 +31,7 @@ export class SuperAdminPageComponent {
   private readonly toasts = inject(Toasts);
   private readonly destroyRef = inject(DestroyRef);
 
-  protected readonly columns = ['name', 'slug', 'staff', 'appointments', 'status', 'actions'];
+  protected readonly columns = ['name', 'slug', 'kind', 'created', 'staff', 'services', 'appointments', 'last', 'status', 'actions'];
   protected readonly businesses = signal<PlatformBusiness[]>([]);
   protected readonly isLoading = signal(true);
   protected readonly pendingId = signal<number | null>(null);
@@ -48,6 +48,7 @@ export class SuperAdminPageComponent {
       'pantallas-agenda': 'Pantallas · Agenda', 'pantallas-clientes': 'Pantallas · Clientes', 'pantallas-reportes': 'Pantallas · Reportes',
       'pantallas-qr': 'Pantallas · QR', 'pantallas-giro': 'Pantallas · Tu giro',
       p1: '1. Giro', p2: '2. Personas', p3: '3. Cómo llevan las citas', p4: '4. Contacto',
+      video20: 'Video: vieron 20 segundos o más', video50: 'Video: vieron la mitad', video100: 'Video: lo vieron completo',
     };
     const groups = [
       { step: 'tab', title: 'Pestañas que abren en Explora' },
@@ -56,7 +57,11 @@ export class SuperAdminPageComponent {
     ];
     return groups.map((g) => ({
       title: g.title,
-      rows: rows.filter((r) => r.step === g.step).map((r) => ({ label: labels[r.detail] ?? r.detail, visitors: r.visitors })),
+      rows: rows
+        .filter((r) => r.step === g.step)
+        .map((r) => ({ label: g.step === 'giro' ? this.kindLabel(r.detail) : (labels[r.detail] ?? r.detail), visitors: r.visitors, key: r.detail }))
+        // Las preguntas del quiz van en su orden (1, 2, 3, 4); lo demás, de más a menos visitas.
+        .sort((a, b) => (g.step === 'quiz' ? a.key.localeCompare(b.key) : b.visitors - a.visitors)),
     }));
   });
   protected readonly betaPendingId = signal<number | null>(null);
@@ -82,6 +87,9 @@ export class SuperAdminPageComponent {
   protected readonly funnelMax = computed(() => Math.max(0, ...(this.funnel()?.steps.map((step) => step.visitors) ?? [])));
   protected readonly sourcesMax = computed(() => Math.max(0, ...(this.funnel()?.sources.map((row) => row.visitors) ?? [])));
   protected readonly plural = plural;
+  protected readonly shortDate = shortDate;
+  protected readonly daysAgo = daysAgo;
+  protected readonly todayIso = new Date().toISOString().slice(0, 10);
   protected readonly sourceLabel = sourceLabel;
   protected readonly barPercent = barPercent;
 
