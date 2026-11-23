@@ -28,6 +28,7 @@ import { NOTICE_GROUPS, NoticeGroup, noticeAction, noticeGroup } from '@core/not
 import { DashboardService, HomeNotice } from '@core/services/dashboard.service';
 import { ServicesService } from '@core/services/services.service';
 import { ShopService } from '@core/services/shop.service';
+import { WeekTrendPoint } from '@core/models/dashboard.model';
 
 type Notice = HomeNotice;
 
@@ -61,6 +62,7 @@ export class HomePageComponent {
   private readonly pesosFormat = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
   protected readonly todayLabel = new Intl.DateTimeFormat('es-MX', { weekday: 'long', day: 'numeric', month: 'long' }).format(this.clock.now());
 
+  protected readonly max = Math.max;
   protected readonly isLoading = signal(true);
   protected readonly loadError = signal<string | null>(null);
   protected readonly booked = signal<Appointment[]>([]);
@@ -207,7 +209,22 @@ export class HomePageComponent {
   protected readonly alerts = signal<{ tone: string; text: string; link: string }[]>([]);
 
   /** Lo cobrado esta semana (lunes a hoy) contra los mismos días de la semana pasada. */
-  protected readonly week = signal<{ total: number; count: number; change: number | null } | null>(null);
+  protected readonly week = signal<{ total: number; count: number; change: number | null; tipsOwed: number } | null>(null);
+  /** Cobrado por día de lunes a hoy, para la barrita de la semana. */
+  protected readonly weekDays = signal<WeekTrendPoint[]>([]);
+  /** Anticipos ya recibidos de citas que aún no pasan (para apartarlos). Solo quien administra los ve. */
+  protected readonly depositsHeld = signal(0);
+  protected readonly canSeeMoney = computed(() => this.auth.role() === 'owner' || this.auth.role() === 'admin');
+  protected readonly weekBars = computed(() => {
+    const monday = inputDate(addDays(this.clock.now(), -((this.clock.now().getDay() + 6) % 7)));
+    const today = inputDate(this.clock.now());
+    const rows = this.weekDays().filter((point) => point.date >= monday && point.date <= today);
+    const max = Math.max(1, ...rows.map((point) => point.revenue));
+    const names = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+    return rows.map((point) => ({ label: names[new Date(`${point.date}T00:00:00`).getDay()], revenue: point.revenue, height: Math.round((point.revenue / max) * 100), today: point.date === today }));
+  });
+  /** Propinas cobradas hoy; no están dentro de "Cobrado hoy", que es solo el servicio. */
+  protected readonly todayTips = computed(() => this.today().filter((item) => item.status === 'completed').reduce((sum, item) => sum + (item.tip ?? 0), 0));
 
   /** "Ya los vi" lo guarda el servidor: los avisos sin ver aparecen con punto; los demás, atenuados. */
   protected readonly allNotices = signal(false);
@@ -440,9 +457,9 @@ export class HomePageComponent {
       .subscribe((rows) => this.alerts.set(rows));
     const today = this.clock.now();
     const monday = addDays(today, -((today.getDay() + 6) % 7));
-    const total = (start: Date, end: Date): Observable<{ total: number; count: number } | null> =>
+    const total = (start: Date, end: Date): Observable<{ total: number; count: number; tipsOwed: number } | null> =>
       this.shopApi.report(inputDate(start), inputDate(end)).pipe(
-        map((report) => ({ total: report.total, count: report.completed_count })),
+        map((report) => ({ total: report.total, count: report.completed_count, tipsOwed: report.tips_owed_total ?? 0 })),
         catchError(() => of(null)),
       );
     forkJoin({ now: total(monday, today), before: total(addDays(monday, -7), addDays(today, -7)) })
@@ -453,6 +470,16 @@ export class HomePageComponent {
           this.week.set({ ...now, change });
         }
       });
+    if (this.canSeeMoney()) {
+      this.dashboardApi
+        .getSummary()
+        .pipe(catchError(() => of(null)), takeUntilDestroyed(this.destroyRef))
+        .subscribe((summary) => this.weekDays.set(summary?.week_trend ?? []));
+      this.shopApi
+        .depositsByMonth(3)
+        .pipe(catchError(() => of([])), takeUntilDestroyed(this.destroyRef))
+        .subscribe((rows) => this.depositsHeld.set(rows.reduce((sum, row) => sum + row.held_amount, 0)));
+    }
   }
 
   protected async toggleDemo(): Promise<void> {

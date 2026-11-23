@@ -1,7 +1,7 @@
 import { AutocompleteFieldComponent } from '@shared/components/autocomplete/autocomplete';
 import { KeyValuePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { METHOD_LABELS } from '@core/payment-methods';
+import { METHOD_LABELS, PAYMENT_METHODS } from '@core/payment-methods';
 import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatIconModule } from '@angular/material/icon';
@@ -323,6 +323,40 @@ export class DashboardPageComponent {
     const total = this.books()?.total ?? 0;
     const target = this.goalMode() === 'percent' ? (total * this.goal()) / 100 : this.goal();
     return target - profit;
+  });
+  /** Cuánto hay que ganar al día para llegar a la meta antes de que acabe el periodo (solo si el periodo no ha terminado). */
+  protected readonly goalPace = computed(() => {
+    const left = this.gap();
+    const end = this.rangeEnd();
+    if (this.goal() <= 0 || left <= 0 || !end) {
+      return null;
+    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const last = new Date(`${end}T00:00:00`);
+    const days = Math.round((last.getTime() - today.getTime()) / 86_400_000) + 1;
+    if (days < 1) {
+      return null;
+    }
+    return { days, perDay: Math.ceil(left / days) };
+  });
+  /** Hora y día más flojos del mapa de calor, para proponer una promoción justo ahí. */
+  protected readonly quiet = computed(() => {
+    const map = this.heat();
+    if (map.empty) {
+      return null;
+    }
+    const plural = ['los lunes', 'los martes', 'los miércoles', 'los jueves', 'los viernes', 'los sábados', 'los domingos'];
+    const dayTotals = map.days.map((day) => day.cells.reduce((sum, cell) => sum + cell.value, 0));
+    const open = dayTotals.map((total, index) => ({ total, index })).filter((item) => item.total > 0 || item.index < 6);
+    const hourTotals = map.columns.map((hour, column) => ({ hour, total: map.days.reduce((sum, day) => sum + day.cells[column].value, 0) }));
+    const busiest = Math.max(...hourTotals.map((item) => item.total));
+    const slowDay = open.reduce((low, item) => (item.total < low.total ? item : low), open[0]);
+    const slowHour = hourTotals.filter((item) => item.hour >= 9 && item.hour <= 19).reduce((low, item) => (item.total < low.total ? item : low), hourTotals[0]);
+    if (busiest < 3) {
+      return null;
+    }
+    return { day: plural[slowDay.index], hour: slowHour.hour };
   });
   private readonly reloadBooks = signal(0);
   protected readonly loadError = signal<string | null>(null);
@@ -964,6 +998,43 @@ export class DashboardPageComponent {
     });
   }
 
+  /** Cita pasada sin cobrar que se está resolviendo desde Reportes (para no tocarla dos veces). */
+  protected readonly closing = signal<number | null>(null);
+  /** Cita a la que se le está eligiendo cómo pagó. */
+  protected readonly chargingId = signal<number | null>(null);
+  protected readonly payOptions = PAYMENT_METHODS;
+
+  /** Resuelve una cita que ya pasó: cobrada, no llegó o cancelada. Si el corte ya está cerrado, el servidor lo avisa. */
+  protected async closePast(id: number, outcome: 'completed' | 'no_show' | 'cancelled', method?: string): Promise<void> {
+    if (outcome === 'cancelled') {
+      const ok = await this.confirm.ask({
+        title: '¿Marcar como cancelada?',
+        message: 'La cita deja de contar como pendiente de cobro. Si el cliente ya dejó anticipo, revisa la cita en la agenda.',
+        confirm: 'Sí, cancelar',
+        danger: true,
+      });
+      if (!ok) {
+        return;
+      }
+    }
+    this.closing.set(id);
+    this.appointmentsApi
+      .updateStatus(id, outcome, method ? { payment_method: method } : undefined)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.closing.set(null);
+          this.chargingId.set(null);
+          this.toasts.show(outcome === 'completed' ? 'Cobro registrado.' : outcome === 'no_show' ? 'Marcada como "no llegó".' : 'Cita cancelada.');
+          this.reloadBooks.update((value) => value + 1);
+        },
+        error: (error: unknown) => {
+          this.closing.set(null);
+          this.toasts.show(readError(error, 'No pudimos guardarlo. Intenta de nuevo.'));
+        },
+      });
+  }
+
   protected owed(commission: number, paid: number): number {
     return Math.max(0, commission - paid);
   }
@@ -1295,7 +1366,7 @@ function savedPeriod(): 'day' | 'week' | 'month' | 'range' {
 /** "↑ 18%" contra el periodo anterior; sin dato anterior no se compara. */
 function change(now: number, before: number | null | undefined): { text: string; up: boolean | null } {
   if (!before) {
-    return { text: now ? 'Sin dato anterior' : '—', up: null };
+    return { text: now ? 'Aún no hay un periodo anterior para comparar' : '—', up: null };
   }
   const percent = Math.round(((now - before) / Math.abs(before)) * 100);
   if (percent === 0) {

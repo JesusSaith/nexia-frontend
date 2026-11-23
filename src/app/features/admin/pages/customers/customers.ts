@@ -29,6 +29,8 @@ type Sort = 'name' | 'recent' | 'spent' | 'visits';
 
 /** Sin venir en más de estos días (y sin cita próxima) cuenta como "dejó de venir". */
 const AWAY_DAYS = 45;
+/** Cuántos clientes muestra la pestaña "Mejores". */
+const BEST_LIMIT = 10;
 
 @Component({
   selector: 'app-customers',
@@ -146,7 +148,7 @@ export class Customers {
     const rows = this.clients();
     this.packsByPhone();
     const count = (key: Filter) => rows.filter(this.tests[key]).length;
-    return { all: rows.length, best: count('best'), missing: count('missing'), cancel: count('cancel'), birthday: count('birthday'), package: count('package') };
+    return { all: rows.length, best: Math.min(count('best'), BEST_LIMIT), missing: count('missing'), cancel: count('cancel'), birthday: count('birthday'), package: count('package') };
   });
 
   protected readonly chips: { key: Filter; label: string; icon: string; tone: string }[] = [
@@ -196,7 +198,9 @@ export class Customers {
       spent: (a, b) => b.total_spent - a.total_spent || b.visit_count - a.visit_count,
       visits: (a, b) => b.visit_count - a.visit_count || b.total_spent - a.total_spent,
     };
-    return [...rows].sort(by[sort]);
+    const sorted = [...rows].sort(by[sort]);
+    // "Mejores" son solo las 10 primeras (sin búsqueda ni etiqueta, que piden ver más).
+    return this.filter() === 'best' && !term && !tag ? sorted.slice(0, BEST_LIMIT) : sorted;
   });
 
   // Ficha
@@ -562,6 +566,11 @@ export class Customers {
         next: (brand) => this.loyalty.set(planOf(brand)),
         error: () => this.loyalty.set(null),
       });
+    // ?filtro=missing (desde Reportes): abre directo en "Dejaron de venir".
+    const wanted = this.route.snapshot.queryParamMap.get('filtro');
+    if (wanted === 'missing' || wanted === 'best' || wanted === 'cancel') {
+      this.filter.set(wanted);
+    }
     // ?ficha=ID (buscador del panel): abre esa ficha, también si ya se estaba en Clientes.
     this.route.queryParamMap
       .pipe(

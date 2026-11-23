@@ -99,6 +99,9 @@
           @if (dayBrief().due > 0) {
             <span class="nums block truncate text-xs text-muted">Faltan {{ pesos(dayBrief().due) }}</span>
           }
+          @if (todayTips() > 0) {
+            <span class="nums block truncate text-xs text-muted">Propinas aparte: {{ pesos(todayTips()) }}</span>
+          }
         </span>
       </a>
       @if (dayBrief().unconfirmed || dayBrief().todos) {
@@ -523,6 +526,24 @@
             <p class="nums mt-1 text-sm text-muted">
               {{ week.count }} {{ week.count === 1 ? 'cita cobrada' : 'citas cobradas' }}@if (week.change !== null) { · frente a los mismos días de la semana pasada }
             </p>
+            @if (weekBars().length > 1) {
+              <div class="mt-3 flex h-16 items-end gap-1.5" role="img" [attr.aria-label]="'Cobrado por día de lunes a hoy'">
+                @for (bar of weekBars(); track bar.label) {
+                  <div class="flex min-w-0 flex-1 flex-col items-center gap-1">
+                    <div class="flex h-12 w-full items-end rounded-sm bg-canvas">
+                      <div class="w-full rounded-sm bg-accent" [class.opacity-60]="!bar.today" [style.height.%]="bar.revenue > 0 ? max(bar.height, 6) : 0"></div>
+                    </div>
+                    <span class="text-xs text-muted">{{ bar.label }}</span>
+                  </div>
+                }
+              </div>
+            }
+            @if (canSeeMoney() && (week.tipsOwed > 0 || depositsHeld() > 0)) {
+              <p class="nums mt-3 text-sm text-ink-soft">
+                Dinero en mano: <strong class="text-ink">{{ pesos(week.total + week.tipsOwed + depositsHeld()) }}</strong>, de los cuales
+                {{ pesos(week.tipsOwed) }} son propinas por entregar y {{ pesos(depositsHeld()) }} son anticipos por apartar.
+              </p>
+            }
           </a>
         }
 

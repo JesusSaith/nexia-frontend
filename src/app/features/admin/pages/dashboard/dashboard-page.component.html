@@ -134,7 +134,7 @@
                 @if (g.missing || g.cancelling || g.worstName) {
                   <ul class="mt-1 text-sm text-ink-soft">
                     @if (g.missing) {
-                      <li><span class="nums font-semibold text-ink">{{ g.missing }}</span> {{ g.missing === 1 ? copy.text().client.toLowerCase() + ' dejó' : copy.text().clients.toLowerCase() + ' dejaron' }} de venir</li>
+                      <li><span class="nums font-semibold text-ink">{{ g.missing }}</span> {{ g.missing === 1 ? copy.text().client.toLowerCase() + ' dejó' : copy.text().clients.toLowerCase() + ' dejaron' }} de venir (más de 45 días sin volver)</li>
                     }
                     @if (g.cancelling) {
                       <li><span class="nums font-semibold text-ink">{{ g.cancelling }}</span> {{ g.cancelling === 1 ? copy.text().client.toLowerCase() + ' cancela' : copy.text().clients.toLowerCase() + ' cancelan' }} o {{ g.cancelling === 1 ? 'falta' : 'faltan' }} seguido</li>
@@ -143,7 +143,11 @@
                       <li>En la agenda de {{ g.worstName }} se perdieron <span class="nums font-semibold text-ink">{{ g.worstLost }}</span> citas (faltas o cancelaciones)</li>
                     }
                   </ul>
-                  <a routerLink="/admin/clientes" class="inline-flex min-h-11 items-center text-sm font-medium text-accent hover:underline">Ver clientes</a>
+                  @if (g.missing) {
+                    <a routerLink="/admin/clientes" [queryParams]="{ filtro: 'missing' }" class="btn btn-secondary mt-2"><mat-icon>chat</mat-icon>Escribirles por WhatsApp</a>
+                  } @else {
+                    <a routerLink="/admin/clientes" class="inline-flex min-h-11 items-center text-sm font-medium text-accent hover:underline">Ver clientes</a>
+                  }
                 } @else {
                   <p class="mt-1 text-sm text-ink-soft">Nadie por ahora. Tus {{ copy.text().clients.toLowerCase() }} siguen viniendo.</p>
                 }
@@ -182,11 +186,35 @@
                     <strong class="nums text-ink">{{ money(sale.uncollected_amount ?? 0) }}</strong> por cobrar en {{ sale.uncollected_count }} {{ sale.uncollected_count === 1 ? 'cita que ya pasó' : 'citas que ya pasaron' }} y no se han cobrado.
                     Los ingresos de arriba solo cuentan lo cobrado.
                   </p>
-                  <ul class="mt-1 text-sm text-muted">
+                  <ul class="mt-3 divide-y divide-line">
                     @for (item of sale.uncollected ?? []; track item.id) {
-                      <li class="nums">{{ item.name }} · {{ dueText(item.date.slice(0, 10)) }} · {{ money(item.amount) }}</li>
+                      <li class="py-2">
+                        <p class="text-sm text-ink-soft">
+                          <strong class="text-ink">{{ item.name }}</strong>
+                          @if (item.service) { · {{ item.service }} }
+                          · {{ dueText(item.date.slice(0, 10)) }} · <span class="nums">{{ money(item.amount) }}</span>
+                        </p>
+                        @if (chargingId() === item.id) {
+                          <div class="mt-2 flex flex-wrap items-center gap-2">
+                            <span class="text-sm text-muted">¿Cómo pagó?</span>
+                            @for (method of payOptions; track method.value) {
+                              <button type="button" class="chip" [disabled]="closing() === item.id" (click)="closePast(item.id, 'completed', method.value)">{{ method.label }}</button>
+                            }
+                            <button type="button" class="btn btn-ghost" (click)="chargingId.set(null)">Volver</button>
+                          </div>
+                        } @else {
+                          <div class="mt-2 flex flex-wrap gap-2">
+                            <button type="button" class="btn btn-primary" [disabled]="closing() === item.id" (click)="chargingId.set(item.id)">Se atendió, cobrar</button>
+                            <button type="button" class="btn btn-secondary" [disabled]="closing() === item.id" (click)="closePast(item.id, 'no_show')">No llegó</button>
+                            <button type="button" class="btn btn-secondary" [disabled]="closing() === item.id" (click)="closePast(item.id, 'cancelled')">Cancelada</button>
+                          </div>
+                        }
+                      </li>
                     }
                   </ul>
+                  @if ((sale.uncollected_count ?? 0) > (sale.uncollected?.length ?? 0)) {
+                    <p class="mt-2 text-sm text-muted">Se muestran las {{ sale.uncollected?.length }} más recientes. Al resolverlas aparecen las demás.</p>
+                  }
                 </div>
                 <a routerLink="/admin/agenda" class="btn btn-secondary">Ir a la agenda</a>
               </div>
@@ -633,6 +661,9 @@
                     <div class="h-full rounded-full bg-accent transition-all" [style.width.%]="goalProgress()"></div>
                   </div>
                   <p class="nums mt-1 text-sm text-muted">{{ goalProgress() }}% · {{ gap() > 0 ? 'faltan ' + money(gap()) : '¡meta cumplida!' }}</p>
+                  @if (goalPace(); as pace) {
+                    <p class="nums mt-1 text-sm text-ink-soft">Para llegar necesitas unos <strong class="text-ink">{{ money(pace.perDay) }}</strong> de ganancia al día {{ pace.days === 1 ? 'hoy' : 'los próximos ' + pace.days + ' días' }}.</p>
+                  }
                 } @else if (editingGoal()) {
                   <div class="flex items-center justify-between gap-3">
                     <p class="text-sm font-semibold text-ink">Tu meta de ganancia</p>
@@ -1026,6 +1057,13 @@
                 </table>
               </div>
               <p class="mt-2 text-sm text-muted">Más oscuro, más citas. Los huecos claros son buenos para promociones.</p>
+              @if (quiet(); as slow) {
+                <div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg bg-canvas p-3">
+                  <mat-icon class="text-accent" aria-hidden="true">lightbulb</mat-icon>
+                  <p class="min-w-0 flex-1 text-sm text-ink-soft">Tus horas más flojas son {{ slow.day }} y alrededor de las {{ slow.hour }}:00. Prueba un 10% de descuento ahí para llenarlas.</p>
+                  <a routerLink="/admin/settings" class="btn btn-secondary">Crear cupón</a>
+                </div>
+              }
             }
           }
         </article>
