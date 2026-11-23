@@ -129,7 +129,7 @@ export interface SalesReport {
   /** Citas del periodo que ya pasaron y siguen sin cobrar ni cerrar, y lo que falta cobrar de ellas (precio menos anticipo). */
   uncollected_count?: number;
   uncollected_amount?: number;
-  uncollected?: { id: number; name: string; date: string; amount: number }[];
+  uncollected?: { id: number; name: string; service?: string; date: string; amount: number }[];
   /** A quién cuidar (de hoy): clientes que dejaron de venir y clientes que cancelan o faltan seguido. */
   clients_missing?: number;
   clients_cancelling?: number;
